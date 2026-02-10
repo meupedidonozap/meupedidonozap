@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search } from 'lucide-react';
-import { mockStores } from '@/data/mockData';
+import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2 } from 'lucide-react';
+import { useStores, useCreateStore, useUpdateStore, useDeleteStore } from '@/hooks/useStores';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,8 +36,32 @@ const storeTypeBadgeColors: Record<StoreTypeEnum, string> = {
   COMIDA: 'bg-orange-100 text-orange-700',
 };
 
+const defaultSettings = {
+  primaryColor: '#1a2332',
+  accentColor: '#22c55e',
+  deliveryFee: 0,
+  minOrderValue: 0,
+  acceptPix: true,
+  acceptCard: true,
+  acceptBoleto: false,
+  workingHours: {
+    monday: { open: '08:00', close: '18:00', isOpen: true },
+    tuesday: { open: '08:00', close: '18:00', isOpen: true },
+    wednesday: { open: '08:00', close: '18:00', isOpen: true },
+    thursday: { open: '08:00', close: '18:00', isOpen: true },
+    friday: { open: '08:00', close: '18:00', isOpen: true },
+    saturday: { open: '08:00', close: '12:00', isOpen: true },
+    sunday: { open: '00:00', close: '00:00', isOpen: false },
+  },
+  discountRules: [],
+};
+
 export default function AdminPage() {
-  const [stores, setStores] = useState<StoreType[]>(mockStores);
+  const { data: stores = [], isLoading } = useStores();
+  const createStore = useCreateStore();
+  const updateStore = useUpdateStore();
+  const deleteStore = useDeleteStore();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreType | null>(null);
@@ -70,81 +94,49 @@ export default function AdminPage() {
       });
     } else {
       setEditingStore(null);
-      setFormData({
-        name: '',
-        slug: '',
-        type: 'LOJA',
-        address: '',
-        phone: '',
-        whatsapp: '',
-        email: '',
-      });
+      setFormData({ name: '', slug: '', type: 'LOJA', address: '', phone: '', whatsapp: '', email: '' });
     }
     setIsDialogOpen(true);
   };
 
-  const handleSaveStore = () => {
+  const handleSaveStore = async () => {
     if (!formData.name || !formData.slug) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
-    if (editingStore) {
-      setStores(prev => prev.map(s =>
-        s.id === editingStore.id
-          ? { ...s, ...formData }
-          : s
-      ));
-      toast.success('Empresa atualizada com sucesso!');
-    } else {
-      const newStore: StoreType = {
-        id: String(Date.now()),
-        ...formData,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        settings: {
-          primaryColor: '#1a2332',
-          accentColor: '#22c55e',
-          deliveryFee: 0,
-          minOrderValue: 0,
-          acceptPix: true,
-          acceptCard: true,
-          acceptBoleto: false,
-          workingHours: {
-            monday: { open: '08:00', close: '18:00', isOpen: true },
-            tuesday: { open: '08:00', close: '18:00', isOpen: true },
-            wednesday: { open: '08:00', close: '18:00', isOpen: true },
-            thursday: { open: '08:00', close: '18:00', isOpen: true },
-            friday: { open: '08:00', close: '18:00', isOpen: true },
-            saturday: { open: '08:00', close: '12:00', isOpen: true },
-            sunday: { open: '00:00', close: '00:00', isOpen: false },
-          },
-          discountRules: [],
-        },
-      };
-      setStores(prev => [...prev, newStore]);
-      toast.success('Empresa criada com sucesso!');
+    try {
+      if (editingStore) {
+        await updateStore.mutateAsync({ id: editingStore.id, ...formData });
+        toast.success('Empresa atualizada com sucesso!');
+      } else {
+        await createStore.mutateAsync({
+          ...formData,
+          isActive: true,
+          settings: defaultSettings,
+        });
+        toast.success('Empresa criada com sucesso!');
+      }
+      setIsDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar');
     }
-    setIsDialogOpen(false);
   };
 
-  const handleToggleActive = (storeId: string) => {
-    setStores(prev => prev.map(s =>
-      s.id === storeId ? { ...s, isActive: !s.isActive } : s
-    ));
+  const handleToggleActive = async (store: StoreType) => {
+    await updateStore.mutateAsync({ id: store.id, isActive: !store.isActive });
     toast.success('Status atualizado!');
   };
 
-  const handleDelete = (storeId: string) => {
+  const handleDelete = async (storeId: string) => {
     if (confirm('Tem certeza que deseja excluir esta empresa?')) {
-      setStores(prev => prev.filter(s => s.id !== storeId));
+      await deleteStore.mutateAsync(storeId);
       toast.success('Empresa excluída!');
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="gradient-primary text-primary-foreground">
         <div className="container py-6">
           <div className="flex items-center justify-between">
@@ -160,14 +152,11 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container py-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold">Empresas Cadastradas</h2>
-            <p className="text-muted-foreground">
-              Gerencie as lojas da plataforma
-            </p>
+            <p className="text-muted-foreground">Gerencie as lojas da plataforma</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -178,41 +167,24 @@ export default function AdminPage() {
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>
-                  {editingStore ? 'Editar Empresa' : 'Nova Empresa'}
-                </DialogTitle>
+                <DialogTitle>{editingStore ? 'Editar Empresa' : 'Nova Empresa'}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Nome da Empresa *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="DiColore Profissional"
-                  />
+                  <Input id="name" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="DiColore Profissional" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="slug">URL (slug) *</Label>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">/</span>
-                    <Input
-                      id="slug"
-                      value={formData.slug}
-                      onChange={e => setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s/g, '-') }))}
-                      placeholder="dicolore"
-                    />
+                    <Input id="slug" value={formData.slug} onChange={e => setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s/g, '-') }))} placeholder="dicolore" />
                   </div>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="type">Tipo de Loja *</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: StoreTypeEnum) => setFormData(prev => ({ ...prev, type: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
+                  <Select value={formData.type} onValueChange={(value: StoreTypeEnum) => setFormData(prev => ({ ...prev, type: value }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="LOJA">Loja de Produtos</SelectItem>
                       <SelectItem value="ACESSORIOS">Acessórios</SelectItem>
@@ -222,159 +194,91 @@ export default function AdminPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="address">Endereço</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="Rua das Flores, 123 - Centro"
-                  />
+                  <Input id="address" value={formData.address} onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))} placeholder="Rua das Flores, 123 - Centro" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="phone">Telefone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="(11) 3456-7890"
-                    />
+                    <Input id="phone" value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} placeholder="(11) 3456-7890" />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="whatsapp">WhatsApp</Label>
-                    <Input
-                      id="whatsapp"
-                      value={formData.whatsapp}
-                      onChange={e => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
-                      placeholder="5511999999999"
-                    />
+                    <Input id="whatsapp" value={formData.whatsapp} onChange={e => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))} placeholder="5511999999999" />
                   </div>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="contato@empresa.com.br"
-                  />
+                  <Input id="email" type="email" value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} placeholder="contato@empresa.com.br" />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSaveStore}>
-                  {editingStore ? 'Salvar' : 'Criar Empresa'}
-                </Button>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleSaveStore}>{editingStore ? 'Salvar' : 'Criar Empresa'}</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Search */}
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar empresa..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Buscar empresa..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
 
-        {/* Store Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredStores.map(store => (
-            <Card key={store.id} className="animate-fade-in overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <Store className="h-6 w-6 text-primary" />
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredStores.map(store => (
+              <Card key={store.id} className="animate-fade-in overflow-hidden">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                        <Store className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{store.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">/{store.slug}</p>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg">{store.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">/{store.slug}</p>
-                    </div>
+                    <button onClick={() => handleToggleActive(store)} className="text-muted-foreground hover:text-foreground">
+                      {store.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleToggleActive(store.id)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    {store.isActive ? (
-                      <ToggleRight className="h-6 w-6 text-accent" />
-                    ) : (
-                      <ToggleLeft className="h-6 w-6" />
-                    )}
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 flex items-center gap-2">
-                  <Badge className={storeTypeBadgeColors[store.type]}>
-                    {storeTypeLabels[store.type]}
-                  </Badge>
-                  <Badge variant={store.isActive ? 'default' : 'secondary'}>
-                    {store.isActive ? 'Ativa' : 'Inativa'}
-                  </Badge>
-                </div>
-                <p className="mb-4 text-sm text-muted-foreground line-clamp-2">
-                  {store.address}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1"
-                    onClick={() => handleOpenDialog(store)}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1"
-                    asChild
-                  >
-                    <Link to={`/${store.slug}/admin`}>
-                      <Settings className="h-3 w-3" />
-                      Admin
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1"
-                    asChild
-                  >
-                    <Link to={`/${store.slug}`}>
-                      <Eye className="h-3 w-3" />
-                      Ver
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => handleDelete(store.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4 flex items-center gap-2">
+                    <Badge className={storeTypeBadgeColors[store.type]}>{storeTypeLabels[store.type]}</Badge>
+                    <Badge variant={store.isActive ? 'default' : 'secondary'}>{store.isActive ? 'Ativa' : 'Inativa'}</Badge>
+                  </div>
+                  <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{store.address}</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenDialog(store)}>
+                      <Edit2 className="h-3 w-3" /> Editar
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
+                      <Link to={`/${store.slug}/admin`}><Settings className="h-3 w-3" /> Admin</Link>
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
+                      <Link to={`/${store.slug}`}><Eye className="h-3 w-3" /> Ver</Link>
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleDelete(store.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {filteredStores.length === 0 && (
+        {!isLoading && filteredStores.length === 0 && (
           <div className="py-12 text-center">
             <Store className="mx-auto h-12 w-12 text-muted-foreground/50" />
             <h3 className="mt-4 text-lg font-semibold">Nenhuma empresa encontrada</h3>
-            <p className="text-muted-foreground">
-              {searchTerm ? 'Tente buscar por outro termo' : 'Crie sua primeira empresa'}
-            </p>
+            <p className="text-muted-foreground">{searchTerm ? 'Tente buscar por outro termo' : 'Crie sua primeira empresa'}</p>
           </div>
         )}
       </main>
