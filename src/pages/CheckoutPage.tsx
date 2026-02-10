@@ -1,70 +1,54 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Download, MessageCircle } from 'lucide-react';
-import { getStoreBySlug } from '@/data/mockData';
+import { ArrowLeft, Download, MessageCircle, Loader2 } from 'lucide-react';
+import { useStoreBySlug } from '@/hooks/useStores';
+import { useCreateOrder } from '@/hooks/useOrders';
 import { useCart } from '@/contexts/CartContext';
 import {
-  formatCurrency,
-  formatCPFCNPJ,
-  formatPhone,
-  formatCEP,
-  generateWhatsAppMessage,
-  openWhatsApp,
-  downloadTxt,
+  formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
+  generateWhatsAppMessage, openWhatsApp, downloadTxt,
 } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import type { PaymentMethod, DeliveryShift } from '@/types';
 
 const brazilianStates = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
-  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
+  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
 ];
 
 export default function CheckoutPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const store = getStoreBySlug(slug || '');
+  const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
+  const createOrder = useCreateOrder();
   const { cart, clearCart } = useCart();
 
   const [formData, setFormData] = useState({
-    name: '',
-    cpfCnpj: '',
-    whatsapp: '',
-    cep: '',
-    uf: '',
-    city: '',
-    neighborhood: '',
-    address: '',
-    number: '',
-    complement: '',
+    name: '', cpfCnpj: '', whatsapp: '', cep: '', uf: '', city: '',
+    neighborhood: '', address: '', number: '', complement: '',
     paymentMethod: 'pix' as PaymentMethod,
     deliveryShift: 'tarde' as DeliveryShift,
     observations: '',
   });
-
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (storeLoading) {
+    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
 
   if (!store) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Loja não encontrada</h1>
-          <Button asChild className="mt-4">
-            <Link to="/">Voltar</Link>
-          </Button>
+          <Button asChild className="mt-4"><Link to="/">Voltar</Link></Button>
         </div>
       </div>
     );
@@ -76,9 +60,7 @@ export default function CheckoutPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold">Carrinho vazio</h1>
           <p className="text-muted-foreground">Adicione produtos antes de finalizar</p>
-          <Button asChild className="mt-4">
-            <Link to={`/${store.slug}`}>Voltar à loja</Link>
-          </Button>
+          <Button asChild className="mt-4"><Link to={`/${store.slug}`}>Voltar à loja</Link></Button>
         </div>
       </div>
     );
@@ -99,28 +81,20 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const totalWithDelivery = cart.total + (store.settings.deliveryFee || 0);
+
   const generateOrderMessage = () => {
     return generateWhatsAppMessage({
       storeName: store.name,
       customer: {
-        name: formData.name,
-        cpfCnpj: formData.cpfCnpj,
-        whatsapp: formData.whatsapp,
+        name: formData.name, cpfCnpj: formData.cpfCnpj, whatsapp: formData.whatsapp,
         address: `${formData.address}, ${formData.number}`,
-        neighborhood: formData.neighborhood,
-        city: formData.city,
-        uf: formData.uf,
-        cep: formData.cep,
+        neighborhood: formData.neighborhood, city: formData.city, uf: formData.uf, cep: formData.cep,
       },
-      items: cart.items.map(item => ({
-        code: item.code,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-      })),
+      items: cart.items.map(item => ({ code: item.code, name: item.name, quantity: item.quantity, price: item.price })),
       subtotal: cart.subtotal,
       discount: cart.couponDiscount,
-      total: cart.total + (store.settings.deliveryFee || 0),
+      total: totalWithDelivery,
       paymentMethod: formData.paymentMethod,
       deliveryShift: formData.deliveryShift,
     });
@@ -128,311 +102,156 @@ export default function CheckoutPage() {
 
   const handleDownloadTxt = () => {
     if (!validateForm()) return;
-    const message = generateOrderMessage();
-    const filename = `pedido_${store.slug}_${Date.now()}.txt`;
-    downloadTxt(message, filename);
+    downloadTxt(generateOrderMessage(), `pedido_${store.slug}_${Date.now()}.txt`);
     toast.success('Arquivo baixado!');
   };
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
+    try {
+      await createOrder.mutateAsync({
+        storeId: store.id,
+        customer: {
+          name: formData.name, cpfCnpj: formData.cpfCnpj, whatsapp: formData.whatsapp,
+          cep: formData.cep, uf: formData.uf, city: formData.city,
+          neighborhood: formData.neighborhood, address: formData.address,
+          number: formData.number, complement: formData.complement,
+        },
+        items: cart.items,
+        subtotal: cart.subtotal,
+        discount: cart.couponDiscount,
+        deliveryFee: store.settings.deliveryFee || 0,
+        total: totalWithDelivery,
+        paymentMethod: formData.paymentMethod,
+        deliveryShift: formData.deliveryShift,
+        observations: formData.observations || undefined,
+        status: 'pendente',
+      });
 
-    const message = generateOrderMessage();
-    openWhatsApp(store.whatsapp, message);
-
-    toast.success('Pedido enviado! Você será redirecionado para o WhatsApp.');
-    
-    setTimeout(() => {
-      clearCart();
-      navigate(`/${store.slug}`);
-    }, 1500);
+      openWhatsApp(store.whatsapp, generateOrderMessage());
+      toast.success('Pedido enviado!');
+      setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar pedido');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  const totalWithDelivery = cart.total + (store.settings.deliveryFee || 0);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to={`/${store.slug}`}>
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
+          <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
           <div>
             <h1 className="font-bold">Dados do Cliente</h1>
-            <p className="text-sm text-muted-foreground">
-              {cart.items.length} itens • Total: {formatCurrency(totalWithDelivery)}
-            </p>
+            <p className="text-sm text-muted-foreground">{cart.items.length} itens • Total: {formatCurrency(totalWithDelivery)}</p>
           </div>
         </div>
       </header>
 
-      {/* Form */}
       <main className="container py-6">
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Customer Info */}
           <div className="space-y-6 lg:col-span-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Informações Pessoais</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Nome completo *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={e => handleInputChange('name', e.target.value.toUpperCase())}
-                    placeholder="DENIS ALEXANDRE FURTADO"
-                  />
+                  <Input id="name" value={formData.name} onChange={e => handleInputChange('name', e.target.value.toUpperCase())} placeholder="NOME COMPLETO" />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cpfCnpj">CPF / CNPJ *</Label>
-                    <Input
-                      id="cpfCnpj"
-                      value={formData.cpfCnpj}
-                      onChange={e => handleInputChange('cpfCnpj', formatCPFCNPJ(e.target.value))}
-                      placeholder="000.000.000-00"
-                    />
+                    <Input id="cpfCnpj" value={formData.cpfCnpj} onChange={e => handleInputChange('cpfCnpj', formatCPFCNPJ(e.target.value))} placeholder="000.000.000-00" />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="whatsapp">WhatsApp *</Label>
-                    <Input
-                      id="whatsapp"
-                      value={formData.whatsapp}
-                      onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))}
-                      placeholder="(47) 99999-9999"
-                    />
+                    <Input id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Endereço de Entrega</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Endereço de Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cep">CEP</Label>
-                    <Input
-                      id="cep"
-                      value={formData.cep}
-                      onChange={e => handleInputChange('cep', formatCEP(e.target.value))}
-                      placeholder="00000-000"
-                    />
+                    <Input id="cep" value={formData.cep} onChange={e => handleInputChange('cep', formatCEP(e.target.value))} placeholder="00000-000" />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="uf">UF *</Label>
-                    <Select
-                      value={formData.uf}
-                      onValueChange={value => handleInputChange('uf', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {brazilianStates.map(state => (
-                          <SelectItem key={state} value={state}>
-                            {state}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                    <Select value={formData.uf} onValueChange={value => handleInputChange('uf', value)}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>{brazilianStates.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="city">Cidade *</Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={e => handleInputChange('city', e.target.value)}
-                      placeholder="Guabiruba"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="neighborhood">Bairro</Label>
-                    <Input
-                      id="neighborhood"
-                      value={formData.neighborhood}
-                      onChange={e => handleInputChange('neighborhood', e.target.value)}
-                      placeholder="Centro"
-                    />
-                  </div>
+                  <div className="grid gap-2"><Label htmlFor="city">Cidade *</Label><Input id="city" value={formData.city} onChange={e => handleInputChange('city', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="neighborhood">Bairro</Label><Input id="neighborhood" value={formData.neighborhood} onChange={e => handleInputChange('neighborhood', e.target.value)} /></div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="grid gap-2 sm:col-span-2">
-                    <Label htmlFor="address">Endereço *</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={e => handleInputChange('address', e.target.value)}
-                      placeholder="Rua das Flores"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="number">Número</Label>
-                    <Input
-                      id="number"
-                      value={formData.number}
-                      onChange={e => handleInputChange('number', e.target.value)}
-                      placeholder="123"
-                    />
-                  </div>
+                  <div className="grid gap-2 sm:col-span-2"><Label htmlFor="address">Endereço *</Label><Input id="address" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="number">Número</Label><Input id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="complement">Complemento</Label>
-                  <Input
-                    id="complement"
-                    value={formData.complement}
-                    onChange={e => handleInputChange('complement', e.target.value)}
-                    placeholder="Apto, Bloco, etc."
-                  />
-                </div>
+                <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Pagamento e Entrega</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Pagamento e Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
                   <Label>Forma de Pagamento</Label>
-                  <RadioGroup
-                    value={formData.paymentMethod}
-                    onValueChange={value => handleInputChange('paymentMethod', value)}
-                    className="flex flex-wrap gap-4"
-                  >
-                    {store.settings.acceptPix && (
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="pix" id="pix" />
-                        <Label htmlFor="pix" className="cursor-pointer">PIX</Label>
-                      </div>
-                    )}
-                    {store.settings.acceptBoleto && (
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="boleto" id="boleto" />
-                        <Label htmlFor="boleto" className="cursor-pointer">Boleto</Label>
-                      </div>
-                    )}
-                    {store.settings.acceptCard && (
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="cartao" id="cartao" />
-                        <Label htmlFor="cartao" className="cursor-pointer">Cartão</Label>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="dinheiro" id="dinheiro" />
-                      <Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label>
-                    </div>
+                  <RadioGroup value={formData.paymentMethod} onValueChange={value => handleInputChange('paymentMethod', value)} className="flex flex-wrap gap-4">
+                    {store.settings.acceptPix && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
+                    {store.settings.acceptBoleto && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
+                    {store.settings.acceptCard && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
+                    <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>
                   </RadioGroup>
                 </div>
-
                 <div className="space-y-3">
                   <Label>Turno de Entrega</Label>
-                  <RadioGroup
-                    value={formData.deliveryShift}
-                    onValueChange={value => handleInputChange('deliveryShift', value)}
-                    className="flex gap-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manha" id="manha" />
-                      <Label htmlFor="manha" className="cursor-pointer">Manhã</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="tarde" id="tarde" />
-                      <Label htmlFor="tarde" className="cursor-pointer">Tarde</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="noite" id="noite" />
-                      <Label htmlFor="noite" className="cursor-pointer">Noite</Label>
-                    </div>
+                  <RadioGroup value={formData.deliveryShift} onValueChange={value => handleInputChange('deliveryShift', value)} className="flex gap-4">
+                    <div className="flex items-center space-x-2"><RadioGroupItem value="manha" id="manha" /><Label htmlFor="manha" className="cursor-pointer">Manhã</Label></div>
+                    <div className="flex items-center space-x-2"><RadioGroupItem value="tarde" id="tarde" /><Label htmlFor="tarde" className="cursor-pointer">Tarde</Label></div>
+                    <div className="flex items-center space-x-2"><RadioGroupItem value="noite" id="noite" /><Label htmlFor="noite" className="cursor-pointer">Noite</Label></div>
                   </RadioGroup>
                 </div>
-
                 <div className="grid gap-2">
                   <Label htmlFor="observations">Observações</Label>
-                  <Textarea
-                    id="observations"
-                    value={formData.observations}
-                    onChange={e => handleInputChange('observations', e.target.value)}
-                    placeholder="Observações adicionais..."
-                    rows={3}
-                  />
+                  <Textarea id="observations" value={formData.observations} onChange={e => handleInputChange('observations', e.target.value)} placeholder="Observações adicionais..." rows={3} />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Order Summary */}
           <div className="space-y-4">
             <Card className="sticky top-20">
-              <CardHeader>
-                <CardTitle>Resumo do Pedido</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Resumo do Pedido</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                {/* Items */}
                 <div className="max-h-48 space-y-2 overflow-auto">
                   {cart.items.map(item => (
-                    <div
-                      key={`${item.productId}-${item.variantId}`}
-                      className="flex justify-between text-sm"
-                    >
-                      <span className="text-muted-foreground">
-                        {item.quantity}x {item.name.slice(0, 25)}...
-                      </span>
+                    <div key={`${item.productId}-${item.variantId}`} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{item.quantity}x {item.name.slice(0, 25)}...</span>
                       <span>{formatCurrency(item.price * item.quantity)}</span>
                     </div>
                   ))}
                 </div>
-
                 <div className="border-t pt-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatCurrency(cart.subtotal)}</span>
-                  </div>
-                  {cart.couponDiscount > 0 && (
-                    <div className="flex justify-between text-accent">
-                      <span>Desconto</span>
-                      <span>-{formatCurrency(cart.couponDiscount)}</span>
-                    </div>
-                  )}
-                  {store.settings.deliveryFee > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Taxa de entrega</span>
-                      <span>{formatCurrency(store.settings.deliveryFee)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t pt-2 text-lg font-bold">
-                    <span>Total</span>
-                    <span>{formatCurrency(totalWithDelivery)}</span>
-                  </div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
+                  {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Desconto</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
+                  {store.settings.deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Taxa de entrega</span><span>{formatCurrency(store.settings.deliveryFee)}</span></div>}
+                  <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
                 </div>
-
-                {/* Actions */}
                 <div className="grid gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={handleDownloadTxt}
-                    className="w-full gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Baixar TXT
-                  </Button>
-                  <Button
-                    onClick={handleSendWhatsApp}
-                    disabled={isSubmitting}
-                    className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
+                  <Button variant="outline" onClick={handleDownloadTxt} className="w-full gap-2"><Download className="h-4 w-4" /> Baixar TXT</Button>
+                  <Button onClick={handleSendWhatsApp} disabled={isSubmitting} className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
                   </Button>
                 </div>
               </CardContent>

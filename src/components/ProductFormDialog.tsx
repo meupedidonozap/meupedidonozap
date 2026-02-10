@@ -1,0 +1,334 @@
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
+import type { Product, ProductVariant, Category } from '@/types';
+import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
+import { uploadProductImage } from '@/lib/storage';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { toast } from 'sonner';
+
+interface ProductFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  storeId: string;
+  categories: Category[];
+  product?: Product | null;
+}
+
+interface VariantForm {
+  color: string;
+  size: string;
+  price: number;
+  stock: number;
+  sku: string;
+}
+
+export default function ProductFormDialog({
+  open,
+  onOpenChange,
+  storeId,
+  categories,
+  product,
+}: ProductFormDialogProps) {
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [basePrice, setBasePrice] = useState('');
+  const [isActive, setIsActive] = useState(true);
+  const [hasVariants, setHasVariants] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [variants, setVariants] = useState<VariantForm[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (product) {
+      setCode(product.code);
+      setName(product.name);
+      setDescription(product.description);
+      setCategoryId(product.categoryId || '');
+      setBasePrice(String(product.basePrice));
+      setIsActive(product.isActive);
+      setHasVariants(product.hasVariants);
+      setImagePreview(product.image || null);
+      setImageFile(null);
+      setVariants(
+        product.variants?.map(v => ({
+          color: v.color || '',
+          size: v.size || '',
+          price: v.price,
+          stock: v.stock,
+          sku: v.sku,
+        })) || []
+      );
+    } else {
+      setCode('');
+      setName('');
+      setDescription('');
+      setCategoryId('');
+      setBasePrice('');
+      setIsActive(true);
+      setHasVariants(false);
+      setImagePreview(null);
+      setImageFile(null);
+      setVariants([]);
+    }
+  }, [product, open]);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const addVariant = () => {
+    setVariants(prev => [...prev, { color: '', size: '', price: Number(basePrice) || 0, stock: 0, sku: '' }]);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateVariant = (index: number, field: keyof VariantForm, value: string | number) => {
+    setVariants(prev =>
+      prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+    );
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast.error('Nome do produto é obrigatório');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let imageUrl = product?.image || null;
+
+      if (imageFile) {
+        imageUrl = await uploadProductImage(imageFile, storeId);
+      }
+
+      const variantData = hasVariants
+        ? variants.map(v => ({
+            color: v.color || undefined,
+            size: v.size || undefined,
+            price: v.price,
+            stock: v.stock,
+            sku: v.sku,
+          }))
+        : [];
+
+      if (product) {
+        await updateProduct.mutateAsync({
+          id: product.id,
+          code,
+          name,
+          description,
+          categoryId: categoryId || null,
+          basePrice: Number(basePrice) || 0,
+          imageUrl: imageUrl,
+          isActive,
+          hasVariants,
+          variants: variantData,
+        });
+        toast.success('Produto atualizado!');
+      } else {
+        await createProduct.mutateAsync({
+          storeId,
+          code,
+          name,
+          description,
+          categoryId: categoryId || null,
+          basePrice: Number(basePrice) || 0,
+          imageUrl: imageUrl || undefined,
+          isActive,
+          hasVariants,
+          variants: variantData,
+        });
+        toast.success('Produto criado!');
+      }
+
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar produto');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{product ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-4">
+          {/* Image Upload */}
+          <div className="grid gap-2">
+            <Label>Imagem do Produto</Label>
+            <div className="flex items-center gap-4">
+              <div
+                className="flex h-24 w-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 overflow-hidden hover:border-primary/50"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                {imagePreview ? 'Trocar' : 'Upload'}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="code">Código</Label>
+              <Input id="code" value={code} onChange={e => setCode(e.target.value)} placeholder="SKU-001" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="pname">Nome *</Label>
+              <Input id="pname" value={name} onChange={e => setName(e.target.value)} placeholder="Nome do Produto" />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="desc">Descrição</Label>
+            <Textarea id="desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição do produto" rows={3} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Categoria</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="price">Preço Base</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={basePrice}
+                onChange={e => setBasePrice(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <Label>Status</Label>
+              <p className="text-sm text-muted-foreground">{isActive ? 'Produto ativo' : 'Produto inativo'}</p>
+            </div>
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <Label>Possui Variantes</Label>
+              <p className="text-sm text-muted-foreground">Cor, tamanho, etc.</p>
+            </div>
+            <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
+          </div>
+
+          {hasVariants && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <Label>Variantes</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addVariant} className="gap-1">
+                  <Plus className="h-3 w-3" /> Adicionar
+                </Button>
+              </div>
+              {variants.map((v, i) => (
+                <div key={i} className="grid grid-cols-6 gap-2 items-end">
+                  <div>
+                    <Label className="text-xs">Cor</Label>
+                    <Input value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Azul" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tamanho</Label>
+                    <Input value={v.size} onChange={e => updateVariant(i, 'size', e.target.value)} placeholder="M" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Preço</Label>
+                    <Input type="number" step="0.01" value={v.price} onChange={e => updateVariant(i, 'price', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Estoque</Label>
+                    <Input type="number" value={v.stock} onChange={e => updateVariant(i, 'stock', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">SKU</Label>
+                    <Input value={v.sku} onChange={e => updateVariant(i, 'sku', e.target.value)} />
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(i)} className="text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {variants.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">Nenhuma variante adicionada</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Salvando...' : product ? 'Salvar' : 'Criar Produto'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
