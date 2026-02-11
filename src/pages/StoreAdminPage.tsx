@@ -27,6 +27,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
+import { printOrder } from '@/lib/printOrder';
 import { toast } from 'sonner';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -320,7 +321,7 @@ export default function StoreAdminPage() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => toast.success('Pedido enviado para impressão')}>
+                          <Button variant="ghost" size="icon" onClick={() => printOrder(order, store.name)}>
                             <Printer className="h-4 w-4" />
                           </Button>
                         </TableCell>
