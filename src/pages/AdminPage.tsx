@@ -103,22 +103,46 @@ export default function AdminPage() {
     }
     setAdminLoading(true);
     try {
-      // Create user via auth
+      let userId: string | null = null;
+
+      // Try to create user first
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminEmail,
         password: adminPassword,
       });
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Erro ao criar usuário');
+
+      if (authError && authError.message?.includes('already')) {
+        // User already exists — try to sign in to get their id
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: adminEmail,
+          password: adminPassword,
+        });
+        if (signInError) throw new Error('Usuário já existe mas a senha está incorreta');
+        userId = signInData.user?.id ?? null;
+        // Sign out so we don't stay logged as that user
+        await supabase.auth.signOut();
+      } else if (authError) {
+        throw authError;
+      } else {
+        userId = authData.user?.id ?? null;
+      }
+
+      if (!userId) throw new Error('Erro ao obter ID do usuário');
 
       // Link to store_admins
       const { error: linkError } = await supabase.from('store_admins').insert({
         store_id: adminStoreId,
-        user_id: authData.user.id,
+        user_id: userId,
       });
-      if (linkError) throw linkError;
-
-      toast.success(`Admin criado para ${adminStoreName}!`);
+      if (linkError) {
+        if (linkError.message?.includes('duplicate')) {
+          toast.info('Este usuário já é admin desta loja');
+        } else {
+          throw linkError;
+        }
+      } else {
+        toast.success(`Admin criado para ${adminStoreName}!`);
+      }
       setAdminDialogOpen(false);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao criar admin');
