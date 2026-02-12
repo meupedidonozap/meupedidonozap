@@ -41,6 +41,10 @@ export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (order: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>) => {
+      // Get current user id if logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || null;
+
       const { data, error } = await supabase.from('orders').insert({
         store_id: order.storeId,
         customer: order.customer as any,
@@ -53,6 +57,7 @@ export function useCreateOrder() {
         delivery_shift: order.deliveryShift,
         observations: order.observations || null,
         status: order.status,
+        user_id: userId,
       }).select().single();
       if (error) throw error;
       return mapOrder(data);
