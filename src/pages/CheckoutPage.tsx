@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle, Loader2, LogIn } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
+import { useAuth } from '@/hooks/useAuth';
+import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useCart } from '@/contexts/CartContext';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
@@ -16,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import type { PaymentMethod, DeliveryShift } from '@/types';
 
 const brazilianStates = [
@@ -29,7 +32,11 @@ export default function CheckoutPage() {
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const createOrder = useCreateOrder();
   const { cart, clearCart } = useCart();
+  const { user, loading: authLoading } = useAuth();
+  const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const upsertProfile = useUpsertCustomerProfile();
 
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '', cpfCnpj: '', whatsapp: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
@@ -38,8 +45,29 @@ export default function CheckoutPage() {
     observations: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
-  if (storeLoading) {
+  // Auto-fill from customer profile
+  useEffect(() => {
+    if (customerProfile && !profileLoaded) {
+      setFormData(prev => ({
+        ...prev,
+        name: customerProfile.name || prev.name,
+        cpfCnpj: customerProfile.cpfCnpj || prev.cpfCnpj,
+        whatsapp: customerProfile.whatsapp || prev.whatsapp,
+        cep: customerProfile.cep || prev.cep,
+        uf: customerProfile.uf || prev.uf,
+        city: customerProfile.city || prev.city,
+        neighborhood: customerProfile.neighborhood || prev.neighborhood,
+        address: customerProfile.address || prev.address,
+        number: customerProfile.number || prev.number,
+        complement: customerProfile.complement || prev.complement,
+      }));
+      setProfileLoaded(true);
+    }
+  }, [customerProfile, profileLoaded]);
+
+  if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
@@ -62,6 +90,31 @@ export default function CheckoutPage() {
           <p className="text-muted-foreground">Adicione produtos antes de finalizar</p>
           <Button asChild className="mt-4"><Link to={`/${store.slug}`}>Voltar à loja</Link></Button>
         </div>
+      </div>
+    );
+  }
+
+  // If not logged in, show login prompt
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-40 border-b bg-card">
+          <div className="container flex h-14 items-center gap-4">
+            <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
+            <h1 className="font-bold">Finalizar Pedido</h1>
+          </div>
+        </header>
+        <main className="container py-12">
+          <div className="mx-auto max-w-md text-center">
+            <LogIn className="mx-auto h-16 w-16 text-muted-foreground/30" />
+            <h2 className="mt-6 text-2xl font-bold">Faça login para continuar</h2>
+            <p className="mt-2 text-muted-foreground">Para finalizar seu pedido, é necessário estar logado. Assim seus dados ficam salvos para compras futuras.</p>
+            <Button className="mt-6 w-full" size="lg" onClick={() => setAuthDialogOpen(true)}>
+              <LogIn className="mr-2 h-5 w-5" /> Entrar ou Cadastrar
+            </Button>
+          </div>
+        </main>
+        <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
       </div>
     );
   }
@@ -110,6 +163,22 @@ export default function CheckoutPage() {
     if (!validateForm()) return;
     setIsSubmitting(true);
     try {
+      // Save/update customer profile
+      await upsertProfile.mutateAsync({
+        userId: user.id,
+        storeId: store.id,
+        name: formData.name,
+        cpfCnpj: formData.cpfCnpj,
+        whatsapp: formData.whatsapp,
+        cep: formData.cep,
+        uf: formData.uf,
+        city: formData.city,
+        neighborhood: formData.neighborhood,
+        address: formData.address,
+        number: formData.number,
+        complement: formData.complement || undefined,
+      });
+
       await createOrder.mutateAsync({
         storeId: store.id,
         customer: {

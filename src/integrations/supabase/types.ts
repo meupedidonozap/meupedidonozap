@@ -90,6 +90,68 @@ export type Database = {
           },
         ]
       }
+      customer_profiles: {
+        Row: {
+          address: string
+          cep: string
+          city: string
+          complement: string | null
+          cpf_cnpj: string
+          created_at: string
+          id: string
+          name: string
+          neighborhood: string
+          number: string
+          store_id: string
+          uf: string
+          updated_at: string
+          user_id: string
+          whatsapp: string
+        }
+        Insert: {
+          address?: string
+          cep?: string
+          city?: string
+          complement?: string | null
+          cpf_cnpj?: string
+          created_at?: string
+          id?: string
+          name?: string
+          neighborhood?: string
+          number?: string
+          store_id: string
+          uf?: string
+          updated_at?: string
+          user_id: string
+          whatsapp?: string
+        }
+        Update: {
+          address?: string
+          cep?: string
+          city?: string
+          complement?: string | null
+          cpf_cnpj?: string
+          created_at?: string
+          id?: string
+          name?: string
+          neighborhood?: string
+          number?: string
+          store_id?: string
+          uf?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       food_items: {
         Row: {
           category_id: string | null
@@ -157,6 +219,7 @@ export type Database = {
           store_id: string
           subtotal: number
           total: number
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -173,6 +236,7 @@ export type Database = {
           store_id: string
           subtotal?: number
           total?: number
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -189,6 +253,7 @@ export type Database = {
           store_id?: string
           subtotal?: number
           total?: number
+          user_id?: string | null
         }
         Relationships: [
           {

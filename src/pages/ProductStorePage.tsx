@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Menu, Search, ShoppingCart, Grid, List, Plus, Minus, X,
   MapPin, Phone, Clock, Trash2, ArrowRight, Tag, Loader2,
+  User, LogOut, ShoppingBag, LogIn,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCategories } from '@/hooks/useCategories';
@@ -21,7 +22,12 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -30,6 +36,7 @@ export default function ProductStorePage() {
   const { data: allProducts = [] } = useProducts(store?.id);
   const { data: coupons = [] } = useCoupons(store?.id);
   const { cart, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon } = useCart();
+  const { user, signOut } = useAuth();
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +46,7 @@ export default function ProductStorePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ color?: string; size?: string } | null>(null);
   const [couponInput, setCouponInput] = useState('');
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   useEffect(() => {
     if (store) setStoreId(store.id);
@@ -157,6 +165,25 @@ export default function ProductStorePage() {
           <Link to={`/${store.slug}`} className="flex-shrink-0">
             <h1 className="text-lg font-bold">{store.name}</h1>
           </Link>
+          <div className="flex items-center gap-1">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon"><User className="h-5 w-5" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-xs text-muted-foreground" disabled>{user.email}</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-destructive"><LogOut className="h-4 w-4" /> Sair</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={() => setAuthDialogOpen(true)}>
+                <LogIn className="h-5 w-5" />
+              </Button>
+            )}
           <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
@@ -254,6 +281,7 @@ export default function ProductStorePage() {
               )}
             </SheetContent>
           </Sheet>
+          </div>
         </div>
 
         <div className="container pb-4">
@@ -384,6 +412,7 @@ export default function ProductStorePage() {
           </div>
         </div>
       </footer>
+      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
     </div>
   );
 }
