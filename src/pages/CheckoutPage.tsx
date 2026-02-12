@@ -124,7 +124,7 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
-    const required = ['name', 'cpfCnpj', 'whatsapp', 'uf', 'city', 'address'];
+    const required = ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
         toast.error(`Preencha o campo obrigatório: ${field}`);
@@ -231,10 +231,6 @@ export default function CheckoutPage() {
                   <Input id="name" value={formData.name} onChange={e => handleInputChange('name', e.target.value.toUpperCase())} placeholder="NOME COMPLETO" />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="cpfCnpj">CPF / CNPJ *</Label>
-                    <Input id="cpfCnpj" value={formData.cpfCnpj} onChange={e => handleInputChange('cpfCnpj', formatCPFCNPJ(e.target.value))} placeholder="000.000.000-00" />
-                  </div>
                   <div className="grid gap-2">
                     <Label htmlFor="whatsapp">WhatsApp *</Label>
                     <Input id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
