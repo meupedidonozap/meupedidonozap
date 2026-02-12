@@ -162,7 +162,10 @@ export default function ProductStorePage() {
               </div>
             </SheetContent>
           </Sheet>
-          <Link to={`/${store.slug}`} className="flex-shrink-0">
+          <Link to={`/${store.slug}`} className="flex-shrink-0 flex items-center gap-2">
+            {store.logo && (
+              <img src={store.logo} alt={store.name} className="h-10 w-10 rounded-full object-cover" />
+            )}
             <h1 className="text-lg font-bold">{store.name}</h1>
           </Link>
           <div className="flex items-center gap-1">
