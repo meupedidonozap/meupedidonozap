@@ -1,18 +1,20 @@
-import { useState } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
-  Truck, XCircle, ToggleLeft, ToggleRight, Loader2,
+  Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
 } from 'lucide-react';
-import { useStoreBySlug } from '@/hooks/useStores';
+import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
 import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
+import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import type { OrderStatus, Product } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
+import StoreAdminLogin from '@/components/StoreAdminLogin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +30,9 @@ import {
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { printOrder } from '@/lib/printOrder';
+import { uploadProductImage } from '@/lib/storage';
 import { toast } from 'sonner';
+import { startOfDay, startOfMonth, startOfYear } from 'date-fns';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
@@ -39,9 +43,13 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
 };
 
+type PeriodFilter = 'all' | 'today' | 'month' | 'year';
+
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
+  const { user, isAdmin, loading: adminLoading } = useStoreAdmin(store?.id);
+  const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
   const { data: products = [] } = useProducts(store?.id);
   const { data: foodItems = [] } = useFoodItems(store?.id);
@@ -58,10 +66,49 @@ export default function StoreAdminPage() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
+
+  // Settings state
+  const [settingsName, setSettingsName] = useState('');
+  const [settingsAddress, setSettingsAddress] = useState('');
+  const [settingsPhone, setSettingsPhone] = useState('');
+  const [settingsWhatsapp, setSettingsWhatsapp] = useState('');
+  const [settingsLogo, setSettingsLogo] = useState('');
+  const [settingsInitialized, setSettingsInitialized] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
-  if (storeLoading) {
+  // Initialize settings from store
+  if (store && !settingsInitialized) {
+    setSettingsName(store.name);
+    setSettingsAddress(store.address);
+    setSettingsPhone(store.phone);
+    setSettingsWhatsapp(store.whatsapp);
+    setSettingsLogo(store.logo);
+    setSettingsInitialized(true);
+  }
+
+  // Filter orders by period
+  const filteredOrders = useMemo(() => {
+    if (periodFilter === 'all') return orders;
+    const now = new Date();
+    let cutoff: Date;
+    if (periodFilter === 'today') cutoff = startOfDay(now);
+    else if (periodFilter === 'month') cutoff = startOfMonth(now);
+    else cutoff = startOfYear(now);
+    return orders.filter(o => new Date(o.createdAt) >= cutoff);
+  }, [orders, periodFilter]);
+
+  const stats = useMemo(() => ({
+    totalProducts: allProducts.length,
+    totalOrders: filteredOrders.length,
+    pendingOrders: filteredOrders.filter(o => o.status === 'pendente').length,
+    revenue: filteredOrders.reduce((sum, o) => sum + o.total, 0),
+  }), [allProducts, filteredOrders]);
+
+  if (storeLoading || adminLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
@@ -76,14 +123,19 @@ export default function StoreAdminPage() {
     );
   }
 
-  const stats = {
-    totalProducts: allProducts.length,
-    totalOrders: orders.length,
-    pendingOrders: orders.filter(o => o.status === 'pendente').length,
-    todayRevenue: orders
-      .filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString())
-      .reduce((sum, o) => sum + o.total, 0),
-  };
+  // Auth gate
+  if (!user) return <StoreAdminLogin storeName={store.name} />;
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Acesso negado</h1>
+          <p className="text-muted-foreground mt-2">Você não tem permissão para administrar esta loja.</p>
+          <Button asChild className="mt-4"><Link to={`/${slug}`}>Ir para a Loja</Link></Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleToggleProductActive = async (product: Product) => {
     await updateProduct.mutateAsync({ id: product.id, isActive: !product.isActive });
@@ -121,6 +173,45 @@ export default function StoreAdminPage() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const url = await uploadProductImage(file, store.id);
+      setSettingsLogo(url);
+      toast.success('Logo enviada!');
+    } catch {
+      toast.error('Erro ao enviar logo');
+    }
+    setLogoUploading(false);
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      await updateStore.mutateAsync({
+        id: store.id,
+        name: settingsName,
+        address: settingsAddress,
+        phone: settingsPhone,
+        whatsapp: settingsWhatsapp,
+        logo: settingsLogo,
+      });
+      toast.success('Configurações salvas!');
+    } catch {
+      toast.error('Erro ao salvar');
+    }
+  };
+
+  const periodLabels: Record<PeriodFilter, string> = {
+    all: 'Todos',
+    today: 'Hoje',
+    month: 'Este Mês',
+    year: 'Este Ano',
+  };
+
+  const revenueLabel = periodFilter === 'all' ? 'Faturamento Total' : `Faturamento - ${periodLabels[periodFilter]}`;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="gradient-primary text-primary-foreground">
@@ -135,9 +226,11 @@ export default function StoreAdminPage() {
                 <p className="text-sm text-primary-foreground/80">Painel da Loja</p>
               </div>
             </div>
-            <Button variant="outline" asChild className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-              <Link to={`/${store.slug}`}><Eye className="mr-2 h-4 w-4" /> Ver Loja</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" asChild className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                <Link to={`/${store.slug}`}><Eye className="mr-2 h-4 w-4" /> Ver Loja</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -158,11 +251,24 @@ export default function StoreAdminPage() {
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="animate-fade-in">
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground font-medium">Período:</span>
+              {(Object.keys(periodLabels) as PeriodFilter[]).map(key => (
+                <Button
+                  key={key}
+                  variant={periodFilter === key ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPeriodFilter(key)}
+                >
+                  {periodLabels[key]}
+                </Button>
+              ))}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Produtos</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{stats.totalProducts}</div></CardContent></Card>
               <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Pedidos</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{stats.totalOrders}</div></CardContent></Card>
               <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pedidos Pendentes</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-warning">{stats.pendingOrders}</div></CardContent></Card>
-              <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Faturamento Hoje</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-accent">{formatCurrency(stats.todayRevenue)}</div></CardContent></Card>
+              <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{revenueLabel}</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-accent">{formatCurrency(stats.revenue)}</div></CardContent></Card>
             </div>
             <Card className="mt-6">
               <CardHeader><CardTitle>Pedidos Recentes</CardTitle></CardHeader>
@@ -170,7 +276,7 @@ export default function StoreAdminPage() {
                 <Table>
                   <TableHeader><TableRow><TableHead>#</TableHead><TableHead>Cliente</TableHead><TableHead>Itens</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Data</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {orders.slice(0, 5).map(order => (
+                    {filteredOrders.slice(0, 10).map(order => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">#{order.orderNumber}</TableCell>
                         <TableCell>{order.customer.name}</TableCell>
@@ -359,10 +465,36 @@ export default function StoreAdminPage() {
           <TabsContent value="settings" className="animate-fade-in">
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2"><Label>Nome</Label><Input defaultValue={store.name} /></div>
-                <div className="grid gap-2"><Label>Endereço</Label><Textarea defaultValue={store.address} /></div>
-                <Button onClick={() => toast.success('Configurações salvas!')}>Salvar Alterações</Button>
+              <CardContent className="space-y-6">
+                {/* Logo upload */}
+                <div className="grid gap-2">
+                  <Label>Logo da Empresa</Label>
+                  <div className="flex items-center gap-4">
+                    {settingsLogo ? (
+                      <img src={settingsLogo} alt="Logo" className="h-20 w-20 rounded-lg object-cover border" />
+                    ) : (
+                      <div className="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed bg-muted text-muted-foreground text-xs">Sem logo</div>
+                    )}
+                    <div>
+                      <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}>
+                        {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {settingsLogo ? 'Trocar Logo' : 'Enviar Logo'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-2"><Label>Nome</Label><Input value={settingsName} onChange={e => setSettingsName(e.target.value)} /></div>
+                <div className="grid gap-2"><Label>Endereço</Label><Textarea value={settingsAddress} onChange={e => setSettingsAddress(e.target.value)} /></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid gap-2"><Label>Telefone</Label><Input value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} placeholder="(11) 3456-7890" /></div>
+                  <div className="grid gap-2"><Label>WhatsApp (receber pedidos)</Label><Input value={settingsWhatsapp} onChange={e => setSettingsWhatsapp(e.target.value)} placeholder="5511999999999" /></div>
+                </div>
+                <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                  {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Salvar Alterações
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus } from 'lucide-react';
 import { useStores, useCreateStore, useUpdateStore, useDeleteStore } from '@/hooks/useStores';
+import { supabase } from '@/integrations/supabase/client';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,6 +75,56 @@ export default function AdminPage() {
     whatsapp: '',
     email: '',
   });
+
+  // Admin registration state
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [adminStoreId, setAdminStoreId] = useState('');
+  const [adminStoreName, setAdminStoreName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+
+  const handleOpenAdminDialog = (store: StoreType) => {
+    setAdminStoreId(store.id);
+    setAdminStoreName(store.name);
+    setAdminEmail('');
+    setAdminPassword('');
+    setAdminDialogOpen(true);
+  };
+
+  const handleCreateAdmin = async () => {
+    if (!adminEmail || !adminPassword) {
+      toast.error('Preencha email e senha');
+      return;
+    }
+    if (adminPassword.length < 6) {
+      toast.error('A senha deve ter no mínimo 6 caracteres');
+      return;
+    }
+    setAdminLoading(true);
+    try {
+      // Create user via auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: adminEmail,
+        password: adminPassword,
+      });
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Erro ao criar usuário');
+
+      // Link to store_admins
+      const { error: linkError } = await supabase.from('store_admins').insert({
+        store_id: adminStoreId,
+        user_id: authData.user.id,
+      });
+      if (linkError) throw linkError;
+
+      toast.success(`Admin criado para ${adminStoreName}!`);
+      setAdminDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao criar admin');
+    }
+    setAdminLoading(false);
+  };
 
   const filteredStores = stores.filter(store =>
     store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -254,7 +305,7 @@ export default function AdminPage() {
                     <Badge variant={store.isActive ? 'default' : 'secondary'}>{store.isActive ? 'Ativa' : 'Inativa'}</Badge>
                   </div>
                   <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{store.address}</p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenDialog(store)}>
                       <Edit2 className="h-3 w-3" /> Editar
                     </Button>
@@ -263,6 +314,9 @@ export default function AdminPage() {
                     </Button>
                     <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
                       <Link to={`/${store.slug}`}><Eye className="h-3 w-3" /> Ver</Link>
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => handleOpenAdminDialog(store)}>
+                      <UserPlus className="h-3 w-3" />
                     </Button>
                     <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleDelete(store.id)}>
                       <Trash2 className="h-3 w-3" />
@@ -281,6 +335,32 @@ export default function AdminPage() {
             <p className="text-muted-foreground">{searchTerm ? 'Tente buscar por outro termo' : 'Crie sua primeira empresa'}</p>
           </div>
         )}
+
+        {/* Admin Registration Dialog */}
+        <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Cadastrar Admin - {adminStoreName}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="admin-email">Email do Admin</Label>
+                <Input id="admin-email" type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="admin@loja.com" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="admin-password">Senha</Label>
+                <Input id="admin-password" type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAdminDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCreateAdmin} disabled={adminLoading}>
+                {adminLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                Criar Admin
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
