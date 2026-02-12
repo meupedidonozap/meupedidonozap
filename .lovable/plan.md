@@ -1,39 +1,66 @@
 
-# Implementar Impressao de Pedido em PDF
+# Implementar 3 Funcionalidades no Painel Admin
 
-## Problema
-O botao de impressao na aba "Pedidos" do painel admin apenas exibe um toast ("Pedido enviado para impressao") sem gerar nenhum documento.
+## 1. Configuracoes da Loja: Logo + Telefone/WhatsApp
 
-## Solucao
-Criar uma funcao que gera um PDF formatado do pedido usando a API nativa do navegador (`window.print()`), seguindo o layout de referencia fornecido:
+### Problema atual
+A aba "Configuracoes" so exibe Nome e Endereco, e o botao "Salvar" nao faz nada (apenas mostra toast).
 
-- **Cabecalho**: Nome da loja em destaque + data/hora
-- **Dados do Cliente**: Nome, CPF/CNPJ, WhatsApp, endereco, pagamento, turno de entrega, observacoes
-- **Tabela de Itens**: Numero, codigo, produto, tamanho, cor, quantidade, valor unitario, desconto, total
-- **Rodape**: Subtotal, desconto e TOTAL em destaque
+### O que sera feito
+- Adicionar campo de **upload de logo** com preview da imagem (usando o bucket `product-images` que ja existe)
+- Adicionar campos editaveis de **Telefone** e **WhatsApp** (o WhatsApp e usado para receber pedidos)
+- Fazer o botao "Salvar" realmente gravar as alteracoes no banco usando `useUpdateStore`
 
-## Implementacao
+---
 
-### 1. Criar componente `OrderPrintView`
-Arquivo: `src/components/OrderPrintView.tsx`
+## 2. Dashboard com Filtro por Periodo (Dia / Mes / Ano)
 
-Um componente React que renderiza o layout do pedido em HTML puro (sem Tailwind), otimizado para impressao. Sera montado em um iframe oculto para disparar `window.print()`.
+### Problema atual
+O dashboard mostra apenas "Faturamento Hoje" e pedidos recentes sem filtro.
 
-### 2. Criar funcao utilitaria `printOrder`
-Arquivo: `src/lib/printOrder.ts`
+### O que sera feito
+- Adicionar seletor de periodo: **Hoje**, **Este Mes**, **Este Ano**, **Todos**
+- Os 4 cards de estatisticas (Produtos, Pedidos, Pendentes, Faturamento) serao recalculados conforme o filtro selecionado
+- A tabela de pedidos recentes tambem sera filtrada pelo periodo escolhido
+- Ao abrir, exibe **Todos** por padrao
 
-Funcao que:
-1. Cria um iframe invisivel no DOM
-2. Injeta o HTML formatado do pedido
-3. Chama `window.print()` no iframe
-4. Remove o iframe apos a impressao
+---
 
-### 3. Atualizar `StoreAdminPage`
-Substituir o `toast.success('Pedido enviado para impressao')` pela chamada real da funcao `printOrder`, passando os dados do pedido e o nome da loja.
+## 3. Login por Loja (Acesso Restrito ao Admin de Cada Loja)
+
+### Problema atual
+Qualquer pessoa pode acessar `/:slug/admin` sem autenticacao. Cada loja precisa de credenciais proprias.
+
+### O que sera feito
+
+**Banco de dados:**
+- Criar tabela `store_admins` com colunas: `id`, `store_id`, `user_id` (referencia auth.users), `created_at`
+- Politicas RLS para que apenas admins autenticados da loja possam acessar dados administrativos
+
+**Cadastro de admins (no painel central `/admin`):**
+- No card de cada empresa, adicionar opcao de cadastrar email/senha do admin da loja
+- Ao cadastrar, cria o usuario via Supabase Auth e vincula na tabela `store_admins`
+
+**Tela de login na loja:**
+- Ao acessar `/:slug/admin`, se nao estiver logado como admin daquela loja, exibe tela de login
+- Apos autenticar, verifica se o `user_id` esta vinculado ao `store_id` na tabela `store_admins`
+- Se nao estiver vinculado, exibe mensagem de acesso negado
+
+---
 
 ## Detalhes Tecnicos
 
-- Nao sera necessario instalar nenhuma biblioteca externa (sem jsPDF ou similar)
-- O PDF sera gerado via dialogo de impressao nativo do navegador (permite salvar como PDF ou imprimir direto)
-- O HTML do pedido usara estilos inline para garantir consistencia na impressao
-- O layout seguira fielmente o modelo de referencia com tabela de itens, dados do cliente e totais
+### Arquivos a criar
+- `src/hooks/useStoreAdmin.ts` -- hook para verificar se usuario e admin da loja
+- `src/components/StoreAdminLogin.tsx` -- componente de login para o admin da loja
+
+### Arquivos a modificar
+- `src/pages/StoreAdminPage.tsx` -- aba Settings (logo, telefone, whatsapp, salvar real) + Dashboard (filtro periodo) + protecao de acesso
+- `src/pages/AdminPage.tsx` -- adicionar opcao de cadastrar admin por loja
+- `src/hooks/useStores.ts` -- sem alteracoes (ja tem useUpdateStore)
+- `src/lib/storage.ts` -- reutilizar para upload de logo
+
+### Migracao SQL
+- Criar tabela `store_admins` com foreign key para `auth.users` e `stores`
+- RLS policies para acesso restrito
+- Funcao `is_store_admin(user_id, store_id)` como security definer para uso em RLS
