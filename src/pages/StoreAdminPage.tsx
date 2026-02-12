@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
+  CalendarIcon,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
@@ -32,7 +33,11 @@ import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { printOrder } from '@/lib/printOrder';
 import { uploadProductImage } from '@/lib/storage';
 import { toast } from 'sonner';
-import { startOfDay, startOfMonth, startOfYear } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
@@ -43,7 +48,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
 };
 
-type PeriodFilter = 'all' | 'today' | 'month' | 'year';
+
 
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -66,7 +71,8 @@ export default function StoreAdminPage() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   // Settings state
   const [settingsName, setSettingsName] = useState('');
@@ -90,16 +96,15 @@ export default function StoreAdminPage() {
     setSettingsInitialized(true);
   }
 
-  // Filter orders by period
+  // Filter orders by date range
   const filteredOrders = useMemo(() => {
-    if (periodFilter === 'all') return orders;
-    const now = new Date();
-    let cutoff: Date;
-    if (periodFilter === 'today') cutoff = startOfDay(now);
-    else if (periodFilter === 'month') cutoff = startOfMonth(now);
-    else cutoff = startOfYear(now);
-    return orders.filter(o => new Date(o.createdAt) >= cutoff);
-  }, [orders, periodFilter]);
+    return orders.filter(o => {
+      const d = new Date(o.createdAt);
+      if (startDate && d < startOfDay(startDate)) return false;
+      if (endDate && d > endOfDay(endDate)) return false;
+      return true;
+    });
+  }, [orders, startDate, endDate]);
 
   const stats = useMemo(() => ({
     totalProducts: allProducts.length,
@@ -203,14 +208,7 @@ export default function StoreAdminPage() {
     }
   };
 
-  const periodLabels: Record<PeriodFilter, string> = {
-    all: 'Todos',
-    today: 'Hoje',
-    month: 'Este Mês',
-    year: 'Este Ano',
-  };
-
-  const revenueLabel = periodFilter === 'all' ? 'Faturamento Total' : `Faturamento - ${periodLabels[periodFilter]}`;
+  const revenueLabel = (startDate || endDate) ? 'Faturamento do Período' : 'Faturamento Total';
 
   return (
     <div className="min-h-screen bg-background">
@@ -253,16 +251,47 @@ export default function StoreAdminPage() {
           <TabsContent value="dashboard" className="animate-fade-in">
             <div className="mb-4 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground font-medium">Período:</span>
-              {(Object.keys(periodLabels) as PeriodFilter[]).map(key => (
-                <Button
-                  key={key}
-                  variant={periodFilter === key ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPeriodFilter(key)}
-                >
-                  {periodLabels[key]}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Data Início"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    disabled={(date) => endDate ? date > endDate : false}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Data Fim"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    disabled={(date) => startDate ? date < startDate : false}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              {(startDate || endDate) && (
+                <Button variant="ghost" size="sm" onClick={() => { setStartDate(undefined); setEndDate(undefined); }}>
+                  Limpar
                 </Button>
-              ))}
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Produtos</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{stats.totalProducts}</div></CardContent></Card>
