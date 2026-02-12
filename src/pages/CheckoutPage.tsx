@@ -10,6 +10,7 @@ import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
   generateWhatsAppMessage, openWhatsApp, downloadTxt,
 } from '@/lib/formatters';
+import { fetchAddressByCep } from '@/lib/cepLookup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -114,7 +115,7 @@ export default function CheckoutPage() {
             </Button>
           </div>
         </main>
-        <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+        <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store.id} />
       </div>
     );
   }
@@ -245,7 +246,17 @@ export default function CheckoutPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cep">CEP</Label>
-                    <Input id="cep" value={formData.cep} onChange={e => handleInputChange('cep', formatCEP(e.target.value))} placeholder="00000-000" />
+                    <Input id="cep" value={formData.cep} onChange={async e => {
+                      const formatted = formatCEP(e.target.value);
+                      handleInputChange('cep', formatted);
+                      const cleaned = formatted.replace(/\D/g, '');
+                      if (cleaned.length === 8) {
+                        const result = await fetchAddressByCep(cleaned);
+                        if (result) {
+                          setFormData(prev => ({ ...prev, uf: result.uf, city: result.city, neighborhood: result.neighborhood, address: result.address }));
+                        }
+                      }
+                    }} placeholder="00000-000" />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="uf">UF *</Label>
