@@ -412,7 +412,7 @@ export default function ProductStorePage() {
           </div>
         </div>
       </footer>
-      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store?.id || ''} />
     </div>
   );
 }
