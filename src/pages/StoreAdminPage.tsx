@@ -15,6 +15,7 @@ import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import type { OrderStatus, Product } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
+import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +70,7 @@ export default function StoreAdminPage() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -325,7 +327,12 @@ export default function StoreAdminPage() {
           <TabsContent value="products" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Produtos</h3>
-              <Button className="gap-2" onClick={handleNewProduct}><Plus className="h-4 w-4" /> Novo Produto</Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
+                  <Upload className="h-4 w-4" /> Importar Excel
+                </Button>
+                <Button className="gap-2" onClick={handleNewProduct}><Plus className="h-4 w-4" /> Novo Produto</Button>
+              </div>
             </div>
             <Card>
               <CardContent className="p-0">
@@ -536,6 +543,12 @@ export default function StoreAdminPage() {
         storeId={store.id}
         categories={categories}
         product={editingProduct}
+      />
+      <ImportProductsDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        storeId={store.id}
+        categories={categories}
       />
     </div>
   );
