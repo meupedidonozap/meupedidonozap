@@ -1,50 +1,41 @@
 
 
-# Corrigir Fluxo de Login nos Paineis Admin
+# Redefinir Senha do Usuario magui2026@gmail.com
 
-## Problema Real
+## Problema
 
-O sistema compartilha uma unica sessao de autenticacao. Quando o usuario faz login no painel geral (`/admin`) como `meupedidonozap@gmail.com`, essa sessao permanece ativa ao visitar `/magui-papelaria/admin`. Como esse usuario nao e admin da loja Magui Papelaria, aparece "Acesso negado" sem opcao de sair ou trocar de conta.
+O usuario `magui2026@gmail.com` existe no sistema de autenticacao (ID: `482a3de7-c10d-4566-9f0f-ea5c78da3042`) e esta corretamente vinculado como admin da loja Magui Papelaria na tabela `store_admins`. Porem, a senha armazenada nao corresponde a `Magui2026`, causando erro "credenciais invalidas" ao tentar fazer login.
 
-## O que sera feito
+## Solucao
 
-### 1. Adicionar botao "Sair / Entrar com outra conta" na tela de "Acesso negado" do Store Admin
+Criar uma edge function temporaria que usa a Admin API (service role key) para redefinir a senha do usuario para `Magui2026`. Apos a execucao, a edge function sera removida.
 
-No arquivo `src/pages/StoreAdminPage.tsx`, a tela de "Acesso negado" (linhas 138-148) sera atualizada para incluir:
-- Informacao de qual email esta logado no momento
-- Botao "Sair e entrar com outra conta" que faz logout e recarrega a pagina, mostrando a tela de login
-- Manter o botao "Ir para a Loja" existente
+## Passos
 
-### 2. Adicionar botao de Logout no cabecalho do Store Admin
+### 1. Criar edge function temporaria `reset-user-password`
 
-O cabecalho do painel da loja (linhas 220-238) nao tem botao de logout. Sera adicionado um botao "Sair" similar ao que ja existe no AdminPage.
+A funcao recebera o user_id e a nova senha, e usara `supabase.auth.admin.updateUserById()` para atualizar a senha.
 
-### 3. Garantir que o `/admin` tambem funcione corretamente
+### 2. Executar a funcao
 
-O AdminPage.tsx ja tem o fluxo correto (login, acesso negado com logout, dashboard com logout). Verificar se esta publicado -- o usuario mencionou que a versao em producao nao esta funcionando, pode ser que falte publicar.
+Chamar a edge function passando o ID do usuario (`482a3de7-c10d-4566-9f0f-ea5c78da3042`) e a senha `Magui2026`.
+
+### 3. Remover a edge function
+
+Apos confirmar que o login funciona, a funcao temporaria sera deletada por seguranca.
+
+### 4. Testar o login
+
+Acessar `/magui-papelaria/admin` e fazer login com `magui2026@gmail.com` / `Magui2026`.
 
 ---
 
-## Arquivos a modificar
+## Arquivo a criar (temporario)
 
-| Arquivo | Alteracao |
+| Arquivo | Acao |
 |---|---|
-| `src/pages/StoreAdminPage.tsx` | Adicionar logout na tela "Acesso negado" + botao Sair no cabecalho |
+| `supabase/functions/reset-user-password/index.ts` | Criar, executar e depois deletar |
 
-## Detalhes Tecnicos
+## Nota importante
 
-### Tela "Acesso negado" atualizada
-
-A tela passara a mostrar:
-- Email atualmente logado (ex: "Logado como meupedidonozap@gmail.com")
-- Botao "Sair e entrar com outra conta" que chama `signOut()` do hook `useAuth`
-- Botao "Ir para a Loja" (ja existente)
-
-### Cabecalho com Logout
-
-Adicionar botao "Sair" no header do StoreAdminPage, ao lado do botao "Ver Loja", usando o mesmo padrao do AdminPage.
-
-### Nota sobre Producao
-
-As mudancas feitas anteriormente no AdminPage.tsx (protecao com login) precisam ser publicadas para funcionar em `meupedidonozap.online/admin`. Apos implementar essas correcoes, sera necessario clicar em "Publish" > "Update" para atualizar a versao de producao.
-
+Nenhuma alteracao no frontend e necessaria. O problema e exclusivamente a senha armazenada no sistema de autenticacao.
