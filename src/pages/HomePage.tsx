@@ -48,7 +48,11 @@ export default function HomePage() {
                   className="group overflow-hidden transition-all hover:shadow-lg"
                 >
                   <div className="h-32 gradient-primary flex items-center justify-center">
-                    <Icon className="h-16 w-16 text-primary-foreground/50" />
+                    {store.logo ? (
+                      <img src={store.logo} alt={store.name} className="h-20 w-20 rounded-full object-cover" />
+                    ) : (
+                      <Icon className="h-16 w-16 text-primary-foreground/50" />
+                    )}
                   </div>
                   <CardContent className="p-6">
                     <div className="mb-3 flex items-start justify-between">
