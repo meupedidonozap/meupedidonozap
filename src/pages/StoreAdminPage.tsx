@@ -7,12 +7,14 @@ import {
   CalendarIcon,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
+import { supabase } from '@/integrations/supabase/client';
 import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
 import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
+import { useAuth } from '@/hooks/useAuth';
 import type { OrderStatus, Product } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
@@ -52,6 +54,25 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
 };
 
+function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }) {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-4">
+      <LogOut className="h-16 w-16 text-destructive" />
+      <h1 className="text-2xl font-bold">Acesso negado</h1>
+      <p className="text-muted-foreground">Você não tem permissão para administrar esta loja.</p>
+      {email && <p className="text-sm text-muted-foreground">Logado como <strong>{email}</strong></p>}
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" /> Sair e entrar com outra conta
+        </Button>
+        <Button asChild><Link to={`/${slug}`}>Ir para a Loja</Link></Button>
+      </div>
+    </div>
+  );
+}
 
 
 export default function StoreAdminPage() {
@@ -136,15 +157,7 @@ export default function StoreAdminPage() {
   // Auth gate
   if (!user) return <StoreAdminLogin storeName={store.name} />;
   if (!isAdmin) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Acesso negado</h1>
-          <p className="text-muted-foreground mt-2">Você não tem permissão para administrar esta loja.</p>
-          <Button asChild className="mt-4"><Link to={`/${slug}`}>Ir para a Loja</Link></Button>
-        </div>
-      </div>
-    );
+    return <StoreAdminAccessDenied email={user.email ?? ''} slug={slug!} />;
   }
 
   const handleToggleProductActive = async (product: Product) => {
@@ -232,6 +245,9 @@ export default function StoreAdminPage() {
             <div className="flex items-center gap-2">
               <Button variant="outline" asChild className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                 <Link to={`/${store.slug}`}><Eye className="mr-2 h-4 w-4" /> Ver Loja</Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="text-primary-foreground hover:text-primary-foreground/80" onClick={() => { supabase.auth.signOut(); }}>
+                <LogOut className="h-4 w-4 mr-1" /> Sair
               </Button>
             </div>
           </div>
