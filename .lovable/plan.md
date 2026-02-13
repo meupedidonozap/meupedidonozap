@@ -1,87 +1,50 @@
 
 
-# Proteger a Pagina /admin com Autenticacao
+# Corrigir Fluxo de Login nos Paineis Admin
 
-## Problema
+## Problema Real
 
-A pagina `/admin` esta completamente aberta -- qualquer pessoa pode acessar digitando a URL. Alem disso, o usuario `meupedidonozap@gmail.com` nao existe no sistema de autenticacao, por isso o login nao funciona.
-
----
+O sistema compartilha uma unica sessao de autenticacao. Quando o usuario faz login no painel geral (`/admin`) como `meupedidonozap@gmail.com`, essa sessao permanece ativa ao visitar `/magui-papelaria/admin`. Como esse usuario nao e admin da loja Magui Papelaria, aparece "Acesso negado" sem opcao de sair ou trocar de conta.
 
 ## O que sera feito
 
-### 1. Criar o usuario no sistema de autenticacao
+### 1. Adicionar botao "Sair / Entrar com outra conta" na tela de "Acesso negado" do Store Admin
 
-O email `meupedidonozap@gmail.com` com a senha `@Deco@1981` sera registrado no sistema para que o login funcione.
+No arquivo `src/pages/StoreAdminPage.tsx`, a tela de "Acesso negado" (linhas 138-148) sera atualizada para incluir:
+- Informacao de qual email esta logado no momento
+- Botao "Sair e entrar com outra conta" que faz logout e recarrega a pagina, mostrando a tela de login
+- Manter o botao "Ir para a Loja" existente
 
-### 2. Criar tabela de administradores da plataforma
+### 2. Adicionar botao de Logout no cabecalho do Store Admin
 
-Uma nova tabela `platform_admins` sera criada para controlar quem pode acessar o painel `/admin` (diferente dos admins de loja que ja existem em `store_admins`).
+O cabecalho do painel da loja (linhas 220-238) nao tem botao de logout. Sera adicionado um botao "Sair" similar ao que ja existe no AdminPage.
 
-```text
-platform_admins
-  - id (uuid, PK)
-  - user_id (uuid, FK -> auth.users)
-  - created_at (timestamp)
-```
+### 3. Garantir que o `/admin` tambem funcione corretamente
 
-Politicas de seguranca (RLS):
-- SELECT: somente o proprio usuario pode verificar se e admin
-- INSERT/UPDATE/DELETE: ninguem via API (somente via SQL direto)
-
-### 3. Criar funcao de verificacao
-
-Uma funcao `is_platform_admin(user_id)` sera criada para uso nas politicas de seguranca, similar a `is_store_admin` que ja existe.
-
-### 4. Vincular o usuario como admin da plataforma
-
-Apos criar o usuario, ele sera inserido na tabela `platform_admins`.
-
-### 5. Proteger a pagina AdminPage
-
-A pagina `src/pages/AdminPage.tsx` passara a:
-- Verificar se o usuario esta logado
-- Verificar se e um admin da plataforma
-- Se nao estiver logado: mostrar tela de login (reutilizando o componente `StoreAdminLogin` adaptado ou criando um similar)
-- Se estiver logado mas nao for admin: mostrar mensagem de acesso negado
-- Adicionar botao de logout no cabecalho
-
-### 6. Criar hook `usePlatformAdmin`
-
-Um novo hook similar ao `useStoreAdmin` que verifica se o usuario logado esta na tabela `platform_admins`.
+O AdminPage.tsx ja tem o fluxo correto (login, acesso negado com logout, dashboard com logout). Verificar se esta publicado -- o usuario mencionou que a versao em producao nao esta funcionando, pode ser que falte publicar.
 
 ---
 
-## Arquivos envolvidos
+## Arquivos a modificar
 
-| Arquivo | Acao |
+| Arquivo | Alteracao |
 |---|---|
-| Migration SQL | Criar tabela `platform_admins`, funcao `is_platform_admin`, inserir usuario |
-| `src/hooks/usePlatformAdmin.ts` | Novo hook para verificar admin da plataforma |
-| `src/pages/AdminPage.tsx` | Adicionar verificacao de auth + tela de login + logout |
-
----
+| `src/pages/StoreAdminPage.tsx` | Adicionar logout na tela "Acesso negado" + botao Sair no cabecalho |
 
 ## Detalhes Tecnicos
 
-### Hook usePlatformAdmin
+### Tela "Acesso negado" atualizada
 
-```text
-usePlatformAdmin()
-  -> useAuth() para obter usuario
-  -> consulta platform_admins para verificar se user_id existe
-  -> retorna { user, isAdmin, loading }
-```
+A tela passara a mostrar:
+- Email atualmente logado (ex: "Logado como meupedidonozap@gmail.com")
+- Botao "Sair e entrar com outra conta" que chama `signOut()` do hook `useAuth`
+- Botao "Ir para a Loja" (ja existente)
 
-### Fluxo da pagina /admin
+### Cabecalho com Logout
 
-```text
-Usuario acessa /admin
-  |
-  +-> Nao logado? -> Tela de login (email + senha)
-  |
-  +-> Logado mas nao e platform_admin? -> "Acesso negado"
-  |
-  +-> Logado e platform_admin? -> Painel normal + botao Sair
-```
+Adicionar botao "Sair" no header do StoreAdminPage, ao lado do botao "Ver Loja", usando o mesmo padrao do AdminPage.
+
+### Nota sobre Producao
+
+As mudancas feitas anteriormente no AdminPage.tsx (protecao com login) precisam ser publicadas para funcionar em `meupedidonozap.online/admin`. Apos implementar essas correcoes, sera necessario clicar em "Publish" > "Update" para atualizar a versao de producao.
 
