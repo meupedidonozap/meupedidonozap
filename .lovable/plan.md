@@ -1,57 +1,87 @@
 
 
-# Escolha de Layout de Impressao (A4 ou Termico)
+# Proteger a Pagina /admin com Autenticacao
 
-## Resumo
+## Problema
 
-Ao clicar no botao de imprimir um pedido, em vez de imprimir direto no formato termico, aparecera um menu dropdown com duas opcoes: "Impressora Termica" e "Folha A4". O usuario escolhe e a impressao e gerada no layout correspondente.
-
----
-
-## O que muda
-
-### 1. `src/lib/printOrder.ts`
-
-- Renomear a funcao `buildOrderHTML` atual para `buildThermalHTML` (layout termico 80mm, ja implementado)
-- Criar uma nova funcao `buildA4HTML` com layout em pagina A4 completa: fonte maior, tabela com colunas, margens normais
-- A funcao exportada `printOrder` passa a receber um terceiro parametro `layout: 'thermal' | 'a4'` e chama o builder correspondente
-- Assinatura: `printOrder(order, storeName, layout)`
-
-### 2. `src/pages/StoreAdminPage.tsx`
-
-- Substituir o botao simples de impressao por um `DropdownMenu` com duas opcoes:
-  - Icone de impressora como trigger
-  - Item "Impressora Termica (80mm)" que chama `printOrder(order, store.name, 'thermal')`
-  - Item "Folha A4" que chama `printOrder(order, store.name, 'a4')`
+A pagina `/admin` esta completamente aberta -- qualquer pessoa pode acessar digitando a URL. Alem disso, o usuario `meupedidonozap@gmail.com` nao existe no sistema de autenticacao, por isso o login nao funciona.
 
 ---
 
-## Layout A4
+## O que sera feito
 
-O layout A4 tera:
-- Fonte `Arial/sans-serif`, tamanho 12px
-- Largura total da pagina (sem restricao de 280px)
-- Cabecalho com nome da loja e numero do pedido
-- Dados do cliente em bloco
-- Tabela de itens com colunas: #, Nome, Codigo, Qtd, Preco Unit, Total
-- Totais alinhados a direita
-- Rodape com data de geracao
+### 1. Criar o usuario no sistema de autenticacao
+
+O email `meupedidonozap@gmail.com` com a senha `@Deco@1981` sera registrado no sistema para que o login funcione.
+
+### 2. Criar tabela de administradores da plataforma
+
+Uma nova tabela `platform_admins` sera criada para controlar quem pode acessar o painel `/admin` (diferente dos admins de loja que ja existem em `store_admins`).
+
+```text
+platform_admins
+  - id (uuid, PK)
+  - user_id (uuid, FK -> auth.users)
+  - created_at (timestamp)
+```
+
+Politicas de seguranca (RLS):
+- SELECT: somente o proprio usuario pode verificar se e admin
+- INSERT/UPDATE/DELETE: ninguem via API (somente via SQL direto)
+
+### 3. Criar funcao de verificacao
+
+Uma funcao `is_platform_admin(user_id)` sera criada para uso nas politicas de seguranca, similar a `is_store_admin` que ja existe.
+
+### 4. Vincular o usuario como admin da plataforma
+
+Apos criar o usuario, ele sera inserido na tabela `platform_admins`.
+
+### 5. Proteger a pagina AdminPage
+
+A pagina `src/pages/AdminPage.tsx` passara a:
+- Verificar se o usuario esta logado
+- Verificar se e um admin da plataforma
+- Se nao estiver logado: mostrar tela de login (reutilizando o componente `StoreAdminLogin` adaptado ou criando um similar)
+- Se estiver logado mas nao for admin: mostrar mensagem de acesso negado
+- Adicionar botao de logout no cabecalho
+
+### 6. Criar hook `usePlatformAdmin`
+
+Um novo hook similar ao `useStoreAdmin` que verifica se o usuario logado esta na tabela `platform_admins`.
+
+---
+
+## Arquivos envolvidos
+
+| Arquivo | Acao |
+|---|---|
+| Migration SQL | Criar tabela `platform_admins`, funcao `is_platform_admin`, inserir usuario |
+| `src/hooks/usePlatformAdmin.ts` | Novo hook para verificar admin da plataforma |
+| `src/pages/AdminPage.tsx` | Adicionar verificacao de auth + tela de login + logout |
 
 ---
 
 ## Detalhes Tecnicos
 
-### Arquivos modificados
-- `src/lib/printOrder.ts` - adicionar `buildA4HTML`, renomear builder atual, atualizar assinatura de `printOrder`
-- `src/pages/StoreAdminPage.tsx` - trocar `Button` por `DropdownMenu` na coluna de acoes dos pedidos
-
-### Dropdown na tabela de pedidos
+### Hook usePlatformAdmin
 
 ```text
-[Icone Impressora v]
-  ├─ Impressora Termica (80mm)
-  └─ Folha A4
+usePlatformAdmin()
+  -> useAuth() para obter usuario
+  -> consulta platform_admins para verificar se user_id existe
+  -> retorna { user, isAdmin, loading }
 ```
 
-O componente `DropdownMenu` ja esta disponivel no projeto (`src/components/ui/dropdown-menu.tsx`).
+### Fluxo da pagina /admin
+
+```text
+Usuario acessa /admin
+  |
+  +-> Nao logado? -> Tela de login (email + senha)
+  |
+  +-> Logado mas nao e platform_admin? -> "Acesso negado"
+  |
+  +-> Logado e platform_admin? -> Painel normal + botao Sair
+```
 
