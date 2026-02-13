@@ -1,89 +1,57 @@
 
-# Layout de Impressao para Impressora Termica (80mm)
+
+# Escolha de Layout de Impressao (A4 ou Termico)
 
 ## Resumo
 
-Reformular o HTML de impressao do pedido para o formato de bobina termica de 80mm, compativel com a impressora Diebold IM433TD. O layout atual em A4 com grid e tabela larga sera substituido por um layout estreito, sequencial, estilo cupom.
+Ao clicar no botao de imprimir um pedido, em vez de imprimir direto no formato termico, aparecera um menu dropdown com duas opcoes: "Impressora Termica" e "Folha A4". O usuario escolhe e a impressao e gerada no layout correspondente.
 
 ---
 
 ## O que muda
 
-O arquivo `src/lib/printOrder.ts` sera reescrito com um layout otimizado para papel de 80mm (largura util ~72mm):
+### 1. `src/lib/printOrder.ts`
 
-### Caracteristicas do novo layout
+- Renomear a funcao `buildOrderHTML` atual para `buildThermalHTML` (layout termico 80mm, ja implementado)
+- Criar uma nova funcao `buildA4HTML` com layout em pagina A4 completa: fonte maior, tabela com colunas, margens normais
+- A funcao exportada `printOrder` passa a receber um terceiro parametro `layout: 'thermal' | 'a4'` e chama o builder correspondente
+- Assinatura: `printOrder(order, storeName, layout)`
 
-- **Largura fixa**: `max-width: 280px` (equivalente a ~72mm a 96dpi)
-- **Fonte monospacada**: `font-family: 'Courier New', monospace` para alinhamento consistente
-- **Fonte pequena**: `font-size: 11px` como base, titulos em 13px
-- **Sem grid**: tudo em coluna unica, sequencial
-- **Separadores com tracejado**: linhas `- - - - -` entre secoes
-- **@page sem margens**: `@page { margin: 2mm; }` para aproveitar o papel
-- **Itens empilhados**: cada item em bloco (nome, codigo, qtd x preco = total) em vez de tabela com 9 colunas
-- **Sem cores de fundo**: apenas texto preto em fundo branco
+### 2. `src/pages/StoreAdminPage.tsx`
 
-### Estrutura do cupom
+- Substituir o botao simples de impressao por um `DropdownMenu` com duas opcoes:
+  - Icone de impressora como trigger
+  - Item "Impressora Termica (80mm)" que chama `printOrder(order, store.name, 'thermal')`
+  - Item "Folha A4" que chama `printOrder(order, store.name, 'a4')`
 
-```text
-================================
-      NOME DA LOJA
-================================
-Pedido #123 | 13/02/2026 14:30
---------------------------------
-CLIENTE
-Nome: Fulano de Tal
-CPF: 123.456.789-00
-Fone: (11) 99999-9999
-End: Rua X, 123 - Bairro
-     Cidade/UF - 12345-678
-Entrega: Manha
-Pagto: PIX
---------------------------------
-ITENS
-1) Camiseta Branca
-   Cod: SKU-01 | Tam: M | Cor: Branca
-   1 x R$ 49,90 = R$ 49,90
+---
 
-2) Calca Jeans
-   Cod: SKU-02
-   2 x R$ 89,90 = R$ 179,80
---------------------------------
-Subtotal:        R$ 229,70
-Desconto:       -R$ 20,00
-Taxa entrega:    R$ 10,00
-================================
-TOTAL:           R$ 219,70
-================================
-Obs: Entregar no portao
---------------------------------
-Gerado em 13/02/2026 14:30
-```
+## Layout A4
+
+O layout A4 tera:
+- Fonte `Arial/sans-serif`, tamanho 12px
+- Largura total da pagina (sem restricao de 280px)
+- Cabecalho com nome da loja e numero do pedido
+- Dados do cliente em bloco
+- Tabela de itens com colunas: #, Nome, Codigo, Qtd, Preco Unit, Total
+- Totais alinhados a direita
+- Rodape com data de geracao
 
 ---
 
 ## Detalhes Tecnicos
 
-### Arquivo modificado
-- `src/lib/printOrder.ts` - reescrever a funcao `buildOrderHTML` com o novo layout termico
+### Arquivos modificados
+- `src/lib/printOrder.ts` - adicionar `buildA4HTML`, renomear builder atual, atualizar assinatura de `printOrder`
+- `src/pages/StoreAdminPage.tsx` - trocar `Button` por `DropdownMenu` na coluna de acoes dos pedidos
 
-### CSS de impressao
+### Dropdown na tabela de pedidos
 
-```css
-@page { margin: 2mm; width: 80mm; }
-body {
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  width: 280px;
-  margin: 0 auto;
-  padding: 4px;
-  color: #000;
-}
+```text
+[Icone Impressora v]
+  ├─ Impressora Termica (80mm)
+  └─ Folha A4
 ```
 
-### Itens em bloco (sem tabela)
+O componente `DropdownMenu` ja esta disponivel no projeto (`src/components/ui/dropdown-menu.tsx`).
 
-Cada item sera renderizado como um bloco `<div>` com nome, detalhes opcionais (codigo, tamanho, cor) e calculo `qtd x preco = total`, em vez da tabela de 9 colunas que nao cabe em 80mm.
-
-### Funcao `printOrder` permanece igual
-
-A mecanica de criacao do iframe e chamada de `window.print()` nao muda - apenas o HTML gerado e diferente.
