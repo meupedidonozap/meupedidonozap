@@ -265,6 +265,24 @@ export type Database = {
           },
         ]
       }
+      platform_admins: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_variants: {
         Row: {
           color: string | null
@@ -445,6 +463,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_store_admin: {
         Args: { _store_id: string; _user_id: string }
         Returns: boolean
