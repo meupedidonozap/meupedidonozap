@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert } from 'lucide-react';
 import { useStores, useCreateStore, useUpdateStore, useDeleteStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
@@ -24,6 +24,9 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { usePlatformAdmin } from '@/hooks/usePlatformAdmin';
+import { useAuth } from '@/hooks/useAuth';
+import StoreAdminLogin from '@/components/StoreAdminLogin';
 
 const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
@@ -58,6 +61,42 @@ const defaultSettings = {
 };
 
 export default function AdminPage() {
+  const { user, isAdmin, loading: adminLoading } = usePlatformAdmin();
+  const { signOut } = useAuth();
+
+  // Show loading
+  if (adminLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Not logged in - show login
+  if (!user) {
+    return <StoreAdminLogin storeName="MeuPedidoNoZap - Admin" />;
+  }
+
+  // Logged in but not platform admin
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-4">
+        <ShieldAlert className="h-16 w-16 text-destructive" />
+        <h1 className="text-2xl font-bold">Acesso Negado</h1>
+        <p className="text-muted-foreground">Você não tem permissão para acessar o painel administrativo.</p>
+        <Button variant="outline" onClick={() => signOut()}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Sair
+        </Button>
+      </div>
+    );
+  }
+
+  return <AdminDashboard onSignOut={signOut} />;
+}
+
+function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const { data: stores = [], isLoading } = useStores();
   const createStore = useCreateStore();
   const updateStore = useUpdateStore();
@@ -76,7 +115,6 @@ export default function AdminPage() {
     email: '',
   });
 
-  // Admin registration state
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [adminStoreId, setAdminStoreId] = useState('');
   const [adminStoreName, setAdminStoreName] = useState('');
@@ -104,32 +142,24 @@ export default function AdminPage() {
     setAdminLoading(true);
     try {
       let userId: string | null = null;
-
-      // Try to create user first
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminEmail,
         password: adminPassword,
       });
-
       if (authError && authError.message?.includes('already')) {
-        // User already exists — try to sign in to get their id
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: adminEmail,
           password: adminPassword,
         });
         if (signInError) throw new Error('Usuário já existe mas a senha está incorreta');
         userId = signInData.user?.id ?? null;
-        // Sign out so we don't stay logged as that user
         await supabase.auth.signOut();
       } else if (authError) {
         throw authError;
       } else {
         userId = authData.user?.id ?? null;
       }
-
       if (!userId) throw new Error('Erro ao obter ID do usuário');
-
-      // Link to store_admins
       const { error: linkError } = await supabase.from('store_admins').insert({
         store_id: adminStoreId,
         user_id: userId,
@@ -179,7 +209,6 @@ export default function AdminPage() {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
-
     try {
       if (editingStore) {
         await updateStore.mutateAsync({ id: editingStore.id, ...formData });
@@ -219,9 +248,15 @@ export default function AdminPage() {
               <h1 className="text-2xl font-bold">MeuPedidoNoZap</h1>
               <p className="text-primary-foreground/80">Painel Administrativo</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              <span className="text-sm">Admin</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                <span className="text-sm">Admin</span>
+              </div>
+              <Button variant="ghost" size="sm" className="text-primary-foreground hover:text-primary-foreground/80" onClick={onSignOut}>
+                <LogOut className="h-4 w-4 mr-1" />
+                Sair
+              </Button>
             </div>
           </div>
         </div>
@@ -360,7 +395,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Admin Registration Dialog */}
         <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
