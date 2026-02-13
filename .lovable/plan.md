@@ -1,66 +1,89 @@
 
-# Importacao de Produtos via Excel
+# Layout de Impressao para Impressora Termica (80mm)
 
 ## Resumo
 
-Adicionar um botao "Importar Excel" na aba de Produtos do painel administrativo da loja. O lojista podera selecionar um arquivo `.xlsx` ou `.xls`, o sistema ira ler as linhas e criar os produtos em lote no banco de dados.
+Reformular o HTML de impressao do pedido para o formato de bobina termica de 80mm, compativel com a impressora Diebold IM433TD. O layout atual em A4 com grid e tabela larga sera substituido por um layout estreito, sequencial, estilo cupom.
 
 ---
 
-## Fluxo do Usuario
+## O que muda
+
+O arquivo `src/lib/printOrder.ts` sera reescrito com um layout otimizado para papel de 80mm (largura util ~72mm):
+
+### Caracteristicas do novo layout
+
+- **Largura fixa**: `max-width: 280px` (equivalente a ~72mm a 96dpi)
+- **Fonte monospacada**: `font-family: 'Courier New', monospace` para alinhamento consistente
+- **Fonte pequena**: `font-size: 11px` como base, titulos em 13px
+- **Sem grid**: tudo em coluna unica, sequencial
+- **Separadores com tracejado**: linhas `- - - - -` entre secoes
+- **@page sem margens**: `@page { margin: 2mm; }` para aproveitar o papel
+- **Itens empilhados**: cada item em bloco (nome, codigo, qtd x preco = total) em vez de tabela com 9 colunas
+- **Sem cores de fundo**: apenas texto preto em fundo branco
+
+### Estrutura do cupom
 
 ```text
-Aba Produtos -> Botao "Importar Excel" -> Selecionar arquivo
-    -> Preview da tabela com os dados encontrados
-    -> Confirmar importacao
-    -> Produtos criados em lote
+================================
+      NOME DA LOJA
+================================
+Pedido #123 | 13/02/2026 14:30
+--------------------------------
+CLIENTE
+Nome: Fulano de Tal
+CPF: 123.456.789-00
+Fone: (11) 99999-9999
+End: Rua X, 123 - Bairro
+     Cidade/UF - 12345-678
+Entrega: Manha
+Pagto: PIX
+--------------------------------
+ITENS
+1) Camiseta Branca
+   Cod: SKU-01 | Tam: M | Cor: Branca
+   1 x R$ 49,90 = R$ 49,90
+
+2) Calca Jeans
+   Cod: SKU-02
+   2 x R$ 89,90 = R$ 179,80
+--------------------------------
+Subtotal:        R$ 229,70
+Desconto:       -R$ 20,00
+Taxa entrega:    R$ 10,00
+================================
+TOTAL:           R$ 219,70
+================================
+Obs: Entregar no portao
+--------------------------------
+Gerado em 13/02/2026 14:30
 ```
-
-## Formato esperado do Excel
-
-O arquivo deve conter as seguintes colunas (nomes flexiveis, mapeados automaticamente):
-
-| Codigo | Nome | Descricao | Categoria | Preco | Ativo |
-|--------|------|-----------|-----------|-------|-------|
-| SKU-01 | Camiseta | Camiseta algodao | Roupas | 49.90 | Sim |
-
-- **Codigo**: opcional (coluna `code`)
-- **Nome**: obrigatorio
-- **Descricao**: opcional
-- **Categoria**: nome da categoria (sera associada se existir)
-- **Preco**: obrigatorio (coluna `base_price`)
-- **Ativo**: opcional, padrao "Sim"
 
 ---
 
 ## Detalhes Tecnicos
 
-### 1. Instalar dependencia
+### Arquivo modificado
+- `src/lib/printOrder.ts` - reescrever a funcao `buildOrderHTML` com o novo layout termico
 
-Adicionar a biblioteca `xlsx` (SheetJS) para parsing de arquivos Excel no navegador, sem necessidade de backend.
+### CSS de impressao
 
-### 2. Criar componente `ImportProductsDialog`
+```css
+@page { margin: 2mm; width: 80mm; }
+body {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  width: 280px;
+  margin: 0 auto;
+  padding: 4px;
+  color: #000;
+}
+```
 
-Novo arquivo: `src/components/ImportProductsDialog.tsx`
+### Itens em bloco (sem tabela)
 
-- Dialog com input de arquivo (aceita `.xlsx`, `.xls`)
-- Ao selecionar o arquivo, usa `xlsx` para ler as linhas
-- Exibe preview em tabela com as primeiras linhas encontradas
-- Mapeia colunas pelo nome (case-insensitive): "codigo/code", "nome/name", "descricao/description", "categoria/category", "preco/price", "ativo/active"
-- Botao "Importar" que insere os produtos em lote via Supabase
-- Exibe progresso e resultado (X produtos importados, Y erros)
+Cada item sera renderizado como um bloco `<div>` com nome, detalhes opcionais (codigo, tamanho, cor) e calculo `qtd x preco = total`, em vez da tabela de 9 colunas que nao cabe em 80mm.
 
-### 3. Modificar `StoreAdminPage.tsx`
+### Funcao `printOrder` permanece igual
 
-- Adicionar botao "Importar Excel" ao lado do botao "Novo Produto" na aba de produtos
-- Abrir o `ImportProductsDialog` ao clicar
-- Passar `storeId` e `categories` como props
-
-### 4. Logica de importacao
-
-- Para cada linha valida (com nome e preco), inserir na tabela `products` via supabase client
-- Se a coluna "Categoria" tiver um nome que corresponda a uma categoria existente da loja, associar o `category_id`
-- Categorias nao encontradas serao ignoradas (produto fica sem categoria)
-- Inserir em lotes de 50 registros para performance
-- Invalidar cache de produtos (`queryKey: ['products']`) ao finalizar
-
+A mecanica de criacao do iframe e chamada de `window.print()` nao muda - apenas o HTML gerado e diferente.
