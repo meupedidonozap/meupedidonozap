@@ -14,7 +14,7 @@ const shiftMap: Record<string, string> = {
   noite: 'Noite',
 };
 
-function buildOrderHTML(order: Order, storeName: string): string {
+function buildThermalHTML(order: Order, storeName: string): string {
   const customer = order.customer;
   const sep = '--------------------------------';
   const dblSep = '================================';
@@ -104,8 +104,119 @@ function buildOrderHTML(order: Order, storeName: string): string {
 </html>`;
 }
 
-export function printOrder(order: Order, storeName: string): void {
-  const html = buildOrderHTML(order, storeName);
+function buildA4HTML(order: Order, storeName: string): string {
+  const customer = order.customer;
+  const addressParts = [customer.address, customer.number].filter(Boolean).join(', ');
+  const addressLine2 = [customer.complement, customer.neighborhood].filter(Boolean).join(' - ');
+  const addressLine3 = [customer.city, customer.uf].filter(Boolean).join('/') + (customer.cep ? ` - ${customer.cep}` : '');
+
+  const itemsRows = order.items
+    .map((item, i) => {
+      const itemTotal = item.price * item.quantity;
+      const details: string[] = [];
+      if (item.size) details.push(item.size);
+      if (item.color) details.push(item.color);
+      const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
+      return `<tr>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}${detailStr}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.code || '-'}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.price)}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(itemTotal)}</td>
+      </tr>`;
+    })
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Pedido #${order.orderNumber}</title>
+<style>
+  @media print {
+    @page { margin: 15mm; }
+    body { margin: 0; }
+  }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+  .header h1 { font-size: 20px; margin: 0; text-transform: uppercase; }
+  .header p { font-size: 14px; margin: 4px 0 0; color: #555; }
+  .section { margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: bold; border-bottom: 1px solid #999; padding-bottom: 4px; margin-bottom: 8px; text-transform: uppercase; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
+  .info-grid div { font-size: 12px; }
+  .info-grid strong { display: inline-block; min-width: 80px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f0f0f0; padding: 6px 8px; text-align: left; border-bottom: 2px solid #999; font-size: 11px; text-transform: uppercase; }
+  .totals { margin-top: 12px; text-align: right; }
+  .totals div { margin-bottom: 2px; }
+  .totals .grand { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
+  .footer { text-align: center; font-size: 10px; color: #888; margin-top: 24px; border-top: 1px solid #ddd; padding-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>${storeName}</h1>
+    <p>Pedido #${order.orderNumber} &mdash; ${formatDateTime(order.createdAt)}</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Cliente</div>
+    <div class="info-grid">
+      <div><strong>Nome:</strong> ${customer.name}</div>
+      <div><strong>CPF/CNPJ:</strong> ${formatCPFCNPJ(customer.cpfCnpj)}</div>
+      <div><strong>Telefone:</strong> ${formatPhone(customer.whatsapp)}</div>
+      <div><strong>Pagamento:</strong> ${paymentMap[order.paymentMethod] || order.paymentMethod}</div>
+      <div><strong>Endereço:</strong> ${addressParts}${addressLine2 ? ', ' + addressLine2 : ''}</div>
+      <div><strong>Cidade:</strong> ${addressLine3}</div>
+      <div><strong>Entrega:</strong> ${shiftMap[order.deliveryShift] || order.deliveryShift}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Itens do Pedido</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:center;width:40px">#</th>
+          <th>Produto</th>
+          <th style="width:100px">Código</th>
+          <th style="text-align:center;width:50px">Qtd</th>
+          <th style="text-align:right;width:90px">Preço Unit.</th>
+          <th style="text-align:right;width:90px">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsRows}
+      </tbody>
+    </table>
+    <div class="totals">
+      <div>Subtotal: ${formatCurrency(order.subtotal)}</div>
+      ${order.discount > 0 ? `<div>Desconto: -${formatCurrency(order.discount)}</div>` : ''}
+      ${order.deliveryFee > 0 ? `<div>Taxa de entrega: ${formatCurrency(order.deliveryFee)}</div>` : ''}
+      <div class="grand">TOTAL: ${formatCurrency(order.total)}</div>
+    </div>
+  </div>
+
+  ${order.observations ? `<div class="section"><div class="section-title">Observações</div><p>${order.observations}</p></div>` : ''}
+
+  <div class="footer">Gerado em ${formatDateTime(new Date())}</div>
+</body>
+</html>`;
+}
+
+export function printOrder(order: Order, storeName: string, layout: 'thermal' | 'a4' = 'thermal'): void {
+  const html = layout === 'a4' ? buildA4HTML(order, storeName) : buildThermalHTML(order, storeName);
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';

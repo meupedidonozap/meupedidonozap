@@ -20,6 +20,9 @@ import StoreAdminLogin from '@/components/StoreAdminLogin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -463,9 +466,21 @@ export default function StoreAdminPage() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => printOrder(order, store.name)}>
-                            <Printer className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => printOrder(order, store.name, 'thermal')}>
+                                Impressora Térmica (80mm)
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => printOrder(order, store.name, 'a4')}>
+                                Folha A4
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
