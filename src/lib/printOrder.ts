@@ -15,28 +15,30 @@ const shiftMap: Record<string, string> = {
 };
 
 function buildOrderHTML(order: Order, storeName: string): string {
-  const itemsRows = order.items
+  const customer = order.customer;
+  const sep = '--------------------------------';
+  const dblSep = '================================';
+
+  const addressParts = [customer.address, customer.number].filter(Boolean).join(', ');
+  const addressLine2 = [customer.complement, customer.neighborhood].filter(Boolean).join(' - ');
+  const addressLine3 = [customer.city, customer.uf].filter(Boolean).join('/') + (customer.cep ? ` - ${customer.cep}` : '');
+
+  const itemsHTML = order.items
     .map((item, i) => {
       const itemTotal = item.price * item.quantity;
+      const details: string[] = [];
+      if (item.code) details.push(`Cod: ${item.code}`);
+      if (item.size) details.push(`Tam: ${item.size}`);
+      if (item.color) details.push(`Cor: ${item.color}`);
+      const detailLine = details.length > 0 ? `<div style="padding-left:16px">${details.join(' | ')}</div>` : '';
       return `
-        <tr>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace">${item.code || '-'}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd">${item.name}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:center">${item.size || '-'}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:center">${item.color || '-'}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.price)}</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right">-</td>
-          <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;font-weight:600">${formatCurrency(itemTotal)}</td>
-        </tr>`;
+        <div style="margin-bottom:6px">
+          <div><strong>${i + 1})</strong> ${item.name}</div>
+          ${detailLine}
+          <div style="padding-left:16px">${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(itemTotal)}</div>
+        </div>`;
     })
     .join('');
-
-  const customer = order.customer;
-  const fullAddress = [customer.address, customer.number, customer.complement, customer.neighborhood, customer.city, customer.uf, customer.cep]
-    .filter(Boolean)
-    .join(', ');
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -45,151 +47,59 @@ function buildOrderHTML(order: Order, storeName: string): string {
 <title>Pedido #${order.orderNumber}</title>
 <style>
   @media print {
+    @page { margin: 2mm; width: 80mm; }
     body { margin: 0; }
-    @page { margin: 15mm; }
   }
   body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 12px;
-    color: #222;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-  .header {
-    text-align: center;
-    border-bottom: 3px solid #333;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
-  }
-  .header h1 {
-    margin: 0 0 4px;
-    font-size: 22px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .header p {
-    margin: 0;
-    font-size: 12px;
-    color: #555;
-  }
-  .section {
-    margin-bottom: 16px;
-  }
-  .section-title {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    background: #f0f0f0;
-    padding: 6px 10px;
-    margin-bottom: 8px;
-    border-left: 4px solid #333;
-  }
-  .info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px 24px;
-    padding: 0 10px;
-    font-size: 12px;
-  }
-  .info-grid .full {
-    grid-column: 1 / -1;
-  }
-  .info-grid strong {
-    color: #555;
-    font-weight: 600;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
+    font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
+    line-height: 1.4;
+    width: 280px;
+    max-width: 280px;
+    margin: 0 auto;
+    padding: 4px;
+    color: #000;
+    background: #fff;
   }
-  thead th {
-    background: #333;
-    color: #fff;
-    padding: 8px;
-    text-align: left;
-    font-size: 10px;
-    text-transform: uppercase;
-  }
-  .totals {
-    text-align: right;
-    margin-top: 12px;
-    padding: 10px;
-    border-top: 2px solid #333;
-  }
-  .totals p {
-    margin: 4px 0;
-    font-size: 13px;
-  }
-  .totals .grand-total {
-    font-size: 18px;
-    font-weight: 800;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 2px solid #333;
-  }
-  .footer {
-    text-align: center;
-    margin-top: 24px;
-    font-size: 10px;
-    color: #999;
-    border-top: 1px solid #ddd;
-    padding-top: 10px;
-  }
+  .center { text-align: center; }
+  .sep { text-align: center; letter-spacing: 1px; margin: 4px 0; }
+  .section-title { font-weight: bold; font-size: 12px; margin: 4px 0 2px; }
+  .totals-line { display: flex; justify-content: space-between; }
+  .grand-total { font-size: 13px; font-weight: bold; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <h1>${storeName}</h1>
-    <p>Pedido #${order.orderNumber} &bull; ${formatDateTime(order.createdAt)}</p>
-  </div>
+  <div class="sep">${dblSep}</div>
+  <div class="center" style="font-size:13px;font-weight:bold;text-transform:uppercase">${storeName}</div>
+  <div class="sep">${dblSep}</div>
+  <div class="center">Pedido #${order.orderNumber} | ${formatDateTime(order.createdAt)}</div>
+  <div class="sep">${sep}</div>
 
-  <div class="section">
-    <div class="section-title">Dados do Cliente</div>
-    <div class="info-grid">
-      <p><strong>Nome:</strong> ${customer.name}</p>
-      <p><strong>CPF/CNPJ:</strong> ${formatCPFCNPJ(customer.cpfCnpj)}</p>
-      <p><strong>WhatsApp:</strong> ${formatPhone(customer.whatsapp)}</p>
-      <p><strong>Pagamento:</strong> ${paymentMap[order.paymentMethod] || order.paymentMethod}</p>
-      <p class="full"><strong>Endereço:</strong> ${fullAddress}</p>
-      <p><strong>Turno de Entrega:</strong> ${shiftMap[order.deliveryShift] || order.deliveryShift}</p>
-      ${order.observations ? `<p class="full"><strong>Observações:</strong> ${order.observations}</p>` : ''}
-    </div>
-  </div>
+  <div class="section-title">CLIENTE</div>
+  <div>Nome: ${customer.name}</div>
+  <div>CPF: ${formatCPFCNPJ(customer.cpfCnpj)}</div>
+  <div>Fone: ${formatPhone(customer.whatsapp)}</div>
+  <div>End: ${addressParts}</div>
+  ${addressLine2 ? `<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${addressLine2}</div>` : ''}
+  <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${addressLine3}</div>
+  <div>Entrega: ${shiftMap[order.deliveryShift] || order.deliveryShift}</div>
+  <div>Pagto: ${paymentMap[order.paymentMethod] || order.paymentMethod}</div>
+  <div class="sep">${sep}</div>
 
-  <div class="section">
-    <div class="section-title">Itens do Pedido</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="text-align:center">#</th>
-          <th>Código</th>
-          <th>Produto</th>
-          <th style="text-align:center">Tamanho</th>
-          <th style="text-align:center">Cor</th>
-          <th style="text-align:center">Qtd</th>
-          <th style="text-align:right">Vlr Unit.</th>
-          <th style="text-align:right">Desc.</th>
-          <th style="text-align:right">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemsRows}
-      </tbody>
-    </table>
+  <div class="section-title">ITENS</div>
+  ${itemsHTML}
+  <div class="sep">${sep}</div>
 
-    <div class="totals">
-      <p><strong>Subtotal:</strong> ${formatCurrency(order.subtotal)}</p>
-      ${order.discount > 0 ? `<p><strong>Desconto:</strong> -${formatCurrency(order.discount)}</p>` : ''}
-      ${order.deliveryFee > 0 ? `<p><strong>Taxa de Entrega:</strong> ${formatCurrency(order.deliveryFee)}</p>` : ''}
-      <p class="grand-total">TOTAL: ${formatCurrency(order.total)}</p>
-    </div>
-  </div>
+  <div class="totals-line"><span>Subtotal:</span><span>${formatCurrency(order.subtotal)}</span></div>
+  ${order.discount > 0 ? `<div class="totals-line"><span>Desconto:</span><span>-${formatCurrency(order.discount)}</span></div>` : ''}
+  ${order.deliveryFee > 0 ? `<div class="totals-line"><span>Taxa entrega:</span><span>${formatCurrency(order.deliveryFee)}</span></div>` : ''}
+  <div class="sep">${dblSep}</div>
+  <div class="totals-line grand-total"><span>TOTAL:</span><span>${formatCurrency(order.total)}</span></div>
+  <div class="sep">${dblSep}</div>
 
-  <div class="footer">
-    Documento gerado em ${formatDateTime(new Date())} &bull; ${storeName}
-  </div>
+  ${order.observations ? `<div>Obs: ${order.observations}</div><div class="sep">${sep}</div>` : ''}
+
+  <div class="center" style="font-size:9px;color:#666;margin-top:4px">Gerado em ${formatDateTime(new Date())}</div>
 </body>
 </html>`;
 }
