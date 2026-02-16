@@ -381,6 +381,75 @@ export type Database = {
           },
         ]
       }
+      service_orders: {
+        Row: {
+          created_at: string
+          customer: Json
+          discount: number
+          extra_items: Json
+          id: string
+          items: Json
+          observations: string | null
+          order_id: string | null
+          os_number: number
+          status: string
+          store_id: string
+          subtotal: number
+          total: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer?: Json
+          discount?: number
+          extra_items?: Json
+          id?: string
+          items?: Json
+          observations?: string | null
+          order_id?: string | null
+          os_number?: number
+          status?: string
+          store_id: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer?: Json
+          discount?: number
+          extra_items?: Json
+          id?: string
+          items?: Json
+          observations?: string | null
+          order_id?: string | null
+          os_number?: number
+          status?: string
+          store_id?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_orders_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_admins: {
         Row: {
           created_at: string

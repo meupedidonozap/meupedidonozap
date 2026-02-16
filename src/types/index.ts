@@ -1,5 +1,33 @@
 // Store types
-export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA';
+export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA' | 'SERVICOS';
+
+export type ServiceOrderStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
+
+export interface ServiceOrderExtraItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  quantity: number;
+}
+
+export interface ServiceOrder {
+  id: string;
+  storeId: string;
+  orderId?: string;
+  osNumber: number;
+  customer: CustomerInfo;
+  items: CartItem[];
+  extraItems: ServiceOrderExtraItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  status: ServiceOrderStatus;
+  observations?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
+}
 
 export interface Store {
   id: string;
