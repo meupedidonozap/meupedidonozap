@@ -32,12 +32,14 @@ const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
   ACESSORIOS: 'Acessórios',
   COMIDA: 'Delivery de Comida',
+  SERVICOS: 'Serviços',
 };
 
 const storeTypeBadgeColors: Record<StoreTypeEnum, string> = {
   LOJA: 'bg-blue-100 text-blue-700',
   ACESSORIOS: 'bg-purple-100 text-purple-700',
   COMIDA: 'bg-orange-100 text-orange-700',
+  SERVICOS: 'bg-teal-100 text-teal-700',
 };
 
 const defaultSettings = {
@@ -299,6 +301,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       <SelectItem value="LOJA">Loja de Produtos</SelectItem>
                       <SelectItem value="ACESSORIOS">Acessórios</SelectItem>
                       <SelectItem value="COMIDA">Delivery de Comida</SelectItem>
+                      <SelectItem value="SERVICOS">Serviços</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

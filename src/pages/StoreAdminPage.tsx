@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon,
+  CalendarIcon, ClipboardList, Users,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,10 +15,14 @@ import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
-import type { OrderStatus, Product } from '@/types';
+import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
+import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin } from '@/hooks/useCustomerProfiles';
+import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
+import ServiceOrderDialog from '@/components/ServiceOrderDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +89,10 @@ export default function StoreAdminPage() {
   const { data: foodItems = [] } = useFoodItems(store?.id);
   const { data: orders = [] } = useOrders(store?.id);
   const { data: coupons = [] } = useCoupons(store?.id);
+  const { data: serviceOrders = [] } = useServiceOrders(store?.type === 'SERVICOS' ? store?.id : undefined);
+  const { data: customerProfiles = [] } = useStoreCustomerProfiles(store?.id);
+  const createServiceOrder = useCreateServiceOrder();
+  const updateCustomerProfile = useUpdateCustomerProfileAdmin();
 
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -97,6 +105,10 @@ export default function StoreAdminPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedSO, setSelectedSO] = useState<ServiceOrder | null>(null);
+  const [soDialogOpen, setSODialogOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
@@ -265,6 +277,10 @@ export default function StoreAdminPage() {
               {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
+            {store.type === 'SERVICOS' && (
+              <TabsTrigger value="service-orders" className="gap-2"><ClipboardList className="h-4 w-4" /> Ordens de Serviço</TabsTrigger>
+            )}
+            <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
           </TabsList>
 
@@ -482,21 +498,44 @@ export default function StoreAdminPage() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Printer className="h-4 w-4" />
+                          <div className="flex justify-end gap-1">
+                            {store.type === 'SERVICOS' && (
+                              <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={async () => {
+                                try {
+                                  const so = await createServiceOrder.mutateAsync({
+                                    storeId: store.id,
+                                    orderId: order.id,
+                                    customer: order.customer,
+                                    items: order.items,
+                                    subtotal: order.subtotal,
+                                    discount: order.discount,
+                                    total: order.total,
+                                    userId: (order as any).userId || undefined,
+                                  });
+                                  setSelectedSO(so);
+                                  setSODialogOpen(true);
+                                  toast.success('OS gerada!');
+                                } catch { toast.error('Erro ao gerar OS'); }
+                              }}>
+                                <ClipboardList className="h-3 w-3" /> Gerar OS
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => printOrder(order, store.name, 'thermal')}>
-                                Impressora Térmica (80mm)
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => printOrder(order, store.name, 'a4')}>
-                                Folha A4
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => printOrder(order, store.name, 'thermal')}>
+                                  Impressora Térmica (80mm)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => printOrder(order, store.name, 'a4')}>
+                                  Folha A4
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -565,6 +604,130 @@ export default function StoreAdminPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Service Orders - only for SERVICOS */}
+          {store.type === 'SERVICOS' && (
+            <TabsContent value="service-orders" className="animate-fade-in">
+              <div className="mb-4"><h3 className="text-lg font-semibold">Ordens de Serviço</h3></div>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>OS</TableHead><TableHead>Cliente</TableHead><TableHead>Itens</TableHead>
+                        <TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Data</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {serviceOrders.map(so => (
+                        <TableRow key={so.id} className="cursor-pointer" onClick={() => { setSelectedSO(so); setSODialogOpen(true); }}>
+                          <TableCell className="font-medium">#{so.osNumber}</TableCell>
+                          <TableCell>{so.customer.name}</TableCell>
+                          <TableCell>{so.items.length + so.extraItems.length} itens</TableCell>
+                          <TableCell className="font-medium">{formatCurrency(so.total)}</TableCell>
+                          <TableCell>
+                            <Badge className={
+                              so.status === 'aberta' ? 'bg-yellow-100 text-yellow-700' :
+                              so.status === 'em_andamento' ? 'bg-blue-100 text-blue-700' :
+                              so.status === 'concluida' ? 'bg-green-100 text-green-700' :
+                              'bg-red-100 text-red-700'
+                            }>
+                              {so.status === 'aberta' ? 'Aberta' : so.status === 'em_andamento' ? 'Em Andamento' : so.status === 'concluida' ? 'Concluída' : 'Cancelada'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(so.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSO(so); setSODialogOpen(true); }}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {serviceOrders.length === 0 && (
+                        <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhuma OS encontrada. Gere uma OS a partir de um pedido.</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* Customers */}
+          <TabsContent value="customers" className="animate-fade-in">
+            <div className="mb-4"><h3 className="text-lg font-semibold">Clientes Cadastrados</h3></div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerProfiles.map(cp => (
+                      <TableRow key={cp.id}>
+                        <TableCell className="font-medium">{cp.name || '—'}</TableCell>
+                        <TableCell>{cp.whatsapp || '—'}</TableCell>
+                        <TableCell>{cp.city && cp.uf ? `${cp.city}/${cp.uf}` : '—'}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => {
+                            setEditingCustomer(cp);
+                            setCustomerForm({
+                              name: cp.name, whatsapp: cp.whatsapp, address: cp.address,
+                              number: cp.number, city: cp.city, uf: cp.uf, cep: cp.cep,
+                              neighborhood: cp.neighborhood, complement: cp.complement || '',
+                            });
+                          }}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {customerProfiles.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Edit customer dialog */}
+            {editingCustomer && (
+              <Dialog open={!!editingCustomer} onOpenChange={(v) => { if (!v) setEditingCustomer(null); }}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader><DialogTitle>Editar Cliente</DialogTitle></DialogHeader>
+                  <div className="grid gap-3 py-2">
+                    <div className="grid gap-1"><Label className="text-sm">Nome</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
+                    <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="grid gap-1"><Label className="text-sm">CEP</Label><Input value={customerForm.cep} onChange={e => setCustomerForm(f => ({ ...f, cep: e.target.value }))} /></div>
+                      <div className="grid gap-1"><Label className="text-sm">UF</Label><Input value={customerForm.uf} onChange={e => setCustomerForm(f => ({ ...f, uf: e.target.value }))} /></div>
+                    </div>
+                    <div className="grid gap-1"><Label className="text-sm">Cidade</Label><Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} /></div>
+                    <div className="grid gap-1"><Label className="text-sm">Bairro</Label><Input value={customerForm.neighborhood} onChange={e => setCustomerForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço</Label><Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} /></div>
+                      <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
+                    </div>
+                    <div className="grid gap-1"><Label className="text-sm">Complemento</Label><Input value={customerForm.complement} onChange={e => setCustomerForm(f => ({ ...f, complement: e.target.value }))} /></div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
+                    <Button onClick={async () => {
+                      try {
+                        await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
+                        toast.success('Cliente atualizado!');
+                        setEditingCustomer(null);
+                      } catch { toast.error('Erro ao atualizar'); }
+                    }}>Salvar</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -580,6 +743,13 @@ export default function StoreAdminPage() {
         onOpenChange={setImportDialogOpen}
         storeId={store.id}
         categories={categories}
+      />
+      <ServiceOrderDialog
+        open={soDialogOpen}
+        onOpenChange={setSODialogOpen}
+        serviceOrder={selectedSO}
+        storeName={store.name}
+        storeWhatsapp={store.whatsapp}
       />
     </div>
   );

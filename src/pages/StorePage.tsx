@@ -20,5 +20,6 @@ export default function StorePage() {
     return <FoodStorePage />;
   }
 
+  // SERVICOS and LOJA/ACESSORIOS all use ProductStorePage
   return <ProductStorePage />;
 }
