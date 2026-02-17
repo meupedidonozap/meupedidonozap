@@ -148,7 +148,7 @@ export default function StoreAdminPage() {
     totalProducts: allProducts.length,
     totalOrders: filteredOrders.length,
     pendingOrders: filteredOrders.filter(o => o.status === 'pendente').length,
-    revenue: filteredOrders.reduce((sum, o) => sum + o.total, 0),
+    revenue: filteredOrders.filter(o => o.status !== 'cancelado').reduce((sum, o) => sum + o.total, 0),
   }), [allProducts, filteredOrders]);
 
   if (storeLoading || adminLoading) {
@@ -505,6 +505,7 @@ export default function StoreAdminPage() {
                                   const so = await createServiceOrder.mutateAsync({
                                     storeId: store.id,
                                     orderId: order.id,
+                                    orderNumber: order.orderNumber,
                                     customer: order.customer,
                                     items: order.items,
                                     subtotal: order.subtotal,

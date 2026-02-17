@@ -44,6 +44,7 @@ export function useCreateServiceOrder() {
     mutationFn: async (params: {
       storeId: string;
       orderId?: string;
+      orderNumber?: number;
       customer: CustomerInfo;
       items: CartItem[];
       subtotal: number;
@@ -52,21 +53,25 @@ export function useCreateServiceOrder() {
       userId?: string;
       observations?: string;
     }) => {
+      const insertData: any = {
+        store_id: params.storeId,
+        order_id: params.orderId || null,
+        customer: params.customer as any,
+        items: params.items as any,
+        extra_items: [] as any,
+        subtotal: params.subtotal,
+        discount: params.discount,
+        total: params.total,
+        user_id: params.userId || null,
+        observations: params.observations || null,
+        status: 'aberta',
+      };
+      if (params.orderNumber !== undefined) {
+        insertData.os_number = params.orderNumber;
+      }
       const { data, error } = await supabase
         .from('service_orders')
-        .insert({
-          store_id: params.storeId,
-          order_id: params.orderId || null,
-          customer: params.customer as any,
-          items: params.items as any,
-          extra_items: [] as any,
-          subtotal: params.subtotal,
-          discount: params.discount,
-          total: params.total,
-          user_id: params.userId || null,
-          observations: params.observations || null,
-          status: 'aberta',
-        })
+        .insert(insertData)
         .select()
         .single();
       if (error) throw error;
