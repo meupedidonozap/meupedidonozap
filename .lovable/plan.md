@@ -1,33 +1,34 @@
 
+# Dashboard: Excluir Cancelados do Faturamento + OS com Numero do Pedido
 
-# Correcao: Itens extras da OS devem ser incluidos no pedido
+## Problema 1: Faturamento inclui pedidos cancelados
 
-## Problema Identificado
+O calculo de `revenue` no dashboard soma o total de **todos** os pedidos filtrados, incluindo os cancelados. No exemplo da imagem, o pedido #12 (R$ 80,00 - Cancelado) esta sendo somado ao faturamento.
 
-Ao salvar a OS, os itens adicionais sao gravados apenas no campo `extra_items` separado, mas o usuario espera que eles sejam **incluidos no campo `items`** (itens do pedido) e o valor total seja atualizado. Alem disso, possiveis erros do banco estao sendo engolidos pelo `catch` generico, dificultando o diagnostico.
+### Correcao
 
-## Solucao
+No arquivo `src/pages/StoreAdminPage.tsx`, linha 151, alterar o calculo de revenue para excluir pedidos com status `cancelado`:
 
-### 1. Alterar `ServiceOrderDialog.tsx` - Funcao `handleSave`
+```
+revenue: filteredOrders
+  .filter(o => o.status !== 'cancelado')
+  .reduce((sum, o) => sum + o.total, 0),
+```
 
-Ao salvar, os itens extras serao **mesclados no array `items`** da OS (convertendo `ServiceOrderExtraItem` para `CartItem`), e o total sera recalculado incluindo todos os itens. O campo `extra_items` tambem sera atualizado para manter registro.
+## Problema 2: OS deve usar o mesmo numero do pedido
 
-Mudancas:
-- Na funcao `handleSave`, construir um novo array `items` que combina os itens originais com os extras adicionados
-- Passar o campo `items` atualizado para o `useUpdateServiceOrder`
-- Melhorar o tratamento de erro para exibir a mensagem real do banco
+Atualmente a OS recebe um numero sequencial proprio (`os_number` via `nextval`). O usuario quer que, ao gerar uma OS a partir de um pedido, a OS use o mesmo numero do pedido de origem.
 
-### 2. Alterar `useServiceOrders.ts` - Funcao `useUpdateServiceOrder`
+### Correcao
 
-Adicionar suporte ao campo `items` no update, que atualmente nao esta incluido nos parametros aceitos.
+1. **`src/hooks/useServiceOrders.ts`** - No `useCreateServiceOrder`, passar o `orderNumber` como parametro e incluir no insert como `os_number`:
 
-Mudancas:
-- Adicionar `items?: CartItem[]` aos parametros do mutation
-- Mapear `params.items` para `update.items` no objeto de update
+   - Adicionar `orderNumber?: number` aos parametros
+   - No insert, adicionar `os_number: params.orderNumber` (quando fornecido)
 
-### 3. Melhorar feedback de erros
+2. **`src/pages/StoreAdminPage.tsx`** - No botao "Gerar OS" (linha ~505), passar `orderNumber: order.orderNumber` para o `createServiceOrder.mutateAsync`.
 
-O `catch` atual engole o erro real. Alterar para exibir `error.message` no toast, facilitando o diagnostico de problemas de permissao (RLS) ou outros.
+3. **Migracao SQL** - Alterar a coluna `os_number` para permitir valor manual (remover NOT NULL default ou tornar o default opcional). Como o default ja e um `nextval`, basta passar o valor explicitamente no insert que o Postgres usara o valor fornecido em vez do sequence. Nenhuma migracao necessaria.
 
 ---
 
@@ -35,24 +36,5 @@ O `catch` atual engole o erro real. Alterar para exibir `error.message` no toast
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/hooks/useServiceOrders.ts` | Adicionar campo `items` nos parametros e no objeto de update |
-| `src/components/ServiceOrderDialog.tsx` | Mesclar extras nos items ao salvar + melhorar tratamento de erro |
-
-## Detalhes tecnicos
-
-No `handleSave`, os extras serao convertidos de `ServiceOrderExtraItem` para `CartItem`:
-
-```
-{
-  productId: item.id,
-  name: item.name,
-  code: item.description || '',
-  price: item.price,
-  quantity: item.quantity,
-}
-```
-
-O array final de `items` sera: `[...serviceOrder.items, ...extrasConvertidos]`
-
-Isso garante que ao reabrir a OS, todos os itens (originais + adicionados) aparecam juntos na lista principal, e o total reflita o valor correto.
-
+| `src/pages/StoreAdminPage.tsx` | Excluir cancelados do revenue; passar `orderNumber` ao gerar OS |
+| `src/hooks/useServiceOrders.ts` | Aceitar e usar `orderNumber` no insert da OS |
