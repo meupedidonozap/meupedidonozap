@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { ServiceOrder, ServiceOrderExtraItem, ServiceOrderStatus, Product } from '@/types';
+import type { ServiceOrder, ServiceOrderExtraItem, ServiceOrderStatus, Product, CartItem } from '@/types';
 import { useUpdateServiceOrder } from '@/hooks/useServiceOrders';
 import { useProducts } from '@/hooks/useProducts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -119,9 +119,20 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const handleSave = async () => {
     if (!serviceOrder) return;
     try {
+      // Merge extras into items as CartItem
+      const extrasAsCartItems: CartItem[] = extraItems.map(item => ({
+        productId: item.id,
+        name: item.name,
+        code: item.description || '',
+        price: item.price,
+        quantity: item.quantity,
+      }));
+      const mergedItems = [...serviceOrder.items, ...extrasAsCartItems];
+
       await updateSO.mutateAsync({
         id: serviceOrder.id,
         storeId: serviceOrder.storeId,
+        items: mergedItems,
         extraItems,
         subtotal: itemsTotal + extrasTotal,
         total: grandTotal,
@@ -130,8 +141,8 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
       });
       toast.success('OS atualizada!');
       handleOpenChange(false);
-    } catch {
-      toast.error('Erro ao salvar OS');
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao salvar OS');
     }
   };
 

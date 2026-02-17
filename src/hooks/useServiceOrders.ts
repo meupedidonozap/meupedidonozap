@@ -84,6 +84,7 @@ export function useUpdateServiceOrder() {
     mutationFn: async (params: {
       id: string;
       storeId: string;
+      items?: CartItem[];
       extraItems?: ServiceOrderExtraItem[];
       subtotal?: number;
       discount?: number;
@@ -92,6 +93,7 @@ export function useUpdateServiceOrder() {
       observations?: string;
     }) => {
       const update: any = {};
+      if (params.items !== undefined) update.items = params.items;
       if (params.extraItems !== undefined) update.extra_items = params.extraItems;
       if (params.subtotal !== undefined) update.subtotal = params.subtotal;
       if (params.discount !== undefined) update.discount = params.discount;
