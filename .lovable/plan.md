@@ -1,40 +1,32 @@
 
-# Dashboard: Excluir Cancelados do Faturamento + OS com Numero do Pedido
+# Bloquear Geracao de OS Duplicada
 
-## Problema 1: Faturamento inclui pedidos cancelados
+## Problema
 
-O calculo de `revenue` no dashboard soma o total de **todos** os pedidos filtrados, incluindo os cancelados. No exemplo da imagem, o pedido #12 (R$ 80,00 - Cancelado) esta sendo somado ao faturamento.
+Atualmente, o botao "Gerar OS" aparece para todos os pedidos de lojas do tipo SERVICOS, mesmo que o pedido ja tenha uma OS criada. Isso permite criar multiplas OS para o mesmo pedido.
 
-### Correcao
+## Solucao
 
-No arquivo `src/pages/StoreAdminPage.tsx`, linha 151, alterar o calculo de revenue para excluir pedidos com status `cancelado`:
+Usar a lista de `serviceOrders` que ja esta carregada (linha 92) para verificar se o pedido ja possui uma OS antes de permitir a criacao.
+
+### Mudancas no arquivo `src/pages/StoreAdminPage.tsx`
+
+No trecho do botao "Gerar OS" (linha 502-522):
+
+1. Antes de renderizar o botao, verificar se ja existe uma OS com `orderId` igual ao `order.id` na lista `serviceOrders`
+2. Se ja existir: mostrar um botao diferente ("Abrir OS") que abre a OS existente em vez de criar uma nova
+3. Se nao existir: manter o botao "Gerar OS" atual
+
+A logica sera:
 
 ```
-revenue: filteredOrders
-  .filter(o => o.status !== 'cancelado')
-  .reduce((sum, o) => sum + o.total, 0),
+const existingSO = serviceOrders.find(so => so.orderId === order.id);
+
+if (existingSO) {
+  // Botao "Abrir OS" -> abre o dialog com a OS existente
+} else {
+  // Botao "Gerar OS" -> cria nova OS (codigo atual)
+}
 ```
 
-## Problema 2: OS deve usar o mesmo numero do pedido
-
-Atualmente a OS recebe um numero sequencial proprio (`os_number` via `nextval`). O usuario quer que, ao gerar uma OS a partir de um pedido, a OS use o mesmo numero do pedido de origem.
-
-### Correcao
-
-1. **`src/hooks/useServiceOrders.ts`** - No `useCreateServiceOrder`, passar o `orderNumber` como parametro e incluir no insert como `os_number`:
-
-   - Adicionar `orderNumber?: number` aos parametros
-   - No insert, adicionar `os_number: params.orderNumber` (quando fornecido)
-
-2. **`src/pages/StoreAdminPage.tsx`** - No botao "Gerar OS" (linha ~505), passar `orderNumber: order.orderNumber` para o `createServiceOrder.mutateAsync`.
-
-3. **Migracao SQL** - Alterar a coluna `os_number` para permitir valor manual (remover NOT NULL default ou tornar o default opcional). Como o default ja e um `nextval`, basta passar o valor explicitamente no insert que o Postgres usara o valor fornecido em vez do sequence. Nenhuma migracao necessaria.
-
----
-
-## Arquivos a modificar
-
-| Arquivo | Mudanca |
-|---|---|
-| `src/pages/StoreAdminPage.tsx` | Excluir cancelados do revenue; passar `orderNumber` ao gerar OS |
-| `src/hooks/useServiceOrders.ts` | Aceitar e usar `orderNumber` no insert da OS |
+Isso resolve o problema sem precisar de consultas extras ao banco, pois os dados ja estao disponíveis no estado do componente.
