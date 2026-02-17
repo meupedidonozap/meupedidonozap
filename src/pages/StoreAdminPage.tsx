@@ -543,10 +543,16 @@ export default function StoreAdminPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => printOrder(order, store.name, 'thermal')}>
+                                <DropdownMenuItem onClick={() => {
+                                  const so = serviceOrders.find(s => s.orderId === order.id);
+                                  printOrder(order, store.name, 'thermal', { extraItems: so?.extraItems });
+                                }}>
                                   Impressora Térmica (80mm)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => printOrder(order, store.name, 'a4')}>
+                                <DropdownMenuItem onClick={() => {
+                                  const so = serviceOrders.find(s => s.orderId === order.id);
+                                  printOrder(order, store.name, 'a4', { extraItems: so?.extraItems });
+                                }}>
                                   Folha A4
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
