@@ -499,28 +499,41 @@ export default function StoreAdminPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            {store.type === 'SERVICOS' && (
-                              <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={async () => {
-                                try {
-                                  const so = await createServiceOrder.mutateAsync({
-                                    storeId: store.id,
-                                    orderId: order.id,
-                                    orderNumber: order.orderNumber,
-                                    customer: order.customer,
-                                    items: order.items,
-                                    subtotal: order.subtotal,
-                                    discount: order.discount,
-                                    total: order.total,
-                                    userId: (order as any).userId || undefined,
-                                  });
-                                  setSelectedSO(so);
-                                  setSODialogOpen(true);
-                                  toast.success('OS gerada!');
-                                } catch { toast.error('Erro ao gerar OS'); }
-                              }}>
-                                <ClipboardList className="h-3 w-3" /> Gerar OS
-                              </Button>
-                            )}
+                            {store.type === 'SERVICOS' && (() => {
+                              const existingSO = serviceOrders.find(so => so.orderId === order.id);
+                              if (existingSO) {
+                                return (
+                                  <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
+                                    setSelectedSO(existingSO);
+                                    setSODialogOpen(true);
+                                  }}>
+                                    <ClipboardList className="h-3 w-3" /> Abrir OS
+                                  </Button>
+                                );
+                              }
+                              return (
+                                <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={async () => {
+                                  try {
+                                    const so = await createServiceOrder.mutateAsync({
+                                      storeId: store.id,
+                                      orderId: order.id,
+                                      orderNumber: order.orderNumber,
+                                      customer: order.customer,
+                                      items: order.items,
+                                      subtotal: order.subtotal,
+                                      discount: order.discount,
+                                      total: order.total,
+                                      userId: (order as any).userId || undefined,
+                                    });
+                                    setSelectedSO(so);
+                                    setSODialogOpen(true);
+                                    toast.success('OS gerada!');
+                                  } catch { toast.error('Erro ao gerar OS'); }
+                                }}>
+                                  <ClipboardList className="h-3 w-3" /> Gerar OS
+                                </Button>
+                              );
+                            })()}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
