@@ -1,5 +1,9 @@
-import type { Order } from '@/types';
+import type { Order, ServiceOrderExtraItem } from '@/types';
 import { formatCurrency, formatDateTime, formatCPFCNPJ, formatPhone } from '@/lib/formatters';
+
+interface PrintOptions {
+  extraItems?: ServiceOrderExtraItem[];
+}
 
 const paymentMap: Record<string, string> = {
   pix: 'PIX',
@@ -14,7 +18,7 @@ const shiftMap: Record<string, string> = {
   noite: 'Noite',
 };
 
-function buildThermalHTML(order: Order, storeName: string): string {
+function buildThermalHTML(order: Order, storeName: string, options?: PrintOptions): string {
   const customer = order.customer;
   const sep = '--------------------------------';
   const dblSep = '================================';
@@ -86,9 +90,21 @@ function buildThermalHTML(order: Order, storeName: string): string {
   <div>Pagto: ${paymentMap[order.paymentMethod] || order.paymentMethod}</div>
   <div class="sep">${sep}</div>
 
-  <div class="section-title">ITENS</div>
+  <div class="section-title">ITENS DO PEDIDO</div>
   ${itemsHTML}
   <div class="sep">${sep}</div>
+
+  ${(options?.extraItems && options.extraItems.length > 0) ? `
+  <div class="section-title">ITENS DA OS</div>
+  ${options.extraItems.map((item, i) => {
+    const itemTotal = item.price * item.quantity;
+    return `<div style="margin-bottom:6px">
+      <div><strong>${i + 1})</strong> ${item.name}</div>
+      <div style="padding-left:16px">${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(itemTotal)}</div>
+    </div>`;
+  }).join('')}
+  <div class="sep">${sep}</div>
+  ` : ''}
 
   <div class="totals-line"><span>Subtotal:</span><span>${formatCurrency(order.subtotal)}</span></div>
   ${order.discount > 0 ? `<div class="totals-line"><span>Desconto:</span><span>-${formatCurrency(order.discount)}</span></div>` : ''}
@@ -104,7 +120,7 @@ function buildThermalHTML(order: Order, storeName: string): string {
 </html>`;
 }
 
-function buildA4HTML(order: Order, storeName: string): string {
+function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): string {
   const customer = order.customer;
   const addressParts = [customer.address, customer.number].filter(Boolean).join(', ');
   const addressLine2 = [customer.complement, customer.neighborhood].filter(Boolean).join(' - ');
@@ -200,6 +216,38 @@ function buildA4HTML(order: Order, storeName: string): string {
         ${itemsRows}
       </tbody>
     </table>
+  </div>
+
+  ${(options?.extraItems && options.extraItems.length > 0) ? `
+  <div class="section">
+    <div class="section-title">Itens da OS (Materiais Adicionais)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:center;width:40px">#</th>
+          <th>Item</th>
+          <th style="text-align:center;width:50px">Qtd</th>
+          <th style="text-align:right;width:90px">Preço Unit.</th>
+          <th style="text-align:right;width:90px">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${options.extraItems.map((item, i) => {
+          const itemTotal = item.price * item.quantity;
+          return `<tr>
+            <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.price)}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(itemTotal)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
+  <div class="section">
     <div class="totals">
       <div>Subtotal: ${formatCurrency(order.subtotal)}</div>
       ${order.discount > 0 ? `<div>Desconto: -${formatCurrency(order.discount)}</div>` : ''}
@@ -215,8 +263,8 @@ function buildA4HTML(order: Order, storeName: string): string {
 </html>`;
 }
 
-export function printOrder(order: Order, storeName: string, layout: 'thermal' | 'a4' = 'thermal'): void {
-  const html = layout === 'a4' ? buildA4HTML(order, storeName) : buildThermalHTML(order, storeName);
+export function printOrder(order: Order, storeName: string, layout: 'thermal' | 'a4' = 'thermal', options?: PrintOptions): void {
+  const html = layout === 'a4' ? buildA4HTML(order, storeName, options) : buildThermalHTML(order, storeName, options);
 
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
