@@ -1,55 +1,33 @@
 
 
-# Importacao Excel: Upsert por Codigo + Limpeza de Duplicados
+# Correcao: Itens extras da OS devem ser incluidos no pedido
 
-## Problema
+## Problema Identificado
 
-A loja Rafas tem 221 produtos, todos com codigos duplicados (RAF0001 a RAF0020+, cada um aparecendo 2x). A importacao atual sempre faz INSERT, criando duplicados ao reimportar.
+Ao salvar a OS, os itens adicionais sao gravados apenas no campo `extra_items` separado, mas o usuario espera que eles sejam **incluidos no campo `items`** (itens do pedido) e o valor total seja atualizado. Alem disso, possiveis erros do banco estao sendo engolidos pelo `catch` generico, dificultando o diagnostico.
 
 ## Solucao
 
-### 1. Limpar duplicados existentes no banco
+### 1. Alterar `ServiceOrderDialog.tsx` - Funcao `handleSave`
 
-Executar uma migracao SQL que remove os duplicados, mantendo apenas o registro mais recente (por `created_at`) para cada combinacao `store_id + code`.
+Ao salvar, os itens extras serao **mesclados no array `items`** da OS (convertendo `ServiceOrderExtraItem` para `CartItem`), e o total sera recalculado incluindo todos os itens. O campo `extra_items` tambem sera atualizado para manter registro.
 
-```sql
-DELETE FROM products
-WHERE id IN (
-  SELECT id FROM (
-    SELECT id, ROW_NUMBER() OVER (
-      PARTITION BY store_id, code
-      ORDER BY created_at DESC
-    ) as rn
-    FROM products
-    WHERE code != ''
-  ) sub
-  WHERE rn > 1
-);
-```
+Mudancas:
+- Na funcao `handleSave`, construir um novo array `items` que combina os itens originais com os extras adicionados
+- Passar o campo `items` atualizado para o `useUpdateServiceOrder`
+- Melhorar o tratamento de erro para exibir a mensagem real do banco
 
-### 2. Alterar logica de importacao para UPSERT
+### 2. Alterar `useServiceOrders.ts` - Funcao `useUpdateServiceOrder`
 
-No `ImportProductsDialog.tsx`, modificar o `handleImport` para:
+Adicionar suporte ao campo `items` no update, que atualmente nao esta incluido nos parametros aceitos.
 
-1. **Antes de importar**: buscar todos os produtos existentes da loja que tenham codigo preenchido
-2. **Para cada linha da planilha com codigo**:
-   - Se o codigo ja existe na loja: fazer UPDATE (nome, descricao, preco, categoria, status)
-   - Se o codigo nao existe: fazer INSERT normalmente
-3. **Linhas sem codigo**: sempre INSERT (comportamento atual)
+Mudancas:
+- Adicionar `items?: CartItem[]` aos parametros do mutation
+- Mapear `params.items` para `update.items` no objeto de update
 
-A logica sera:
-- Carregar mapa de `code -> product_id` existente
-- Separar batch em "updates" e "inserts"
-- Para updates: usar `.update()` individual ou em lote
-- Para inserts: usar `.insert()` em lote como ja faz
+### 3. Melhorar feedback de erros
 
-### 3. Indicacao visual na pre-visualizacao
-
-Adicionar uma coluna "Acao" na tabela de preview mostrando:
-- "Atualizar" (icone de refresh) para linhas cujo codigo ja existe
-- "Novo" (icone de plus) para linhas com codigo novo ou sem codigo
-
-O resultado final mostrara: "X atualizado(s), Y novo(s), Z erro(s)"
+O `catch` atual engole o erro real. Alterar para exibir `error.message` no toast, facilitando o diagnostico de problemas de permissao (RLS) ou outros.
 
 ---
 
@@ -57,13 +35,24 @@ O resultado final mostrara: "X atualizado(s), Y novo(s), Z erro(s)"
 
 | Arquivo | Mudanca |
 |---|---|
-| Migracao SQL | Remover produtos duplicados existentes |
-| `src/components/ImportProductsDialog.tsx` | Logica de upsert + indicacao visual de "Atualizar" vs "Novo" |
+| `src/hooks/useServiceOrders.ts` | Adicionar campo `items` nos parametros e no objeto de update |
+| `src/components/ServiceOrderDialog.tsx` | Mesclar extras nos items ao salvar + melhorar tratamento de erro |
 
 ## Detalhes tecnicos
 
-- O `ParsedRow` ganhara um campo `action: 'update' | 'insert'` preenchido apos carregar os produtos existentes
-- O `handleImport` separara as linhas em dois grupos e processara updates e inserts separadamente
-- Updates usarao chamadas individuais `.update().eq('id', existingId)` para cada produto
-- O resultado exibira contagem separada de atualizados vs novos
+No `handleSave`, os extras serao convertidos de `ServiceOrderExtraItem` para `CartItem`:
+
+```
+{
+  productId: item.id,
+  name: item.name,
+  code: item.description || '',
+  price: item.price,
+  quantity: item.quantity,
+}
+```
+
+O array final de `items` sera: `[...serviceOrder.items, ...extrasConvertidos]`
+
+Isso garante que ao reabrir a OS, todos os itens (originais + adicionados) aparecam juntos na lista principal, e o total reflita o valor correto.
 
