@@ -76,3 +76,17 @@ export function useUpdateOrderStatus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
   });
 }
+
+export function useUpdateOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, total }: { id: string; status?: OrderStatus; total?: number }) => {
+      const update: any = {};
+      if (status) update.status = status;
+      if (total !== undefined) update.total = total;
+      const { error } = await supabase.from('orders').update(update).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+  });
+}

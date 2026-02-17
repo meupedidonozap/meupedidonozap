@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
-import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders';
+import { useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
@@ -97,6 +97,7 @@ export default function StoreAdminPage() {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
   const updateOrderStatus = useUpdateOrderStatus();
+  const updateOrder = useUpdateOrder();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
 
@@ -148,7 +149,7 @@ export default function StoreAdminPage() {
     totalProducts: allProducts.length,
     totalOrders: filteredOrders.length,
     pendingOrders: filteredOrders.filter(o => o.status === 'pendente').length,
-    revenue: filteredOrders.filter(o => o.status !== 'cancelado').reduce((sum, o) => sum + o.total, 0),
+    revenue: filteredOrders.filter(o => o.status === 'entregue').reduce((sum, o) => sum + o.total, 0),
   }), [allProducts, filteredOrders]);
 
   if (storeLoading || adminLoading) {
@@ -527,6 +528,7 @@ export default function StoreAdminPage() {
                                     });
                                     setSelectedSO(so);
                                     setSODialogOpen(true);
+                                    await updateOrderStatus.mutateAsync({ id: order.id, status: 'preparando' });
                                     toast.success('OS gerada!');
                                   } catch { toast.error('Erro ao gerar OS'); }
                                 }}>
@@ -764,6 +766,9 @@ export default function StoreAdminPage() {
         serviceOrder={selectedSO}
         storeName={store.name}
         storeWhatsapp={store.whatsapp}
+        onOrderUpdate={async ({ orderId, status, total }) => {
+          await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total });
+        }}
       />
     </div>
   );
