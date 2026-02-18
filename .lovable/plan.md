@@ -1,220 +1,55 @@
 
+# Correcao: Carrinho visivel em lojas SERVICOS (e todas)
 
-# Correcao de Vulnerabilidades de Seguranca
+## Problema Identificado
 
-## Resumo dos Problemas Encontrados
+O carrinho existe e funciona, mas o icone fica **cortado/invisivel** no header em telas de celular. Isso acontece porque o nome da loja tem `flex-shrink-0` (nao encolhe), empurrando os icones da direita para fora da tela. Alem disso, nao ha nenhuma indicacao visual fixa de que existem itens no carrinho.
 
-Foram identificadas vulnerabilidades criticas e moderadas nas politicas de acesso ao banco de dados (RLS). A maioria das tabelas permite que qualquer pessoa (mesmo sem autenticacao) insira, atualize e delete dados.
+## Solucao
 
-## Solucao: Migracoes SQL para Restringir Acesso
+Duas mudancas no arquivo `src/pages/ProductStorePage.tsx`:
 
-### 1. Tabela `stores` - Escrita restrita a admins
+### 1. Corrigir o overflow do header
 
-- INSERT/UPDATE: somente platform admins ou store admins (para sua propria loja)
-- DELETE: somente platform admins
-
-### 2. Tabela `categories` - Escrita restrita a store admins
-
-- INSERT/UPDATE/DELETE: somente `is_store_admin(auth.uid(), store_id)` ou `is_platform_admin(auth.uid())`
-
-### 3. Tabela `products` - Escrita restrita a store admins
-
-- INSERT/UPDATE/DELETE: somente `is_store_admin(auth.uid(), store_id)` ou `is_platform_admin(auth.uid())`
-
-### 4. Tabela `product_variants` - Escrita restrita a store admins
-
-- INSERT/UPDATE/DELETE: verificar via join com products que o usuario e admin da loja
-
-### 5. Tabela `food_items` - Escrita restrita a store admins
-
-- INSERT/UPDATE/DELETE: somente `is_store_admin(auth.uid(), store_id)` ou `is_platform_admin(auth.uid())`
-
-### 6. Tabela `coupons` - Escrita restrita a store admins
-
-- INSERT/UPDATE/DELETE: somente `is_store_admin(auth.uid(), store_id)` ou `is_platform_admin(auth.uid())`
-- SELECT: manter publico (necessario para clientes validarem cupons no checkout)
-
-### 7. Tabela `store_admins` - Acesso restrito
-
-- SELECT: somente o proprio usuario, outros admins da mesma loja, ou platform admins
-- INSERT/DELETE: somente platform admins
-
-### 8. Storage `product-images` - Upload restrito
-
-- INSERT/UPDATE/DELETE: somente usuarios autenticados que sao store admins (verificando pelo prefixo do path)
-
-## Detalhes Tecnicos
-
-### Migracao SQL unica com todas as alteracoes:
+Remover `flex-shrink-0` do link do nome da loja e adicionar `truncate` no titulo para que nomes longos sejam cortados com "..." em vez de empurrar os icones para fora.
 
 ```text
--- 1. STORES
-DROP POLICY "Allow all insert stores" ON public.stores;
-DROP POLICY "Allow all update stores" ON public.stores;
-DROP POLICY "Allow all delete stores" ON public.stores;
+Antes:
+<Link ... className="flex-shrink-0 flex items-center gap-2">
+  <h1 className="text-lg font-bold">{store.name}</h1>
 
-CREATE POLICY "Platform admins can insert stores"
-  ON public.stores FOR INSERT
-  WITH CHECK (is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store or platform admins can update stores"
-  ON public.stores FOR UPDATE
-  USING (is_store_admin(auth.uid(), id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Platform admins can delete stores"
-  ON public.stores FOR DELETE
-  USING (is_platform_admin(auth.uid()));
-
--- 2. CATEGORIES
-DROP POLICY "Allow all insert categories" ON public.categories;
-DROP POLICY "Allow all update categories" ON public.categories;
-DROP POLICY "Allow all delete categories" ON public.categories;
-
-CREATE POLICY "Store admins can insert categories"
-  ON public.categories FOR INSERT
-  WITH CHECK (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can update categories"
-  ON public.categories FOR UPDATE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can delete categories"
-  ON public.categories FOR DELETE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
--- 3. PRODUCTS
-DROP POLICY "Allow all insert products" ON public.products;
-DROP POLICY "Allow all update products" ON public.products;
-DROP POLICY "Allow all delete products" ON public.products;
-
-CREATE POLICY "Store admins can insert products"
-  ON public.products FOR INSERT
-  WITH CHECK (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can update products"
-  ON public.products FOR UPDATE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can delete products"
-  ON public.products FOR DELETE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
--- 4. PRODUCT_VARIANTS
-DROP POLICY "Allow all insert product_variants" ON public.product_variants;
-DROP POLICY "Allow all update product_variants" ON public.product_variants;
-DROP POLICY "Allow all delete product_variants" ON public.product_variants;
-
-CREATE POLICY "Store admins can insert product_variants"
-  ON public.product_variants FOR INSERT
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM public.products p
-    WHERE p.id = product_id
-    AND (is_store_admin(auth.uid(), p.store_id) OR is_platform_admin(auth.uid()))
-  ));
-
-CREATE POLICY "Store admins can update product_variants"
-  ON public.product_variants FOR UPDATE
-  USING (EXISTS (
-    SELECT 1 FROM public.products p
-    WHERE p.id = product_id
-    AND (is_store_admin(auth.uid(), p.store_id) OR is_platform_admin(auth.uid()))
-  ));
-
-CREATE POLICY "Store admins can delete product_variants"
-  ON public.product_variants FOR DELETE
-  USING (EXISTS (
-    SELECT 1 FROM public.products p
-    WHERE p.id = product_id
-    AND (is_store_admin(auth.uid(), p.store_id) OR is_platform_admin(auth.uid()))
-  ));
-
--- 5. FOOD_ITEMS
-DROP POLICY "Allow all insert food_items" ON public.food_items;
-DROP POLICY "Allow all update food_items" ON public.food_items;
-DROP POLICY "Allow all delete food_items" ON public.food_items;
-
-CREATE POLICY "Store admins can insert food_items"
-  ON public.food_items FOR INSERT
-  WITH CHECK (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can update food_items"
-  ON public.food_items FOR UPDATE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can delete food_items"
-  ON public.food_items FOR DELETE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
--- 6. COUPONS
-DROP POLICY "Allow all insert coupons" ON public.coupons;
-DROP POLICY "Allow all update coupons" ON public.coupons;
-DROP POLICY "Allow all delete coupons" ON public.coupons;
-
-CREATE POLICY "Store admins can insert coupons"
-  ON public.coupons FOR INSERT
-  WITH CHECK (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can update coupons"
-  ON public.coupons FOR UPDATE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
-CREATE POLICY "Store admins can delete coupons"
-  ON public.coupons FOR DELETE
-  USING (is_store_admin(auth.uid(), store_id) OR is_platform_admin(auth.uid()));
-
--- 7. STORE_ADMINS
-DROP POLICY "Anyone can read store_admins" ON public.store_admins;
-DROP POLICY "Allow insert store_admins" ON public.store_admins;
-DROP POLICY "Allow delete store_admins" ON public.store_admins;
-
-CREATE POLICY "Users can read own or same-store admin status"
-  ON public.store_admins FOR SELECT
-  USING (
-    auth.uid() = user_id
-    OR is_store_admin(auth.uid(), store_id)
-    OR is_platform_admin(auth.uid())
-  );
-
-CREATE POLICY "Platform admins can insert store_admins"
-  ON public.store_admins FOR INSERT
-  WITH CHECK (is_platform_admin(auth.uid()));
-
-CREATE POLICY "Platform admins can delete store_admins"
-  ON public.store_admins FOR DELETE
-  USING (is_platform_admin(auth.uid()));
-
--- 8. STORAGE: product-images
-DROP POLICY IF EXISTS "Allow all upload product images" ON storage.objects;
-DROP POLICY IF EXISTS "Allow all update product images" ON storage.objects;
-DROP POLICY IF EXISTS "Allow all delete product images" ON storage.objects;
-
-CREATE POLICY "Store admins can upload images"
-  ON storage.objects FOR INSERT
-  WITH CHECK (
-    bucket_id = 'product-images'
-    AND auth.role() = 'authenticated'
-  );
-
-CREATE POLICY "Store admins can update images"
-  ON storage.objects FOR UPDATE
-  USING (
-    bucket_id = 'product-images'
-    AND auth.role() = 'authenticated'
-  );
-
-CREATE POLICY "Store admins can delete images"
-  ON storage.objects FOR DELETE
-  USING (
-    bucket_id = 'product-images'
-    AND auth.role() = 'authenticated'
-  );
+Depois:
+<Link ... className="min-w-0 flex items-center gap-2">
+  <h1 className="text-lg font-bold truncate">{store.name}</h1>
 ```
 
-### Nenhuma alteracao de codigo e necessaria
+Tambem garantir que o container dos icones da direita tenha `flex-shrink-0` para nunca ser escondido.
 
-As verificacoes ja existem no frontend (usePlatformAdmin, useStoreAdmin). O que faltava era a protecao no lado do servidor (RLS), que e o que esta migracao resolve.
+### 2. Adicionar barra flutuante do carrinho no rodape
 
-### Atualizacao dos findings de seguranca
+Quando houver itens no carrinho, mostrar uma barra fixa no rodape da pagina com:
+- Quantidade de itens e valor total
+- Botao "Ver Carrinho" que abre o Sheet do carrinho
 
-Apos aplicar a migracao, os findings resolvidos serao removidos do painel de seguranca.
+Isso garante que o cliente sempre veja que tem itens no carrinho, independente do tamanho da tela.
 
+```text
+{totalItems > 0 && !isCartOpen && (
+  <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card p-3 shadow-lg">
+    <Button onClick={() => setIsCartOpen(true)} className="w-full gap-2 bg-accent ...">
+      <ShoppingCart /> Ver Carrinho ({totalItems} itens) - {formatCurrency(cart.total)}
+    </Button>
+  </div>
+)}
+```
+
+## Resumo
+
+| Mudanca | Descricao |
+|---|---|
+| Header fix | Nome da loja com `truncate` + icones com `flex-shrink-0` |
+| Barra flutuante | Barra fixa no rodape quando ha itens no carrinho |
+
+## Arquivo modificado
+
+- `src/pages/ProductStorePage.tsx`
