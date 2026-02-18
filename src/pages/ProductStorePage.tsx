@@ -162,13 +162,13 @@ export default function ProductStorePage() {
               </div>
             </SheetContent>
           </Sheet>
-          <Link to={`/${store.slug}`} className="flex-shrink-0 flex items-center gap-2">
+          <Link to={`/${store.slug}`} className="min-w-0 flex items-center gap-2">
             {store.logo && (
-              <img src={store.logo} alt={store.name} className="h-10 w-10 rounded-full object-cover" />
+              <img src={store.logo} alt={store.name} className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
             )}
-            <h1 className="text-lg font-bold">{store.name}</h1>
+            <h1 className="text-lg font-bold truncate">{store.name}</h1>
           </Link>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-shrink-0 items-center gap-1">
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -415,6 +415,13 @@ export default function ProductStorePage() {
           </div>
         </div>
       </footer>
+      {totalItems > 0 && !isCartOpen && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card p-3 shadow-lg">
+          <Button onClick={() => setIsCartOpen(true)} className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+            <ShoppingCart className="h-5 w-5" /> Ver Carrinho ({totalItems} {totalItems === 1 ? 'item' : 'itens'}) — {formatCurrency(cart.total)}
+          </Button>
+        </div>
+      )}
       <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store?.id || ''} />
     </div>
   );
