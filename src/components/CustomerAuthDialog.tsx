@@ -29,6 +29,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({ email: '', password: '', confirmPassword: '' });
   const [profileData, setProfileData] = useState({
@@ -75,13 +76,16 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       return;
     }
     setLoading(true);
-    const { error } = await signUp(registerData.email, registerData.password);
+    const { user: newUser, error } = await signUp(registerData.email, registerData.password);
     setLoading(false);
     if (error) {
       toast.error(error.message);
-    } else {
+    } else if (newUser) {
+      setPendingUserId(newUser.id);
       toast.success('Conta criada! Preencha seus dados.');
       setStep(2);
+    } else {
+      toast.error('Erro ao criar conta. Tente novamente.');
     }
   };
 
@@ -113,14 +117,15 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       toast.error('Preencha os campos obrigatórios');
       return;
     }
-    if (!user) {
+    const effectiveUserId = user?.id ?? pendingUserId;
+    if (!effectiveUserId) {
       toast.error('Erro de autenticação. Tente novamente.');
       return;
     }
     setLoading(true);
     try {
       await upsertProfile.mutateAsync({
-        userId: user.id,
+        userId: effectiveUserId,
         storeId,
         name: profileData.name,
         cpfCnpj: '',
