@@ -17,7 +17,7 @@ import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin } from '@/hooks/useCustomerProfiles';
-import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus } from '@/types';
+import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
@@ -765,6 +765,7 @@ export default function StoreAdminPage() {
         onOpenChange={setImportDialogOpen}
         storeId={store.id}
         categories={categories}
+        storeType={store.type as StoreType}
       />
       <ServiceOrderDialog
         open={soDialogOpen}
