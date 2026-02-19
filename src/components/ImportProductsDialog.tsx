@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus } from 'lucide-react';
+import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -224,6 +224,28 @@ function Badge({ children, variant = 'default', className = '' }: { children: Re
     ? 'bg-accent/20 text-accent'
     : 'bg-primary/20 text-primary';
   return <span className={`${base} ${colors} ${className}`}>{children}</span>;
+}
+
+// ── Template download ──
+
+function downloadTemplate(isAccessories: boolean) {
+  const data = isAccessories
+    ? [
+        { Codigo: '001', Nome: 'Camiseta Basic', Descricao: 'Algodao 100%', Categoria: 'Camisetas', Preco: 59.90, Cor: 'Azul', Tamanho: 'P', Estoque: 10, SKU: '001-AZ-P', Ativo: 'Sim' },
+        { Codigo: '001', Nome: 'Camiseta Basic', Descricao: 'Algodao 100%', Categoria: 'Camisetas', Preco: 59.90, Cor: 'Azul', Tamanho: 'M', Estoque: 15, SKU: '001-AZ-M', Ativo: 'Sim' },
+        { Codigo: '001', Nome: 'Camiseta Basic', Descricao: 'Algodao 100%', Categoria: 'Camisetas', Preco: 64.90, Cor: 'Preto', Tamanho: 'P', Estoque: 12, SKU: '001-PR-P', Ativo: 'Sim' },
+        { Codigo: '002', Nome: 'Bone Trucker', Descricao: 'Aba curva', Categoria: 'Bones', Preco: 49.90, Cor: '', Tamanho: '', Estoque: 30, SKU: '002', Ativo: 'Sim' },
+      ]
+    : [
+        { Codigo: '001', Nome: 'X-Burguer', Descricao: 'Hamburguer com queijo', Categoria: 'Lanches', Preco: 25.90, Ativo: 'Sim' },
+        { Codigo: '002', Nome: 'Coca-Cola 350ml', Descricao: 'Refrigerante', Categoria: 'Bebidas', Preco: 7.50, Ativo: 'Sim' },
+      ];
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = Object.keys(data[0]).map(k => ({ wch: Math.max(k.length, 14) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+  XLSX.writeFile(wb, 'modelo_importacao_produtos.xlsx');
 }
 
 // ── Main component ──
@@ -496,10 +518,15 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
               <div className="flex flex-col items-center gap-4 py-8 border-2 border-dashed rounded-lg">
                 <Upload className="h-10 w-10 text-muted-foreground" />
                 <p className="text-muted-foreground">Selecione o arquivo Excel</p>
-                <label>
-                  <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
-                  <Button asChild variant="outline"><span>Escolher Arquivo</span></Button>
-                </label>
+                <div className="flex gap-2">
+                  <label>
+                    <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
+                    <Button asChild variant="outline"><span>Escolher Arquivo</span></Button>
+                  </label>
+                  <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                    <Download className="h-4 w-4" /> Baixar Modelo
+                  </Button>
+                </div>
               </div>
             )}
 
