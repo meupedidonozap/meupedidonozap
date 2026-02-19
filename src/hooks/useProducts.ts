@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Product, ProductVariant } from '@/types';
+import type { Product, ProductVariant, ProductImage } from '@/types';
 
 function mapVariant(row: any): ProductVariant {
   return {
@@ -10,6 +10,15 @@ function mapVariant(row: any): ProductVariant {
     price: Number(row.price),
     stock: row.stock,
     sku: row.sku,
+  };
+}
+
+function mapImage(row: any): ProductImage {
+  return {
+    id: row.id,
+    imageUrl: row.image_url,
+    sortOrder: row.sort_order,
+    label: row.label || undefined,
   };
 }
 
@@ -27,6 +36,7 @@ function mapProduct(row: any): Product {
     isActive: row.is_active,
     hasVariants: row.has_variants,
     variants: row.product_variants?.map(mapVariant) || [],
+    images: row.product_images?.map(mapImage) || [],
   };
 }
 
@@ -36,7 +46,7 @@ export function useProducts(storeId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, product_variants(*)')
+        .select('*, product_variants(*), product_images(*)')
         .eq('store_id', storeId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -61,6 +71,7 @@ export function useCreateProduct() {
       isActive: boolean;
       hasVariants: boolean;
       variants?: Omit<ProductVariant, 'id'>[];
+      images?: { imageUrl: string; label?: string }[];
     }) => {
       const { data, error } = await supabase.from('products').insert({
         store_id: product.storeId,
@@ -90,6 +101,19 @@ export function useCreateProduct() {
         if (vError) throw vError;
       }
 
+      // Save product images if provided
+      if (product.images?.length) {
+        const { error: iError } = await supabase.from('product_images').insert(
+          product.images.map((img, idx) => ({
+            product_id: data.id,
+            image_url: img.imageUrl,
+            sort_order: idx,
+            label: img.label || null,
+          }))
+        );
+        if (iError) throw iError;
+      }
+
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
@@ -111,6 +135,7 @@ export function useUpdateProduct() {
       isActive?: boolean;
       hasVariants?: boolean;
       variants?: Omit<ProductVariant, 'id'>[];
+      images?: { imageUrl: string; label?: string }[];
     }) => {
       const updates: any = {};
       if (product.code !== undefined) updates.code = product.code;
@@ -141,6 +166,22 @@ export function useUpdateProduct() {
             }))
           );
           if (vError) throw vError;
+        }
+      }
+
+      // Replace images if provided
+      if (product.images !== undefined) {
+        await supabase.from('product_images').delete().eq('product_id', product.id);
+        if (product.images.length > 0) {
+          const { error: iError } = await supabase.from('product_images').insert(
+            product.images.map((img, idx) => ({
+              product_id: product.id,
+              image_url: img.imageUrl,
+              sort_order: idx,
+              label: img.label || null,
+            }))
+          );
+          if (iError) throw iError;
         }
       }
     },
