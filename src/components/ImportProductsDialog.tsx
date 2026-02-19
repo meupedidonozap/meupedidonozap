@@ -504,29 +504,31 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         </DialogHeader>
 
         {result ? (
-          <div className="flex flex-col items-center gap-4 py-8">
-            <CheckCircle className="h-12 w-12 text-accent" />
-            <p className="text-lg font-semibold">Importação concluída!</p>
-            <p className="text-muted-foreground">
-              {result.updated} atualizado(s) · {result.inserted} novo(s) · {result.errors} erro(s)
-            </p>
-            <Button onClick={() => { reset(); onOpenChange(false); }}>Fechar</Button>
-          </div>
+          <>
+            <div className="flex flex-col items-center gap-4 py-8">
+              <CheckCircle className="h-12 w-12 text-accent" />
+              <p className="text-lg font-semibold">Importação concluída!</p>
+              <p className="text-muted-foreground">
+                {result.updated} atualizado(s) · {result.inserted} novo(s) · {result.errors} erro(s)
+              </p>
+            </div>
+            <DialogFooter className="flex justify-between items-center">
+              <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                <Download className="h-4 w-4" /> Baixar Modelo
+              </Button>
+              <Button onClick={() => { reset(); onOpenChange(false); }}>Fechar</Button>
+            </DialogFooter>
+          </>
         ) : (
           <>
             {!hasData && (
               <div className="flex flex-col items-center gap-4 py-8 border-2 border-dashed rounded-lg">
                 <Upload className="h-10 w-10 text-muted-foreground" />
                 <p className="text-muted-foreground">Selecione o arquivo Excel</p>
-                <div className="flex gap-2">
-                  <label>
-                    <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
-                    <Button asChild variant="outline"><span>Escolher Arquivo</span></Button>
-                  </label>
-                  <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
-                    <Download className="h-4 w-4" /> Baixar Modelo
-                  </Button>
-                </div>
+                <label>
+                  <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
+                  <Button asChild variant="outline"><span>Escolher Arquivo</span></Button>
+                </label>
               </div>
             )}
 
@@ -558,15 +560,20 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
               </>
             )}
 
-            {hasData && !importing && (
-              <DialogFooter>
-                <Button variant="outline" onClick={reset}>Trocar Arquivo</Button>
-                <Button onClick={handleImport} disabled={stats.valid === 0} className="gap-2">
-                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Importar {stats.valid} produto(s)
-                </Button>
-              </DialogFooter>
-            )}
+            <DialogFooter className="flex justify-between items-center">
+              <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                <Download className="h-4 w-4" /> Baixar Modelo
+              </Button>
+              {hasData && !importing && (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={reset}>Trocar Arquivo</Button>
+                  <Button onClick={handleImport} disabled={stats.valid === 0} className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Importar {stats.valid} produto(s)
+                  </Button>
+                </div>
+              )}
+            </DialogFooter>
           </>
         )}
       </DialogContent>
