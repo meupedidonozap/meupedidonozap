@@ -1,47 +1,43 @@
 
+# Corrigir Visibilidade do Botão "Baixar Modelo"
 
-# Modelo de Planilha Excel para Download
+## Problema identificado
 
-## Objetivo
-Adicionar um botao no dialog de importacao que permite baixar um arquivo Excel modelo (.xlsx) com as colunas corretas ja preenchidas com exemplos, facilitando o preenchimento pelo usuario.
+O botão "Baixar Modelo" está dentro do bloco `{!hasData && ...}`, o que significa que ele desaparece assim que o usuário seleciona um arquivo. Além disso, se o dialog for reaberto depois de uma importação bem-sucedida sem o estado ser limpo corretamente, o bloco `{result ? ...}` é exibido em vez da área de upload, ocultando o botão completamente.
 
-## Como vai funcionar
+## Solução
 
-- Um botao "Baixar Modelo" aparecera na area de upload do arquivo, ao lado do botao "Escolher Arquivo"
-- O modelo sera gerado dinamicamente no navegador usando a biblioteca `@e965/xlsx` (ja instalada)
-- O conteudo do modelo muda conforme o tipo da loja:
-  - **ACESSORIOS**: colunas Codigo, Nome, Descricao, Categoria, Preco, Cor, Tamanho, Estoque, SKU, Ativo (com linhas de exemplo mostrando agrupamento por codigo)
-  - **Outras lojas**: colunas Codigo, Nome, Descricao, Categoria, Preco, Ativo (com linhas de exemplo simples)
+Mover o botão "Baixar Modelo" para um local fixo e sempre visível: o **`DialogFooter`** (rodapé do dialog), ao lado esquerdo dos botões de ação. Assim ele estará acessível independentemente do estado atual (sem arquivo, com arquivo carregado, ou na tela de resultado).
 
-## Exemplo de dados no modelo ACESSORIOS
+## O que vai mudar
 
-| Codigo | Nome | Descricao | Categoria | Preco | Cor | Tamanho | Estoque | SKU | Ativo |
-|--------|------|-----------|-----------|-------|-----|---------|---------|-----|-------|
-| 001 | Camiseta Basic | Algodao 100% | Camisetas | 59.90 | Azul | P | 10 | 001-AZ-P | Sim |
-| 001 | Camiseta Basic | Algodao 100% | Camisetas | 59.90 | Azul | M | 15 | 001-AZ-M | Sim |
-| 001 | Camiseta Basic | Algodao 100% | Camisetas | 64.90 | Preto | P | 12 | 001-PR-P | Sim |
-| 002 | Bone Trucker | Aba curva | Bones | 49.90 | | | 30 | 002 | Sim |
+### `src/components/ImportProductsDialog.tsx`
 
-## Exemplo de dados no modelo simples
+1. **Remover** o botão "Baixar Modelo" de dentro da área de upload (`{!hasData && ...}`)
 
-| Codigo | Nome | Descricao | Categoria | Preco | Ativo |
-|--------|------|-----------|-----------|-------|-------|
-| 001 | X-Burguer | Hamburguer com queijo | Lanches | 25.90 | Sim |
-| 002 | Coca-Cola 350ml | Refrigerante | Bebidas | 7.50 | Sim |
+2. **Adicionar** o botão no `DialogFooter`, no canto esquerdo, separado dos botões de ação principais usando `justify-between`:
 
-## Detalhes Tecnicos
+```text
+[Baixar Modelo]                    [Cancelar] [Importar]
+```
 
-### Arquivo modificado: `src/components/ImportProductsDialog.tsx`
+3. O botão será sempre visível, em todas as etapas do fluxo (antes de carregar arquivo, após carregar, e na tela de conclusão)
 
-1. Criar funcao `downloadTemplate(isAccessories: boolean)` que:
-   - Monta um array de objetos com dados de exemplo
-   - Usa `XLSX.utils.json_to_sheet()` e `XLSX.utils.book_new()` para criar o workbook
-   - Ajusta largura das colunas para melhor visualizacao
-   - Usa `XLSX.writeFile()` para disparar o download com nome `modelo_importacao_produtos.xlsx`
+4. O `DialogFooter` será reorganizado com `flex justify-between items-center` para separar o botão de download (esquerda) dos botões de ação (direita)
 
-2. Adicionar botao com icone `Download` ao lado do botao "Escolher Arquivo" na area de upload (quando nenhum arquivo foi selecionado ainda)
+## Estrutura do footer após a mudança
 
-### Nenhum outro arquivo precisa ser alterado
+```text
+DialogFooter (flex justify-between)
+├── Button "Baixar Modelo" (ghost, com ícone Download) — sempre visível
+└── div (flex gap-2)
+    ├── Button "Cancelar" — aparece quando não está importando
+    └── Button "Importar" — aparece quando há dados válidos
+```
 
-A biblioteca `@e965/xlsx` ja esta instalada e suporta escrita de arquivos Excel.
+## Benefícios
 
+- O usuário pode baixar o modelo a qualquer momento, mesmo após já ter carregado um arquivo
+- Não há dependência de estado para exibir o botão
+- Layout mais limpo na área de upload (sem dois botões lado a lado)
+- Resolve definitivamente o problema de o botão sumir
