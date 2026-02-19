@@ -102,6 +102,13 @@ export interface ProductVariant {
   sku: string;
 }
 
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  sortOrder: number;
+  label?: string;
+}
+
 export interface Product {
   id: string;
   storeId: string;
@@ -115,6 +122,7 @@ export interface Product {
   isActive: boolean;
   hasVariants: boolean;
   variants?: ProductVariant[];
+  images?: ProductImage[];
 }
 
 // Food delivery specific

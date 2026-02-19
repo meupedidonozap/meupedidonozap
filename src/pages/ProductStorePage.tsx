@@ -20,14 +20,12 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter,
 } from '@/components/ui/sheet';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
+import VariantDialog from '@/components/VariantDialog';
 
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -361,50 +359,16 @@ export default function ProductStorePage() {
       </main>
 
       {/* Variant Selection Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Selecione as opções</DialogTitle></DialogHeader>
-          {selectedProduct && (
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                {selectedProduct.image && <img src={selectedProduct.image} alt={selectedProduct.name} className="h-24 w-24 rounded-lg object-cover" />}
-                <div>
-                  <h3 className="font-semibold">{selectedProduct.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
-                  <p className="mt-2 text-lg font-bold">{formatCurrency(selectedProduct.basePrice)}</p>
-                </div>
-              </div>
-              {uniqueColors.length > 0 && (
-                <div>
-                  <label className="mb-2 block text-sm font-medium">Cor</label>
-                  <div className="flex flex-wrap gap-2">
-                    {uniqueColors.map(color => (
-                      <Button key={color} variant={selectedVariant?.color === color ? 'default' : 'outline'} size="sm"
-                        onClick={() => setSelectedVariant(prev => ({ ...prev, color, size: undefined }))}>{color}</Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {availableSizes.length > 0 && (
-                <div>
-                  <label className="mb-2 block text-sm font-medium">Tamanho</label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableSizes.map(size => (
-                      <Button key={size} variant={selectedVariant?.size === size ? 'default' : 'outline'} size="sm"
-                        onClick={() => setSelectedVariant(prev => ({ ...prev, size }))}>{size}</Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <Button className="w-full"
-                disabled={(uniqueColors.length > 0 && !selectedVariant?.color) || (availableSizes.length > 0 && !selectedVariant?.size)}
-                onClick={() => handleAddToCart(selectedProduct, selectedVariant || undefined)}>
-                <ShoppingCart className="mr-2 h-4 w-4" /> Adicionar ao Carrinho
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <VariantDialog
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+        uniqueColors={uniqueColors as string[]}
+        uniqueSizes={uniqueSizes as string[]}
+        availableSizes={availableSizes as string[]}
+        selectedVariant={selectedVariant}
+        setSelectedVariant={setSelectedVariant}
+        onAddToCart={handleAddToCart}
+      />
 
       <footer className="border-t bg-card py-6">
         <div className="container">

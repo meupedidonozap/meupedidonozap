@@ -283,6 +283,38 @@ export type Database = {
         }
         Relationships: []
       }
+      product_images: {
+        Row: {
+          id: string
+          image_url: string
+          label: string | null
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          image_url: string
+          label?: string | null
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          image_url?: string
+          label?: string | null
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           color: string | null

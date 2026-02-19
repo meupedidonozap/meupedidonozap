@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical } from 'lucide-react';
 import type { Product, ProductVariant, Category } from '@/types';
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
 import { uploadProductImage } from '@/lib/storage';
@@ -39,6 +39,12 @@ interface VariantForm {
   sku: string;
 }
 
+interface ImageForm {
+  file?: File;
+  url?: string; // existing URL from DB
+  label: string;
+}
+
 export default function ProductFormDialog({
   open,
   onOpenChange,
@@ -49,6 +55,7 @@ export default function ProductFormDialog({
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
 
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -60,6 +67,7 @@ export default function ProductFormDialog({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [variants, setVariants] = useState<VariantForm[]>([]);
+  const [productImages, setProductImages] = useState<ImageForm[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -82,6 +90,12 @@ export default function ProductFormDialog({
           sku: v.sku,
         })) || []
       );
+      setProductImages(
+        product.images?.map(img => ({
+          url: img.imageUrl,
+          label: img.label || '',
+        })) || []
+      );
     } else {
       setCode('');
       setName('');
@@ -93,6 +107,7 @@ export default function ProductFormDialog({
       setImagePreview(null);
       setImageFile(null);
       setVariants([]);
+      setProductImages([]);
     }
   }, [product, open]);
 
@@ -101,6 +116,33 @@ export default function ProductFormDialog({
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleMultiImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const newImages: ImageForm[] = Array.from(files).map(file => ({
+      file,
+      label: '',
+    }));
+    setProductImages(prev => [...prev, ...newImages]);
+    if (multiFileInputRef.current) multiFileInputRef.current.value = '';
+  };
+
+  const removeProductImage = (index: number) => {
+    setProductImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateImageLabel = (index: number, label: string) => {
+    setProductImages(prev =>
+      prev.map((img, i) => (i === index ? { ...img, label } : img))
+    );
+  };
+
+  const getImagePreviewUrl = (img: ImageForm) => {
+    if (img.url) return img.url;
+    if (img.file) return URL.createObjectURL(img.file);
+    return null;
   };
 
   const addVariant = () => {
@@ -131,6 +173,23 @@ export default function ProductFormDialog({
         imageUrl = await uploadProductImage(imageFile, storeId);
       }
 
+      // Upload multi-images for variants
+      const uploadedImages: { imageUrl: string; label?: string }[] = [];
+      if (hasVariants && productImages.length > 0) {
+        for (const img of productImages) {
+          if (img.file) {
+            const url = await uploadProductImage(img.file, storeId);
+            uploadedImages.push({ imageUrl: url, label: img.label || undefined });
+          } else if (img.url) {
+            uploadedImages.push({ imageUrl: img.url, label: img.label || undefined });
+          }
+        }
+        // Use first image as main image if no single image was uploaded
+        if (!imageFile && uploadedImages.length > 0) {
+          imageUrl = uploadedImages[0].imageUrl;
+        }
+      }
+
       const variantData = hasVariants
         ? variants.map(v => ({
             color: v.color || undefined,
@@ -153,6 +212,7 @@ export default function ProductFormDialog({
           isActive,
           hasVariants,
           variants: variantData,
+          images: hasVariants ? uploadedImages : [],
         });
         toast.success('Produto atualizado!');
       } else {
@@ -167,6 +227,7 @@ export default function ProductFormDialog({
           isActive,
           hasVariants,
           variants: variantData,
+          images: hasVariants ? uploadedImages : [],
         });
         toast.success('Produto criado!');
       }
@@ -187,39 +248,41 @@ export default function ProductFormDialog({
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          {/* Image Upload */}
-          <div className="grid gap-2">
-            <Label>Imagem do Produto</Label>
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-24 w-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 overflow-hidden hover:border-primary/50"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" />
-                ) : (
-                  <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                )}
+          {/* Single Image Upload (shown when no variants) */}
+          {!hasVariants && (
+            <div className="grid gap-2">
+              <Label>Imagem do Produto</Label>
+              <div className="flex items-center gap-4">
+                <div
+                  className="flex h-24 w-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 overflow-hidden hover:border-primary/50"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  {imagePreview ? 'Trocar' : 'Upload'}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                {imagePreview ? 'Trocar' : 'Upload'}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageSelect}
-              />
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -279,6 +342,66 @@ export default function ProductFormDialog({
             </div>
             <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
           </div>
+
+          {/* Multi-Image Upload (shown when has variants) */}
+          {hasVariants && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <Label>Fotos do Produto</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => multiFileInputRef.current?.click()}
+                  className="gap-1"
+                >
+                  <Upload className="h-3 w-3" /> Adicionar Fotos
+                </Button>
+                <input
+                  ref={multiFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleMultiImageSelect}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {productImages.map((img, i) => {
+                  const previewUrl = getImagePreviewUrl(img);
+                  return (
+                    <div key={i} className="group relative space-y-1">
+                      <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                        {previewUrl ? (
+                          <img src={previewUrl} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeProductImage(i)}
+                          className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <Input
+                        value={img.label}
+                        onChange={e => updateImageLabel(i, e.target.value)}
+                        placeholder="Ex: Azul"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              {productImages.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">Nenhuma foto adicionada. Adicione fotos para cada variação de cor.</p>
+              )}
+            </div>
+          )}
 
           {hasVariants && (
             <div className="space-y-3 rounded-lg border p-4">
