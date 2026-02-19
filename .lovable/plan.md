@@ -1,114 +1,108 @@
 
 
-# Multiplas Imagens para Produtos com Variantes
+# Importacao de Produtos com Variantes para Lojas ACESSORIOS
 
-## Objetivo
-Permitir que produtos com variantes tenham multiplas fotos, com navegacao entre elas (carousel), para que o cliente visualize as variacoes de cor.
+## Problema Atual
+A importacao via Excel cria apenas produtos simples (sem variantes). Lojas do tipo ACESSORIOS trabalham com variacoes de COR e TAMANHO, e o processo atual ignora essas informacoes.
 
-## Arquitetura
+## Formato do Arquivo Excel para ACESSORIOS
 
-### 1. Nova tabela `product_images` no banco de dados
+O padrao sera: **uma linha por variante**. Produtos com o mesmo Codigo serao agrupados automaticamente.
 
-Criar uma tabela para armazenar multiplas imagens por produto:
+Exemplo de planilha:
 
 ```text
-product_images
-  - id (uuid, PK)
-  - product_id (uuid, FK -> products.id, ON DELETE CASCADE)
-  - image_url (text, NOT NULL)
-  - sort_order (integer, default 0)
-  - label (text, nullable) -- ex: "Azul", "Vermelho"
+Codigo | Nome           | Descricao      | Categoria  | Preco  | Cor    | Tamanho | Estoque | SKU        | Ativo
+001    | Camiseta Basic | Algodao 100%   | Camisetas  | 59.90  | Azul   | P       | 10      | 001-AZ-P   | Sim
+001    | Camiseta Basic | Algodao 100%   | Camisetas  | 59.90  | Azul   | M       | 15      | 001-AZ-M   | Sim
+001    | Camiseta Basic | Algodao 100%   | Camisetas  | 59.90  | Azul   | G       | 8       | 001-AZ-G   | Sim
+001    | Camiseta Basic | Algodao 100%   | Camisetas  | 64.90  | Preto  | P       | 12      | 001-PR-P   | Sim
+001    | Camiseta Basic | Algodao 100%   | Camisetas  | 64.90  | Preto  | M       | 20      | 001-PR-M   | Sim
+002    | Bone Trucker   | Aba curva      | Bones      | 49.90  |        |         | 30      | 002        | Sim
 ```
 
-RLS: SELECT publico, INSERT/UPDATE/DELETE restrito a store admins (via join com products).
+- Linhas com o mesmo **Codigo** serao agrupadas em um unico produto com `has_variants = true`
+- Linhas sem Cor/Tamanho serao importadas como produto simples
+- O preco da primeira linha do grupo sera usado como `base_price`
 
-### 2. Alteracoes no cadastro (ProductFormDialog)
+## Alteracoes Necessarias
 
-Quando `hasVariants = true`:
-- Substituir o campo de imagem unica por uma area de upload multiplo
-- Mostrar previews das imagens adicionadas com botao de remover
-- Permitir reordenar e adicionar label (nome da cor) a cada imagem
-- A imagem principal do produto (`image_url` na tabela products) sera a primeira imagem da galeria
+### 1. Passar o tipo da loja para o ImportProductsDialog
 
-### 3. Alteracoes na vitrine (ProductStorePage)
+Adicionar a prop `storeType` ao componente para que ele saiba quando esta lidando com uma loja ACESSORIOS.
 
-No dialog de selecao de variante:
-- Exibir um carousel (usando o componente Embla ja instalado) com todas as imagens do produto
-- Ao selecionar uma cor, navegar automaticamente para a imagem correspondente (via label)
-- Mostrar indicadores de navegacao (dots ou setas)
+### 2. Expandir o mapeamento de colunas
 
-### 4. Alteracoes no hook useProducts
+Adicionar ao `COLUMN_MAP`:
+- `cor` / `color` -> color
+- `tamanho` / `size` -> size
+- `estoque` / `stock` -> stock
+- `sku` -> sku
 
-- Incluir `product_images` no select junto com `product_variants`
-- Mapear as imagens para o tipo Product (novo campo `images`)
+### 3. Nova interface de dados parseados
 
-### 5. Tipo Product atualizado
+Para lojas ACESSORIOS, as linhas do Excel serao agrupadas por codigo em uma estrutura:
 
-Adicionar ao tipo Product:
 ```text
-images?: ProductImage[]
-
-interface ProductImage {
-  id: string;
-  imageUrl: string;
-  sortOrder: number;
-  label?: string;
+ParsedProductGroup {
+  code: string
+  name: string
+  description: string
+  category: string
+  basePrice: number
+  active: boolean
+  hasVariants: boolean
+  variants: { color, size, price, stock, sku }[]
+  action: 'insert' | 'update'
+  existingId?: string
+  valid: boolean
+  error?: string
 }
 ```
 
+### 4. Logica de agrupamento
+
+Ao processar o arquivo:
+- Agrupar linhas pelo campo Codigo
+- Se o grupo tem mais de uma linha OU possui Cor/Tamanho preenchidos, marcar como `hasVariants = true`
+- Cada linha do grupo vira uma variante
+- A validacao exige Codigo obrigatorio para agrupamento
+
+### 5. Logica de importacao com variantes
+
+Para cada grupo:
+- **Novo produto**: inserir na tabela `products` com `has_variants = true`, depois inserir cada variante em `product_variants`
+- **Produto existente**: atualizar o produto e sincronizar variantes (deletar antigas, inserir novas)
+
+### 6. Preview ajustado na tabela
+
+Para lojas ACESSORIOS, a tabela de preview mostrara:
+- Linha do produto (agrupador) em negrito
+- Sub-linhas das variantes com recuo, mostrando Cor, Tamanho, Preco, Estoque, SKU
+- Indicador de quantas variantes cada produto possui
+
+### 7. Descricao de colunas atualizada
+
+Quando a loja for ACESSORIOS, a descricao do dialog sera:
+"Colunas: Codigo, Nome, Descricao, Categoria, Preco, Cor, Tamanho, Estoque, SKU, Ativo. Linhas com o mesmo Codigo serao agrupadas como variantes."
+
 ## Detalhes Tecnicos
 
-### Migracao SQL
+### Arquivo modificado: `src/components/ImportProductsDialog.tsx`
 
-```text
-CREATE TABLE public.product_images (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-  image_url text NOT NULL,
-  sort_order integer NOT NULL DEFAULT 0,
-  label text
-);
+Principais mudancas:
+- Nova prop `storeType: StoreType`
+- Tipo `ParsedProductGroup` para dados agrupados
+- Colunas extras no `COLUMN_MAP` (cor, tamanho, estoque, sku)
+- Funcao `groupRowsByCode()` que agrupa linhas em produtos com variantes
+- Importacao em duas etapas: primeiro `products`, depois `product_variants`
+- Tabela de preview com layout hierarquico (produto -> variantes)
+- Para produtos existentes com variantes: deletar variantes antigas e re-inserir
 
-ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
+### Arquivo modificado: `src/pages/StoreAdminPage.tsx`
 
-CREATE POLICY "Public read product_images"
-  ON public.product_images FOR SELECT
-  USING (true);
+- Passar `storeType={store.type}` para o `ImportProductsDialog`
 
-CREATE POLICY "Store admins can insert product_images"
-  ON public.product_images FOR INSERT
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM public.products p
-    WHERE p.id = product_id
-    AND (is_store_admin(auth.uid(), p.store_id) OR is_platform_admin(auth.uid()))
-  ));
+### Nenhuma migracao de banco necessaria
 
-CREATE POLICY "Store admins can update product_images"
-  ON public.product_images FOR UPDATE
-  USING (EXISTS (
-    SELECT 1 FROM public.products p
-    WHERE p.id = product_id
-    AND (is_store_admin(auth.uid(), p.store_id) OR is_platform_admin(auth.uid()))
-  ));
-
-CREATE POLICY "Store admins can delete product_images"
-  ON public.product_images FOR DELETE
-  USING (EXISTS (
-    SELECT 1 FROM public.products p
-    WHERE p.id = product_id
-    AND (is_store_admin(auth.uid(), p.store_id) OR is_platform_admin(auth.uid()))
-  ));
-```
-
-### Arquivos a modificar
-
-1. **src/types/index.ts** - Adicionar `ProductImage` e campo `images` em `Product`
-2. **src/hooks/useProducts.ts** - Incluir `product_images(*)` no select e mapear
-3. **src/components/ProductFormDialog.tsx** - Upload multiplo quando hasVariants=true
-4. **src/pages/ProductStorePage.tsx** - Carousel no dialog de variantes
-5. **src/lib/storage.ts** - Reutilizar `uploadProductImage` (ja funciona para multiplos uploads)
-
-### Componentes utilizados
-
-- Carousel do Embla (ja instalado em `src/components/ui/carousel.tsx`) para navegacao entre fotos na vitrine
-
+As tabelas `products` e `product_variants` ja existem com todas as colunas necessarias.
