@@ -1,60 +1,74 @@
 
-# Corrigir Scroll no VariantDialog (Loja ACESSORIOS)
+# Corrigir Erro de Autenticação no Cadastro de Cliente
 
-## Problema
+## Causa Raiz
 
-O `DialogContent` no `VariantDialog` não tem altura máxima (`max-h`) nem overflow scroll configurado. Quando o produto tem muitas variantes de cor e tamanho (como visto na imagem: 7 cores + tamanhos), o conteúdo ultrapassa a altura da tela do dispositivo. O resultado é que o usuario nao consegue ver as opcoes de tamanho nem o botao "Adicionar ao Carrinho".
+O fluxo de cadastro tem a seguinte sequência:
+
+1. `signUp()` é chamado — o Supabase envia e-mail de confirmação e retorna `{ data: { user }, error }`
+2. Como o e-mail não foi confirmado, **nenhuma sessão ativa é criada** e o hook `useAuth` mantém `user = null`
+3. O dialog avança para o passo 2 (formulário de perfil)
+4. Ao submeter o perfil, `handleProfileSubmit` verifica `if (!user)` e bloqueia com o erro **"Erro de autenticação. Tente novamente."**
+
+O Supabase **retorna o objeto do usuário** na resposta do `signUp` mesmo antes da confirmação de e-mail, mas o código atual descarta esse dado (`const { error } = await supabase.auth.signUp(...)` — ignora o `data`).
 
 ## Solução
 
-Aplicar altura máxima ao `DialogContent` e tornar o conteúdo interno rolável, mantendo o cabeçalho fixo no topo.
+### 1. `src/hooks/useAuth.ts`
+Alterar a função `signUp` para também retornar o objeto `user` da resposta:
 
-## Mudanças no `src/components/VariantDialog.tsx`
-
-### 1. Limitar a altura do `DialogContent`
-
-Adicionar `max-h-[90vh]` ao `DialogContent` para garantir que o modal nunca ultrapasse 90% da altura da viewport:
-
-```
-<DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+```typescript
+const signUp = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signUp({ ... });
+  return { user: data?.user ?? null, error };
+};
 ```
 
-O `flex flex-col` é necessário para que o conteúdo interno possa crescer e o scroll funcione corretamente.
+### 2. `src/components/CustomerAuthDialog.tsx`
 
-### 2. Tornar o corpo do dialog rolável
+Duas mudanças:
 
-Substituir a `<div className="space-y-4">` por uma div com overflow-y scroll:
-
-```
-<div className="overflow-y-auto flex-1 space-y-4 pr-1">
-  {/* carousel, nome, cores, tamanhos */}
-</div>
+**a) Adicionar estado local para guardar o userId do cadastro:**
+```typescript
+const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 ```
 
-O `pr-1` evita que a barra de scroll sobreponha o conteúdo.
-
-### 3. Fixar o botão "Adicionar ao Carrinho" fora do scroll
-
-Mover o botão para fora da div scrollável, para que ele fique sempre visível na parte inferior do dialog, independentemente da quantidade de opções:
-
-```text
-DialogContent (flex flex-col, max-h-[90vh])
-├── DialogHeader (fixo no topo)
-├── div.overflow-y-auto (área rolável)
-│   ├── Carrossel de imagens
-│   ├── Nome + Descrição + Preço
-│   ├── Seleção de Cor
-│   └── Seleção de Tamanho
-└── Button "Adicionar ao Carrinho" (fixo na base, sempre visível)
+**b) Em `handleRegister`, capturar o userId retornado pelo signUp:**
+```typescript
+const { user: newUser, error } = await signUp(registerData.email, registerData.password);
+if (!error && newUser) {
+  setPendingUserId(newUser.id);
+  setStep(2);
+}
 ```
 
-## Arquivo modificado
+**c) Em `handleProfileSubmit`, usar `pendingUserId` como fallback quando `user` for null:**
+```typescript
+const effectiveUserId = user?.id ?? pendingUserId;
+if (!effectiveUserId) {
+  toast.error('Erro de autenticação. Tente novamente.');
+  return;
+}
+// usar effectiveUserId no lugar de user.id
+```
 
-- `src/components/VariantDialog.tsx` — único arquivo a ser alterado
+## Por que isso funciona?
 
-## Benefícios
+O Supabase cria o usuário imediatamente no banco ao chamar `signUp`, mas aguarda a confirmação do e-mail para ativar a sessão. O `user.id` retornado na resposta é o ID real do usuário já criado, e pode ser usado para salvar o perfil via RLS (a política de RLS verifica `user_id = auth.uid()`, mas como o usuário ainda não está autenticado via sessão, pode ser necessário verificar a política da tabela `customer_profiles`).
 
-- O usuario consegue rolar para ver todas as opcoes de cor e tamanho
-- O botao "Adicionar ao Carrinho" fica sempre visivel na parte inferior
-- Funciona tanto em mobile quanto em desktop
-- Nenhuma logica de negocio e alterada, apenas o layout
+## Verificação das políticas RLS
+
+Será necessário verificar se a tabela `customer_profiles` permite inserção por usuários não confirmados. Se a RLS exige sessão ativa, a alternativa mais robusta seria **desabilitar a confirmação de e-mail** para cadastros de clientes (configuração no sistema de autenticação do Lovable Cloud), que é o comportamento mais comum em lojas de e-commerce onde o cadastro deve ser imediato e sem fricção.
+
+## Arquivos modificados
+
+1. `src/hooks/useAuth.ts` — retornar `user` no `signUp`
+2. `src/components/CustomerAuthDialog.tsx` — capturar e usar o `pendingUserId`
+
+## Alternativa mais simples e robusta
+
+Desabilitar a confirmação de e-mail no painel de autenticação do Lovable Cloud, pois para um e-commerce de loja local (como a LF Store), pedir que o cliente confirme o e-mail antes de comprar é uma barreira desnecessária que prejudica a conversão. Esta é a mudança mais impactante e simples de implementar.
+
+A implementação fará as duas coisas:
+1. Desabilitar a confirmação de e-mail via migração de configuração
+2. Também corrigir o código para capturar o `pendingUserId` como proteção extra
