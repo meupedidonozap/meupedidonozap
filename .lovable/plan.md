@@ -1,43 +1,60 @@
 
-# Corrigir Visibilidade do Botão "Baixar Modelo"
+# Corrigir Scroll no VariantDialog (Loja ACESSORIOS)
 
-## Problema identificado
+## Problema
 
-O botão "Baixar Modelo" está dentro do bloco `{!hasData && ...}`, o que significa que ele desaparece assim que o usuário seleciona um arquivo. Além disso, se o dialog for reaberto depois de uma importação bem-sucedida sem o estado ser limpo corretamente, o bloco `{result ? ...}` é exibido em vez da área de upload, ocultando o botão completamente.
+O `DialogContent` no `VariantDialog` não tem altura máxima (`max-h`) nem overflow scroll configurado. Quando o produto tem muitas variantes de cor e tamanho (como visto na imagem: 7 cores + tamanhos), o conteúdo ultrapassa a altura da tela do dispositivo. O resultado é que o usuario nao consegue ver as opcoes de tamanho nem o botao "Adicionar ao Carrinho".
 
 ## Solução
 
-Mover o botão "Baixar Modelo" para um local fixo e sempre visível: o **`DialogFooter`** (rodapé do dialog), ao lado esquerdo dos botões de ação. Assim ele estará acessível independentemente do estado atual (sem arquivo, com arquivo carregado, ou na tela de resultado).
+Aplicar altura máxima ao `DialogContent` e tornar o conteúdo interno rolável, mantendo o cabeçalho fixo no topo.
 
-## O que vai mudar
+## Mudanças no `src/components/VariantDialog.tsx`
 
-### `src/components/ImportProductsDialog.tsx`
+### 1. Limitar a altura do `DialogContent`
 
-1. **Remover** o botão "Baixar Modelo" de dentro da área de upload (`{!hasData && ...}`)
+Adicionar `max-h-[90vh]` ao `DialogContent` para garantir que o modal nunca ultrapasse 90% da altura da viewport:
 
-2. **Adicionar** o botão no `DialogFooter`, no canto esquerdo, separado dos botões de ação principais usando `justify-between`:
-
-```text
-[Baixar Modelo]                    [Cancelar] [Importar]
+```
+<DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
 ```
 
-3. O botão será sempre visível, em todas as etapas do fluxo (antes de carregar arquivo, após carregar, e na tela de conclusão)
+O `flex flex-col` é necessário para que o conteúdo interno possa crescer e o scroll funcione corretamente.
 
-4. O `DialogFooter` será reorganizado com `flex justify-between items-center` para separar o botão de download (esquerda) dos botões de ação (direita)
+### 2. Tornar o corpo do dialog rolável
 
-## Estrutura do footer após a mudança
+Substituir a `<div className="space-y-4">` por uma div com overflow-y scroll:
+
+```
+<div className="overflow-y-auto flex-1 space-y-4 pr-1">
+  {/* carousel, nome, cores, tamanhos */}
+</div>
+```
+
+O `pr-1` evita que a barra de scroll sobreponha o conteúdo.
+
+### 3. Fixar o botão "Adicionar ao Carrinho" fora do scroll
+
+Mover o botão para fora da div scrollável, para que ele fique sempre visível na parte inferior do dialog, independentemente da quantidade de opções:
 
 ```text
-DialogFooter (flex justify-between)
-├── Button "Baixar Modelo" (ghost, com ícone Download) — sempre visível
-└── div (flex gap-2)
-    ├── Button "Cancelar" — aparece quando não está importando
-    └── Button "Importar" — aparece quando há dados válidos
+DialogContent (flex flex-col, max-h-[90vh])
+├── DialogHeader (fixo no topo)
+├── div.overflow-y-auto (área rolável)
+│   ├── Carrossel de imagens
+│   ├── Nome + Descrição + Preço
+│   ├── Seleção de Cor
+│   └── Seleção de Tamanho
+└── Button "Adicionar ao Carrinho" (fixo na base, sempre visível)
 ```
+
+## Arquivo modificado
+
+- `src/components/VariantDialog.tsx` — único arquivo a ser alterado
 
 ## Benefícios
 
-- O usuário pode baixar o modelo a qualquer momento, mesmo após já ter carregado um arquivo
-- Não há dependência de estado para exibir o botão
-- Layout mais limpo na área de upload (sem dois botões lado a lado)
-- Resolve definitivamente o problema de o botão sumir
+- O usuario consegue rolar para ver todas as opcoes de cor e tamanho
+- O botao "Adicionar ao Carrinho" fica sempre visivel na parte inferior
+- Funciona tanto em mobile quanto em desktop
+- Nenhuma logica de negocio e alterada, apenas o layout
