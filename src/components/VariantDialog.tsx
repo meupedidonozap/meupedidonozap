@@ -73,9 +73,9 @@ export default function VariantDialog({
 
   return (
     <Dialog open={!!product} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader><DialogTitle>Selecione as opções</DialogTitle></DialogHeader>
-        <div className="space-y-4">
+        <div className="overflow-y-auto flex-1 space-y-4 pr-1">
           {/* Carousel for multiple images */}
           {hasImages ? (
             <div className="relative">
@@ -146,13 +146,13 @@ export default function VariantDialog({
               </div>
             </div>
           )}
-
-          <Button className="w-full"
-            disabled={(uniqueColors.length > 0 && !selectedVariant?.color) || (availableSizes.length > 0 && !selectedVariant?.size)}
-            onClick={() => onAddToCart(product, selectedVariant || undefined)}>
-            <ShoppingCart className="mr-2 h-4 w-4" /> Adicionar ao Carrinho
-          </Button>
         </div>
+
+        <Button className="w-full mt-2"
+          disabled={(uniqueColors.length > 0 && !selectedVariant?.color) || (availableSizes.length > 0 && !selectedVariant?.size)}
+          onClick={() => onAddToCart(product, selectedVariant || undefined)}>
+          <ShoppingCart className="mr-2 h-4 w-4" /> Adicionar ao Carrinho
+        </Button>
       </DialogContent>
     </Dialog>
   );
