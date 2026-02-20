@@ -1,36 +1,34 @@
 
-## Ajuste de Truncamento do Nome do Produto no Modo Lista (Mobile)
+## Ajuste de Truncamento no Modo Grade (Grid)
 
 ### Diagnóstico
 
-No arquivo `src/pages/ProductStorePage.tsx`, linha 344, o modo de lista usa `line-clamp-1` para o nome do produto:
+A alteração anterior corrigiu o modo lista (`line-clamp-3`). O modo grade ainda usa `line-clamp-2` na linha 361:
 
 ```html
-<h3 className="font-medium line-clamp-1">{product.name}</h3>
+<h3 className="text-sm font-medium line-clamp-2">{product.name}</h3>
 ```
-
-Isso faz com que nomes longos como "Manutenção ou..." sejam cortados na primeira linha, prejudicando a leitura em mobile.
 
 ### Mudança
 
-**Arquivo:** `src/pages/ProductStorePage.tsx` — linha 344
+**Arquivo:** `src/pages/ProductStorePage.tsx` — linha 361
 
 **Antes:**
 ```html
-<h3 className="font-medium line-clamp-1">{product.name}</h3>
+<h3 className="text-sm font-medium line-clamp-2">{product.name}</h3>
 ```
 
 **Depois:**
 ```html
-<h3 className="font-medium line-clamp-3">{product.name}</h3>
+<h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
 ```
 
-### O que muda visualmente
+### Resultado
 
-- **Modo lista:** o nome do produto passa a exibir até 3 linhas antes de truncar com "..."
-- **Modo grade (grid):** mantém `line-clamp-2` — sem alteração
-- O card em lista vai expandir verticalmente conforme necessário para acomodar nomes maiores, mantendo o layout responsivo
+- **Modo lista:** já exibe até 3 linhas (alteração anterior)
+- **Modo grade:** passa a exibir até 3 linhas — comportamento consistente com o modo lista
+- O card de grade vai expandir verticalmente conforme necessário para acomodar nomes maiores
 
 ### Impacto
 
-Apenas 1 linha alterada, sem efeitos colaterais em outros componentes ou modos de visualização.
+1 linha alterada, sem efeitos colaterais.
