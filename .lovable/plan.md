@@ -1,128 +1,105 @@
 
-# Exibir Cor e Tamanho em Todos os Layouts de Pedido
+# Reorganizar Colunas de Itens — Separar Produto, Tamanho, Cor em Colunas Distintas
 
-## Problema
+## Objetivo
 
-Os campos `color` e `size` existem em cada `CartItem` (definidos em `src/types/index.ts`), mas **nenhum** dos layouts de visualização os exibe:
-
-1. **"Meus Pedidos" (cliente)** — `OrderHistoryPage.tsx` linha 92: exibe apenas `{item.quantity}x {item.name}`, sem cor/tamanho
-2. **WhatsApp / TXT** — `formatters.ts` linha 116: a linha do item usa só `item.name`, os campos `color` e `size` são ignorados
-3. **Impressão Térmica (80mm)** — `printOrder.ts` linha `buildThermalHTML`: a linha de detalhes já inclui `size` e `color` com `details.push()`, mas **só aparece se `item.code` existir** (condição separada); funciona, mas precisa verificar
-4. **Impressão A4** — `printOrder.ts` linha `buildA4HTML`: a célula de produto já inclui `(${details.join(', ')})` com size e color, mas o campo `code` aparece em coluna separada
-5. **Resumo no Checkout** — `CheckoutPage.tsx` linha 316: exibe `{item.quantity}x {item.name.slice(0, 25)}...`, sem cor/tamanho
-6. **Painel Admin (lista de pedidos)** — exibe apenas a quantidade de itens (`X itens`), sem detalhes
-
-## Análise do que já funciona
-
-Verificando `printOrder.ts`:
-- **Térmica**: A seção de detalhes já captura `size` e `color` com `details.push()` — está correto
-- **A4**: A célula do produto já inclui `(size, color)` — está correto
-
-Os problemas estão em:
-1. `OrderHistoryPage.tsx` — tela "Meus Pedidos" do cliente
-2. `formatters.ts` — mensagem do WhatsApp e arquivo TXT
-3. `CheckoutPage.tsx` — resumo lateral do carrinho no checkout
-
-## Mudanças por arquivo
-
-### 1. `src/pages/OrderHistoryPage.tsx`
-Linha 92 — adicionar cor e tamanho abaixo do nome:
+Transformar a exibição de itens do pedido em todos os pontos de visualização para que cada atributo apareça em sua própria coluna, conforme a estrutura solicitada:
 
 ```
-Antes: {item.quantity}x {item.name}
-Depois:
-  {item.quantity}x {item.name}
-  (P, Amarelo)  ← se existirem
+# | PRODUTO | TAMANHO | COR | QTD | PREÇO UNIT. | TOTAL
 ```
 
-```tsx
-<span className="text-muted-foreground">
-  {item.quantity}x {item.name}
-  {(item.size || item.color) && (
-    <span className="text-xs ml-1 opacity-70">
-      ({[item.size, item.color].filter(Boolean).join(', ')})
-    </span>
-  )}
-</span>
+## Pontos de alteração
+
+### 1. Impressão A4 — `src/lib/printOrder.ts` (`buildA4HTML`)
+
+**Situação atual:** Tamanho e cor aparecem concatenados na coluna Produto: `Camiseta Super Mario (M, Amarelo)`
+
+**Nova estrutura da tabela:**
+
+| # | Produto | Código | Tam | Cor | Qtd | Preço Unit. | Total |
+|---|---------|--------|-----|-----|-----|-------------|-------|
+| 1 | Camiseta Super Mario | LS0007 | M | Amarelo | 3 | R$ 49,90 | R$ 149,70 |
+
+Larguras otimizadas das colunas:
+- `#` → 32px (center)
+- `Produto` → flex (ocupa o restante)
+- `Código` → 80px
+- `Tam` → 50px (center)
+- `Cor` → 70px
+- `Qtd` → 40px (center, 3 dígitos)
+- `Preço Unit.` → 85px (right, formato `R$ 99,99`)
+- `Total` → 85px (right)
+
+### 2. Impressão Térmica 80mm — `src/lib/printOrder.ts` (`buildThermalHTML`)
+
+Na térmica, a largura é limitada (280px / 80mm), portanto colunas não cabem lado a lado. A abordagem ideal é manter o bloco por item mas exibir **Tam** e **Cor** em linhas dedicadas com rótulo claro, separados do Código:
+
+```
+1) Camiseta Super Mario
+   Cod: LS0007
+   Tam: M  |  Cor: Amarelo
+   3 x R$ 49,90 = R$ 149,70
 ```
 
-### 2. `src/lib/formatters.ts`
-Função `generateWhatsAppMessage` — linha 116. Alterar a linha do item para incluir cor e tamanho no nome do produto:
+Isso já é quase o que existe, mas garantir que **sempre** apareçam Tam e Cor mesmo sem código, e que a linha de qtd/preço venha depois.
+
+### 3. Painel Admin — Lista de Pedidos — `src/pages/StoreAdminPage.tsx`
+
+**Situação atual:** A coluna "Itens" mostra apenas `2 itens`.
+
+**Nova exibição:** Expandir para mostrar cada item com nome + tamanho + cor em linhas compactas:
 
 ```
-Antes: ${item.name.slice(0, 20)}...
-Depois: ${item.name}${item.size ? ` [${item.size}]` : ''}${item.color ? ` [${item.color}]` : ''}
+Camiseta Super Mario — M / Amarelo
+Camiseta Looney Tones 2 — P / Branco
 ```
 
-O tipo do item na assinatura da função precisa incluir os campos opcionais `size` e `color`:
-```typescript
-items: Array<{
-  code: string;
-  name: string;
-  quantity: number;
-  price: number;
-  size?: string;
-  color?: string;
-}>;
+A coluna fica com `min-w-[200px]` e fonte `text-xs` para caber na tabela. A mudança é na linha 480 do `StoreAdminPage.tsx`.
+
+Também aplicar no **Dashboard — Pedidos Recentes** (linha 350), que atualmente também mostra só `X itens`.
+
+### 4. "Meus Pedidos" do Cliente — `src/pages/OrderHistoryPage.tsx`
+
+**Situação atual:** Tamanho e cor aparecem inline após o nome: `3x Camiseta Super Mario (M, Amarelo)`
+
+**Nova exibição:** Manter inline mas com separação mais clara usando badges/chips visuais:
+
+```
+3x Camiseta Super Mario
+   Tam: M  •  Cor: Amarelo
 ```
 
-E no `CheckoutPage.tsx` linha 148, passar os campos ao chamar a função:
-```typescript
-items: cart.items.map(item => ({
-  code: item.code,
-  name: item.name,
-  quantity: item.quantity,
-  price: item.price,
-  size: item.size,
-  color: item.color,
-})),
+Usar `<div>` separados com `text-xs text-muted-foreground` para as variantes, abaixo do nome.
+
+### 5. Resumo do Checkout — `src/pages/CheckoutPage.tsx`
+
+**Situação atual:** Já mostra variantes em linha separada (alterado na última atualização), mas pode ser refinado para exibir com rótulos Tam/Cor mais claros.
+
+**Nova exibição:**
+```
+3x Camiseta Super Mario       R$ 149,70
+   Tam: M  •  Cor: Amarelo
 ```
 
-### 3. `src/pages/CheckoutPage.tsx`
-Resumo lateral (linha 314-320) — adicionar cor e tamanho abaixo do nome do item:
+### 6. WhatsApp / TXT — `src/lib/formatters.ts`
 
-```tsx
-<div key={...} className="flex justify-between text-sm">
-  <div className="text-muted-foreground">
-    <span>{item.quantity}x {item.name}</span>
-    {(item.size || item.color) && (
-      <div className="text-xs opacity-70">
-        {[item.size, item.color].filter(Boolean).join(', ')}
-      </div>
-    )}
-  </div>
-  <span>{formatCurrency(item.price * item.quantity)}</span>
-</div>
+Mantém o formato atual `[M] [Amarelo]` concatenado no nome, pois o WhatsApp é texto puro sem colunas visuais. Porém pode ser melhorado para:
+
 ```
+1 | LS0007 | Camiseta Super Mario | M | Amarelo | 3 | R$ 49,90 | R$ 149,70
+```
+
+Adicionando 2 campos intermediários na linha: Tamanho e Cor como colunas separadas por `|`.
 
 ## Arquivos modificados
 
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/OrderHistoryPage.tsx` | Exibir cor e tamanho na lista de pedidos do cliente |
-| `src/lib/formatters.ts` | Incluir cor e tamanho na mensagem do WhatsApp/TXT |
-| `src/pages/CheckoutPage.tsx` | Exibir cor e tamanho no resumo lateral + passar campos ao gerar mensagem |
-
-## O que NÃO precisa mudar
-
-- `src/lib/printOrder.ts` — os dois layouts (térmica e A4) já exibem cor e tamanho corretamente nos detalhes de cada item
-
-## Exemplo do resultado no WhatsApp
-
-```
-Antes:
-1 | LS0007 | Camiseta Super Mario... | 3 | R$ 49,90 | - | R$ 149,70
-
-Depois:
-1 | LS0007 | Camiseta Super Mario [M] [Amarelo] | 3 | R$ 49,90 | - | R$ 149,70
-```
-
-## Exemplo na tela "Meus Pedidos"
-
-```
-Antes:
-3x Camiseta Super Mario                         R$ 149,70
-
-Depois:
-3x Camiseta Super Mario (M, Amarelo)            R$ 149,70
-```
+| Arquivo | Seção | Mudança |
+|---|---|---|
+| `src/lib/printOrder.ts` | `buildA4HTML` | Nova tabela com colunas Tam e Cor separadas |
+| `src/lib/printOrder.ts` | `buildThermalHTML` | Garantir Tam e Cor sempre exibidos em linha própria |
+| `src/pages/StoreAdminPage.tsx` | Aba Pedidos (linha 480) | Mostrar itens com nome + variantes em vez de "X itens" |
+| `src/pages/StoreAdminPage.tsx` | Dashboard Pedidos Recentes (linha 350) | Idem |
+| `src/pages/OrderHistoryPage.tsx` | Lista de pedidos | Rótulos Tam/Cor em linha separada abaixo do nome |
+| `src/pages/CheckoutPage.tsx` | Resumo lateral | Rótulos Tam/Cor mais claros |
+| `src/lib/formatters.ts` | `generateWhatsAppMessage` | Colunas separadas para Tamanho e Cor na linha do item |
