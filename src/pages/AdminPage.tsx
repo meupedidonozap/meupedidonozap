@@ -143,38 +143,21 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     }
     setAdminLoading(true);
     try {
-      let userId: string | null = null;
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: adminEmail,
-        password: adminPassword,
-      });
-      if (authError && authError.message?.includes('already')) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: adminEmail,
-          password: adminPassword,
-        });
-        if (signInError) throw new Error('Usuário já existe mas a senha está incorreta');
-        userId = signInData.user?.id ?? null;
-        await supabase.auth.signOut();
-      } else if (authError) {
-        throw authError;
-      } else {
-        userId = authData.user?.id ?? null;
-      }
-      if (!userId) throw new Error('Erro ao obter ID do usuário');
-      const { error: linkError } = await supabase.from('store_admins').insert({
-        store_id: adminStoreId,
-        user_id: userId,
-      });
-      if (linkError) {
-        if (linkError.message?.includes('duplicate')) {
-          toast.info('Este usuário já é admin desta loja');
-        } else {
-          throw linkError;
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-store-admin`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ email: adminEmail, password: adminPassword, store_id: adminStoreId }),
         }
-      } else {
-        toast.success(`Admin criado para ${adminStoreName}!`);
-      }
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Erro ao criar admin');
+      toast.success(result.message || `Admin criado para ${adminStoreName}!`);
       setAdminDialogOpen(false);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao criar admin');
