@@ -30,15 +30,16 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
   const itemsHTML = order.items
     .map((item, i) => {
       const itemTotal = item.price * item.quantity;
-      const details: string[] = [];
-      if (item.code) details.push(`Cod: ${item.code}`);
-      if (item.size) details.push(`Tam: ${item.size}`);
-      if (item.color) details.push(`Cor: ${item.color}`);
-      const detailLine = details.length > 0 ? `<div style="padding-left:16px">${details.join(' | ')}</div>` : '';
+      const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
+      const variantParts: string[] = [];
+      if (item.size) variantParts.push(`Tam: ${item.size}`);
+      if (item.color) variantParts.push(`Cor: ${item.color}`);
+      const variantLine = variantParts.length > 0 ? `<div style="padding-left:16px">${variantParts.join('  |  ')}</div>` : '';
       return `
         <div style="margin-bottom:6px">
           <div><strong>${i + 1})</strong> ${item.name}</div>
-          ${detailLine}
+          ${codeLine}
+          ${variantLine}
           <div style="padding-left:16px">${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(itemTotal)}</div>
         </div>`;
     })
@@ -129,14 +130,12 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
   const itemsRows = order.items
     .map((item, i) => {
       const itemTotal = item.price * item.quantity;
-      const details: string[] = [];
-      if (item.size) details.push(item.size);
-      if (item.color) details.push(item.color);
-      const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
       return `<tr>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
-        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}${detailStr}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.code || '-'}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.size || '-'}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.color || '-'}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.price)}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(itemTotal)}</td>
@@ -204,12 +203,14 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
     <table>
       <thead>
         <tr>
-          <th style="text-align:center;width:40px">#</th>
+          <th style="text-align:center;width:32px">#</th>
           <th>Produto</th>
-          <th style="width:100px">Código</th>
-          <th style="text-align:center;width:50px">Qtd</th>
-          <th style="text-align:right;width:90px">Preço Unit.</th>
-          <th style="text-align:right;width:90px">Total</th>
+          <th style="width:80px">Código</th>
+          <th style="text-align:center;width:50px">Tam</th>
+          <th style="width:70px">Cor</th>
+          <th style="text-align:center;width:40px">Qtd</th>
+          <th style="text-align:right;width:85px">Preço Unit.</th>
+          <th style="text-align:right;width:85px">Total</th>
         </tr>
       </thead>
       <tbody>
