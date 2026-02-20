@@ -76,6 +76,8 @@ export function generateWhatsAppMessage(order: {
     name: string;
     quantity: number;
     price: number;
+    size?: string;
+    color?: string;
   }>;
   subtotal: number;
   discount: number;
@@ -113,7 +115,8 @@ export function generateWhatsAppMessage(order: {
 
   order.items.forEach((item, index) => {
     const total = item.price * item.quantity;
-    message += `${index + 1} | ${item.code.slice(0, 13)} | ${item.name.slice(0, 20)}... | ${item.quantity} | ${formatCurrency(item.price)} |   - | ${formatCurrency(total)}\n`;
+    const itemLabel = `${item.name}${item.size ? ` [${item.size}]` : ''}${item.color ? ` [${item.color}]` : ''}`;
+    message += `${index + 1} | ${item.code.slice(0, 13)} | ${itemLabel} | ${item.quantity} | ${formatCurrency(item.price)} |   - | ${formatCurrency(total)}\n`;
   });
 
   message += `--------------------------------\n`;
