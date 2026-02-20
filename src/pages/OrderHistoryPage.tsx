@@ -89,7 +89,14 @@ export default function OrderHistoryPage() {
                     <div className="mt-3 space-y-1 text-sm">
                       {items.map((item: any, i: number) => (
                         <div key={i} className="flex justify-between">
-                          <span className="text-muted-foreground">{item.quantity}x {item.name}</span>
+                          <span className="text-muted-foreground">
+                            {item.quantity}x {item.name}
+                            {(item.size || item.color) && (
+                              <span className="ml-1 text-xs opacity-70">
+                                ({[item.size, item.color].filter(Boolean).join(', ')})
+                              </span>
+                            )}
+                          </span>
                           <span>{formatCurrency(item.price * item.quantity)}</span>
                         </div>
                       ))}

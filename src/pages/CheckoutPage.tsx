@@ -145,7 +145,7 @@ export default function CheckoutPage() {
         address: `${formData.address}, ${formData.number}`,
         neighborhood: formData.neighborhood, city: formData.city, uf: formData.uf, cep: formData.cep,
       },
-      items: cart.items.map(item => ({ code: item.code, name: item.name, quantity: item.quantity, price: item.price })),
+      items: cart.items.map(item => ({ code: item.code, name: item.name, quantity: item.quantity, price: item.price, size: item.size, color: item.color })),
       subtotal: cart.subtotal,
       discount: cart.couponDiscount,
       total: totalWithDelivery,
@@ -312,9 +312,14 @@ export default function CheckoutPage() {
               <CardContent className="space-y-4">
                 <div className="max-h-48 space-y-2 overflow-auto">
                   {cart.items.map(item => (
-                    <div key={`${item.productId}-${item.variantId}`} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{item.quantity}x {item.name.slice(0, 25)}...</span>
-                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    <div key={`${item.productId}-${item.variantId}`} className="flex justify-between text-sm gap-2">
+                      <div className="text-muted-foreground min-w-0">
+                        <span>{item.quantity}x {item.name}</span>
+                        {(item.size || item.color) && (
+                          <div className="text-xs opacity-70">{[item.size, item.color].filter(Boolean).join(', ')}</div>
+                        )}
+                      </div>
+                      <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
                     </div>
                   ))}
                 </div>
