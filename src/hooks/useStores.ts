@@ -32,6 +32,7 @@ export function useStores() {
       if (error) throw error;
       return (data || []).map(mapStore);
     },
+    staleTime: 30_000,
   });
 }
 
@@ -48,6 +49,7 @@ export function useStoreBySlug(slug: string) {
       return data ? mapStore(data) : null;
     },
     enabled: !!slug,
+    staleTime: 30_000,
   });
 }
 

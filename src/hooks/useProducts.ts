@@ -53,6 +53,7 @@ export function useProducts(storeId: string | undefined) {
       return (data || []).map(mapProduct);
     },
     enabled: !!storeId,
+    staleTime: 30_000,
   });
 }
 
