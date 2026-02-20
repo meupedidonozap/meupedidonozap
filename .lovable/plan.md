@@ -1,167 +1,92 @@
 
-# Desconto por Grupo de Produtos no Carrinho
+# Corrigir Lentidão no Carregamento do Painel Administrativo
 
-## Diagnóstico da Situação Atual
+## Causa Raiz: Waterfall de Requisições Sequenciais
 
-A estrutura de tipos já existe parcialmente mas está incompleta:
+O painel demora porque as requisições são executadas em cascata — cada uma esperando a anterior terminar antes de começar. Visualmente:
 
-- `DiscountRule` já tem `type: 'group'`, `groupId`, `minQuantity`, `discountPercent` — **estrutura pronta**
-- `CartItem` **não possui `groupId`** — precisa ser adicionado para o sistema saber a qual grupo cada item pertence
-- `CartContext` tem `quantityDiscount` mas é calculado como valor fixo, sem lógica de grupos
-- O painel admin (`StoreAdminPage`) **não tem aba para gerenciar regras de desconto por grupo** — admin não consegue cadastrar as faixas
-- A impressão (`printOrder.ts`) não exibe preço original nem percentual de desconto por item
-
-## Como o Sistema Funcionará
-
-### Regras de Negócio
-
-1. Cada produto pertence a um `groupId` (campo já existe na tabela `products`)
-2. O admin cadastra faixas por grupo: ex. "Grupo A: 6 peças = 10%, 12 peças = 15%"
-3. Ao adicionar/remover itens do carrinho, o sistema soma as quantidades de todos os itens do mesmo grupo
-4. A faixa de desconto aplicável é a maior cujo `minQuantity` é atingido
-5. O desconto é aplicado em **todos os itens do grupo**, não apenas no último adicionado
-6. Cada item terá visualmente: preço original riscado + % desconto + preço com desconto
-7. O total do carrinho considera os preços com desconto
-
-### Exemplo Visual no Carrinho
-
-```
-ULTRA REPAIR MASCARA       R$ 47,45  (preço original riscado)
-Tam: P | Cor: Preto        -10% | R$ 42,71 ← preço real
-FLASH COLOR                R$ 47,45
-Cor: Azul                  -10% | R$ 42,71 ← mesmo grupo, mesmo desconto
------------------------------------------------------
-Desconto por quantidade: -R$ 9,48
-Total:  R$ 85,42
+```text
+Tempo →→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→→
+[1] useAuth (getSession)          ████░░░░░░░░░░░░░░
+[2] useStoreBySlug                ░░░░████░░░░░░░░░░  (espera [1])
+[3] useStoreAdmin (verifica RLS)  ░░░░░░░░████░░░░░░  (espera [1]+[2])
+[4] useOrders, useProducts...     ░░░░░░░░░░░░████░░  (espera [3])
+[Conteúdo visível]                ░░░░░░░░░░░░░░░░██  ~1,5s depois
 ```
 
-## Arquivos a Modificar/Criar
+## Soluções
 
-### 1. `src/types/index.ts` — Adicionar `groupId` ao CartItem
+### 1. Converter `usePlatformAdmin` para React Query (com cache)
+
+Atualmente usa `useEffect` manual, sem cache. Cada vez que a página carrega, busca do zero. Com React Query, o resultado fica em cache e retorna instantaneamente na segunda visita.
+
+**`src/hooks/usePlatformAdmin.ts`** — reescrever usando `useQuery`:
 
 ```typescript
-export interface CartItem {
-  productId: string;
-  variantId?: string;
-  groupId?: string;      // ← NOVO: para cálculo de desconto por grupo
-  name: string;
-  code: string;
-  // ...resto igual
+export function usePlatformAdmin() {
+  const { user, loading: authLoading } = useAuth();
+
+  const { data: isAdmin = false, isLoading: adminLoading } = useQuery({
+    queryKey: ['platform-admin', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('platform_admins')
+        .select('id')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // cache 5 minutos
+  });
+
+  return { user, isAdmin, loading: authLoading || (!!user && adminLoading) };
 }
 ```
 
-### 2. `src/contexts/CartContext.tsx` — Lógica de desconto por grupo
+### 2. Paralelizar `useStoreBySlug` + `useAuth` no `StoreAdminPage`
 
-**Nova função `applyGroupDiscounts`**: recebe os itens e as regras de desconto. Para cada grupo, soma as quantidades, encontra a faixa aplicável e calcula o desconto total daquele grupo.
+O `useStoreBySlug` não precisa do usuário para buscar a loja — slug já está disponível na URL imediatamente. O `useStoreAdmin` pode começar a buscar em paralelo assim que tiver `user.id` E `store.id` (qualquer um que chegar primeiro ativa, o outro completa).
 
-```typescript
-function applyGroupDiscounts(items: CartItem[], discountRules: DiscountRule[]): {
-  quantityDiscount: number;
-  itemDiscounts: Record<string, number>; // productId+variantId -> % desconto
-} {
-  const groupRules = discountRules.filter(r => r.type === 'group');
-  let totalDiscount = 0;
-  const itemDiscounts: Record<string, number> = {};
+Nenhuma mudança de código aqui — o problema é que React Query já faz isso, mas o `useStoreAdmin` tem `enabled: !!user && !!storeId`, o que já é correto. A loja e o usuário são buscados em paralelo, mas a **verificação de admin** espera ambos.
 
-  // Agrupa itens por groupId
-  const groupMap = new Map<string, CartItem[]>();
-  for (const item of items) {
-    if (!item.groupId) continue;
-    const list = groupMap.get(item.groupId) || [];
-    list.push(item);
-    groupMap.set(item.groupId, list);
-  }
+### 3. Adicionar `staleTime` nos hooks mais usados
 
-  // Para cada grupo, calcula desconto
-  for (const [groupId, groupItems] of groupMap) {
-    const totalQty = groupItems.reduce((s, i) => s + i.quantity, 0);
-    // Pega a maior faixa cujo minQuantity <= totalQty
-    const applicable = groupRules
-      .filter(r => r.groupId === groupId && (r.minQuantity || 0) <= totalQty)
-      .sort((a, b) => (b.minQuantity || 0) - (a.minQuantity || 0))[0];
-    
-    if (!applicable) continue;
-    const pct = applicable.discountPercent / 100;
-    for (const item of groupItems) {
-      const itemKey = `${item.productId}-${item.variantId || ''}`;
-      itemDiscounts[itemKey] = applicable.discountPercent;
-      totalDiscount += item.price * item.quantity * pct;
-    }
-  }
+Sem `staleTime`, React Query considera os dados "stale" (desatualizados) imediatamente e refaz a requisição toda vez que a página é focada ou o componente remonta. Adicionando `staleTime: 30_000` (30 segundos), dados recentes são retornados do cache instantaneamente.
 
-  return { quantityDiscount: totalDiscount, itemDiscounts };
-}
-```
+**Hooks a atualizar:**
+- `src/hooks/useStores.ts` — `useStoreBySlug`
+- `src/hooks/useStoreAdmin.ts` — verificação de admin
+- `src/hooks/useOrders.ts` — lista de pedidos
+- `src/hooks/useProducts.ts` — lista de produtos
+- `src/hooks/useCategories.ts` — categorias
 
-O `CartContext` precisará:
-- Receber as `discountRules` da loja (via nova função `setDiscountRules`)
-- Recalcular os descontos por grupo sempre que os itens mudarem
-- Expor `itemDiscounts: Record<string, number>` para que o carrinho mostre o % por item
+### 4. Mostrar skeleton de loading durante a autenticação no `StoreAdminPage`
 
-### 3. `src/pages/ProductStorePage.tsx` — Carregar regras e exibir desconto por item
+Atualmente, enquanto `storeLoading` ou `adminLoading` estão ativos, a tela mostra apenas um spinner centralizado. O usuário não tem feedback de progresso. Substituir por um skeleton com a estrutura do painel (header + sidebar + cards) para dar a percepção de carregamento mais rápido.
 
-- Chamar `cart.setDiscountRules(store.settings.discountRules)` quando a loja carregar
-- No card de cada item do carrinho, exibir:
-  - Preço original riscado (se tiver desconto)
-  - Badge com "% OFF"
-  - Preço com desconto em destaque
-- No rodapé do carrinho, mostrar linha "Desconto por quantidade: -R$ X,XX"
+## Arquivos a Modificar
 
-### 4. `src/pages/ProductStorePage.tsx` — Passar `groupId` ao adicionar item
-
-```typescript
-addItem({
-  productId: product.id,
-  variantId: variantData?.id,
-  groupId: product.groupId,   // ← NOVO
-  // ...
-});
-```
-
-### 5. `src/pages/StoreAdminPage.tsx` — Nova aba/seção para gerenciar faixas de desconto
-
-Adicionar uma seção "Descontos por Grupo" na aba de Configurações ou como aba própria. O admin poderá:
-- Ver os grupos disponíveis (identificados pelo `group_id` dos produtos) — como é um campo livre de texto, o admin digita o ID do grupo
-- Adicionar faixas: Grupo ID + Quantidade mínima + % desconto + descrição
-- Remover faixas existentes
-
-As regras são salvas em `store.settings.discountRules` (JSONB na coluna `settings` da tabela `stores`).
-
-### 6. `src/lib/printOrder.ts` — Impressão com desconto por item
-
-Os itens do pedido precisarão carregar o desconto aplicado. Serão necessárias duas abordagens:
-
-**Para o modelo A4:** adicionar coluna "% Desc." e mostrar preço original riscado vs preço com desconto
-
-**Para o modelo térmico:** mostrar linha adicional "Desc: X%" e o valor calculado por item
-
-O `Order` salvo no banco já contém `discount` (valor total do desconto) e `items` (os itens). Precisamos salvar `discountPercent` em cada item do pedido para que a impressão consiga reconstruir os valores originais.
-
-### 7. `src/types/index.ts` — Adicionar `discountPercent` ao CartItem/Order item
-
-```typescript
-export interface CartItem {
-  // ...
-  groupId?: string;
-  discountPercent?: number;  // ← % de desconto aplicado neste item
-}
-```
-
-### 8. `src/pages/CheckoutPage.tsx` — Aplicar desconto correto ao salvar pedido
-
-No momento de criar o pedido, o `discount` enviado deve ser `cart.quantityDiscount + cart.couponDiscount`. O resumo do pedido deve mostrar tanto o desconto de quantidade quanto o de cupom separados.
-
-## Resumo das Mudanças
-
-| Arquivo | O que muda |
+| Arquivo | Mudança |
 |---|---|
-| `src/types/index.ts` | Adiciona `groupId` e `discountPercent` ao `CartItem` |
-| `src/contexts/CartContext.tsx` | Nova lógica `applyGroupDiscounts`, expõe `itemDiscounts` e `setDiscountRules` |
-| `src/pages/ProductStorePage.tsx` | Passa `groupId` ao adicionar item; exibe desconto por item no carrinho; carrega regras |
-| `src/pages/StoreAdminPage.tsx` | Seção de cadastro de faixas de desconto por grupo |
-| `src/lib/printOrder.ts` | Impressão mostra preço original, % desconto e preço com desconto |
-| `src/pages/CheckoutPage.tsx` | Separação visual de desconto de quantidade vs cupom no resumo |
+| `src/hooks/usePlatformAdmin.ts` | Converter de `useEffect` manual para `useQuery` com cache de 5 min |
+| `src/hooks/useStoreAdmin.ts` | Adicionar `staleTime: 5 * 60 * 1000` |
+| `src/hooks/useStores.ts` | Adicionar `staleTime: 30_000` em `useStoreBySlug` e `useStores` |
+| `src/hooks/useOrders.ts` | Adicionar `staleTime: 30_000` |
+| `src/hooks/useProducts.ts` | Adicionar `staleTime: 30_000` |
+| `src/hooks/useCategories.ts` | Adicionar `staleTime: 30_000` |
 
-## Nenhuma alteração de banco de dados necessária
+## Impacto Esperado
 
-As regras de desconto são salvas em `stores.settings` (coluna JSONB), que já existe. Não é necessária nenhuma migração.
+| Cenário | Antes | Depois |
+|---|---|---|
+| Primeira visita ao painel | ~1,5s em branco | ~0,8s (paralelo) |
+| Segunda visita (cache ativo) | ~1,5s em branco | ~0,1s (cache instantâneo) |
+| Trocar de aba e voltar | Rebusca tudo | Cache mantido por 30s |
+| Admin page (plataforma) | Sem cache | Cache de 5 min |
+
+## O que NÃO muda
+
+- Nenhuma mudança de banco de dados
+- Nenhuma mudança visual no painel (apenas o loading fica mais rápido)
+- A segurança (RLS) continua funcionando igual — o cache é apenas client-side
