@@ -1,105 +1,121 @@
 
-# Reorganizar Colunas de Itens — Separar Produto, Tamanho, Cor em Colunas Distintas
+# Corrigir Criação de Admin de Loja no Painel Central
 
-## Objetivo
+## Causa Raiz Identificada
 
-Transformar a exibição de itens do pedido em todos os pontos de visualização para que cada atributo apareça em sua própria coluna, conforme a estrutura solicitada:
-
-```
-# | PRODUTO | TAMANHO | COR | QTD | PREÇO UNIT. | TOTAL
-```
-
-## Pontos de alteração
-
-### 1. Impressão A4 — `src/lib/printOrder.ts` (`buildA4HTML`)
-
-**Situação atual:** Tamanho e cor aparecem concatenados na coluna Produto: `Camiseta Super Mario (M, Amarelo)`
-
-**Nova estrutura da tabela:**
-
-| # | Produto | Código | Tam | Cor | Qtd | Preço Unit. | Total |
-|---|---------|--------|-----|-----|-----|-------------|-------|
-| 1 | Camiseta Super Mario | LS0007 | M | Amarelo | 3 | R$ 49,90 | R$ 149,70 |
-
-Larguras otimizadas das colunas:
-- `#` → 32px (center)
-- `Produto` → flex (ocupa o restante)
-- `Código` → 80px
-- `Tam` → 50px (center)
-- `Cor` → 70px
-- `Qtd` → 40px (center, 3 dígitos)
-- `Preço Unit.` → 85px (right, formato `R$ 99,99`)
-- `Total` → 85px (right)
-
-### 2. Impressão Térmica 80mm — `src/lib/printOrder.ts` (`buildThermalHTML`)
-
-Na térmica, a largura é limitada (280px / 80mm), portanto colunas não cabem lado a lado. A abordagem ideal é manter o bloco por item mas exibir **Tam** e **Cor** em linhas dedicadas com rótulo claro, separados do Código:
+O fluxo atual em `AdminPage.tsx` (`handleCreateAdmin`, linha 135–183) tem uma falha crítica de sessão:
 
 ```
-1) Camiseta Super Mario
-   Cod: LS0007
-   Tam: M  |  Cor: Amarelo
-   3 x R$ 49,90 = R$ 149,70
+1. Superadmin abre o dialog → clica "Criar Admin"
+2. supabase.auth.signUp(email, password)  ← cria o novo usuário
+3. O Supabase faz LOGIN AUTOMÁTICO com o novo usuário (derruba a sessão do superadmin)
+4. supabase.auth.signOut()               ← desloga o novo usuário
+5. supabase.from('store_admins').insert() ← FALHA: auth.uid() = null
+   → RLS bloqueia porque is_platform_admin(null) = false
+6. O toast de ERRO aparece (linkError), mas o usuário foi criado sem o vínculo
 ```
 
-Isso já é quase o que existe, mas garantir que **sempre** apareçam Tam e Cor mesmo sem código, e que a linha de qtd/preço venha depois.
+**Confirmado pelo banco:** O usuário `logistica@dicolore.com.br` existe na tabela de autenticação (ID: `93bf8067...`), mas a tabela `store_admins` está **completamente vazia** para ele.
 
-### 3. Painel Admin — Lista de Pedidos — `src/pages/StoreAdminPage.tsx`
+## Solução
 
-**Situação atual:** A coluna "Itens" mostra apenas `2 itens`.
+### Opção escolhida: Edge Function com Service Role
 
-**Nova exibição:** Expandir para mostrar cada item com nome + tamanho + cor em linhas compactas:
+A única forma segura de criar um usuário E vincular à loja sem perder a sessão do superadmin é usar uma **Edge Function** que:
+1. Recebe email, senha e store_id
+2. Usa o **service role key** (acesso total ao banco sem RLS) para criar o usuário via Admin API
+3. Insere o registro em `store_admins` com o service role (também sem RLS)
+4. A sessão do superadmin **nunca é interrompida**
 
-```
-Camiseta Super Mario — M / Amarelo
-Camiseta Looney Tones 2 — P / Branco
-```
-
-A coluna fica com `min-w-[200px]` e fonte `text-xs` para caber na tabela. A mudança é na linha 480 do `StoreAdminPage.tsx`.
-
-Também aplicar no **Dashboard — Pedidos Recentes** (linha 350), que atualmente também mostra só `X itens`.
-
-### 4. "Meus Pedidos" do Cliente — `src/pages/OrderHistoryPage.tsx`
-
-**Situação atual:** Tamanho e cor aparecem inline após o nome: `3x Camiseta Super Mario (M, Amarelo)`
-
-**Nova exibição:** Manter inline mas com separação mais clara usando badges/chips visuais:
+### Fluxo Corrigido
 
 ```
-3x Camiseta Super Mario
-   Tam: M  •  Cor: Amarelo
+AdminPage.tsx
+  ↓ chama edge function com { email, password, store_id }
+  
+Edge Function: create-store-admin
+  ↓ usa Admin Auth API → cria usuário (sem afetar sessão do chamador)
+  ↓ usa service role → insere em store_admins
+  ↓ retorna { success: true, userId }
+  
+AdminPage.tsx
+  ↓ mostra toast de sucesso
+  ↓ sessão do superadmin intacta ✓
 ```
 
-Usar `<div>` separados com `text-xs text-muted-foreground` para as variantes, abaixo do nome.
+## Arquivos a Modificar/Criar
 
-### 5. Resumo do Checkout — `src/pages/CheckoutPage.tsx`
+### 1. Nova Edge Function: `supabase/functions/create-store-admin/index.ts`
 
-**Situação atual:** Já mostra variantes em linha separada (alterado na última atualização), mas pode ser refinado para exibir com rótulos Tam/Cor mais claros.
+Recebe `{ email, password, store_id }` no body, valida que o chamador é platform admin usando o JWT da requisição, cria o usuário via Admin Auth API e insere em `store_admins`.
 
-**Nova exibição:**
+```typescript
+// Pseudo-código da lógica
+const { email, password, store_id } = await req.json();
+
+// 1. Verificar que o chamador é platform admin
+const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+const { data: isAdmin } = await supabaseAdmin.rpc('is_platform_admin', { _user_id: user.id });
+if (!isAdmin) return 403;
+
+// 2. Criar o usuário (ou buscar existente)
+const { data: newUser } = await supabaseAdmin.auth.admin.createUser({
+  email, password, email_confirm: true
+});
+
+// 3. Vincular à loja
+await supabaseAdmin.from('store_admins').insert({ store_id, user_id: newUser.user.id });
+
+return { success: true };
 ```
-3x Camiseta Super Mario       R$ 149,70
-   Tam: M  •  Cor: Amarelo
+
+### 2. `src/pages/AdminPage.tsx` — `handleCreateAdmin`
+
+Substituir todo o bloco de signUp/signIn pela chamada à edge function:
+
+```typescript
+const handleCreateAdmin = async () => {
+  setAdminLoading(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-store-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ email: adminEmail, password: adminPassword, store_id: adminStoreId }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Erro ao criar admin');
+    toast.success(`Admin criado para ${adminStoreName}!`);
+    setAdminDialogOpen(false);
+  } catch (err: any) {
+    toast.error(err.message || 'Erro ao criar admin');
+  }
+  setAdminLoading(false);
+};
 ```
 
-### 6. WhatsApp / TXT — `src/lib/formatters.ts`
+### 3. Correção imediata no banco para a DICOLORE
 
-Mantém o formato atual `[M] [Amarelo]` concatenado no nome, pois o WhatsApp é texto puro sem colunas visuais. Porém pode ser melhorado para:
+Além de corrigir o código, precisamos **inserir manualmente** o registro que deveria ter sido criado. Isso será feito via migração SQL:
 
+```sql
+INSERT INTO store_admins (store_id, user_id)
+VALUES (
+  '3b77c581-4c30-4c43-a3d5-944eb9f3032a',  -- DICOLORE store id
+  '93bf8067-6b4a-414f-bb6c-562e6961e43a'   -- logistica@dicolore.com.br user id
+)
+ON CONFLICT DO NOTHING;
 ```
-1 | LS0007 | Camiseta Super Mario | M | Amarelo | 3 | R$ 49,90 | R$ 149,70
-```
 
-Adicionando 2 campos intermediários na linha: Tamanho e Cor como colunas separadas por `|`.
+Isso permite que o admin da DICOLORE acesse o painel imediatamente, enquanto o bug do código também é corrigido.
 
-## Arquivos modificados
+## Resumo das Mudanças
 
-| Arquivo | Seção | Mudança |
+| O que | Onde | Por quê |
 |---|---|---|
-| `src/lib/printOrder.ts` | `buildA4HTML` | Nova tabela com colunas Tam e Cor separadas |
-| `src/lib/printOrder.ts` | `buildThermalHTML` | Garantir Tam e Cor sempre exibidos em linha própria |
-| `src/pages/StoreAdminPage.tsx` | Aba Pedidos (linha 480) | Mostrar itens com nome + variantes em vez de "X itens" |
-| `src/pages/StoreAdminPage.tsx` | Dashboard Pedidos Recentes (linha 350) | Idem |
-| `src/pages/OrderHistoryPage.tsx` | Lista de pedidos | Rótulos Tam/Cor em linha separada abaixo do nome |
-| `src/pages/CheckoutPage.tsx` | Resumo lateral | Rótulos Tam/Cor mais claros |
-| `src/lib/formatters.ts` | `generateWhatsAppMessage` | Colunas separadas para Tamanho e Cor na linha do item |
+| INSERT manual no banco | Migração SQL | Corrigir o DICOLORE agora |
+| Nova Edge Function | `supabase/functions/create-store-admin/` | Criar admin sem derrubar sessão do superadmin |
+| Atualizar `handleCreateAdmin` | `src/pages/AdminPage.tsx` | Chamar a edge function em vez de signUp direto |
