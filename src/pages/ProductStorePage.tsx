@@ -341,7 +341,7 @@ export default function ProductStorePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
-                    <h3 className="font-medium line-clamp-1">{product.name}</h3>
+                    <h3 className="font-medium line-clamp-3">{product.name}</h3>
                     <p className="text-lg font-bold text-primary">{formatCurrency(product.basePrice)}</p>
                   </div>
                   <Button size="icon" className="shrink-0 bg-primary hover:bg-primary/90"><Plus className="h-5 w-5" /></Button>
