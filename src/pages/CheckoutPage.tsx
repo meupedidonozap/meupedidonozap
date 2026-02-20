@@ -314,9 +314,13 @@ export default function CheckoutPage() {
                   {cart.items.map(item => (
                     <div key={`${item.productId}-${item.variantId}`} className="flex justify-between text-sm gap-2">
                       <div className="text-muted-foreground min-w-0">
-                        <span>{item.quantity}x {item.name}</span>
+                        <div>{item.quantity}x {item.name}</div>
                         {(item.size || item.color) && (
-                          <div className="text-xs opacity-70">{[item.size, item.color].filter(Boolean).join(', ')}</div>
+                          <div className="text-xs opacity-70 mt-0.5">
+                            {item.size && <span>Tam: {item.size}</span>}
+                            {item.size && item.color && <span className="mx-1">•</span>}
+                            {item.color && <span>Cor: {item.color}</span>}
+                          </div>
                         )}
                       </div>
                       <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>

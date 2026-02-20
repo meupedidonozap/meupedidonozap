@@ -110,13 +110,14 @@ export function generateWhatsAppMessage(order: {
   message += `\n`;
   message += `ITENS DO PEDIDO\n`;
   message += `--------------------------------\n`;
-  message += `# | Código     | Produto               | Qtd | Unit  | Desc | Total\n`;
+  message += `# | Código        | Produto               | Tam | Cor       | Qtd | Unit       | Total\n`;
   message += `--------------------------------\n`;
 
   order.items.forEach((item, index) => {
     const total = item.price * item.quantity;
-    const itemLabel = `${item.name}${item.size ? ` [${item.size}]` : ''}${item.color ? ` [${item.color}]` : ''}`;
-    message += `${index + 1} | ${item.code.slice(0, 13)} | ${itemLabel} | ${item.quantity} | ${formatCurrency(item.price)} |   - | ${formatCurrency(total)}\n`;
+    const tamStr = (item.size || '-').slice(0, 10).padEnd(3);
+    const corStr = (item.color || '-').slice(0, 9);
+    message += `${index + 1} | ${item.code.slice(0, 13)} | ${item.name.slice(0, 21)} | ${tamStr} | ${corStr} | ${item.quantity} | ${formatCurrency(item.price)} | ${formatCurrency(total)}\n`;
   });
 
   message += `--------------------------------\n`;

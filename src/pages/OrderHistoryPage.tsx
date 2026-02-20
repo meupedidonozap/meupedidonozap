@@ -88,16 +88,18 @@ export default function OrderHistoryPage() {
                     </div>
                     <div className="mt-3 space-y-1 text-sm">
                       {items.map((item: any, i: number) => (
-                        <div key={i} className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            {item.quantity}x {item.name}
+                        <div key={i} className="flex justify-between gap-2">
+                          <div className="text-muted-foreground min-w-0">
+                            <div>{item.quantity}x {item.name}</div>
                             {(item.size || item.color) && (
-                              <span className="ml-1 text-xs opacity-70">
-                                ({[item.size, item.color].filter(Boolean).join(', ')})
-                              </span>
+                              <div className="text-xs opacity-70 mt-0.5">
+                                {item.size && <span>Tam: {item.size}</span>}
+                                {item.size && item.color && <span className="mx-1">•</span>}
+                                {item.color && <span>Cor: {item.color}</span>}
+                              </div>
                             )}
-                          </span>
-                          <span>{formatCurrency(item.price * item.quantity)}</span>
+                          </div>
+                          <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
                         </div>
                       ))}
                     </div>

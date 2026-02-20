@@ -347,7 +347,18 @@ export default function StoreAdminPage() {
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">#{order.orderNumber}</TableCell>
                         <TableCell>{order.customer.name}</TableCell>
-                        <TableCell>{order.items.length} itens</TableCell>
+                         <TableCell>
+                            <div className="space-y-0.5">
+                              {order.items.map((item: any, i: number) => (
+                                <div key={i} className="text-xs text-muted-foreground">
+                                  <span className="font-medium text-foreground">{item.quantity}x</span> {item.name}
+                                  {(item.size || item.color) && (
+                                    <span className="ml-1 opacity-70">— {[item.size, item.color].filter(Boolean).join(' / ')}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
                         <TableCell>{formatCurrency(order.total)}</TableCell>
                         <TableCell><Badge className={statusConfig[order.status].color}>{statusConfig[order.status].label}</Badge></TableCell>
                         <TableCell>{formatDateTime(order.createdAt)}</TableCell>
@@ -477,7 +488,18 @@ export default function StoreAdminPage() {
                           <p className="font-medium">{order.customer.name}</p>
                           <p className="text-xs text-muted-foreground">{order.customer.whatsapp}</p>
                         </TableCell>
-                        <TableCell>{order.items.length} itens</TableCell>
+                         <TableCell>
+                            <div className="space-y-0.5 min-w-[180px]">
+                              {order.items.map((item: any, i: number) => (
+                                <div key={i} className="text-xs text-muted-foreground">
+                                  <span className="font-medium text-foreground">{item.quantity}x</span> {item.name}
+                                  {(item.size || item.color) && (
+                                    <span className="ml-1 opacity-70">— {[item.size, item.color].filter(Boolean).join(' / ')}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </TableCell>
                         <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
                         <TableCell className="uppercase text-xs">{order.paymentMethod}</TableCell>
                         <TableCell>
