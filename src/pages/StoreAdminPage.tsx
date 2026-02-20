@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users,
+  CalendarIcon, ClipboardList, Users, Layers,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +17,7 @@ import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin } from '@/hooks/useCustomerProfiles';
-import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType } from '@/types';
+import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
@@ -113,6 +113,12 @@ export default function StoreAdminPage() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
+  // Discount rules state
+  const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
+  const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
+  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
+  const [savingRules, setSavingRules] = useState(false);
+
   // Settings state
   const [settingsName, setSettingsName] = useState('');
   const [settingsAddress, setSettingsAddress] = useState('');
@@ -133,6 +139,11 @@ export default function StoreAdminPage() {
     setSettingsWhatsapp(store.whatsapp);
     setSettingsLogo(store.logo);
     setSettingsInitialized(true);
+  }
+
+  if (store && !discountRulesInitialized) {
+    setDiscountRulesLocal((store.settings.discountRules || []).filter((r: DiscountRule) => r.type === 'group'));
+    setDiscountRulesInitialized(true);
   }
 
   // Filter orders by date range
@@ -239,6 +250,45 @@ export default function StoreAdminPage() {
     }
   };
 
+  const handleAddDiscountRule = () => {
+    if (!newRule.groupId.trim() || !newRule.minQuantity || !newRule.discountPercent) {
+      toast.error('Preencha todos os campos da regra');
+      return;
+    }
+    const rule: DiscountRule = {
+      id: crypto.randomUUID(),
+      type: 'group',
+      groupId: newRule.groupId.trim(),
+      minQuantity: Number(newRule.minQuantity),
+      discountPercent: Number(newRule.discountPercent),
+      description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
+    };
+    setDiscountRulesLocal(prev => [...prev, rule]);
+    setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
+  };
+
+  const handleRemoveDiscountRule = (id: string) => {
+    setDiscountRulesLocal(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleSaveDiscountRules = async () => {
+    setSavingRules(true);
+    try {
+      const allRules = [
+        ...(store.settings.discountRules || []).filter((r: DiscountRule) => r.type !== 'group'),
+        ...discountRules,
+      ];
+      await updateStore.mutateAsync({
+        id: store.id,
+        settings: { ...store.settings, discountRules: allRules },
+      });
+      toast.success('Regras de desconto salvas!');
+    } catch {
+      toast.error('Erro ao salvar regras');
+    }
+    setSavingRules(false);
+  };
+
   const revenueLabel = (startDate || endDate) ? 'Faturamento do Período' : 'Faturamento Total';
 
   return (
@@ -278,6 +328,7 @@ export default function StoreAdminPage() {
               {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
+            <TabsTrigger value="discounts" className="gap-2"><Layers className="h-4 w-4" /> Descontos</TabsTrigger>
             {store.type === 'SERVICOS' && (
               <TabsTrigger value="service-orders" className="gap-2"><ClipboardList className="h-4 w-4" /> Ordens de Serviço</TabsTrigger>
             )}
@@ -608,6 +659,103 @@ export default function StoreAdminPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </TabsContent>
+
+          {/* Discounts by group */}
+          <TabsContent value="discounts" className="animate-fade-in">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nova Regra de Desconto por Grupo</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Defina faixas de desconto por quantidade de peças do mesmo grupo. O <strong>ID do Grupo</strong> deve coincidir com o campo "Grupo" preenchido nos produtos.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-1">
+                      <Label className="text-sm">ID do Grupo *</Label>
+                      <Input
+                        placeholder="ex: GRUPO-A"
+                        value={newRule.groupId}
+                        onChange={e => setNewRule(r => ({ ...r, groupId: e.target.value.toUpperCase() }))}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Qtd. Mínima *</Label>
+                      <Input
+                        type="number" min="1" placeholder="ex: 6"
+                        value={newRule.minQuantity}
+                        onChange={e => setNewRule(r => ({ ...r, minQuantity: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">% de Desconto *</Label>
+                      <Input
+                        type="number" min="1" max="100" placeholder="ex: 10"
+                        value={newRule.discountPercent}
+                        onChange={e => setNewRule(r => ({ ...r, discountPercent: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Descrição</Label>
+                      <Input
+                        placeholder="ex: 6 peças = 10% off"
+                        value={newRule.description}
+                        onChange={e => setNewRule(r => ({ ...r, description: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <Button className="mt-4 gap-2" onClick={handleAddDiscountRule}>
+                    <Plus className="h-4 w-4" /> Adicionar Regra
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle>Regras Cadastradas</CardTitle>
+                  <Button onClick={handleSaveDiscountRules} disabled={savingRules} size="sm" className="gap-2">
+                    {savingRules ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Salvar Regras
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {discountRules.length === 0 ? (
+                    <p className="py-6 text-center text-muted-foreground text-sm">Nenhuma regra cadastrada. Adicione faixas de desconto acima.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Grupo</TableHead>
+                          <TableHead>Qtd. Mínima</TableHead>
+                          <TableHead>Desconto</TableHead>
+                          <TableHead>Descrição</TableHead>
+                          <TableHead className="text-right">Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {discountRules
+                          .sort((a, b) => (a.groupId || '').localeCompare(b.groupId || '') || (a.minQuantity || 0) - (b.minQuantity || 0))
+                          .map(rule => (
+                          <TableRow key={rule.id}>
+                            <TableCell><Badge variant="outline" className="font-mono">{rule.groupId}</Badge></TableCell>
+                            <TableCell>{rule.minQuantity}+ peças</TableCell>
+                            <TableCell><Badge className="bg-accent text-accent-foreground">{rule.discountPercent}% OFF</Badge></TableCell>
+                            <TableCell className="text-muted-foreground text-sm">{rule.description}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleRemoveDiscountRule(rule.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

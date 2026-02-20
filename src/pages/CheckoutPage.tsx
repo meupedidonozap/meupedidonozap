@@ -32,7 +32,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const createOrder = useCreateOrder();
-  const { cart, clearCart } = useCart();
+  const { cart, clearCart, itemDiscounts } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const upsertProfile = useUpsertCustomerProfile();
@@ -135,6 +135,7 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const totalDiscount = cart.couponDiscount + cart.quantityDiscount;
   const totalWithDelivery = cart.total + (store.settings.deliveryFee || 0);
 
   const generateOrderMessage = () => {
@@ -188,9 +189,12 @@ export default function CheckoutPage() {
           neighborhood: formData.neighborhood, address: formData.address,
           number: formData.number, complement: formData.complement,
         },
-        items: cart.items,
+        items: cart.items.map(item => ({
+          ...item,
+          discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || undefined,
+        })),
         subtotal: cart.subtotal,
-        discount: cart.couponDiscount,
+        discount: totalDiscount,
         deliveryFee: store.settings.deliveryFee || 0,
         total: totalWithDelivery,
         paymentMethod: formData.paymentMethod,
@@ -329,7 +333,8 @@ export default function CheckoutPage() {
                 </div>
                 <div className="border-t pt-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
-                  {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Desconto</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
+                  {cart.quantityDiscount > 0 && <div className="flex justify-between text-accent"><span>Desc. quantidade</span><span>-{formatCurrency(cart.quantityDiscount)}</span></div>}
+                  {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
                   {store.settings.deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Taxa de entrega</span><span>{formatCurrency(store.settings.deliveryFee)}</span></div>}
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
                 </div>

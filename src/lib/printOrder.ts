@@ -29,18 +29,25 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
 
   const itemsHTML = order.items
     .map((item, i) => {
-      const itemTotal = item.price * item.quantity;
+      const discPct = (item as any).discountPercent || 0;
+      const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+      const itemTotal = discountedPrice * item.quantity;
       const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
       const variantParts: string[] = [];
       if (item.size) variantParts.push(`Tam: ${item.size}`);
       if (item.color) variantParts.push(`Cor: ${item.color}`);
       const variantLine = variantParts.length > 0 ? `<div style="padding-left:16px">${variantParts.join('  |  ')}</div>` : '';
+      const discountLine = discPct > 0
+        ? `<div style="padding-left:16px;text-decoration:line-through;color:#999">${formatCurrency(item.price)} un.</div>
+           <div style="padding-left:16px;font-weight:bold">-${discPct}% → ${formatCurrency(discountedPrice)} un.</div>`
+        : '';
       return `
         <div style="margin-bottom:6px">
           <div><strong>${i + 1})</strong> ${item.name}</div>
           ${codeLine}
           ${variantLine}
-          <div style="padding-left:16px">${item.quantity} x ${formatCurrency(item.price)} = ${formatCurrency(itemTotal)}</div>
+          ${discountLine}
+          <div style="padding-left:16px">${item.quantity} x ${formatCurrency(discountedPrice)} = ${formatCurrency(itemTotal)}</div>
         </div>`;
     })
     .join('');
@@ -129,7 +136,12 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
 
   const itemsRows = order.items
     .map((item, i) => {
-      const itemTotal = item.price * item.quantity;
+      const discPct = (item as any).discountPercent || 0;
+      const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+      const itemTotal = discountedPrice * item.quantity;
+      const priceCell = discPct > 0
+        ? `<span style="text-decoration:line-through;color:#999;font-size:10px">${formatCurrency(item.price)}</span><br/><strong style="color:#e67e22">${formatCurrency(discountedPrice)} (-${discPct}%)</strong>`
+        : formatCurrency(item.price);
       return `<tr>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}</td>
@@ -137,7 +149,7 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.size || '-'}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.color || '-'}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
-        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(item.price)}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${priceCell}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(itemTotal)}</td>
       </tr>`;
     })

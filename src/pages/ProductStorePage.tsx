@@ -33,7 +33,7 @@ export default function ProductStorePage() {
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allProducts = [] } = useProducts(store?.id);
   const { data: coupons = [] } = useCoupons(store?.id);
-  const { cart, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon } = useCart();
+  const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules } = useCart();
   const { user, signOut } = useAuth();
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -47,8 +47,11 @@ export default function ProductStorePage() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (store) setStoreId(store.id);
-  }, [store, setStoreId]);
+    if (store) {
+      setStoreId(store.id);
+      setDiscountRules(store.settings.discountRules || []);
+    }
+  }, [store, setStoreId, setDiscountRules]);
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter(product => {
@@ -70,6 +73,7 @@ export default function ProductStorePage() {
     addItem({
       productId: product.id,
       variantId: variantData?.id,
+      groupId: product.groupId,
       name: product.name,
       code: product.code,
       color: variant?.color,
@@ -213,42 +217,57 @@ export default function ProductStorePage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {cart.items.map(item => (
-                      <Card key={`${item.productId}-${item.variantId || 'default'}`}>
-                        <CardContent className="p-4">
-                          <div className="flex gap-3">
-                            {item.image && <img src={item.image} alt={item.name} className="h-16 w-16 rounded object-cover" />}
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <p className="font-medium">{item.name}</p>
-                                  {(item.color || item.size) && <p className="text-sm text-muted-foreground">{item.color} {item.size}</p>}
-                                  <Badge variant="outline" className="mt-1 font-mono text-xs">{item.code}</Badge>
+                    {cart.items.map(item => {
+                      const itemKey = `${item.productId}-${item.variantId || ''}`;
+                      const discPct = itemDiscounts[itemKey] || 0;
+                      const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+                      return (
+                        <Card key={`${item.productId}-${item.variantId || 'default'}`}>
+                          <CardContent className="p-4">
+                            <div className="flex gap-3">
+                              {item.image && <img src={item.image} alt={item.name} className="h-16 w-16 rounded object-cover" />}
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <p className="font-medium">{item.name}</p>
+                                    {(item.color || item.size) && <p className="text-sm text-muted-foreground">{item.color} {item.size}</p>}
+                                    <Badge variant="outline" className="mt-1 font-mono text-xs">{item.code}</Badge>
+                                  </div>
+                                  <button onClick={() => removeItem(item.productId, item.variantId)} className="text-muted-foreground hover:text-destructive">
+                                    <X className="h-4 w-4" />
+                                  </button>
                                 </div>
-                                <button onClick={() => removeItem(item.productId, item.variantId)} className="text-muted-foreground hover:text-destructive">
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                              <div className="mt-2 flex items-center justify-between">
-                                <p className="font-semibold">{formatCurrency(item.price)} un.</p>
-                                <div className="flex items-center gap-2">
-                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}>
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="w-8 text-center font-medium">{item.quantity}</span>
-                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}>
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
+                                <div className="mt-2 flex items-center justify-between">
+                                  <div>
+                                    {discPct > 0 ? (
+                                      <div>
+                                        <span className="text-xs text-muted-foreground line-through">{formatCurrency(item.price)}</span>
+                                        <Badge className="ml-1 text-xs bg-accent text-accent-foreground">-{discPct}%</Badge>
+                                        <p className="font-semibold text-accent">{formatCurrency(discountedPrice)} un.</p>
+                                      </div>
+                                    ) : (
+                                      <p className="font-semibold">{formatCurrency(item.price)} un.</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}>
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}>
+                                      <Plus className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </div>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                  {item.quantity} x {formatCurrency(discountedPrice)} = {formatCurrency(discountedPrice * item.quantity)}
+                                </p>
                               </div>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Subtotal: {item.quantity} x {formatCurrency(item.price)} = {formatCurrency(item.price * item.quantity)}
-                              </p>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -269,7 +288,8 @@ export default function ProductStorePage() {
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
-                    {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Descontos</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
+                    {cart.quantityDiscount > 0 && <div className="flex justify-between text-accent"><span>Desc. quantidade</span><span>-{formatCurrency(cart.quantityDiscount)}</span></div>}
+                    {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom ({cart.couponCode})</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
                     <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(cart.total)}</span></div>
                   </div>
                   <SheetFooter className="mt-4 flex-col gap-2 sm:flex-col">
