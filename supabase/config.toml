@@ -1,1 +1,4 @@
 project_id = "buvhdqpbpbwpzidzmdqh"
+
+[functions.create-store-admin]
+verify_jwt = false
