@@ -1,74 +1,128 @@
 
-# Corrigir Erro de Autenticação no Cadastro de Cliente
+# Exibir Cor e Tamanho em Todos os Layouts de Pedido
 
-## Causa Raiz
+## Problema
 
-O fluxo de cadastro tem a seguinte sequência:
+Os campos `color` e `size` existem em cada `CartItem` (definidos em `src/types/index.ts`), mas **nenhum** dos layouts de visualização os exibe:
 
-1. `signUp()` é chamado — o Supabase envia e-mail de confirmação e retorna `{ data: { user }, error }`
-2. Como o e-mail não foi confirmado, **nenhuma sessão ativa é criada** e o hook `useAuth` mantém `user = null`
-3. O dialog avança para o passo 2 (formulário de perfil)
-4. Ao submeter o perfil, `handleProfileSubmit` verifica `if (!user)` e bloqueia com o erro **"Erro de autenticação. Tente novamente."**
+1. **"Meus Pedidos" (cliente)** — `OrderHistoryPage.tsx` linha 92: exibe apenas `{item.quantity}x {item.name}`, sem cor/tamanho
+2. **WhatsApp / TXT** — `formatters.ts` linha 116: a linha do item usa só `item.name`, os campos `color` e `size` são ignorados
+3. **Impressão Térmica (80mm)** — `printOrder.ts` linha `buildThermalHTML`: a linha de detalhes já inclui `size` e `color` com `details.push()`, mas **só aparece se `item.code` existir** (condição separada); funciona, mas precisa verificar
+4. **Impressão A4** — `printOrder.ts` linha `buildA4HTML`: a célula de produto já inclui `(${details.join(', ')})` com size e color, mas o campo `code` aparece em coluna separada
+5. **Resumo no Checkout** — `CheckoutPage.tsx` linha 316: exibe `{item.quantity}x {item.name.slice(0, 25)}...`, sem cor/tamanho
+6. **Painel Admin (lista de pedidos)** — exibe apenas a quantidade de itens (`X itens`), sem detalhes
 
-O Supabase **retorna o objeto do usuário** na resposta do `signUp` mesmo antes da confirmação de e-mail, mas o código atual descarta esse dado (`const { error } = await supabase.auth.signUp(...)` — ignora o `data`).
+## Análise do que já funciona
 
-## Solução
+Verificando `printOrder.ts`:
+- **Térmica**: A seção de detalhes já captura `size` e `color` com `details.push()` — está correto
+- **A4**: A célula do produto já inclui `(size, color)` — está correto
 
-### 1. `src/hooks/useAuth.ts`
-Alterar a função `signUp` para também retornar o objeto `user` da resposta:
+Os problemas estão em:
+1. `OrderHistoryPage.tsx` — tela "Meus Pedidos" do cliente
+2. `formatters.ts` — mensagem do WhatsApp e arquivo TXT
+3. `CheckoutPage.tsx` — resumo lateral do carrinho no checkout
 
-```typescript
-const signUp = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signUp({ ... });
-  return { user: data?.user ?? null, error };
-};
+## Mudanças por arquivo
+
+### 1. `src/pages/OrderHistoryPage.tsx`
+Linha 92 — adicionar cor e tamanho abaixo do nome:
+
+```
+Antes: {item.quantity}x {item.name}
+Depois:
+  {item.quantity}x {item.name}
+  (P, Amarelo)  ← se existirem
 ```
 
-### 2. `src/components/CustomerAuthDialog.tsx`
-
-Duas mudanças:
-
-**a) Adicionar estado local para guardar o userId do cadastro:**
-```typescript
-const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+```tsx
+<span className="text-muted-foreground">
+  {item.quantity}x {item.name}
+  {(item.size || item.color) && (
+    <span className="text-xs ml-1 opacity-70">
+      ({[item.size, item.color].filter(Boolean).join(', ')})
+    </span>
+  )}
+</span>
 ```
 
-**b) Em `handleRegister`, capturar o userId retornado pelo signUp:**
-```typescript
-const { user: newUser, error } = await signUp(registerData.email, registerData.password);
-if (!error && newUser) {
-  setPendingUserId(newUser.id);
-  setStep(2);
-}
+### 2. `src/lib/formatters.ts`
+Função `generateWhatsAppMessage` — linha 116. Alterar a linha do item para incluir cor e tamanho no nome do produto:
+
+```
+Antes: ${item.name.slice(0, 20)}...
+Depois: ${item.name}${item.size ? ` [${item.size}]` : ''}${item.color ? ` [${item.color}]` : ''}
 ```
 
-**c) Em `handleProfileSubmit`, usar `pendingUserId` como fallback quando `user` for null:**
+O tipo do item na assinatura da função precisa incluir os campos opcionais `size` e `color`:
 ```typescript
-const effectiveUserId = user?.id ?? pendingUserId;
-if (!effectiveUserId) {
-  toast.error('Erro de autenticação. Tente novamente.');
-  return;
-}
-// usar effectiveUserId no lugar de user.id
+items: Array<{
+  code: string;
+  name: string;
+  quantity: number;
+  price: number;
+  size?: string;
+  color?: string;
+}>;
 ```
 
-## Por que isso funciona?
+E no `CheckoutPage.tsx` linha 148, passar os campos ao chamar a função:
+```typescript
+items: cart.items.map(item => ({
+  code: item.code,
+  name: item.name,
+  quantity: item.quantity,
+  price: item.price,
+  size: item.size,
+  color: item.color,
+})),
+```
 
-O Supabase cria o usuário imediatamente no banco ao chamar `signUp`, mas aguarda a confirmação do e-mail para ativar a sessão. O `user.id` retornado na resposta é o ID real do usuário já criado, e pode ser usado para salvar o perfil via RLS (a política de RLS verifica `user_id = auth.uid()`, mas como o usuário ainda não está autenticado via sessão, pode ser necessário verificar a política da tabela `customer_profiles`).
+### 3. `src/pages/CheckoutPage.tsx`
+Resumo lateral (linha 314-320) — adicionar cor e tamanho abaixo do nome do item:
 
-## Verificação das políticas RLS
-
-Será necessário verificar se a tabela `customer_profiles` permite inserção por usuários não confirmados. Se a RLS exige sessão ativa, a alternativa mais robusta seria **desabilitar a confirmação de e-mail** para cadastros de clientes (configuração no sistema de autenticação do Lovable Cloud), que é o comportamento mais comum em lojas de e-commerce onde o cadastro deve ser imediato e sem fricção.
+```tsx
+<div key={...} className="flex justify-between text-sm">
+  <div className="text-muted-foreground">
+    <span>{item.quantity}x {item.name}</span>
+    {(item.size || item.color) && (
+      <div className="text-xs opacity-70">
+        {[item.size, item.color].filter(Boolean).join(', ')}
+      </div>
+    )}
+  </div>
+  <span>{formatCurrency(item.price * item.quantity)}</span>
+</div>
+```
 
 ## Arquivos modificados
 
-1. `src/hooks/useAuth.ts` — retornar `user` no `signUp`
-2. `src/components/CustomerAuthDialog.tsx` — capturar e usar o `pendingUserId`
+| Arquivo | Mudança |
+|---|---|
+| `src/pages/OrderHistoryPage.tsx` | Exibir cor e tamanho na lista de pedidos do cliente |
+| `src/lib/formatters.ts` | Incluir cor e tamanho na mensagem do WhatsApp/TXT |
+| `src/pages/CheckoutPage.tsx` | Exibir cor e tamanho no resumo lateral + passar campos ao gerar mensagem |
 
-## Alternativa mais simples e robusta
+## O que NÃO precisa mudar
 
-Desabilitar a confirmação de e-mail no painel de autenticação do Lovable Cloud, pois para um e-commerce de loja local (como a LF Store), pedir que o cliente confirme o e-mail antes de comprar é uma barreira desnecessária que prejudica a conversão. Esta é a mudança mais impactante e simples de implementar.
+- `src/lib/printOrder.ts` — os dois layouts (térmica e A4) já exibem cor e tamanho corretamente nos detalhes de cada item
 
-A implementação fará as duas coisas:
-1. Desabilitar a confirmação de e-mail via migração de configuração
-2. Também corrigir o código para capturar o `pendingUserId` como proteção extra
+## Exemplo do resultado no WhatsApp
+
+```
+Antes:
+1 | LS0007 | Camiseta Super Mario... | 3 | R$ 49,90 | - | R$ 149,70
+
+Depois:
+1 | LS0007 | Camiseta Super Mario [M] [Amarelo] | 3 | R$ 49,90 | - | R$ 149,70
+```
+
+## Exemplo na tela "Meus Pedidos"
+
+```
+Antes:
+3x Camiseta Super Mario                         R$ 149,70
+
+Depois:
+3x Camiseta Super Mario (M, Amarelo)            R$ 149,70
+```
