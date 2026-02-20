@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { CartItem, Cart } from '@/types';
 
 interface CartContextType {
@@ -33,9 +33,22 @@ const calculateTotals = (items: CartItem[], couponDiscount: number, quantityDisc
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>(initialCart);
 
+  useEffect(() => {
+    if (cart.storeId) {
+      localStorage.setItem(`cart_${cart.storeId}`, JSON.stringify(cart));
+    }
+  }, [cart]);
+
   const setStoreId = useCallback((storeId: string) => {
     setCart(prev => {
       if (prev.storeId !== storeId) {
+        try {
+          const saved = localStorage.getItem(`cart_${storeId}`);
+          if (saved) {
+            const parsed = JSON.parse(saved) as Cart;
+            return parsed;
+          }
+        } catch {}
         return { ...initialCart, storeId };
       }
       return prev;
@@ -95,7 +108,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearCart = useCallback(() => {
-    setCart(prev => ({ ...initialCart, storeId: prev.storeId }));
+    setCart(prev => {
+      localStorage.removeItem(`cart_${prev.storeId}`);
+      return { ...initialCart, storeId: prev.storeId };
+    });
   }, []);
 
   const applyCoupon = useCallback((code: string, discount: number) => {
