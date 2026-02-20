@@ -18,6 +18,7 @@ export function useStoreAdmin(storeId: string | undefined) {
       return !!data;
     },
     enabled: !!user && !!storeId,
+    staleTime: 5 * 60 * 1000,
   });
 
   return {

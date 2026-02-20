@@ -34,6 +34,7 @@ export function useOrders(storeId: string | undefined) {
       return (data || []).map(mapOrder);
     },
     enabled: !!storeId,
+    staleTime: 30_000,
   });
 }
 

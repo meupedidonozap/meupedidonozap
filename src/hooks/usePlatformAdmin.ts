@@ -1,34 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 export function usePlatformAdmin() {
   const { user, loading: authLoading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
-      setIsAdmin(false);
-      setLoading(false);
-      return;
-    }
-
-    const checkAdmin = async () => {
-      const { data, error } = await supabase
+  const { data: isAdmin = false, isLoading: adminLoading } = useQuery({
+    queryKey: ['platform-admin', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
         .from('platform_admins')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', user!.id)
         .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
 
-      setIsAdmin(!!data && !error);
-      setLoading(false);
-    };
-
-    checkAdmin();
-  }, [user, authLoading]);
-
-  return { user, isAdmin, loading: authLoading || loading };
+  return { user, isAdmin, loading: authLoading || (!!user && adminLoading) };
 }

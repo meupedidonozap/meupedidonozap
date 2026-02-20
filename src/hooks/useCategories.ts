@@ -24,6 +24,7 @@ export function useCategories(storeId: string | undefined) {
       return (data || []).map(mapCategory);
     },
     enabled: !!storeId,
+    staleTime: 30_000,
   });
 }
 
