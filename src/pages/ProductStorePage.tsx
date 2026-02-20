@@ -358,7 +358,7 @@ export default function ProductStorePage() {
                 </div>
                 <CardContent className="p-3">
                   <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
-                  <h3 className="text-sm font-medium line-clamp-2">{product.name}</h3>
+                  <h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
                   <div className="mt-2 flex items-center justify-between">
                     <p className="font-bold text-primary">{formatCurrency(product.basePrice)}</p>
                     <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90"><Plus className="h-4 w-4" /></Button>
