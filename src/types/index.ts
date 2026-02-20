@@ -149,6 +149,7 @@ export interface FoodAddition {
 export interface CartItem {
   productId: string;
   variantId?: string;
+  groupId?: string;
   name: string;
   code: string;
   color?: string;
@@ -157,6 +158,7 @@ export interface CartItem {
   quantity: number;
   image?: string;
   additions?: { name: string; price: number }[];
+  discountPercent?: number;
 }
 
 export interface Cart {
