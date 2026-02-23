@@ -87,10 +87,10 @@ export default function StoreAdminPage() {
   const { data: categories = [] } = useCategories(store?.id);
   const { data: products = [] } = useProducts(store?.id);
   const { data: foodItems = [] } = useFoodItems(store?.id);
-  const { data: orders = [] } = useOrders(store?.id);
-  const { data: coupons = [] } = useCoupons(store?.id);
-  const { data: serviceOrders = [] } = useServiceOrders(store?.type === 'SERVICOS' ? store?.id : undefined);
-  const { data: customerProfiles = [] } = useStoreCustomerProfiles(store?.id);
+  const { data: orders = [] } = useOrders(isAdmin ? store?.id : undefined);
+  const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
+  const { data: serviceOrders = [] } = useServiceOrders(isAdmin && store?.type === 'SERVICOS' ? store?.id : undefined);
+  const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
   const createServiceOrder = useCreateServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
 
