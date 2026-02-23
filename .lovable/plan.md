@@ -1,34 +1,52 @@
 
-## Ajuste de Truncamento no Modo Grade (Grid)
+# Corrigir Pedidos Não Aparecendo no Painel Admin
 
-### Diagnóstico
+## Causa Raiz
 
-A alteração anterior corrigiu o modo lista (`line-clamp-3`). O modo grade ainda usa `line-clamp-2` na linha 361:
+No `StoreAdminPage.tsx`, todos os hooks de dados (pedidos, produtos, categorias, etc.) são chamados incondicionalmente nas linhas 87-93, **antes** da verificação de autenticacao:
 
-```html
-<h3 className="text-sm font-medium line-clamp-2">{product.name}</h3>
+```text
+Linha 87: useCategories(store?.id)     -- busca com token anonimo --> []
+Linha 88: useProducts(store?.id)       -- busca com token anonimo --> resultado publico
+Linha 90: useOrders(store?.id)         -- busca com token anonimo --> [] (RLS bloqueia)
+...
+Linha 182: if (!user) return <Login />  -- gate de auth so aparece DEPOIS
 ```
 
-### Mudança
+Os pedidos tem RLS que exige `is_store_admin()`, entao a busca anonima retorna `[]`. Com o `staleTime: 30_000` recem-adicionado, esse resultado vazio fica em cache por 30 segundos apos o login.
 
-**Arquivo:** `src/pages/ProductStorePage.tsx` — linha 361
+## Solucao
 
-**Antes:**
-```html
-<h3 className="text-sm font-medium line-clamp-2">{product.name}</h3>
+Condicionar os hooks de dados protegidos por RLS para so executarem quando `isAdmin` for `true`. Hooks de dados publicos (categorias, produtos) podem continuar como estao.
+
+**Arquivo:** `src/pages/StoreAdminPage.tsx`
+
+**Antes (linhas 90-93):**
+```typescript
+const { data: orders = [] } = useOrders(store?.id);
+const { data: coupons = [] } = useCoupons(store?.id);
+const { data: serviceOrders = [] } = useServiceOrders(store?.type === 'SERVICOS' ? store?.id : undefined);
+const { data: customerProfiles = [] } = useStoreCustomerProfiles(store?.id);
 ```
 
 **Depois:**
-```html
-<h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
+```typescript
+const { data: orders = [] } = useOrders(isAdmin ? store?.id : undefined);
+const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
+const { data: serviceOrders = [] } = useServiceOrders(isAdmin && store?.type === 'SERVICOS' ? store?.id : undefined);
+const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
 ```
 
-### Resultado
+## O que muda
 
-- **Modo lista:** já exibe até 3 linhas (alteração anterior)
-- **Modo grade:** passa a exibir até 3 linhas — comportamento consistente com o modo lista
-- O card de grade vai expandir verticalmente conforme necessário para acomodar nomes maiores
+- Pedidos, cupons, ordens de servico e perfis de clientes so sao buscados **apos** a confirmacao de que o usuario e admin
+- Isso evita a busca com token anonimo que retorna vazio e fica em cache
+- Produtos e categorias (que tem leitura publica) continuam carregando normalmente
+- Nenhuma mudanca de banco de dados ou RLS
 
-### Impacto
+## Impacto
 
-1 linha alterada, sem efeitos colaterais.
+| Cenario | Antes | Depois |
+|---|---|---|
+| Pedidos apos login | Vazio por 30s (cache) | Aparecem imediatamente |
+| Primeira visita sem login | Busca desnecessaria | Nenhuma busca ate autenticar |
