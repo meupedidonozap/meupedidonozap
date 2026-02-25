@@ -33,6 +33,7 @@ export function useStoreCustomerProfiles(storeId: string | undefined) {
       return (data || []).map(mapProfile);
     },
     enabled: !!storeId,
+    staleTime: 30_000,
   });
 }
 

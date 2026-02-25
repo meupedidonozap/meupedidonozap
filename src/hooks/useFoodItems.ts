@@ -29,6 +29,7 @@ export function useFoodItems(storeId: string | undefined) {
       return (data || []).map(mapFoodItem);
     },
     enabled: !!storeId,
+    staleTime: 30_000,
   });
 }
 

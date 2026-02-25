@@ -25,11 +25,12 @@ export function useCoupons(storeId: string | undefined) {
         .from('coupons')
         .select('*')
         .eq('store_id', storeId!)
-        .order('created_at');
+        .order('expires_at');
       if (error) throw error;
       return (data || []).map(mapCoupon);
     },
     enabled: !!storeId,
+    staleTime: 30_000,
   });
 }
 
