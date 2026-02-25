@@ -16,6 +16,7 @@ function mapRow(row: any): ServiceOrder {
     total: Number(row.total),
     status: row.status as ServiceOrderStatus,
     observations: row.observations || undefined,
+    paidAt: row.paid_at || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     userId: row.user_id || undefined,
@@ -96,6 +97,7 @@ export function useUpdateServiceOrder() {
       total?: number;
       status?: ServiceOrderStatus;
       observations?: string;
+      paidAt?: string | null;
     }) => {
       const update: any = {};
       if (params.items !== undefined) update.items = params.items;
@@ -105,6 +107,7 @@ export function useUpdateServiceOrder() {
       if (params.total !== undefined) update.total = params.total;
       if (params.status !== undefined) update.status = params.status;
       if (params.observations !== undefined) update.observations = params.observations;
+      if (params.paidAt !== undefined) update.paid_at = params.paidAt;
 
       const { data, error } = await supabase
         .from('service_orders')

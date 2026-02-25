@@ -1,0 +1,1 @@
+ALTER TABLE public.service_orders ADD COLUMN paid_at timestamp with time zone DEFAULT NULL;

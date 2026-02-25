@@ -424,6 +424,7 @@ export type Database = {
           observations: string | null
           order_id: string | null
           os_number: number
+          paid_at: string | null
           status: string
           store_id: string
           subtotal: number
@@ -441,6 +442,7 @@ export type Database = {
           observations?: string | null
           order_id?: string | null
           os_number?: number
+          paid_at?: string | null
           status?: string
           store_id: string
           subtotal?: number
@@ -458,6 +460,7 @@ export type Database = {
           observations?: string | null
           order_id?: string | null
           os_number?: number
+          paid_at?: string | null
           status?: string
           store_id?: string
           subtotal?: number

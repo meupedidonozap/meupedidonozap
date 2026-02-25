@@ -10,14 +10,20 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
-import { Plus, Trash2, Send, Search, Package } from 'lucide-react';
+import { Plus, Trash2, Send, Search, Package, CalendarIcon, Lock } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const statusLabels: Record<ServiceOrderStatus, string> = {
   aberta: 'Aberta',
   em_andamento: 'Em Andamento',
   concluida: 'Concluída',
+  pago: 'Pago',
   cancelada: 'Cancelada',
 };
 
@@ -25,6 +31,7 @@ const statusColors: Record<ServiceOrderStatus, string> = {
   aberta: 'bg-yellow-100 text-yellow-700',
   em_andamento: 'bg-blue-100 text-blue-700',
   concluida: 'bg-green-100 text-green-700',
+  pago: 'bg-emerald-100 text-emerald-700',
   cancelada: 'bg-red-100 text-red-700',
 };
 
@@ -45,6 +52,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [status, setStatus] = useState<ServiceOrderStatus>('aberta');
   const [observations, setObservations] = useState('');
   const [initialized, setInitialized] = useState(false);
+  const [paidDate, setPaidDate] = useState<Date | undefined>();
 
   // Manual item form
   const [manualName, setManualName] = useState('');
@@ -60,6 +68,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
     setExtraItems(serviceOrder.extraItems || []);
     setStatus(serviceOrder.status);
     setObservations(serviceOrder.observations || '');
+    setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
     setInitialized(true);
   }
 
@@ -68,6 +77,8 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
     if (!v) setInitialized(false);
     onOpenChange(v);
   };
+
+  const isLocked = status === 'pago';
 
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return products.slice(0, 10);
@@ -120,31 +131,25 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const handleSave = async () => {
     if (!serviceOrder) return;
     try {
-      // Merge extras into items as CartItem
-      const extrasAsCartItems: CartItem[] = extraItems.map(item => ({
-        productId: item.id,
-        name: item.name,
-        code: item.description || '',
-        price: item.price,
-        quantity: item.quantity,
-      }));
-      const mergedItems = [...serviceOrder.items, ...extrasAsCartItems];
+      const finalPaidAt = status === 'pago'
+        ? (paidDate ? paidDate.toISOString() : new Date().toISOString())
+        : null;
 
       await updateSO.mutateAsync({
         id: serviceOrder.id,
         storeId: serviceOrder.storeId,
-        items: mergedItems,
         extraItems,
         subtotal: itemsTotal + extrasTotal,
         total: grandTotal,
         status,
         observations,
+        paidAt: finalPaidAt,
       });
 
       // Sync order status and total based on OS status
       if (onOrderUpdate && serviceOrder.orderId) {
-        if (status === 'concluida') {
-          await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'enviado', total: grandTotal });
+        if (status === 'pago' || status === 'concluida') {
+          await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'entregue', total: grandTotal });
         } else if (status === 'cancelada') {
           await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'cancelado', total: grandTotal });
         }
@@ -199,6 +204,13 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
           </DialogTitle>
         </DialogHeader>
 
+        {isLocked && (
+          <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm text-muted-foreground">
+            <Lock className="h-4 w-4" />
+            OS paga. Para editar, reabra o pedido com status "Preparando".
+          </div>
+        )}
+
         {/* Customer info */}
         <div className="rounded-lg border p-3 text-sm">
           <p className="font-medium">{serviceOrder.customer.name}</p>
@@ -231,12 +243,14 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         <div>
           <div className="mb-2 flex items-center justify-between">
             <h4 className="font-semibold text-sm">Materiais Adicionais</h4>
-            <Button variant="outline" size="sm" onClick={() => setShowProductSearch(!showProductSearch)} className="gap-1">
-              <Package className="h-3 w-3" /> Do Catálogo
-            </Button>
+            {!isLocked && (
+              <Button variant="outline" size="sm" onClick={() => setShowProductSearch(!showProductSearch)} className="gap-1">
+                <Package className="h-3 w-3" /> Do Catálogo
+              </Button>
+            )}
           </div>
 
-          {showProductSearch && (
+          {!isLocked && showProductSearch && (
             <div className="mb-3 rounded-lg border p-3 space-y-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -256,7 +270,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
           {extraItems.length > 0 && (
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Item</TableHead><TableHead className="text-right">Qtd</TableHead><TableHead className="text-right">Valor</TableHead><TableHead></TableHead></TableRow>
+                <TableRow><TableHead>Item</TableHead><TableHead className="text-right">Qtd</TableHead><TableHead className="text-right">Valor</TableHead>{!isLocked && <TableHead></TableHead>}</TableRow>
               </TableHeader>
               <TableBody>
                 {extraItems.map(item => (
@@ -264,11 +278,13 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
                     <TableCell>{item.name}</TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.price * item.quantity)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveExtra(item.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </TableCell>
+                    {!isLocked && (
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleRemoveExtra(item.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -276,23 +292,25 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
           )}
 
           {/* Add manual item */}
-          <div className="mt-2 flex items-end gap-2">
-            <div className="flex-1">
-              <Label className="text-xs">Nome</Label>
-              <Input value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Item avulso" className="h-8 text-sm" />
+          {!isLocked && (
+            <div className="mt-2 flex items-end gap-2">
+              <div className="flex-1">
+                <Label className="text-xs">Nome</Label>
+                <Input value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Item avulso" className="h-8 text-sm" />
+              </div>
+              <div className="w-20">
+                <Label className="text-xs">Valor</Label>
+                <Input type="number" step="0.01" value={manualPrice} onChange={e => setManualPrice(e.target.value)} placeholder="0,00" className="h-8 text-sm" />
+              </div>
+              <div className="w-14">
+                <Label className="text-xs">Qtd</Label>
+                <Input type="number" min="1" value={manualQty} onChange={e => setManualQty(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <Button size="sm" variant="outline" className="h-8" onClick={handleAddManualItem}>
+                <Plus className="h-3 w-3" />
+              </Button>
             </div>
-            <div className="w-20">
-              <Label className="text-xs">Valor</Label>
-              <Input type="number" step="0.01" value={manualPrice} onChange={e => setManualPrice(e.target.value)} placeholder="0,00" className="h-8 text-sm" />
-            </div>
-            <div className="w-14">
-              <Label className="text-xs">Qtd</Label>
-              <Input type="number" min="1" value={manualQty} onChange={e => setManualQty(e.target.value)} className="h-8 text-sm" />
-            </div>
-            <Button size="sm" variant="outline" className="h-8" onClick={handleAddManualItem}>
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
+          )}
         </div>
 
         {/* Totals */}
@@ -307,7 +325,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         <div className="grid gap-3">
           <div>
             <Label className="text-sm">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as ServiceOrderStatus)}>
+            <Select value={status} onValueChange={(v) => setStatus(v as ServiceOrderStatus)} disabled={isLocked}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(statusLabels).map(([k, v]) => (
@@ -316,9 +334,38 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
               </SelectContent>
             </Select>
           </div>
+
+          {/* Payment date - shown when pago */}
+          {status === 'pago' && (
+            <div>
+              <Label className="text-sm">Data de Pagamento</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !paidDate && "text-muted-foreground")}
+                    disabled={isLocked}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {paidDate ? format(paidDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={paidDate}
+                    onSelect={setPaidDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
           <div>
             <Label className="text-sm">Observações</Label>
-            <Textarea value={observations} onChange={e => setObservations(e.target.value)} rows={2} />
+            <Textarea value={observations} onChange={e => setObservations(e.target.value)} rows={2} disabled={isLocked} />
           </div>
         </div>
 
@@ -327,9 +374,11 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
           <Button variant="outline" onClick={handleSendWhatsApp} className="gap-2">
             <Send className="h-4 w-4" /> Enviar WhatsApp
           </Button>
-          <Button onClick={handleSave} disabled={updateSO.isPending}>
-            Salvar OS
-          </Button>
+          {!isLocked && (
+            <Button onClick={handleSave} disabled={updateSO.isPending}>
+              Salvar OS
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
