@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
 
@@ -35,6 +36,7 @@ export default function ProductStorePage() {
   const { data: coupons = [] } = useCoupons(store?.id);
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules } = useCart();
   const { user, signOut } = useAuth();
+  const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,7 +176,12 @@ export default function ProductStorePage() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon"><User className="h-5 w-5" /></Button>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    <User className="h-5 w-5" />
+                    <span className="text-sm max-w-[100px] truncate">
+                      {customerProfile?.name?.split(' ')[0] || 'Perfil'}
+                    </span>
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem className="text-xs text-muted-foreground" disabled>{user.email}</DropdownMenuItem>
@@ -185,8 +192,9 @@ export default function ProductStorePage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="ghost" size="icon" onClick={() => setAuthDialogOpen(true)}>
-                <LogIn className="h-5 w-5" />
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setAuthDialogOpen(true)}>
+                <LogIn className="h-4 w-4" />
+                <span className="text-sm">Faça Login</span>
               </Button>
             )}
           <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
