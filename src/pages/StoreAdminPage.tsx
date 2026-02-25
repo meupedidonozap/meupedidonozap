@@ -156,12 +156,28 @@ export default function StoreAdminPage() {
     });
   }, [orders, startDate, endDate]);
 
-  const stats = useMemo(() => ({
-    totalProducts: allProducts.length,
-    totalOrders: filteredOrders.length,
-    pendingOrders: filteredOrders.filter(o => o.status === 'pendente').length,
-    revenue: filteredOrders.filter(o => o.status === 'entregue').reduce((sum, o) => sum + o.total, 0),
-  }), [allProducts, filteredOrders]);
+  const stats = useMemo(() => {
+    // Revenue from regular orders marked as entregue
+    const orderRevenue = filteredOrders.filter(o => o.status === 'entregue').reduce((sum, o) => sum + o.total, 0);
+    
+    // Revenue from service orders marked as pago, filtered by paid_at date
+    const soRevenue = serviceOrders
+      .filter(so => so.status === 'pago' && so.paidAt)
+      .filter(so => {
+        const d = new Date(so.paidAt!);
+        if (startDate && d < startOfDay(startDate)) return false;
+        if (endDate && d > endOfDay(endDate)) return false;
+        return true;
+      })
+      .reduce((sum, so) => sum + so.total, 0);
+
+    return {
+      totalProducts: allProducts.length,
+      totalOrders: filteredOrders.length,
+      pendingOrders: filteredOrders.filter(o => o.status === 'pendente').length,
+      revenue: orderRevenue + soRevenue,
+    };
+  }, [allProducts, filteredOrders, serviceOrders, startDate, endDate]);
 
   if (storeLoading || adminLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -823,9 +839,10 @@ export default function StoreAdminPage() {
                               so.status === 'aberta' ? 'bg-yellow-100 text-yellow-700' :
                               so.status === 'em_andamento' ? 'bg-blue-100 text-blue-700' :
                               so.status === 'concluida' ? 'bg-green-100 text-green-700' :
+                              so.status === 'pago' ? 'bg-emerald-100 text-emerald-700' :
                               'bg-red-100 text-red-700'
                             }>
-                              {so.status === 'aberta' ? 'Aberta' : so.status === 'em_andamento' ? 'Em Andamento' : so.status === 'concluida' ? 'Concluída' : 'Cancelada'}
+                              {so.status === 'aberta' ? 'Aberta' : so.status === 'em_andamento' ? 'Em Andamento' : so.status === 'concluida' ? 'Concluída' : so.status === 'pago' ? 'Pago' : 'Cancelada'}
                             </Badge>
                           </TableCell>
                           <TableCell>{new Date(so.createdAt).toLocaleDateString('pt-BR')}</TableCell>

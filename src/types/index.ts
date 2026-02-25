@@ -1,7 +1,7 @@
 // Store types
 export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA' | 'SERVICOS';
 
-export type ServiceOrderStatus = 'aberta' | 'em_andamento' | 'concluida' | 'cancelada';
+export type ServiceOrderStatus = 'aberta' | 'em_andamento' | 'concluida' | 'pago' | 'cancelada';
 
 export interface ServiceOrderExtraItem {
   id: string;
@@ -24,6 +24,7 @@ export interface ServiceOrder {
   total: number;
   status: ServiceOrderStatus;
   observations?: string;
+  paidAt?: string;
   createdAt: string;
   updatedAt: string;
   userId?: string;
