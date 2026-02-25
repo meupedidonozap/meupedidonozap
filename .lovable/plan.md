@@ -1,52 +1,81 @@
 
-# Corrigir Pedidos Não Aparecendo no Painel Admin
 
-## Causa Raiz
+# Corrigir Carregamento Lento e Erros de Dados
 
-No `StoreAdminPage.tsx`, todos os hooks de dados (pedidos, produtos, categorias, etc.) são chamados incondicionalmente nas linhas 87-93, **antes** da verificação de autenticacao:
+## Problemas Encontrados
+
+### 1. ERRO: Coluna `created_at` nao existe na tabela `coupons` (CRITICO)
+
+O hook `useCoupons` faz `.order('created_at')` na linha 13, mas a tabela `coupons` **nao tem** essa coluna. Isso causa um erro HTTP 400 que:
+- Faz o React Query tentar 3 vezes (retry padrao), gerando 3 requisicoes falhadas
+- Bloqueia o carregamento de cupons tanto na vitrine do cliente quanto no admin
+- Gera latencia desnecessaria (3 x ~700ms = ~2 segundos desperdicados)
+
+**Correcao:** Trocar `.order('created_at')` por `.order('expires_at')` em `src/hooks/useCoupons.ts`, linha 13.
+
+### 2. Waterfall de requisicoes (LENTIDAO)
+
+O fluxo atual e sequencial:
 
 ```text
-Linha 87: useCategories(store?.id)     -- busca com token anonimo --> []
-Linha 88: useProducts(store?.id)       -- busca com token anonimo --> resultado publico
-Linha 90: useOrders(store?.id)         -- busca com token anonimo --> [] (RLS bloqueia)
-...
-Linha 182: if (!user) return <Login />  -- gate de auth so aparece DEPOIS
+StorePage: useStoreBySlug(slug) --> espera 760ms
+           |
+           v
+ProductStorePage: useStoreBySlug(slug) [cache hit, ok]
+                  useCategories(store.id) --|
+                  useProducts(store.id)    --|-- paralelo, ~700ms
+                  useCoupons(store.id)     --|-- ERRO 400 x3
 ```
 
-Os pedidos tem RLS que exige `is_store_admin()`, entao a busca anonima retorna `[]`. Com o `staleTime: 30_000` recem-adicionado, esse resultado vazio fica em cache por 30 segundos apos o login.
+Tempo total minimo: ~1.5s (store + dados). Isso e inevitavel com a arquitetura atual de hooks dependentes, mas o erro dos cupons adiciona ~2s extras.
 
-## Solucao
+### 3. Sem `refetchOnWindowFocus` global
 
-Condicionar os hooks de dados protegidos por RLS para so executarem quando `isAdmin` for `true`. Hooks de dados publicos (categorias, produtos) podem continuar como estao.
+O React Query refaz todas as queries quando o usuario troca de aba e volta. Para dados com `staleTime: 30_000` isso nao e problema, mas `useCoupons`, `useFoodItems` e `useStoreCustomerProfiles` nao tem `staleTime`, entao refazem a cada foco.
 
-**Arquivo:** `src/pages/StoreAdminPage.tsx`
+**Correcao:** Adicionar defaults globais no `QueryClient` em `src/App.tsx`.
 
-**Antes (linhas 90-93):**
+---
+
+## Plano de Mudancas
+
+### Arquivo 1: `src/hooks/useCoupons.ts`
+
+Linha 13: trocar `.order('created_at')` por `.order('expires_at')`.
+Adicionar `staleTime: 30_000` ao hook `useCoupons`.
+
+### Arquivo 2: `src/App.tsx`
+
+Configurar `QueryClient` com defaults globais:
 ```typescript
-const { data: orders = [] } = useOrders(store?.id);
-const { data: coupons = [] } = useCoupons(store?.id);
-const { data: serviceOrders = [] } = useServiceOrders(store?.type === 'SERVICOS' ? store?.id : undefined);
-const { data: customerProfiles = [] } = useStoreCustomerProfiles(store?.id);
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 ```
 
-**Depois:**
-```typescript
-const { data: orders = [] } = useOrders(isAdmin ? store?.id : undefined);
-const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
-const { data: serviceOrders = [] } = useServiceOrders(isAdmin && store?.type === 'SERVICOS' ? store?.id : undefined);
-const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
-```
+Isso reduz retries de 3 para 1 (erros reais falham mais rapido) e evita refetch ao trocar de aba.
 
-## O que muda
+### Arquivo 3: `src/hooks/useFoodItems.ts`
 
-- Pedidos, cupons, ordens de servico e perfis de clientes so sao buscados **apos** a confirmacao de que o usuario e admin
-- Isso evita a busca com token anonimo que retorna vazio e fica em cache
-- Produtos e categorias (que tem leitura publica) continuam carregando normalmente
-- Nenhuma mudanca de banco de dados ou RLS
+Adicionar `staleTime: 30_000` para consistencia com os outros hooks.
 
-## Impacto
+### Arquivo 4: `src/hooks/useCustomerProfiles.ts`
 
-| Cenario | Antes | Depois |
+Adicionar `staleTime: 30_000` ao hook `useStoreCustomerProfiles`.
+
+---
+
+## Impacto Esperado
+
+| Metrica | Antes | Depois |
 |---|---|---|
-| Pedidos apos login | Vazio por 30s (cache) | Aparecem imediatamente |
-| Primeira visita sem login | Busca desnecessaria | Nenhuma busca ate autenticar |
+| Requisicoes de cupons | 3x 400 (erro) | 1x 200 (sucesso) |
+| Tempo de carregamento | ~3.5s | ~1.5s |
+| Refetch ao voltar de aba | Todas as queries | Nenhuma (dentro de 30s) |
+| Retries em erro | 3 tentativas | 1 tentativa |
+
