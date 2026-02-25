@@ -2,9 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   Home, Search, ShoppingCart, FileText, Plus, Minus, X,
-  ChevronDown, ChevronUp, MapPin, Share2, Loader2,
+  ChevronDown, ChevronUp, MapPin, Share2, Loader2, User, LogIn, LogOut, ShoppingBag,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
+import { useAuth } from '@/hooks/useAuth';
+import { useCustomerProfile } from '@/hooks/useCustomerProfile';
+import CustomerAuthDialog from '@/components/CustomerAuthDialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useCategories } from '@/hooks/useCategories';
 import { useFoodItems } from '@/hooks/useFoodItems';
 import type { FoodItem } from '@/types';
@@ -23,9 +29,12 @@ export default function FoodStorePage() {
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allFoodItems = [] } = useFoodItems(store?.id);
   const { cart, setStoreId, addItem, removeItem, updateQuantity, clearCart } = useCart();
+  const { user, signOut } = useAuth();
+  const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -86,10 +95,34 @@ export default function FoodStorePage() {
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center justify-between">
           <h1 className="text-lg font-bold">{store.name}</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(!isSearchOpen)}>
               <Search className="h-5 w-5" />
             </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    <User className="h-5 w-5" />
+                    <span className="text-sm max-w-[100px] truncate">
+                      {customerProfile?.name?.split(' ')[0] || 'Perfil'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="text-xs text-muted-foreground" disabled>{user.email}</DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-destructive"><LogOut className="h-4 w-4" /> Sair</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setAuthDialogOpen(true)}>
+                <LogIn className="h-4 w-4" />
+                <span className="text-sm">Faça Login</span>
+              </Button>
+            )}
             <Button variant="ghost" size="icon"><Share2 className="h-5 w-5" /></Button>
           </div>
         </div>
@@ -184,6 +217,11 @@ export default function FoodStorePage() {
           </Button>
         </div>
       )}
+      <CustomerAuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        storeId={store.id}
+      />
     </div>
   );
 }
