@@ -57,6 +57,26 @@ export function useProducts(storeId: string | undefined) {
   });
 }
 
+async function getNextProductCode(storeId: string): Promise<string> {
+  const { data } = await supabase
+    .from('products')
+    .select('code')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false });
+
+  const codes = (data || []).map(r => r.code).filter(Boolean);
+  for (const code of codes) {
+    const match = code.match(/^([A-Za-z]*)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const numStr = match[2];
+      const next = (parseInt(numStr, 10) + 1).toString().padStart(numStr.length, '0');
+      return prefix + next;
+    }
+  }
+  return '1';
+}
+
 export function useCreateProduct() {
   const qc = useQueryClient();
   return useMutation({
@@ -74,9 +94,13 @@ export function useCreateProduct() {
       variants?: Omit<ProductVariant, 'id'>[];
       images?: { imageUrl: string; label?: string }[];
     }) => {
+      const finalCode = product.code?.trim()
+        ? product.code
+        : await getNextProductCode(product.storeId);
+
       const { data, error } = await supabase.from('products').insert({
         store_id: product.storeId,
-        code: product.code,
+        code: finalCode,
         name: product.name,
         description: product.description,
         category_id: product.categoryId,
