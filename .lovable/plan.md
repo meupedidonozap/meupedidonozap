@@ -1,64 +1,31 @@
 
-# Mostrar Botao "Faca Login" e Nome do Usuario no Header
 
-## O que sera feito
+# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
 
-### 1. Usuario NAO logado: botao "Faca Login" com seta
-Substituir o icone de login sozinho por um botao com texto "Faca Login" e uma seta, tornando mais claro para o usuario que ele pode se autenticar.
+## Logica
 
-### 2. Usuario LOGADO: nome ao lado do icone de usuario
-Buscar o perfil do cliente (`customer_profiles`) para exibir o primeiro nome ao lado do icone de usuario no header, sem circulo ou borda extra. Exemplo: `[icone] Denis`
+Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
 
-## Mudancas Tecnicas
+## Mudanca
 
-### Arquivo: `src/pages/ProductStorePage.tsx`
+### Arquivo: `src/hooks/useProducts.ts`
 
-**Adicionar import:**
-- `useCustomerProfile` de `@/hooks/useCustomerProfile`
+Adicionar funcao auxiliar `getNextProductCode(storeId)`:
 
-**Adicionar hook (junto aos outros hooks, ~linha 37):**
-```typescript
-const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
-```
+1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
+2. Encontrar o ultimo codigo nao-vazio
+3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
+4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
+5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
+6. Se nenhum codigo existir, retornar `"1"`
 
-**Substituir bloco de login/usuario no header (linhas 174-191):**
+Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
 
-Quando `user` existe (logado):
-```tsx
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="ghost" size="sm" className="gap-1">
-      <User className="h-5 w-5" />
-      <span className="text-sm max-w-[100px] truncate">
-        {customerProfile?.name?.split(' ')[0] || 'Perfil'}
-      </span>
-    </Button>
-  </DropdownMenuTrigger>
-  {/* ...dropdown items permanecem iguais */}
-</DropdownMenu>
-```
+### Arquivo: `src/components/ImportProductsDialog.tsx`
 
-Quando `user` NAO existe (deslogado):
-```tsx
-<Button variant="ghost" size="sm" className="gap-1"
-  onClick={() => setAuthDialogOpen(true)}>
-  <LogIn className="h-4 w-4" />
-  <span className="text-sm">Faca Login</span>
-</Button>
-```
+Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
 
-### Arquivo: `src/pages/FoodStorePage.tsx`
+### Nenhuma mudanca no formulario
 
-Aplicar as mesmas mudancas no header da loja de comida:
-- Importar `useAuth`, `useCustomerProfile`, `CustomerAuthDialog`
-- Adicionar hooks de autenticacao e perfil
-- Adicionar botao "Faca Login" quando deslogado
-- Mostrar nome do usuario quando logado
-- Adicionar o `CustomerAuthDialog` no JSX
+O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
 
-## Resumo
-
-| Estado | Antes | Depois |
-|---|---|---|
-| Deslogado | Icone de seta sozinho | Botao "Faca Login" com icone |
-| Logado | Icone de usuario sozinho | Icone + primeiro nome do cliente |
