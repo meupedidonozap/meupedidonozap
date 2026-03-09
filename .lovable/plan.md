@@ -1,37 +1,31 @@
 
 
-# Criar Cliente Manualmente na Aba Clientes (Lojas SERVICOS)
+# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
 
-## Problema
+## Logica
 
-A tabela `customer_profiles` exige `user_id` NOT NULL, mas clientes criados manualmente pelo admin nao possuem conta de usuario. Precisamos tornar `user_id` nullable e adicionar uma politica RLS para permitir que admins da loja insiram perfis.
+Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
 
-## Mudancas
+## Mudanca
 
-### 1. Migracao de Banco de Dados
+### Arquivo: `src/hooks/useProducts.ts`
 
-- Tornar `customer_profiles.user_id` nullable (`ALTER COLUMN user_id DROP NOT NULL`)
-- Adicionar politica RLS: "Store admins can insert customer profiles" (INSERT, `WITH CHECK` usando `is_store_admin`)
-- Ajustar a politica de INSERT existente ("Users can insert own profiles") para aceitar `user_id IS NULL` quando admin
+Adicionar funcao auxiliar `getNextProductCode(storeId)`:
 
-### 2. Hook: `src/hooks/useCustomerProfiles.ts`
+1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
+2. Encontrar o ultimo codigo nao-vazio
+3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
+4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
+5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
+6. Se nenhum codigo existir, retornar `"1"`
 
-Adicionar mutation `useCreateCustomerProfileAdmin` que insere um perfil com `user_id = null`, recebendo `storeId`, `name`, `whatsapp` e campos de endereco.
+Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
 
-### 3. UI: `src/pages/StoreAdminPage.tsx`
+### Arquivo: `src/components/ImportProductsDialog.tsx`
 
-- Adicionar botao "Novo Cliente" ao lado do titulo "Clientes Cadastrados" (visivel para lojas SERVICOS ou todas)
-- Reutilizar o mesmo dialog de edicao de cliente, porem no modo criacao (titulo "Novo Cliente", campos vazios)
-- Ao salvar, chamar `useCreateCustomerProfileAdmin` e invalidar a query
+Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
 
-### 4. Interface `CustomerProfile`
+### Nenhuma mudanca no formulario
 
-Ajustar `userId` para `string | undefined` em `src/hooks/useCustomerProfile.ts` para acomodar perfis sem usuario.
-
-## Fluxo do Admin
-
-1. Admin abre aba "Clientes" → clica "Novo Cliente"
-2. Preenche nome, WhatsApp e endereco
-3. Salva → perfil aparece na lista
-4. Pode abrir pedido/OS em nome desse cliente
+O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
 

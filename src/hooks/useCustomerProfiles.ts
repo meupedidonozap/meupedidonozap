@@ -37,6 +37,43 @@ export function useStoreCustomerProfiles(storeId: string | undefined) {
   });
 }
 
+export function useCreateCustomerProfileAdmin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      storeId: string;
+      name: string;
+      whatsapp?: string;
+      cep?: string;
+      uf?: string;
+      city?: string;
+      neighborhood?: string;
+      address?: string;
+      number?: string;
+      complement?: string;
+    }) => {
+      const { error } = await supabase
+        .from('customer_profiles')
+        .insert({
+          store_id: params.storeId,
+          name: params.name,
+          whatsapp: params.whatsapp || '',
+          cep: params.cep || '',
+          uf: params.uf || '',
+          city: params.city || '',
+          neighborhood: params.neighborhood || '',
+          address: params.address || '',
+          number: params.number || '',
+          complement: params.complement || null,
+        });
+      if (error) throw error;
+    },
+    onSuccess: (_, params) => {
+      qc.invalidateQueries({ queryKey: ['store-customer-profiles', params.storeId] });
+    },
+  });
+}
+
 export function useUpdateCustomerProfileAdmin() {
   const qc = useQueryClient();
   return useMutation({

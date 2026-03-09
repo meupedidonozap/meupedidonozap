@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CustomerProfile {
   id: string;
-  userId: string;
+  userId?: string;
   storeId: string;
   name: string;
   cpfCnpj: string;
