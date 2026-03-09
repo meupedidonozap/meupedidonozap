@@ -946,6 +946,40 @@ export default function StoreAdminPage() {
                 </DialogContent>
               </Dialog>
             )}
+            {/* Create customer dialog */}
+            <Dialog open={creatingCustomer} onOpenChange={setCreatingCustomer}>
+              <DialogContent className="max-w-md">
+                <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
+                <div className="grid gap-3 py-2">
+                  <div className="grid gap-1"><Label className="text-sm">Nome</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
+                  <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1"><Label className="text-sm">CEP</Label><Input value={customerForm.cep} onChange={e => setCustomerForm(f => ({ ...f, cep: e.target.value }))} /></div>
+                    <div className="grid gap-1"><Label className="text-sm">UF</Label><Input value={customerForm.uf} onChange={e => setCustomerForm(f => ({ ...f, uf: e.target.value }))} /></div>
+                  </div>
+                  <div className="grid gap-1"><Label className="text-sm">Cidade</Label><Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} /></div>
+                  <div className="grid gap-1"><Label className="text-sm">Bairro</Label><Input value={customerForm.neighborhood} onChange={e => setCustomerForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço</Label><Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} /></div>
+                    <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
+                  </div>
+                  <div className="grid gap-1"><Label className="text-sm">Complemento</Label><Input value={customerForm.complement} onChange={e => setCustomerForm(f => ({ ...f, complement: e.target.value }))} /></div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
+                  <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
+                    try {
+                      await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
+                      toast.success('Cliente criado!');
+                      setCreatingCustomer(false);
+                    } catch { toast.error('Erro ao criar cliente'); }
+                  }}>
+                    {createCustomerProfile.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </main>
