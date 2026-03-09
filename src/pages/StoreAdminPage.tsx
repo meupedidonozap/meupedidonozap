@@ -16,7 +16,7 @@ import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
-import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin } from '@/hooks/useCustomerProfiles';
+import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin } from '@/hooks/useCustomerProfiles';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
