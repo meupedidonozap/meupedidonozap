@@ -867,7 +867,15 @@ export default function StoreAdminPage() {
 
           {/* Customers */}
           <TabsContent value="customers" className="animate-fade-in">
-            <div className="mb-4"><h3 className="text-lg font-semibold">Clientes Cadastrados</h3></div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
+              <Button size="sm" onClick={() => {
+                setCreatingCustomer(true);
+                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+              }}>
+                <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+              </Button>
+            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
