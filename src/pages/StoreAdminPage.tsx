@@ -93,6 +93,7 @@ export default function StoreAdminPage() {
   const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
   const createServiceOrder = useCreateServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
+  const createCustomerProfile = useCreateCustomerProfileAdmin();
 
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
