@@ -1015,6 +1015,15 @@ export default function StoreAdminPage() {
           await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total });
         }}
       />
+      <NewOrderDialog
+        open={newOrderDialogOpen}
+        onOpenChange={setNewOrderDialogOpen}
+        store={store}
+        products={products}
+        foodItems={foodItems}
+        customerProfiles={customerProfiles}
+        categories={categories}
+      />
     </div>
   );
 }
