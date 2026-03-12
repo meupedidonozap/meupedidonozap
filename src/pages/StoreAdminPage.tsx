@@ -537,7 +537,12 @@ export default function StoreAdminPage() {
 
           {/* Orders */}
           <TabsContent value="orders" className="animate-fade-in">
-            <div className="mb-4"><h3 className="text-lg font-semibold">Pedidos</h3></div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Pedidos</h3>
+              <Button variant="outline" onClick={() => setNewOrderDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Novo Pedido
+              </Button>
+            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
