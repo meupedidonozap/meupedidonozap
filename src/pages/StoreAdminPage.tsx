@@ -110,6 +110,7 @@ export default function StoreAdminPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedSO, setSelectedSO] = useState<ServiceOrder | null>(null);
   const [soDialogOpen, setSODialogOpen] = useState(false);
+  const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
