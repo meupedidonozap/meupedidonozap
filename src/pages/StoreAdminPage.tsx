@@ -22,6 +22,7 @@ import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
+import NewOrderDialog from '@/components/NewOrderDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -109,6 +110,7 @@ export default function StoreAdminPage() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedSO, setSelectedSO] = useState<ServiceOrder | null>(null);
   const [soDialogOpen, setSODialogOpen] = useState(false);
+  const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
@@ -535,7 +537,12 @@ export default function StoreAdminPage() {
 
           {/* Orders */}
           <TabsContent value="orders" className="animate-fade-in">
-            <div className="mb-4"><h3 className="text-lg font-semibold">Pedidos</h3></div>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Pedidos</h3>
+              <Button variant="outline" onClick={() => setNewOrderDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Novo Pedido
+              </Button>
+            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -1007,6 +1014,15 @@ export default function StoreAdminPage() {
         onOrderUpdate={async ({ orderId, status, total }) => {
           await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total });
         }}
+      />
+      <NewOrderDialog
+        open={newOrderDialogOpen}
+        onOpenChange={setNewOrderDialogOpen}
+        store={store}
+        products={products}
+        foodItems={foodItems}
+        customerProfiles={customerProfiles}
+        categories={categories}
       />
     </div>
   );
