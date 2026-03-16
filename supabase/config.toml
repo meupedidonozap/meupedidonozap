@@ -2,3 +2,6 @@ project_id = "buvhdqpbpbwpzidzmdqh"
 
 [functions.create-store-admin]
 verify_jwt = false
+
+[functions.google-product-feed]
+verify_jwt = false

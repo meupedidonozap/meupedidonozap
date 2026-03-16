@@ -1,51 +1,31 @@
-# Integração com Google Merchant Center
 
-## O que o Google Merchant Center precisa
 
-O screenshot mostra que o Google está pedindo **verificação e reivindicação do site**. Isso é um pré-requisito antes de enviar produtos.
+# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
 
-## O que podemos fazer no Lovable
+## Logica
 
-### 1. Verificação do site via meta tag HTML
+Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
 
-Adicionar a meta tag de verificação do Google no `index.html`. O Google fornece uma tag como:
+## Mudanca
 
-```html
-<meta name="google-site-verification" content="4KKTFhZo_9RnZXOY95JmhkNgbZeeYxdv4btpYvNUoC8" />
-```
+### Arquivo: `src/hooks/useProducts.ts`
 
-Você precisa copiar esse código da interface do Google Merchant Center (opção "verificar usando uma tag HTML").
+Adicionar funcao auxiliar `getNextProductCode(storeId)`:
 
-### 2. Dados estruturados (Schema.org) nos produtos
+1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
+2. Encontrar o ultimo codigo nao-vazio
+3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
+4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
+5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
+6. Se nenhum codigo existir, retornar `"1"`
 
-Adicionar markup JSON-LD de `Product` nas páginas de produto para que o Google reconheça os produtos automaticamente. Isso inclui nome, descrição, preço, imagem, disponibilidade.
+Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
 
-### 3. Sitemap básico
+### Arquivo: `src/components/ImportProductsDialog.tsx`
 
-Criar um sitemap para facilitar a indexação dos produtos pelo Google.
+Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
 
-## O que **NÃO** é possível fazer no Lovable
+### Nenhuma mudanca no formulario
 
-- **Feed de produtos XML/CSV**: O Google Merchant Center normalmente precisa de um feed estruturado (XML ou CSV) com todos os produtos. Isso requer uma edge function que gere o feed dinamicamente a partir do banco de dados.
-- **API do Merchant Center**: Não temos conector para a API do Google Merchant Center.
+O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
 
-## Plano de implementação
-
-### Etapa 1: Meta tag de verificação do Google
-
-- Você precisa ir no Google Merchant Center, escolher "Verificar usando tag HTML" e copiar o código
-- Eu adiciono a tag no `index.html`
-
-### Etapa 2: Edge function para gerar feed de produtos
-
-- Criar uma edge function `/google-product-feed` que consulta os produtos ativos da loja Rafa's e retorna um XML no formato Merchant Center (RSS 2.0 com namespace `g:`)
-- A URL do feed será algo como `https://buvhdqpbpbwpzidzmdqh.supabase.co/functions/v1/google-product-feed?store=rafasmanutencaoresidencial`
-- Esse feed pode ser cadastrado manualmente no Merchant Center
-
-### Etapa 3: Dados estruturados nas páginas de produto (opcional)
-
-- Adicionar JSON-LD `Product` schema na vitrine para SEO e integração direta
-
-## Próximo passo necessário
-
-Preciso que você vá no Google Merchant Center e copie o **código da meta tag de verificação HTML**. Sem isso, não consigo avançar com a verificação do site.
