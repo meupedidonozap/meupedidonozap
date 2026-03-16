@@ -142,8 +142,42 @@ export default function ProductStorePage() {
     );
   }
 
-  return (
+    const jsonLdProducts = filteredProducts.slice(0, 50).map(product => ({
+      "@type": "Product",
+      name: product.name,
+      description: product.description || product.name,
+      sku: product.code,
+      image: product.image || undefined,
+      offers: {
+        "@type": "Offer",
+        price: product.basePrice.toFixed(2),
+        priceCurrency: "BRL",
+        availability: "https://schema.org/InStock",
+        url: `https://meupedidonozap.online/${store.slug}`,
+      },
+    }));
+
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: store.name,
+      url: `https://meupedidonozap.online/${store.slug}`,
+      numberOfItems: jsonLdProducts.length,
+      itemListElement: jsonLdProducts.map((p, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        item: p,
+      })),
+    };
+
+    return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{store.name} - Meu Pedido no Zap</title>
+        <meta name="description" content={`Compre produtos de ${store.name}. Faça seu pedido online pelo WhatsApp.`} />
+        <link rel="canonical" href={`https://meupedidonozap.online/${store.slug}`} />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card shadow-sm">
         <div className="container flex h-16 items-center justify-between gap-4">
