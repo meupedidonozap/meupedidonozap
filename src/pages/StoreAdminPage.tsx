@@ -95,6 +95,8 @@ export default function StoreAdminPage() {
   const createServiceOrder = useCreateServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
   const createCustomerProfile = useCreateCustomerProfileAdmin();
+  const toggleCustomerActive = useToggleCustomerActive();
+  const deleteCustomerProfile = useDeleteCustomerProfile();
 
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
