@@ -99,6 +99,7 @@ export type Database = {
           cpf_cnpj: string
           created_at: string
           id: string
+          is_active: boolean
           name: string
           neighborhood: string
           number: string
@@ -116,6 +117,7 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           neighborhood?: string
           number?: string
@@ -133,6 +135,7 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           neighborhood?: string
           number?: string

@@ -1,31 +1,31 @@
 
 
-# Ativar/Inativar e Excluir Clientes no Painel Admin
+# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
 
-## Mudanças necessárias
+## Logica
 
-### 1. Migração: adicionar coluna `is_active` na tabela `customer_profiles`
-- `ALTER TABLE customer_profiles ADD COLUMN is_active boolean NOT NULL DEFAULT true;`
-- Permite ativar/inativar clientes sem perder dados
+Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
 
-### 2. Hook `useCustomerProfiles.ts`: adicionar mutações
-- **Toggle ativo/inativo**: nova mutation `useToggleCustomerActive` que faz `UPDATE customer_profiles SET is_active = !current WHERE id = ?`
-- **Excluir cliente**: nova mutation `useDeleteCustomerProfile` que faz `DELETE FROM customer_profiles WHERE id = ?`
+## Mudanca
 
-### 3. Migração: RLS para DELETE em `customer_profiles`
-- Adicionar policy: store admins podem deletar perfis de clientes da sua loja
+### Arquivo: `src/hooks/useProducts.ts`
 
-### 4. UI em `StoreAdminPage.tsx` — aba Clientes
-- Adicionar coluna **Status** na tabela (badge Ativo/Inativo)
-- Botão de **toggle ativo/inativo** (ícone de switch) ao lado do botão editar
-- Botão de **excluir** (ícone lixeira) que:
-  - Verifica se o cliente tem pedidos (`orders`) ou ordens de serviço (`service_orders`) vinculadas (via `user_id` ou pelo campo `customer` JSONB)
-  - Se tiver, mostra mensagem informando que não é possível excluir
-  - Se não tiver, mostra confirmação e exclui
-- A verificação de vínculos será feita via queries no banco antes de permitir a exclusão
+Adicionar funcao auxiliar `getNextProductCode(storeId)`:
 
-### 5. Verificação de vínculos para exclusão
-- Consultar `orders` onde `user_id = customer.user_id` OR `customer->>'name' = customer.name` (para clientes sem user_id)
-- Consultar `service_orders` com lógica similar
-- Se count > 0 em qualquer tabela, bloquear exclusão e sugerir inativar
+1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
+2. Encontrar o ultimo codigo nao-vazio
+3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
+4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
+5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
+6. Se nenhum codigo existir, retornar `"1"`
+
+Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
+
+### Arquivo: `src/components/ImportProductsDialog.tsx`
+
+Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
+
+### Nenhuma mudanca no formulario
+
+O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
 

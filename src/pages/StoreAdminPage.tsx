@@ -16,7 +16,7 @@ import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
-import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin } from '@/hooks/useCustomerProfiles';
+import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
@@ -95,6 +95,8 @@ export default function StoreAdminPage() {
   const createServiceOrder = useCreateServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
   const createCustomerProfile = useCreateCustomerProfileAdmin();
+  const toggleCustomerActive = useToggleCustomerActive();
+  const deleteCustomerProfile = useDeleteCustomerProfile();
 
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -889,16 +891,22 @@ export default function StoreAdminPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {customerProfiles.map(cp => (
-                      <TableRow key={cp.id}>
+                      <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
                         <TableCell className="font-medium">{cp.name || '—'}</TableCell>
                         <TableCell>{cp.whatsapp || '—'}</TableCell>
                         <TableCell>{cp.city && cp.uf ? `${cp.city}/${cp.uf}` : '—'}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
+                          <Badge className={(cp as any).isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                            {(cp as any).isActive ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => {
                             setEditingCustomer(cp);
                             setCustomerForm({
@@ -909,11 +917,42 @@ export default function StoreAdminPage() {
                           }}>
                             <Edit2 className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={(cp as any).isActive ? 'Inativar' : 'Ativar'}
+                            onClick={async () => {
+                              const newActive = !(cp as any).isActive;
+                              await toggleCustomerActive.mutateAsync({ id: cp.id, isActive: newActive, storeId: cp.storeId });
+                              toast.success(newActive ? 'Cliente ativado!' : 'Cliente inativado!');
+                            }}
+                          >
+                            {(cp as any).isActive ? <ToggleRight className="h-4 w-4 text-green-600" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Excluir"
+                            onClick={async () => {
+                              const hasOrders = await checkCustomerHasOrders(cp.name, cp.storeId, cp.userId || undefined);
+                              if (hasOrders) {
+                                toast.error('Este cliente possui pedidos ou ordens de serviço vinculadas. Você pode inativá-lo em vez de excluir.');
+                                return;
+                              }
+                              if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+                              try {
+                                await deleteCustomerProfile.mutateAsync({ id: cp.id, storeId: cp.storeId });
+                                toast.success('Cliente excluído!');
+                              } catch { toast.error('Erro ao excluir cliente'); }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
                     {customerProfiles.length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
