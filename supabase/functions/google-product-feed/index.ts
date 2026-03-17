@@ -119,7 +119,8 @@ ${items}
         "Content-Type": "application/xml; charset=utf-8",
       },
     });
-  } catch (error) {
-    return new Response(`Error: ${error.message}`, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(`Error: ${message}`, { status: 500 });
   }
 });

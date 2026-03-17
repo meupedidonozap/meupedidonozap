@@ -1,24 +1,31 @@
 
 
-# Corrigir exibição de produtos no Novo Pedido (Admin)
+# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
 
-## Problema
+## Logica
 
-Na tela de "Novo Pedido" do painel admin, os produtos não aparecem imediatamente na etapa de itens. Só aparecem depois de trocar a categoria no dropdown. Isso indica um problema de renderização do `ScrollArea` com altura fixa que não atualiza o conteúdo corretamente no mount inicial.
+Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
 
-## Correções
+## Mudanca
 
-### 1. Corrigir bug de renderização dos produtos (`NewOrderDialog.tsx`)
+### Arquivo: `src/hooks/useProducts.ts`
 
-- Remover o `ScrollArea` com altura fixa `h-[200px]` e usar um `div` com `max-h` e `overflow-y-auto` — isso evita o problema de virtualização do ScrollArea que não renderiza items no mount
-- Garantir que todos os produtos aparecem imediatamente com botão "+" visível, igual à experiência da vitrine do cliente
-- Manter busca e filtro por categoria funcionando inline sem necessidade de trocar categoria primeiro
+Adicionar funcao auxiliar `getNextProductCode(storeId)`:
 
-### 2. Corrigir build error na edge function (`google-product-feed/index.ts`)
+1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
+2. Encontrar o ultimo codigo nao-vazio
+3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
+4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
+5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
+6. Se nenhum codigo existir, retornar `"1"`
 
-- Tipar o `error` como `Error` no catch block (linha 123): `catch (error: unknown)` → usar `(error instanceof Error ? error.message : 'Unknown error')`
+Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
 
-### Resultado esperado
+### Arquivo: `src/components/ImportProductsDialog.tsx`
 
-Ao abrir "Novo Pedido" e ir para a etapa de itens, todos os produtos ativos aparecem listados com botão "+" para adicionar, busca filtra em tempo real, e trocar categoria é opcional — comportamento idêntico à vitrine do cliente.
+Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
+
+### Nenhuma mudanca no formulario
+
+O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
 

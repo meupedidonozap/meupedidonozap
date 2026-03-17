@@ -280,7 +280,7 @@ export default function NewOrderDialog({
                 )}
               </div>
 
-              <ScrollArea className="h-[200px] border rounded-md">
+              <div className="max-h-[300px] overflow-y-auto border rounded-md">
                 {filteredProducts.length === 0 ? (
                   <p className="p-4 text-sm text-center text-muted-foreground">Nenhum produto encontrado</p>
                 ) : (
@@ -307,7 +307,7 @@ export default function NewOrderDialog({
                     })}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
 
               {/* Cart summary */}
               {orderItems.length > 0 && (
