@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useStoreBySlug } from '@/hooks/useStores';
+import { useTrackVisit } from '@/hooks/useStoreVisits';
 import ProductStorePage from './ProductStorePage';
 import FoodStorePage from './FoodStorePage';
 import { Loader2 } from 'lucide-react';
@@ -7,6 +8,9 @@ import { Loader2 } from 'lucide-react';
 export default function StorePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading } = useStoreBySlug(slug || '');
+
+  // Track visit once per session
+  useTrackVisit(store?.id);
 
   if (isLoading) {
     return (
