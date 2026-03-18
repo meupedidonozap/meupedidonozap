@@ -99,6 +99,13 @@ export default function StoreAdminPage() {
   const toggleCustomerActive = useToggleCustomerActive();
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
+  // Visits analytics state
+  const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d;
+  });
+  const [visitsEndDate, setVisitsEndDate] = useState<Date | undefined>(new Date());
+  const { total: visitsTotal, byDay: visitsByDay, byHour: visitsByHour, isLoading: visitsLoading } = useStoreVisits(isAdmin ? store?.id : undefined, visitsStartDate, visitsEndDate);
+
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
   const updateOrderStatus = useUpdateOrderStatus();
