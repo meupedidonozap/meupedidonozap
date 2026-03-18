@@ -1,31 +1,20 @@
 
 
-# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
+# Erro de Build: @swc/core native binding
 
-## Logica
+## Diagnóstico
 
-Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
+O erro **"Failed to load native binding"** do `@swc/core` é um problema de infraestrutura do ambiente de build, **não é causado pelas mudanças de código** que fizemos. O pacote `@swc/core` (usado internamente pelo `@vitejs/plugin-react-swc`) requer binários nativos compilados para a plataforma específica, e o ambiente de build não conseguiu carregá-los.
 
-## Mudanca
+## Solução
 
-### Arquivo: `src/hooks/useProducts.ts`
+Este erro normalmente se resolve sozinho ao re-triggerar o build, pois é intermitente no ambiente de sandbox. Vou fazer uma edição mínima no `vite.config.ts` (adicionar um comentário) para forçar um novo build limpo.
 
-Adicionar funcao auxiliar `getNextProductCode(storeId)`:
+Quanto ao teste de visitas — depois que o build voltar a funcionar, o fluxo pode ser testado manualmente:
+1. Acessar a URL de uma loja no preview (ex: `/loja/slug-da-loja`)
+2. Entrar no painel admin e verificar a aba "Visitas"
 
-1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
-2. Encontrar o ultimo codigo nao-vazio
-3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
-4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
-5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
-6. Se nenhum codigo existir, retornar `"1"`
+## Ação
 
-Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
-
-### Arquivo: `src/components/ImportProductsDialog.tsx`
-
-Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
-
-### Nenhuma mudanca no formulario
-
-O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
+- Forçar rebuild com edição trivial no `vite.config.ts`
 
