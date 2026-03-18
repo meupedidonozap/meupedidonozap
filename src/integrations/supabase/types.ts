@@ -517,6 +517,41 @@ export type Database = {
           },
         ]
       }
+      store_visits: {
+        Row: {
+          id: string
+          ip_hash: string | null
+          page: string | null
+          store_id: string
+          user_agent: string | null
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          ip_hash?: string | null
+          page?: string | null
+          store_id: string
+          user_agent?: string | null
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          ip_hash?: string | null
+          page?: string | null
+          store_id?: string
+          user_agent?: string | null
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_visits_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           address: string | null
