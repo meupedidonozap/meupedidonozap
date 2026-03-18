@@ -1,31 +1,50 @@
 
 
-# Auto-gerar Codigo Alfanumerico do Produto (ultimo prefixo + 1)
+# Ferramenta de Análise de Visitas no Painel Admin
 
-## Logica
+## Como funciona
 
-Quando o campo "Codigo" ficar vazio ao criar um produto, o sistema busca o ultimo codigo cadastrado na loja, extrai o prefixo alfabetico e o numero sequencial, e gera o proximo. Exemplo: se o ultimo for `RAF0121`, gera `RAF0122` mantendo os zeros a esquerda.
+Sim, é possível. A solução envolve duas partes:
 
-## Mudanca
+1. **Registrar cada visita** quando um cliente acessa a página da loja
+2. **Exibir os dados** no painel admin com gráficos e totais
 
-### Arquivo: `src/hooks/useProducts.ts`
+## Plano de implementação
 
-Adicionar funcao auxiliar `getNextProductCode(storeId)`:
+### 1. Migração: criar tabela `store_visits`
 
-1. Buscar todos os `code` de `products` filtrados por `store_id`, ordenados por `created_at desc`
-2. Encontrar o ultimo codigo nao-vazio
-3. Separar prefixo alfanumerico (ex: `RAF`) do sufixo numerico (ex: `0121`) usando regex `/^([A-Za-z]*)(\d+)$/`
-4. Incrementar o numero e formatar com `padStart` para manter o mesmo numero de digitos
-5. Retornar `prefixo + numeroFormatado` (ex: `RAF0122`)
-6. Se nenhum codigo existir, retornar `"1"`
+```sql
+CREATE TABLE public.store_visits (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id uuid NOT NULL,
+  visited_at timestamptz NOT NULL DEFAULT now(),
+  page text DEFAULT '/',
+  user_agent text DEFAULT '',
+  ip_hash text DEFAULT ''
+);
+```
 
-Alterar `useCreateProduct`: se `product.code` estiver vazio, chamar `getNextProductCode(product.storeId)` antes do insert.
+- RLS: leitura apenas para store admins; inserção pública (anônima) para registrar visitas
+- Índice em `(store_id, visited_at)` para queries eficientes
 
-### Arquivo: `src/components/ImportProductsDialog.tsx`
+### 2. Hook `useStoreVisits.ts`
 
-Verificar se produtos importados sem codigo tambem precisam da mesma logica e aplicar se necessario.
+- **`useTrackVisit(storeId)`**: mutation chamada uma vez ao carregar a página da loja (StorePage), registra a visita
+- **`useStoreVisits(storeId, dateRange)`**: query que retorna visitas agrupadas por dia e hora para o admin
 
-### Nenhuma mudanca no formulario
+### 3. Registrar visitas na StorePage
 
-O campo "Codigo" em `ProductFormDialog.tsx` ja aceita valor vazio. O placeholder pode ser atualizado para indicar que sera gerado automaticamente (ex: "Auto").
+- Chamar `useTrackVisit` no `StorePage.tsx` com um `useEffect` que dispara uma vez por sessão (usando sessionStorage para evitar contagem duplicada por refresh)
+
+### 4. Nova aba "Visitas" no StoreAdminPage
+
+- Adicionar ícone `BarChart3` e aba "Visitas" no TabsList
+- **Card de total**: mostra o total de visitas geral
+- **Gráfico de barras por dia**: usando Recharts (já instalado), mostra visitas dos últimos 30 dias com filtro de data
+- **Tabela de visitas por hora**: para o dia selecionado, mostra quantas visitas em cada faixa horária
+- Filtro de período com calendário (já existe componente Calendar)
+
+### Detalhe técnico
+
+Para não inflar a tabela, cada visita gera apenas uma linha com timestamp. A agregação (por dia, hora) é feita via queries SQL com `date_trunc`. O `ip_hash` é um hash simples do user-agent para estimar visitantes únicos sem armazenar dados pessoais.
 
