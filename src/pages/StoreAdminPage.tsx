@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users, Layers,
+  CalendarIcon, ClipboardList, Users, Layers, BarChart3,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
