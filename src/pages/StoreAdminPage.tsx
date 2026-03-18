@@ -795,6 +795,79 @@ export default function StoreAdminPage() {
             </div>
           </TabsContent>
 
+          {/* Visitas */}
+          <TabsContent value="visits" className="animate-fade-in">
+            <div className="space-y-6">
+              {/* Total + date filter */}
+              <div className="flex flex-wrap items-center gap-4">
+                <Card className="flex-1 min-w-[200px]">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <BarChart3 className="h-10 w-10 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total de Visitas</p>
+                      <p className="text-3xl font-bold">{visitsTotal.toLocaleString('pt-BR')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground font-medium">Período:</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !visitsStartDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {visitsStartDate ? format(visitsStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Início"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={visitsStartDate} onSelect={setVisitsStartDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !visitsEndDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {visitsEndDate ? format(visitsEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Fim"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={visitsEndDate} onSelect={setVisitsEndDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {visitsLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+              ) : (
+                <>
+                  {/* Bar chart - visits per day */}
+                  <Card>
+                    <CardHeader><CardTitle>Visitas por Dia</CardTitle></CardHeader>
+                    <CardContent>
+                      {visitsByDay.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">Nenhuma visita no período selecionado.</p>
+                      ) : (
+                        <div className="h-[300px] w-full">
+                          <VisitsBarChart data={visitsByDay} />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Hourly breakdown */}
+                  <Card>
+                    <CardHeader><CardTitle>Visitas por Hora do Dia</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="h-[250px] w-full">
+                        <VisitsHourChart data={visitsByHour} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
           {/* Settings */}
           <TabsContent value="settings" className="animate-fade-in">
             <Card>
