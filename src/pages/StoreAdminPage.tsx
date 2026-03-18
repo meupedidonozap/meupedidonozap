@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users, Layers,
+  CalendarIcon, ClipboardList, Users, Layers, BarChart3,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,8 @@ import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
+import { useStoreVisits } from '@/hooks/useStoreVisits';
+import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
@@ -97,6 +99,13 @@ export default function StoreAdminPage() {
   const createCustomerProfile = useCreateCustomerProfileAdmin();
   const toggleCustomerActive = useToggleCustomerActive();
   const deleteCustomerProfile = useDeleteCustomerProfile();
+
+  // Visits analytics state
+  const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d;
+  });
+  const [visitsEndDate, setVisitsEndDate] = useState<Date | undefined>(new Date());
+  const { total: visitsTotal, byDay: visitsByDay, byHour: visitsByHour, isLoading: visitsLoading } = useStoreVisits(isAdmin ? store?.id : undefined, visitsStartDate, visitsEndDate);
 
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -355,6 +364,7 @@ export default function StoreAdminPage() {
               <TabsTrigger value="service-orders" className="gap-2"><ClipboardList className="h-4 w-4" /> Ordens de Serviço</TabsTrigger>
             )}
             <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
+            <TabsTrigger value="visits" className="gap-2"><BarChart3 className="h-4 w-4" /> Visitas</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
           </TabsList>
 
@@ -783,6 +793,79 @@ export default function StoreAdminPage() {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
+
+          {/* Visitas */}
+          <TabsContent value="visits" className="animate-fade-in">
+            <div className="space-y-6">
+              {/* Total + date filter */}
+              <div className="flex flex-wrap items-center gap-4">
+                <Card className="flex-1 min-w-[200px]">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <BarChart3 className="h-10 w-10 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total de Visitas</p>
+                      <p className="text-3xl font-bold">{visitsTotal.toLocaleString('pt-BR')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground font-medium">Período:</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !visitsStartDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {visitsStartDate ? format(visitsStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Início"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={visitsStartDate} onSelect={setVisitsStartDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[150px] justify-start text-left font-normal", !visitsEndDate && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {visitsEndDate ? format(visitsEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Fim"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={visitsEndDate} onSelect={setVisitsEndDate} initialFocus className="p-3 pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {visitsLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+              ) : (
+                <>
+                  {/* Bar chart - visits per day */}
+                  <Card>
+                    <CardHeader><CardTitle>Visitas por Dia</CardTitle></CardHeader>
+                    <CardContent>
+                      {visitsByDay.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">Nenhuma visita no período selecionado.</p>
+                      ) : (
+                        <div className="h-[300px] w-full">
+                          <VisitsBarChart data={visitsByDay} />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Hourly breakdown */}
+                  <Card>
+                    <CardHeader><CardTitle>Visitas por Hora do Dia</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="h-[250px] w-full">
+                        <VisitsHourChart data={visitsByHour} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           </TabsContent>
 
