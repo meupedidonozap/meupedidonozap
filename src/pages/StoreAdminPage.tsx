@@ -363,6 +363,7 @@ export default function StoreAdminPage() {
               <TabsTrigger value="service-orders" className="gap-2"><ClipboardList className="h-4 w-4" /> Ordens de Serviço</TabsTrigger>
             )}
             <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
+            <TabsTrigger value="visits" className="gap-2"><BarChart3 className="h-4 w-4" /> Visitas</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
           </TabsList>
 
