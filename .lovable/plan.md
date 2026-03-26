@@ -1,20 +1,19 @@
 
 
-# Erro de Build: @swc/core native binding
+# Excluir Produtos e Pedidos Cancelados da Rafa's Manutenção Residencial
 
-## Diagnóstico
+## Dados encontrados
 
-O erro **"Failed to load native binding"** do `@swc/core` é um problema de infraestrutura do ambiente de build, **não é causado pelas mudanças de código** que fizemos. O pacote `@swc/core` (usado internamente pelo `@vitejs/plugin-react-swc`) requer binários nativos compilados para a plataforma específica, e o ambiente de build não conseguiu carregá-los.
+- **Loja**: Rafa's Manutenção Residencial (`c7bd7750-6840-47f2-947c-26059c4d6b74`)
+- **279 produtos** a excluir
+- **3 pedidos com status "cancelado"** a excluir
 
-## Solução
+## Ações (via SQL direto)
 
-Este erro normalmente se resolve sozinho ao re-triggerar o build, pois é intermitente no ambiente de sandbox. Vou fazer uma edição mínima no `vite.config.ts` (adicionar um comentário) para forçar um novo build limpo.
+1. Excluir `product_images` vinculadas aos produtos da loja
+2. Excluir `product_variants` vinculadas aos produtos da loja
+3. Excluir todos os `products` da loja
+4. Excluir `orders` com status `cancelado` da loja
 
-Quanto ao teste de visitas — depois que o build voltar a funcionar, o fluxo pode ser testado manualmente:
-1. Acessar a URL de uma loja no preview (ex: `/loja/slug-da-loja`)
-2. Entrar no painel admin e verificar a aba "Visitas"
-
-## Ação
-
-- Forçar rebuild com edição trivial no `vite.config.ts`
+Todas as exclusões serão feitas em sequência para respeitar dependências.
 
