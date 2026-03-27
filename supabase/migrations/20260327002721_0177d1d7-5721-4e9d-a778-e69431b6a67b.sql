@@ -1,0 +1,1 @@
+DELETE FROM service_orders; DELETE FROM orders;
