@@ -1,68 +1,44 @@
 
 
-# Ajustar Rotinas de Status para Lojas SERVICOS (Rafa's)
+# Excluir Dados e Validar Rotinas de Status
 
-## Resumo
+## Parte 1: Excluir todos os pedidos e OS
 
-5 ajustes no fluxo de status entre Pedidos e Ordens de Serviço para lojas do tipo SERVICOS.
+Executar via SQL (insert tool):
 
-## Mudancas
+1. `DELETE FROM service_orders;` — exclui todas as 3 OS
+2. `DELETE FROM orders;` — exclui todos os 17 pedidos
 
-### 1. Dashboard: faturamento apenas de OS com status "pago" (ja funciona)
+## Parte 2: Validar as rotinas de status implementadas
 
-O codigo atual em `StoreAdminPage.tsx` linha 179 ja filtra `so.status === 'pago'`. Para lojas SERVICOS, o faturamento de pedidos `entregue` tambem ja e somado. Nenhuma mudanca necessaria aqui — o comportamento ja esta correto.
+Apos a exclusao, validar o codigo atual verificando cada ponto:
 
-### 2. ServiceOrderDialog: desbloquear status "pago" para permitir data de pagamento
+### Verificacao 1: Criacao de OS muda pedido para "confirmado"
+- **StoreAdminPage.tsx linha 679**: `await updateOrderStatus.mutateAsync({ id: order.id, status: 'confirmado' })` — **correto**
 
-Atualmente `isLocked = status === 'pago'` bloqueia tudo quando o status e "pago". Preciso mudar para que:
-- O status "pago" possa ser selecionado normalmente
-- O campo de data de pagamento apareca e seja editavel
-- Apos salvar como "pago", ai sim bloquear edicao (ou seja, bloquear apenas se o status **ja veio** como "pago" do banco, nao quando o usuario acabou de selecionar)
+### Verificacao 2: Sincronizacao de TODOS os status OS → Pedido
+- **ServiceOrderDialog.tsx linhas 153-158**: mapeamento completo — **correto**
+  - aberta → confirmado
+  - em_andamento → preparando
+  - concluida → enviado
+  - pago → entregue
+  - cancelada → cancelado
 
-**Arquivo:** `src/components/ServiceOrderDialog.tsx`
-- Mudar `isLocked` para comparar com o status **original** da OS (vindo do banco), nao o status local do formulario
-- Adicionar estado `originalStatus` inicializado junto com os outros campos
+### Verificacao 3: Status "pago" desbloqueado para selecao com data de pagamento
+- **ServiceOrderDialog.tsx**: `isLocked` usa `originalStatus === 'pago'` (status vindo do banco), permitindo selecionar "pago" e definir data antes de salvar — **correto**
 
-### 3. ServiceOrderDialog: sincronizar TODOS os status OS → Pedido
+### Verificacao 4: Pedidos de lojas SERVICOS com status bloqueado
+- **StoreAdminPage.tsx linhas 595-627**: para `store.type === 'SERVICOS'`, mostra badge + botao "Cancelar" condicional (sem Select editavel) — **correto**
+  - Sem OS: botao "Cancelar" direto
+  - Com OS: exclui OS + cancela pedido
 
-Atualmente so sincroniza `pago/concluida → entregue` e `cancelada → cancelado`. Preciso mapear todos:
+### Verificacao 5: Hook de exclusao de OS
+- **useServiceOrders.ts**: `useDeleteServiceOrder` existe e invalida queries corretamente — **correto**
 
-| Status OS | Status Pedido |
-|-----------|--------------|
-| aberta | confirmado |
-| em_andamento | preparando |
-| concluida | enviado |
-| pago | entregue |
-| cancelada | cancelado |
+### Verificacao 6: Dashboard faturamento
+- Preciso verificar se o calculo de revenue filtra corretamente OS com status "pago" e usa `paid_at` para o periodo
 
-**Arquivo:** `src/components/ServiceOrderDialog.tsx` — alterar o bloco `handleSave` (linhas 149-155)
+## Resultado
 
-### 4. Pedidos: bloquear alteracao de status para lojas SERVICOS
-
-Na aba Pedidos (`StoreAdminPage.tsx` linhas 594-609), o Select de status permite alterar livremente. Para `store.type === 'SERVICOS'`:
-- Mostrar apenas o badge do status (sem Select editavel)
-- Permitir apenas "Cancelar" se **nao** tiver OS vinculada
-- Se tiver OS vinculada e quiser cancelar: excluir a OS primeiro, depois cancelar o pedido
-
-**Arquivo:** `src/pages/StoreAdminPage.tsx` — substituir o Select de status na coluna de pedidos por logica condicional
-
-### 5. Criacao de OS: status do pedido vai para "confirmado" (nao "preparando")
-
-Atualmente ao gerar OS (linha 641), o pedido vai para `preparando`. Pela nova regra, ao criar a OS (que nasce com status `aberta`), o pedido deve ir para `confirmado`.
-
-**Arquivo:** `src/pages/StoreAdminPage.tsx` — linha 641, trocar `'preparando'` por `'confirmado'`
-
-### 6. Hook: adicionar mutacao para excluir OS
-
-Para o caso de cancelar pedido com OS vinculada, preciso de uma funcao para deletar a OS.
-
-**Arquivo:** `src/hooks/useServiceOrders.ts` — adicionar `useDeleteServiceOrder` mutation
-
-## Fluxo final
-
-1. Pedido nasce como **Pendente**
-2. Admin clica "Gerar OS" → OS criada como **Aberta**, pedido vai para **Confirmado**
-3. Na OS, admin muda status → pedido acompanha automaticamente
-4. Na aba Pedidos, admin so pode **Cancelar** (se nao tiver OS) — demais status sao controlados pela OS
-5. Se quiser cancelar pedido com OS: sistema exclui a OS e cancela o pedido
+Todas as 5 rotinas do plano anterior estao implementadas corretamente no codigo. Apos excluir os dados, o sistema estara pronto para testes limpos.
 
