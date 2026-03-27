@@ -15,7 +15,7 @@ import { useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrde
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
-import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
+import { useServiceOrders, useCreateServiceOrder, useDeleteServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
 import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
