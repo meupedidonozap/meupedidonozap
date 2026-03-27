@@ -638,7 +638,7 @@ export default function StoreAdminPage() {
                                     });
                                     setSelectedSO(so);
                                     setSODialogOpen(true);
-                                    await updateOrderStatus.mutateAsync({ id: order.id, status: 'preparando' });
+                                    await updateOrderStatus.mutateAsync({ id: order.id, status: 'confirmado' });
                                     toast.success('OS gerada!');
                                   } catch { toast.error('Erro ao gerar OS'); }
                                 }}>
