@@ -148,13 +148,16 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         paidAt: finalPaidAt,
       });
 
-      // Sync order status and total based on OS status
+      // Sync order status based on OS status
       if (onOrderUpdate && serviceOrder.orderId) {
-        if (status === 'pago' || status === 'concluida') {
-          await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'entregue', total: grandTotal });
-        } else if (status === 'cancelada') {
-          await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'cancelado', total: grandTotal });
-        }
+        const osToOrderMap: Record<ServiceOrderStatus, string> = {
+          aberta: 'confirmado',
+          em_andamento: 'preparando',
+          concluida: 'enviado',
+          pago: 'entregue',
+          cancelada: 'cancelado',
+        };
+        await onOrderUpdate({ orderId: serviceOrder.orderId, status: osToOrderMap[status], total: grandTotal });
       }
 
       toast.success('OS atualizada!');
