@@ -15,7 +15,7 @@ import { useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrde
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
-import { useServiceOrders, useCreateServiceOrder } from '@/hooks/useServiceOrders';
+import { useServiceOrders, useCreateServiceOrder, useDeleteServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
 import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
@@ -95,6 +95,7 @@ export default function StoreAdminPage() {
   const { data: serviceOrders = [] } = useServiceOrders(isAdmin && store?.type === 'SERVICOS' ? store?.id : undefined);
   const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
   const createServiceOrder = useCreateServiceOrder();
+  const deleteServiceOrder = useDeleteServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
   const createCustomerProfile = useCreateCustomerProfileAdmin();
   const toggleCustomerActive = useToggleCustomerActive();
@@ -591,22 +592,59 @@ export default function StoreAdminPage() {
                         <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
                         <TableCell className="uppercase text-xs">{order.paymentMethod}</TableCell>
                         <TableCell>
-                          <Select value={order.status} onValueChange={(value) => {
-                            updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
-                            toast.success('Status atualizado!');
-                          }}>
-                            <SelectTrigger className="w-32">
-                              <Badge className={statusConfig[order.status].color}>
-                                {statusConfig[order.status].icon}
-                                <span className="ml-1">{statusConfig[order.status].label}</span>
+                          {store.type === 'SERVICOS' ? (
+                            <div className="flex items-center gap-1">
+                              <Badge className={statusConfig[order.status]?.color}>
+                                {statusConfig[order.status]?.icon}
+                                <span className="ml-1">{statusConfig[order.status]?.label}</span>
                               </Badge>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(statusConfig).map(([key, cfg]) => (
-                                <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                              {(() => {
+                                const hasSO = serviceOrders.some(so => so.orderId === order.id);
+                                if (!hasSO && order.status !== 'cancelado') {
+                                  return (
+                                    <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={async () => {
+                                      await updateOrderStatus.mutateAsync({ id: order.id, status: 'cancelado' });
+                                      toast.success('Pedido cancelado!');
+                                    }}>
+                                      <XCircle className="h-3 w-3 mr-1" /> Cancelar
+                                    </Button>
+                                  );
+                                }
+                                if (hasSO && order.status !== 'cancelado') {
+                                  return (
+                                    <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={async () => {
+                                      const so = serviceOrders.find(s => s.orderId === order.id);
+                                      if (so) {
+                                        await deleteServiceOrder.mutateAsync({ id: so.id, storeId: store.id });
+                                      }
+                                      await updateOrderStatus.mutateAsync({ id: order.id, status: 'cancelado' });
+                                      toast.success('OS excluída e pedido cancelado!');
+                                    }}>
+                                      <XCircle className="h-3 w-3 mr-1" /> Cancelar
+                                    </Button>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          ) : (
+                            <Select value={order.status} onValueChange={(value) => {
+                              updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
+                              toast.success('Status atualizado!');
+                            }}>
+                              <SelectTrigger className="w-32">
+                                <Badge className={statusConfig[order.status]?.color}>
+                                  {statusConfig[order.status]?.icon}
+                                  <span className="ml-1">{statusConfig[order.status]?.label}</span>
+                                </Badge>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(statusConfig).map(([key, cfg]) => (
+                                  <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
@@ -638,7 +676,7 @@ export default function StoreAdminPage() {
                                     });
                                     setSelectedSO(so);
                                     setSODialogOpen(true);
-                                    await updateOrderStatus.mutateAsync({ id: order.id, status: 'preparando' });
+                                    await updateOrderStatus.mutateAsync({ id: order.id, status: 'confirmado' });
                                     toast.success('OS gerada!');
                                   } catch { toast.error('Erro ao gerar OS'); }
                                 }}>

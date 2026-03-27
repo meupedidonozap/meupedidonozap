@@ -123,3 +123,20 @@ export function useUpdateServiceOrder() {
     },
   });
 }
+
+export function useDeleteServiceOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, storeId }: { id: string; storeId: string }) => {
+      const { error } = await supabase
+        .from('service_orders')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { storeId };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['service-orders', data.storeId] });
+    },
+  });
+}

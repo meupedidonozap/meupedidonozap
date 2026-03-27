@@ -53,6 +53,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [observations, setObservations] = useState('');
   const [initialized, setInitialized] = useState(false);
   const [paidDate, setPaidDate] = useState<Date | undefined>();
+  const [originalStatus, setOriginalStatus] = useState<ServiceOrderStatus>('aberta');
 
   // Manual item form
   const [manualName, setManualName] = useState('');
@@ -67,6 +68,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   if (serviceOrder && !initialized) {
     setExtraItems(serviceOrder.extraItems || []);
     setStatus(serviceOrder.status);
+    setOriginalStatus(serviceOrder.status);
     setObservations(serviceOrder.observations || '');
     setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
     setInitialized(true);
@@ -78,7 +80,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
     onOpenChange(v);
   };
 
-  const isLocked = status === 'pago';
+  const isLocked = originalStatus === 'pago';
 
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return products.slice(0, 10);
@@ -146,13 +148,16 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         paidAt: finalPaidAt,
       });
 
-      // Sync order status and total based on OS status
+      // Sync order status based on OS status
       if (onOrderUpdate && serviceOrder.orderId) {
-        if (status === 'pago' || status === 'concluida') {
-          await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'entregue', total: grandTotal });
-        } else if (status === 'cancelada') {
-          await onOrderUpdate({ orderId: serviceOrder.orderId, status: 'cancelado', total: grandTotal });
-        }
+        const osToOrderMap: Record<ServiceOrderStatus, string> = {
+          aberta: 'confirmado',
+          em_andamento: 'preparando',
+          concluida: 'enviado',
+          pago: 'entregue',
+          cancelada: 'cancelado',
+        };
+        await onOrderUpdate({ orderId: serviceOrder.orderId, status: osToOrderMap[status], total: grandTotal });
       }
 
       toast.success('OS atualizada!');
