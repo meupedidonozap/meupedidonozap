@@ -68,6 +68,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   if (serviceOrder && !initialized) {
     setExtraItems(serviceOrder.extraItems || []);
     setStatus(serviceOrder.status);
+    setOriginalStatus(serviceOrder.status);
     setObservations(serviceOrder.observations || '');
     setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
     setInitialized(true);
