@@ -53,6 +53,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [observations, setObservations] = useState('');
   const [initialized, setInitialized] = useState(false);
   const [paidDate, setPaidDate] = useState<Date | undefined>();
+  const [originalStatus, setOriginalStatus] = useState<ServiceOrderStatus>('aberta');
 
   // Manual item form
   const [manualName, setManualName] = useState('');
