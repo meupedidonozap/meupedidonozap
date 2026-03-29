@@ -1,7 +1,3 @@
 [build]
   publish = "dist"
-  functions = "netlify/functions"
-
-[[edge-functions]]
-  function = "og-redirect"
-  path = "/:slug"
+  command = "bun run build && node scripts/prerender.js"
