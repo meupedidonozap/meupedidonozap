@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useTrackVisit } from '@/hooks/useStoreVisits';
 import ProductStorePage from './ProductStorePage';
@@ -19,6 +20,10 @@ export default function StorePage() {
       </div>
     );
   }
+
+  // Generic SEO fallback while store-specific pages add their own detailed Helmet
+  const storeName = store?.name || '';
+  const storeDesc = store ? `Faça seu pedido em ${storeName}. ${store.address || 'Peça online via WhatsApp.'}` : 'MeuPedidoNoZap';
 
   if (store?.type === 'COMIDA') {
     return <FoodStorePage />;
