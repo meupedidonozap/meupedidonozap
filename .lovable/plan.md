@@ -1,42 +1,21 @@
 
 
-# Edge Function para OG Meta Tags (Preview de Links no WhatsApp)
+# Corrigir Edge Function og-meta: Sempre retornar HTML estático
 
 ## Problema
 
-WhatsApp, Facebook e Twitter não executam JavaScript ao gerar preview de links. Como o app é uma SPA, eles veem apenas as meta tags genéricas do `index.html`.
+A função atual faz redirect 302 quando o User-Agent não é bot (linhas 54-62). O pedido é que **sempre** retorne HTML com meta tags, independente de ser bot ou não.
 
-## Solução
+## Correção
 
-Criar uma Edge Function `og-meta` que detecta bots pelo User-Agent e retorna HTML minimalista com as meta tags OG corretas (nome da loja, descrição, logo). Para usuários normais, redireciona para a SPA.
+### Arquivo: `supabase/functions/og-meta/index.ts`
 
-O fluxo funciona via Netlify `_redirects`: requisições para `/:slug` passam pela Edge Function primeiro. Se for bot, retorna HTML com OG tags. Se for humano, serve o `index.html` normal.
+Remover a lógica de detecção de bot e o redirect. A função deve:
 
-## Implementacao
+1. Receber `?slug=xxx`
+2. Buscar dados da loja no banco (nome, logo, banner, address, whatsapp)
+3. Retornar HTML estático com status 200 **sempre**, com as meta tags OG preenchidas
+4. Manter o fallback genérico caso a loja não seja encontrada
 
-### 1. Criar Edge Function `supabase/functions/og-meta/index.ts`
-
-- Recebe `?slug=rafasmanutencaoresidencial`
-- Detecta User-Agent de bots (WhatsApp, facebookexternalhit, Twitterbot, LinkedInBot, Googlebot)
-- Se for bot: busca loja no banco, retorna HTML com `og:title`, `og:description`, `og:image`, `og:url`
-- Se nao for bot: retorna redirect 302 para a SPA
-
-### 2. Atualizar `supabase/config.toml`
-
-- Adicionar bloco `[functions.og-meta]` com `verify_jwt = false`
-
-### 3. Opcao de uso
-
-A URL da Edge Function seria:
-`https://buvhdqpbpbwpzidzmdqh.supabase.co/functions/v1/og-meta?slug=rafasmanutencaoresidencial`
-
-Para funcionar automaticamente no dominio `meupedidonozap.online`, seria necessario configurar um redirect no Netlify apontando bots para a Edge Function. Isso requer configuracao manual no Netlify (nao pode ser feito pelo Lovable).
-
-**Alternativa mais simples**: usar o servico gratuito do `https://prerender.io` ou configurar um Netlify Edge Function (diferente de Supabase Edge Function) que faz o proxy de bots.
-
-### Resultado
-
-- Bots recebem HTML estatico com meta tags corretas da loja
-- Usuarios normais continuam usando a SPA normalmente
-- Preview de links no WhatsApp mostra nome, descricao e logo da loja
+Basicamente: remover o bloco `isBot()` / redirect (linhas 9-62) e ir direto para a busca no banco e geração de HTML para qualquer requisição.
 
