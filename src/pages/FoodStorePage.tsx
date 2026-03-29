@@ -93,6 +93,16 @@ export default function FoodStorePage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <Helmet>
+        <title>{store.name} | MeuPedidoNoZap</title>
+        <meta name="description" content={`Faça seu pedido em ${store.name}. ${store.address || 'Peça online via WhatsApp.'}`} />
+        <link rel="canonical" href={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:title" content={store.name} />
+        <meta property="og:description" content={`Peça online via WhatsApp em ${store.name}`} />
+        <meta property="og:image" content={store.logo || store.banner || 'https://meupedidonozap.lovable.app/placeholder.svg'} />
+        <meta property="og:url" content={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:type" content="website" />
+      </Helmet>
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center justify-between">
           <h1 className="text-lg font-bold">{store.name}</h1>

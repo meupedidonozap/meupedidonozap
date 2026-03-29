@@ -21,6 +21,10 @@ export default function StorePage() {
     );
   }
 
+  // Generic SEO fallback while store-specific pages add their own detailed Helmet
+  const storeName = store?.name || '';
+  const storeDesc = store ? `Faça seu pedido em ${storeName}. ${store.address || 'Peça online via WhatsApp.'}` : 'MeuPedidoNoZap';
+
   if (store?.type === 'COMIDA') {
     return <FoodStorePage />;
   }
