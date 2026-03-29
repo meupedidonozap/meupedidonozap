@@ -1,43 +1,42 @@
 
 
-# SEO: Meta Tags Dinâmicas para Páginas de Loja
+# Edge Function para OG Meta Tags (Preview de Links no WhatsApp)
 
-## Limitação importante
+## Problema
 
-O `vite-plugin-prerender` e `@prerenderer/renderer-puppeteer` **não funcionam** no ambiente de build do Lovable — eles precisam de um navegador headless (Puppeteer/Chromium) rodando no servidor de build, o que não é suportado.
+WhatsApp, Facebook e Twitter não executam JavaScript ao gerar preview de links. Como o app é uma SPA, eles veem apenas as meta tags genéricas do `index.html`.
 
-Porém, a boa notícia: **o Google executa JavaScript** e consegue indexar SPAs com `react-helmet-async`. O projeto já usa `HelmetProvider`. O que falta é adicionar as meta tags dinâmicas nas páginas de loja.
+## Solução
 
-## O que será feito
+Criar uma Edge Function `og-meta` que detecta bots pelo User-Agent e retorna HTML minimalista com as meta tags OG corretas (nome da loja, descrição, logo). Para usuários normais, redireciona para a SPA.
 
-### 1. StorePage.tsx — Meta tags com dados da loja
+O fluxo funciona via Netlify `_redirects`: requisições para `/:slug` passam pela Edge Function primeiro. Se for bot, retorna HTML com OG tags. Se for humano, serve o `index.html` normal.
 
-Adicionar `<Helmet>` com title, description, og:title, og:description, og:image, og:url usando os dados da loja carregada do banco:
+## Implementacao
 
-```html
-<title>{store.name} | MeuPedidoNoZap</title>
-<meta name="description" content="Faça seu pedido em {store.name}. {store.address}" />
-<meta property="og:title" content="{store.name}" />
-<meta property="og:description" content="Peça online via WhatsApp" />
-<meta property="og:image" content="{store.logo || store.banner}" />
-<meta property="og:url" content="https://meupedidonozap.lovable.app/{slug}" />
-```
+### 1. Criar Edge Function `supabase/functions/og-meta/index.ts`
 
-### 2. FoodStorePage.tsx — Mesmas meta tags
+- Recebe `?slug=rafasmanutencaoresidencial`
+- Detecta User-Agent de bots (WhatsApp, facebookexternalhit, Twitterbot, LinkedInBot, Googlebot)
+- Se for bot: busca loja no banco, retorna HTML com `og:title`, `og:description`, `og:image`, `og:url`
+- Se nao for bot: retorna redirect 302 para a SPA
 
-Adicionar `<Helmet>` com dados da loja (já importa dados via `useStoreBySlug`).
+### 2. Atualizar `supabase/config.toml`
 
-### 3. ProductStorePage.tsx — Verificar Helmet existente
+- Adicionar bloco `[functions.og-meta]` com `verify_jwt = false`
 
-Já usa `Helmet` — garantir que as meta tags OG estão completas e corretas.
+### 3. Opcao de uso
 
-### 4. index.html — Meta tags padrão como fallback
+A URL da Edge Function seria:
+`https://buvhdqpbpbwpzidzmdqh.supabase.co/functions/v1/og-meta?slug=rafasmanutencaoresidencial`
 
-Manter as meta tags genéricas atuais como fallback para quando JS não executar.
+Para funcionar automaticamente no dominio `meupedidonozap.online`, seria necessario configurar um redirect no Netlify apontando bots para a Edge Function. Isso requer configuracao manual no Netlify (nao pode ser feito pelo Lovable).
 
-## Resultado
+**Alternativa mais simples**: usar o servico gratuito do `https://prerender.io` ou configurar um Netlify Edge Function (diferente de Supabase Edge Function) que faz o proxy de bots.
 
-- Google, Bing e redes sociais verão as meta tags corretas ao compartilhar links
-- Cada loja terá título, descrição e imagem únicos
-- Para pre-rendering real (HTML estático sem JS), seria necessário um serviço externo como prerender.io ou self-hosting com SSR — mas as meta tags dinâmicas cobrem 95% dos casos de SEO
+### Resultado
+
+- Bots recebem HTML estatico com meta tags corretas da loja
+- Usuarios normais continuam usando a SPA normalmente
+- Preview de links no WhatsApp mostra nome, descricao e logo da loja
 
