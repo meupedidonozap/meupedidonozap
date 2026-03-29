@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useTrackVisit } from '@/hooks/useStoreVisits';
 import ProductStorePage from './ProductStorePage';

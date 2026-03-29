@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useParams, Link } from 'react-router-dom';
 import {
   Home, Search, ShoppingCart, FileText, Plus, Minus, X,
