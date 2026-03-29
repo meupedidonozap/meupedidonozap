@@ -6,60 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const BOT_PATTERNS = [
-  "whatsapp",
-  "facebookexternalhit",
-  "facebookcatalog",
-  "twitterbot",
-  "linkedinbot",
-  "googlebot",
-  "bingbot",
-  "slackbot",
-  "telegrambot",
-  "discordbot",
-  "applebot",
-  "pinterest",
-  "redditbot",
-  "embedly",
-  "showyoubot",
-  "outbrain",
-  "quora link preview",
-  "vkshare",
-  "w3c_validator",
-];
-
-function isBot(userAgent: string): boolean {
-  const ua = userAgent.toLowerCase();
-  return BOT_PATTERNS.some((bot) => ua.includes(bot));
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const url = new URL(req.url);
-  const slug = url.searchParams.get("slug");
-
-  if (!slug) {
-    return new Response(JSON.stringify({ error: "slug is required" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const userAgent = req.headers.get("user-agent") || "";
-
-  // If not a bot, redirect to the SPA
-  if (!isBot(userAgent)) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        ...corsHeaders,
-        Location: `https://meupedidonozap.online/${slug}`,
-      },
-    });
-  }
 
   // Bot detected — fetch store data and return static HTML with OG tags
   const supabase = createClient(
