@@ -6,8 +6,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-  // Bot detected — fetch store data and return static HTML with OG tags
+  const url = new URL(req.url);
+  const slug = url.searchParams.get("slug");
+
+  if (!slug) {
+    return new Response(JSON.stringify({ error: "slug is required" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!
@@ -25,7 +38,7 @@ const corsHeaders = {
       generateHTML(
         "MeuPedidoNoZap",
         "Faça seu pedido online via WhatsApp",
-        "/placeholder.svg",
+        "https://meupedidonozap.online/placeholder.svg",
         `https://meupedidonozap.online/${slug}`
       ),
       {
