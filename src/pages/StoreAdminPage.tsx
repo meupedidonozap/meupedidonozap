@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
-import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
+import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
 import { useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
