@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
-import { useCategories, useCreateCategory, useDeleteCategory } from '@/hooks/useCategories';
+import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
 import { useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
@@ -114,8 +114,11 @@ export default function StoreAdminPage() {
   const updateOrder = useUpdateOrder();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
+  const updateCategory = useUpdateCategory();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -250,6 +253,19 @@ export default function StoreAdminPage() {
       await deleteCategory.mutateAsync(id);
       toast.success('Categoria excluída!');
     }
+  };
+
+  const handleEditCategory = (id: string, name: string) => {
+    setEditingCategoryId(id);
+    setEditingCategoryName(name);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!editingCategoryId || !editingCategoryName.trim()) return;
+    await updateCategory.mutateAsync({ id: editingCategoryId, name: editingCategoryName.trim() });
+    setEditingCategoryId(null);
+    setEditingCategoryName('');
+    toast.success('Categoria atualizada!');
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -533,15 +549,36 @@ export default function StoreAdminPage() {
               {categories.map(category => (
                 <Card key={category.id}>
                   <CardContent className="flex items-center justify-between p-4">
-                    <div>
-                      <p className="font-medium">{category.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {products.filter(p => p.categoryId === category.id).length} produtos
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteCategory(category.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {editingCategoryId === category.id ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <Input
+                          value={editingCategoryName}
+                          onChange={e => setEditingCategoryName(e.target.value)}
+                          className="flex-1"
+                          onKeyDown={e => e.key === 'Enter' && handleSaveCategory()}
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={handleSaveCategory}>Salvar</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingCategoryId(null)}>Cancelar</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="font-medium">{category.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {products.filter(p => p.categoryId === category.id).length} produtos
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditCategory(category.id, category.name)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteCategory(category.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               ))}
