@@ -549,15 +549,36 @@ export default function StoreAdminPage() {
               {categories.map(category => (
                 <Card key={category.id}>
                   <CardContent className="flex items-center justify-between p-4">
-                    <div>
-                      <p className="font-medium">{category.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {products.filter(p => p.categoryId === category.id).length} produtos
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteCategory(category.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {editingCategoryId === category.id ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <Input
+                          value={editingCategoryName}
+                          onChange={e => setEditingCategoryName(e.target.value)}
+                          className="flex-1"
+                          onKeyDown={e => e.key === 'Enter' && handleSaveCategory()}
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={handleSaveCategory}>Salvar</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingCategoryId(null)}>Cancelar</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="font-medium">{category.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {products.filter(p => p.categoryId === category.id).length} produtos
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditCategory(category.id, category.name)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteCategory(category.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               ))}
