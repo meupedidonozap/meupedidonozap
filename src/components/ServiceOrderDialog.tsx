@@ -76,7 +76,6 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
 
   // Reset on close
   const handleOpenChange = (v: boolean) => {
-    if (!v) setInitialized(false);
     onOpenChange(v);
   };
 
