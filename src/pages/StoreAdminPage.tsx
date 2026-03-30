@@ -177,27 +177,33 @@ export default function StoreAdminPage() {
   }, [orders, startDate, endDate]);
 
   const stats = useMemo(() => {
-    // Revenue from regular orders marked as entregue
-    const orderRevenue = filteredOrders.filter(o => o.status === 'entregue').reduce((sum, o) => sum + o.total, 0);
-    
-    // Revenue from service orders marked as pago, filtered by paid_at date
-    const soRevenue = serviceOrders
-      .filter(so => so.status === 'pago' && so.paidAt)
-      .filter(so => {
-        const d = new Date(so.paidAt!);
-        if (startDate && d < startOfDay(startDate)) return false;
-        if (endDate && d > endOfDay(endDate)) return false;
-        return true;
-      })
-      .reduce((sum, so) => sum + so.total, 0);
+    const isServicos = store?.type === 'SERVICOS';
+
+    // For SERVICOS stores, revenue comes ONLY from OS with status 'pago' (orders are mirrors)
+    // For other store types, revenue comes from orders with status 'entregue'
+    let revenue = 0;
+
+    if (isServicos) {
+      revenue = serviceOrders
+        .filter(so => so.status === 'pago' && so.paidAt)
+        .filter(so => {
+          const d = new Date(so.paidAt!);
+          if (startDate && d < startOfDay(startDate)) return false;
+          if (endDate && d > endOfDay(endDate)) return false;
+          return true;
+        })
+        .reduce((sum, so) => sum + so.total, 0);
+    } else {
+      revenue = filteredOrders.filter(o => o.status === 'entregue').reduce((sum, o) => sum + o.total, 0);
+    }
 
     return {
       totalProducts: allProducts.length,
       totalOrders: filteredOrders.length,
       pendingOrders: filteredOrders.filter(o => o.status === 'pendente').length,
-      revenue: orderRevenue + soRevenue,
+      revenue,
     };
-  }, [allProducts, filteredOrders, serviceOrders, startDate, endDate]);
+  }, [allProducts, filteredOrders, serviceOrders, startDate, endDate, store?.type]);
 
   if (storeLoading || adminLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
