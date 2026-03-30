@@ -1,35 +1,12 @@
 
 
-# Permitir Reabrir OS Paga para Edição
+# Destacar botão "Reabrir para Edição"
 
-## Problema
+## Mudança
 
-Atualmente, quando uma OS tem status "pago", a variavel `isLocked = true` bloqueia toda edição. O usuario precisa poder reabrir uma OS paga para corrigir data, adicionar itens esquecidos, etc.
+**Arquivo:** `src/components/ServiceOrderDialog.tsx` (linha 219-228)
 
-## Solucao
+Trocar o botão de `variant="outline"` para um estilo com cor de destaque — usar `className` com fundo verde (`bg-green-600 hover:bg-green-700 text-white`) para chamar atenção do usuario, similar ao destaque vermelho mostrado na screenshot.
 
-Remover o bloqueio total (`isLocked`) e substituir por um fluxo de "reabrir":
-
-### Arquivo: `src/components/ServiceOrderDialog.tsx`
-
-1. **Remover `isLocked`** como bloqueio geral de edição
-2. **Adicionar botão "Reabrir OS"** visivel apenas quando `originalStatus === 'pago'`
-   - Ao clicar, muda o status local para `em_andamento` e habilita a edição
-   - Adiciona estado `const [unlocked, setUnlocked] = useState(false)`
-3. **Nova logica de bloqueio**: `const isLocked = originalStatus === 'pago' && !unlocked`
-   - Se o usuario clicou "Reabrir", `unlocked = true` e pode editar normalmente
-   - A OS so volta a ser salva como "pago" quando o usuario escolher novamente
-4. **Reset `unlocked`** no useEffect de inicializacao (quando abre o dialog)
-
-### Comportamento
-
-- Abrir OS paga → tela mostra dados bloqueados + botao "Reabrir para Edição"
-- Clicar "Reabrir" → status muda para "Em Andamento", campos desbloqueiam
-- Usuario edita itens/extras/observações normalmente
-- Ao salvar, sincroniza pedido como sempre (OS→Pedido)
-- Pode marcar como "pago" novamente com nova data
-
-### Nenhuma outra mudanca
-
-O fluxo de sincronizacao OS↔Pedido, cache do React Query e dashboard permanecem inalterados.
+O banner de aviso também será ajustado para ter borda colorida (`border-amber-300 bg-amber-50`) para reforçar que a OS está bloqueada e a ação de reabrir é importante.
 
