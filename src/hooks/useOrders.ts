@@ -86,9 +86,16 @@ export function useUpdateOrder() {
       if (status) update.status = status;
       if (total !== undefined) update.total = total;
       if (subtotal !== undefined) update.subtotal = subtotal;
-      const { error } = await supabase.from('orders').update(update).eq('id', id);
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
       if (error) throw error;
+      return mapOrder(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: (updated) => {
+      // Immediate cache update
+      qc.setQueryData<Order[]>(['orders', updated.storeId], (old) =>
+        old ? old.map(o => o.id === updated.id ? updated : o) : [updated]
+      );
+      qc.invalidateQueries({ queryKey: ['orders'] });
+    },
   });
 }
