@@ -712,7 +712,7 @@ export default function StoreAdminPage() {
                                       total: order.total,
                                       userId: (order as any).userId || undefined,
                                     });
-                                    setSelectedSO(so);
+                                    setSelectedSOId(so.id);
                                     setSODialogOpen(true);
                                     await updateOrderStatus.mutateAsync({ id: order.id, status: 'confirmado' });
                                     toast.success('OS gerada!');
