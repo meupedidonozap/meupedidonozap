@@ -93,8 +93,7 @@ export default function ProductStorePage() {
   const handleProductClick = (product: Product) => {
     if (product.hasVariants && product.variants && product.variants.length > 0) {
       setSelectedProduct(product);
-      const firstVariant = product.variants[0];
-      setSelectedVariant({ color: firstVariant.color, size: firstVariant.size });
+      setSelectedVariant({});
     } else {
       handleAddToCart(product);
     }
