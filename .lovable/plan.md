@@ -1,16 +1,35 @@
 
 
-# Corrigir Erro de Build: require não definido em ES module
+# Deletar Todos os Produtos da Loja LF Store
 
-## Problema
+## Dados
 
-O `package.json` tem `"type": "module"`, então arquivos `.js` são tratados como ESM. O `require()` não funciona em ESM.
+A loja LF Store (`id: 35dbd4ee-9f38-425c-9222-38794ff36f3d`) possui **1650 produtos** que precisam ser removidos.
 
-## Correção
+## Plano de Execucao
 
-Renomear `scripts/prerender.js` para `scripts/prerender.cjs` e atualizar as referências:
+Executar 3 comandos SQL via insert tool, nesta ordem (para respeitar dependencias):
 
-1. **Renomear** `scripts/prerender.js` → `scripts/prerender.cjs`
-2. **`netlify.toml`**: trocar `node scripts/prerender.js` por `node scripts/prerender.cjs`
-3. **`package.json`**: atualizar o script build para `node scripts/prerender.cjs`
+1. **Deletar imagens dos produtos**
+```sql
+DELETE FROM product_images WHERE product_id IN (
+  SELECT id FROM products WHERE store_id = '35dbd4ee-9f38-425c-9222-38794ff36f3d'
+);
+```
+
+2. **Deletar variantes dos produtos**
+```sql
+DELETE FROM product_variants WHERE product_id IN (
+  SELECT id FROM products WHERE store_id = '35dbd4ee-9f38-425c-9222-38794ff36f3d'
+);
+```
+
+3. **Deletar os produtos**
+```sql
+DELETE FROM products WHERE store_id = '35dbd4ee-9f38-425c-9222-38794ff36f3d';
+```
+
+## Resultado
+
+Todos os 1650 produtos, suas variantes e imagens serao removidos permanentemente da loja LF Store.
 
