@@ -211,14 +211,14 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         </DialogHeader>
 
         {isLocked && (
-          <div className="flex items-center justify-between gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="flex items-center gap-2 font-medium">
               <Lock className="h-4 w-4" />
               OS paga. Você pode reabrir para editar.
             </div>
             <Button
-              variant="outline"
               size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold"
               onClick={() => {
                 setUnlocked(true);
                 setStatus('em_andamento');
