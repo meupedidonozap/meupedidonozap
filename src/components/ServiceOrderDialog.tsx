@@ -41,7 +41,7 @@ interface Props {
   serviceOrder: ServiceOrder | null;
   storeName: string;
   storeWhatsapp: string;
-  onOrderUpdate?: (params: { orderId: string; status: string; total: number }) => Promise<void>;
+  onOrderUpdate?: (params: { orderId: string; status: string; total: number; subtotal: number }) => Promise<void>;
 }
 
 export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, storeName, storeWhatsapp, onOrderUpdate }: Props) {
@@ -157,7 +157,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
           pago: 'entregue',
           cancelada: 'cancelado',
         };
-        await onOrderUpdate({ orderId: serviceOrder.orderId, status: osToOrderMap[status], total: grandTotal });
+        await onOrderUpdate({ orderId: serviceOrder.orderId, status: osToOrderMap[status], total: grandTotal, subtotal: itemsTotal + extrasTotal });
       }
 
       toast.success('OS atualizada!');

@@ -1208,8 +1208,8 @@ export default function StoreAdminPage() {
         serviceOrder={selectedSO}
         storeName={store.name}
         storeWhatsapp={store.whatsapp}
-        onOrderUpdate={async ({ orderId, status, total }) => {
-          await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total });
+        onOrderUpdate={async ({ orderId, status, total, subtotal }) => {
+          await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total, subtotal });
         }}
       />
       <NewOrderDialog
