@@ -56,6 +56,44 @@ export function useUpsertCustomerProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: Omit<CustomerProfile, 'id'>) => {
+      // First check if there's an orphan profile (user_id IS NULL) with matching whatsapp in this store
+      // If found, claim it by setting the user_id instead of creating a duplicate
+      const cleanWhatsapp = profile.whatsapp.replace(/\D/g, '');
+      if (profile.userId && cleanWhatsapp) {
+        const { data: orphan } = await supabase
+          .from('customer_profiles')
+          .select('id')
+          .eq('store_id', profile.storeId)
+          .is('user_id', null)
+          .ilike('whatsapp', `%${cleanWhatsapp.slice(-8)}%`)
+          .maybeSingle();
+        
+        if (orphan) {
+          // Claim this orphan profile by updating it with user data
+          const { data, error } = await supabase
+            .from('customer_profiles')
+            .update({
+              user_id: profile.userId,
+              name: profile.name,
+              cpf_cnpj: profile.cpfCnpj,
+              whatsapp: profile.whatsapp,
+              cep: profile.cep,
+              uf: profile.uf,
+              city: profile.city,
+              neighborhood: profile.neighborhood,
+              address: profile.address,
+              number: profile.number,
+              complement: profile.complement || null,
+            })
+            .eq('id', orphan.id)
+            .select()
+            .single();
+          if (error) throw error;
+          return mapProfile(data);
+        }
+      }
+
+      // Normal upsert (no orphan found)
       const { data, error } = await supabase
         .from('customer_profiles')
         .upsert({
@@ -79,6 +117,7 @@ export function useUpsertCustomerProfile() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['customer-profile', data.userId, data.storeId] });
+      qc.invalidateQueries({ queryKey: ['store-customer-profiles', data.storeId] });
     },
   });
 }
