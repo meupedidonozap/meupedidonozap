@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { ServiceOrder, ServiceOrderExtraItem, ServiceOrderStatus, Product, CartItem } from '@/types';
 import { useUpdateServiceOrder } from '@/hooks/useServiceOrders';
 import { useProducts } from '@/hooks/useProducts';
@@ -51,7 +51,6 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [extraItems, setExtraItems] = useState<ServiceOrderExtraItem[]>([]);
   const [status, setStatus] = useState<ServiceOrderStatus>('aberta');
   const [observations, setObservations] = useState('');
-  const [initialized, setInitialized] = useState(false);
   const [paidDate, setPaidDate] = useState<Date | undefined>();
   const [originalStatus, setOriginalStatus] = useState<ServiceOrderStatus>('aberta');
 
@@ -64,19 +63,19 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [productSearch, setProductSearch] = useState('');
   const [showProductSearch, setShowProductSearch] = useState(false);
 
-  // Initialize from serviceOrder
-  if (serviceOrder && !initialized) {
-    setExtraItems(serviceOrder.extraItems || []);
-    setStatus(serviceOrder.status);
-    setOriginalStatus(serviceOrder.status);
-    setObservations(serviceOrder.observations || '');
-    setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
-    setInitialized(true);
-  }
+  // Reactive initialization: sync whenever the serviceOrder data changes
+  useEffect(() => {
+    if (serviceOrder && open) {
+      setExtraItems(serviceOrder.extraItems || []);
+      setStatus(serviceOrder.status);
+      setOriginalStatus(serviceOrder.status);
+      setObservations(serviceOrder.observations || '');
+      setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
+    }
+  }, [serviceOrder?.id, serviceOrder?.updatedAt, open]);
 
   // Reset on close
   const handleOpenChange = (v: boolean) => {
-    if (!v) setInitialized(false);
     onOpenChange(v);
   };
 

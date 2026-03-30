@@ -123,8 +123,9 @@ export default function StoreAdminPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [selectedSO, setSelectedSO] = useState<ServiceOrder | null>(null);
+  const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [soDialogOpen, setSODialogOpen] = useState(false);
+  const selectedSO = useMemo(() => selectedSOId ? serviceOrders.find(s => s.id === selectedSOId) || null : null, [selectedSOId, serviceOrders]);
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -690,7 +691,7 @@ export default function StoreAdminPage() {
                               if (existingSO) {
                                 return (
                                   <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
-                                    setSelectedSO(existingSO);
+                                    setSelectedSOId(existingSO.id);
                                     setSODialogOpen(true);
                                   }}>
                                     <ClipboardList className="h-3 w-3" /> Abrir OS
@@ -711,7 +712,7 @@ export default function StoreAdminPage() {
                                       total: order.total,
                                       userId: (order as any).userId || undefined,
                                     });
-                                    setSelectedSO(so);
+                                    setSelectedSOId(so.id);
                                     setSODialogOpen(true);
                                     await updateOrderStatus.mutateAsync({ id: order.id, status: 'confirmado' });
                                     toast.success('OS gerada!');
@@ -998,7 +999,7 @@ export default function StoreAdminPage() {
                     </TableHeader>
                     <TableBody>
                       {serviceOrders.map(so => (
-                        <TableRow key={so.id} className="cursor-pointer" onClick={() => { setSelectedSO(so); setSODialogOpen(true); }}>
+                        <TableRow key={so.id} className="cursor-pointer" onClick={() => { setSelectedSOId(so.id); setSODialogOpen(true); }}>
                           <TableCell className="font-medium">#{so.osNumber}</TableCell>
                           <TableCell>{so.customer.name}</TableCell>
                           <TableCell>{so.items.length + so.extraItems.length} itens</TableCell>
@@ -1016,7 +1017,7 @@ export default function StoreAdminPage() {
                           </TableCell>
                           <TableCell>{new Date(so.createdAt).toLocaleDateString('pt-BR')}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSO(so); setSODialogOpen(true); }}>
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }}>
                               <Edit2 className="h-4 w-4" />
                             </Button>
                           </TableCell>

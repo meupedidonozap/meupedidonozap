@@ -118,8 +118,12 @@ export function useUpdateServiceOrder() {
       if (error) throw error;
       return mapRow(data);
     },
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['service-orders', data.storeId] });
+    onSuccess: (updated) => {
+      // Immediate cache update
+      qc.setQueryData<ServiceOrder[]>(['service-orders', updated.storeId], (old) =>
+        old ? old.map(so => so.id === updated.id ? updated : so) : [updated]
+      );
+      qc.invalidateQueries({ queryKey: ['service-orders', updated.storeId] });
     },
   });
 }
