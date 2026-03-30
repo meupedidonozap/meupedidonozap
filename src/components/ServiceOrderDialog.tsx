@@ -55,6 +55,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [originalStatus, setOriginalStatus] = useState<ServiceOrderStatus>('aberta');
 
   // Manual item form
+  const [unlocked, setUnlocked] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
   const [manualQty, setManualQty] = useState('1');
@@ -71,6 +72,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
       setOriginalStatus(serviceOrder.status);
       setObservations(serviceOrder.observations || '');
       setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
+      setUnlocked(false);
     }
   }, [serviceOrder?.id, serviceOrder?.updatedAt, open]);
 
@@ -79,7 +81,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
     onOpenChange(v);
   };
 
-  const isLocked = originalStatus === 'pago';
+  const isLocked = originalStatus === 'pago' && !unlocked;
 
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return products.slice(0, 10);
@@ -209,9 +211,21 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         </DialogHeader>
 
         {isLocked && (
-          <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm text-muted-foreground">
-            <Lock className="h-4 w-4" />
-            OS paga. Para editar, reabra o pedido com status "Preparando".
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              OS paga. Você pode reabrir para editar.
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUnlocked(true);
+                setStatus('em_andamento');
+              }}
+            >
+              Reabrir para Edição
+            </Button>
           </div>
         )}
 
