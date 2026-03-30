@@ -72,6 +72,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
       setOriginalStatus(serviceOrder.status);
       setObservations(serviceOrder.observations || '');
       setPaidDate(serviceOrder.paidAt ? new Date(serviceOrder.paidAt) : undefined);
+      setUnlocked(false);
     }
   }, [serviceOrder?.id, serviceOrder?.updatedAt, open]);
 
