@@ -1,35 +1,27 @@
 
 
-# Deletar Todos os Produtos da Loja LF Store
+# Adicionar Edição de Categorias para Todas as Lojas
 
-## Dados
+## Problema
 
-A loja LF Store (`id: 35dbd4ee-9f38-425c-9222-38794ff36f3d`) possui **1650 produtos** que precisam ser removidos.
+Atualmente, o painel admin de cada loja permite apenas **adicionar** e **excluir** categorias. Não há opção para **renomear** uma categoria existente.
 
-## Plano de Execucao
+## Solução
 
-Executar 3 comandos SQL via insert tool, nesta ordem (para respeitar dependencias):
+Adicionar um botão de edição (ícone de lápis) em cada card de categoria. Ao clicar, o nome da categoria se torna um campo editável inline. O hook `useUpdateCategory` já existe em `useCategories.ts` — só precisa ser usado no `StoreAdminPage.tsx`.
 
-1. **Deletar imagens dos produtos**
-```sql
-DELETE FROM product_images WHERE product_id IN (
-  SELECT id FROM products WHERE store_id = '35dbd4ee-9f38-425c-9222-38794ff36f3d'
-);
-```
+## Mudanças
 
-2. **Deletar variantes dos produtos**
-```sql
-DELETE FROM product_variants WHERE product_id IN (
-  SELECT id FROM products WHERE store_id = '35dbd4ee-9f38-425c-9222-38794ff36f3d'
-);
-```
+### Arquivo: `src/pages/StoreAdminPage.tsx`
 
-3. **Deletar os produtos**
-```sql
-DELETE FROM products WHERE store_id = '35dbd4ee-9f38-425c-9222-38794ff36f3d';
-```
+1. **Importar** `useUpdateCategory` (já existe no hook, só não está importado)
+2. **Adicionar estados** para controlar edição inline: `editingCategoryId` e `editingCategoryName`
+3. **Adicionar funções** `handleEditCategory` (abre edição) e `handleSaveCategory` (salva nome)
+4. **Modificar o card de categoria** (linhas 533-546): adicionar modo de edição inline com Input + botão salvar, e botão de edição (Edit2) ao lado do botão de exclusão
 
-## Resultado
+### Comportamento
 
-Todos os 1650 produtos, suas variantes e imagens serao removidos permanentemente da loja LF Store.
+- Clicar no ícone de lápis → nome vira Input editável com botões Salvar/Cancelar
+- Salvar chama `updateCategory.mutateAsync({ id, name })`
+- Funciona para **todas as lojas** (LOJA, ACESSORIOS, COMIDA, SERVICOS) pois a aba Categorias já é compartilhada
 
