@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { ServiceOrder, ServiceOrderExtraItem, ServiceOrderStatus, Product, CartItem } from '@/types';
 import { useUpdateServiceOrder } from '@/hooks/useServiceOrders';
 import { useProducts } from '@/hooks/useProducts';
