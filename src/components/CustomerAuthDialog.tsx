@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
-import { supabase } from '@/integrations/supabase/client';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { formatPhone, formatCEP } from '@/lib/formatters';
 
