@@ -211,9 +211,21 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
         </DialogHeader>
 
         {isLocked && (
-          <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm text-muted-foreground">
-            <Lock className="h-4 w-4" />
-            OS paga. Para editar, reabra o pedido com status "Preparando".
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              OS paga. Você pode reabrir para editar.
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUnlocked(true);
+                setStatus('em_andamento');
+              }}
+            >
+              Reabrir para Edição
+            </Button>
           </div>
         )}
 
