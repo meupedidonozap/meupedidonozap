@@ -55,6 +55,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
   const [originalStatus, setOriginalStatus] = useState<ServiceOrderStatus>('aberta');
 
   // Manual item form
+  const [unlocked, setUnlocked] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualPrice, setManualPrice] = useState('');
   const [manualQty, setManualQty] = useState('1');
