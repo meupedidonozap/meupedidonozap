@@ -114,8 +114,11 @@ export default function StoreAdminPage() {
   const updateOrder = useUpdateOrder();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
+  const updateCategory = useUpdateCategory();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
