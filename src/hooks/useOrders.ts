@@ -81,10 +81,11 @@ export function useUpdateOrderStatus() {
 export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, total }: { id: string; status?: OrderStatus; total?: number }) => {
+    mutationFn: async ({ id, status, total, subtotal }: { id: string; status?: OrderStatus; total?: number; subtotal?: number }) => {
       const update: any = {};
       if (status) update.status = status;
       if (total !== undefined) update.total = total;
+      if (subtotal !== undefined) update.subtotal = subtotal;
       const { error } = await supabase.from('orders').update(update).eq('id', id);
       if (error) throw error;
     },
