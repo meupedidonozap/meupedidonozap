@@ -41,7 +41,7 @@ interface Props {
   serviceOrder: ServiceOrder | null;
   storeName: string;
   storeWhatsapp: string;
-  onOrderUpdate?: (params: { orderId: string; status: string; total: number }) => Promise<void>;
+  onOrderUpdate?: (params: { orderId: string; status: string; total: number; subtotal: number }) => Promise<void>;
 }
 
 export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, storeName, storeWhatsapp, onOrderUpdate }: Props) {
