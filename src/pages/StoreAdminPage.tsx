@@ -691,7 +691,7 @@ export default function StoreAdminPage() {
                               if (existingSO) {
                                 return (
                                   <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
-                                    setSelectedSO(existingSO);
+                                    setSelectedSOId(existingSO.id);
                                     setSODialogOpen(true);
                                   }}>
                                     <ClipboardList className="h-3 w-3" /> Abrir OS
