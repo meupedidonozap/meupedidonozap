@@ -999,7 +999,7 @@ export default function StoreAdminPage() {
                     </TableHeader>
                     <TableBody>
                       {serviceOrders.map(so => (
-                        <TableRow key={so.id} className="cursor-pointer" onClick={() => { setSelectedSO(so); setSODialogOpen(true); }}>
+                        <TableRow key={so.id} className="cursor-pointer" onClick={() => { setSelectedSOId(so.id); setSODialogOpen(true); }}>
                           <TableCell className="font-medium">#{so.osNumber}</TableCell>
                           <TableCell>{so.customer.name}</TableCell>
                           <TableCell>{so.items.length + so.extraItems.length} itens</TableCell>
