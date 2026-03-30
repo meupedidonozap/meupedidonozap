@@ -157,7 +157,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
           pago: 'entregue',
           cancelada: 'cancelado',
         };
-        await onOrderUpdate({ orderId: serviceOrder.orderId, status: osToOrderMap[status], total: grandTotal });
+        await onOrderUpdate({ orderId: serviceOrder.orderId, status: osToOrderMap[status], total: grandTotal, subtotal: itemsTotal + extrasTotal });
       }
 
       toast.success('OS atualizada!');
