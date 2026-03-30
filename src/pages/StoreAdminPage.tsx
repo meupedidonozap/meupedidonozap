@@ -255,6 +255,19 @@ export default function StoreAdminPage() {
     }
   };
 
+  const handleEditCategory = (id: string, name: string) => {
+    setEditingCategoryId(id);
+    setEditingCategoryName(name);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!editingCategoryId || !editingCategoryName.trim()) return;
+    await updateCategory.mutateAsync({ id: editingCategoryId, name: editingCategoryName.trim() });
+    setEditingCategoryId(null);
+    setEditingCategoryName('');
+    toast.success('Categoria atualizada!');
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
