@@ -123,8 +123,9 @@ export default function StoreAdminPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [selectedSO, setSelectedSO] = useState<ServiceOrder | null>(null);
+  const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [soDialogOpen, setSODialogOpen] = useState(false);
+  const selectedSO = useMemo(() => selectedSOId ? serviceOrders.find(s => s.id === selectedSOId) || null : null, [selectedSOId, serviceOrders]);
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
