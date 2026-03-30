@@ -81,7 +81,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
     onOpenChange(v);
   };
 
-  const isLocked = originalStatus === 'pago';
+  const isLocked = originalStatus === 'pago' && !unlocked;
 
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return products.slice(0, 10);
