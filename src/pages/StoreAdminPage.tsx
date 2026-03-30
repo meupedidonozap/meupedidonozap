@@ -1017,7 +1017,7 @@ export default function StoreAdminPage() {
                           </TableCell>
                           <TableCell>{new Date(so.createdAt).toLocaleDateString('pt-BR')}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSO(so); setSODialogOpen(true); }}>
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }}>
                               <Edit2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
