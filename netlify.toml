@@ -1,3 +1,7 @@
 [build]
   publish = "dist"
   command = "bun run build && node scripts/prerender.cjs"
+
+[[edge_functions]]
+  function = "og-redirect"
+  path = "/*"
