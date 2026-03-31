@@ -7,7 +7,16 @@ let SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.log('[prerender] Vars not in process.env, trying .env file...');
-  require('dotenv').config();
+  try {
+    const envPath = path.join(__dirname, '..', '.env');
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    for (const line of envContent.split('\n')) {
+      const match = line.match(/^(\w+)\s*=\s*"?([^"]*)"?$/);
+      if (match) process.env[match[1]] = match[2];
+    }
+  } catch (e) {
+    console.warn('[prerender] Could not read .env file:', e.message);
+  }
   SUPABASE_URL = process.env.VITE_SUPABASE_URL;
   SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 }
