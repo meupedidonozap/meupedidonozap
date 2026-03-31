@@ -1,8 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Tenta process.env primeiro, se não encontrar carrega do .env
+let SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+let SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.log('[prerender] Vars not in process.env, trying .env file...');
+  require('dotenv').config();
+  SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+  SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+}
+
+console.log('[prerender] VITE_SUPABASE_URL found:', !!SUPABASE_URL);
+console.log('[prerender] VITE_SUPABASE_PUBLISHABLE_KEY found:', !!SUPABASE_KEY);
 
 async function main() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
