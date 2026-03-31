@@ -1,41 +1,69 @@
 
 
-# Corrigir leitura de variáveis de ambiente no prerender.cjs
+# Corrigir SEO e Preview de Links (WhatsApp/Google) de Vez
 
-## Problema
+## Diagnóstico
 
-O script tenta ler `process.env.VITE_SUPABASE_URL` diretamente, mas no Netlify essas variáveis podem não estar definidas no ambiente Node.js. Se não encontrar, o script silenciosamente pula sem gerar as páginas.
+Existem **dois problemas** que impedem o funcionamento:
 
-## Correção
+1. **Edge function não está ativada** — o arquivo `netlify/edge-functions/og-redirect.ts` existe mas NÃO está configurado no `netlify.toml`. Logo, nunca executa.
 
-**Arquivo:** `scripts/prerender.cjs`
+2. **Edge function serve HTML errado para humanos** — atualmente retorna uma página HTML simples do Supabase com um `window.location.href` redirect, causando flash e problemas. Precisa servir OG tags apenas para bots.
 
-1. Adicionar `require('dotenv').config()` como fallback caso `process.env` não tenha as variáveis
-2. Adicionar logs indicando a origem das variáveis (env ou .env file)
-3. Manter o resto do script inalterado
+## Solução: Edge Function com Detecção de Bots
 
-```javascript
-const fs = require('fs');
-const path = require('path');
+A estratégia correta é: bots recebem HTML com meta tags OG, humanos recebem a SPA normalmente.
 
-// Tenta process.env primeiro, se não encontrar carrega do .env
-let SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-let SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+### Arquivo 1: `netlify.toml`
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.log('[prerender] Vars not in process.env, trying .env file...');
-  require('dotenv').config();
-  SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-  SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-}
+Adicionar configuração da edge function:
 
-console.log('[prerender] VITE_SUPABASE_URL found:', !!SUPABASE_URL);
-console.log('[prerender] VITE_SUPABASE_PUBLISHABLE_KEY found:', !!SUPABASE_KEY);
+```toml
+[build]
+  publish = "dist"
+  command = "bun run build && node scripts/prerender.cjs"
+
+[[edge_functions]]
+  function = "og-redirect"
+  path = "/*"
 ```
 
-O `dotenv` já é dependência do Vite, portanto não precisa instalar nada extra.
+### Arquivo 2: `netlify/edge-functions/og-redirect.ts`
 
-## Nota sobre Netlify
+Reescrever com detecção de User-Agent de bots:
 
-O usuário também deve configurar `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` nas variáveis de ambiente do Netlify (Build & deploy → Environment) para que funcione em produção sem depender do `.env`.
+- Lista de bots: WhatsApp, Telegram, Facebook, Twitter, Google, LinkedIn, Discord, Slack, etc.
+- Se User-Agent é bot → buscar OG meta do Supabase edge function → retornar HTML com meta tags
+- Se User-Agent é humano → `context.next()` (serve a SPA normalmente)
+- Remover o hack do `window.location.href` redirect
+
+```text
+Request chega
+  ├─ É bot? (User-Agent check)
+  │   ├─ SIM → busca OG meta do Supabase → retorna HTML com meta tags
+  │   └─ NÃO → context.next() → SPA normal
+  └─ Não tem slug? → context.next()
+```
+
+### Arquivo 3: `public/_redirects`
+
+Manter como está — `/* /index.html 200` serve como fallback para o React Router.
+
+### Prerender continua
+
+O `prerender.cjs` continua funcionando como cache estático para SEO. A edge function atua como camada dinâmica que cobre lojas novas (adicionadas após o último deploy).
+
+## O que o usuário precisa fazer
+
+1. No painel do **Netlify** → Build & deploy → Environment, confirmar que estas variáveis existem:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+2. Após o deploy, testar compartilhando um link de loja no WhatsApp
+
+## Resultado
+
+- Google/bots recebem HTML completo com título, descrição e imagem da loja
+- WhatsApp mostra preview com nome da loja, descrição e logo
+- Usuários humanos continuam usando a SPA normalmente sem flash/redirect
+- Funciona para lojas novas sem precisar rebuildar
 
