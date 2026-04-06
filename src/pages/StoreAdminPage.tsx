@@ -102,6 +102,12 @@ export default function StoreAdminPage() {
   const toggleCustomerActive = useToggleCustomerActive();
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
+  // Sellers (Dicolore)
+  const { data: sellers = [] } = useAllStoreSellers(isAdmin && store?.slug === 'dicolore' ? store?.id : undefined);
+  const createSeller = useCreateStoreSeller();
+  const updateSeller = useUpdateStoreSeller();
+  const deleteSeller = useDeleteStoreSeller();
+
   // Visits analytics state
   const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
     const d = new Date(); d.setDate(d.getDate() - 30); return d;
