@@ -5,6 +5,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useCart } from '@/contexts/CartContext';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
