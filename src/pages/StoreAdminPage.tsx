@@ -156,6 +156,10 @@ export default function StoreAdminPage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  // Sellers state (Dicolore)
+  const [newSellerName, setNewSellerName] = useState('');
+  const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
