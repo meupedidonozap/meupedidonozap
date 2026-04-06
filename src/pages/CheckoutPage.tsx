@@ -206,7 +206,10 @@ export default function CheckoutPage() {
         status: 'pendente',
       });
 
-      openWhatsApp(store.whatsapp, generateOrderMessage());
+      const targetWhatsapp = sellers.length > 0 && selectedSellerId
+        ? (sellers.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
+        : store.whatsapp;
+      openWhatsApp(targetWhatsapp, generateOrderMessage());
       toast.success('Pedido enviado!');
       setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
     } catch (err: any) {
