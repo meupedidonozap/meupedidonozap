@@ -517,6 +517,33 @@ export type Database = {
           },
         ]
       }
+      store_sellers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          store_id: string
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          store_id: string
+          whatsapp: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          store_id?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       store_visits: {
         Row: {
           id: string
