@@ -135,6 +135,10 @@ export default function CheckoutPage() {
         return false;
       }
     }
+    if (sellers.length > 0 && !selectedSellerId) {
+      toast.error('Selecione o vendedor para enviar o pedido');
+      return false;
+    }
     return true;
   };
 
