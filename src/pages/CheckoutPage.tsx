@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const { cart, clearCart, itemDiscounts } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const { data: sellers = [] } = useStoreSellers(store?.id);
   const upsertProfile = useUpsertCustomerProfile();
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
