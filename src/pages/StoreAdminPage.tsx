@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder, useDeleteServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
 import { useStoreVisits } from '@/hooks/useStoreVisits';
+import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
@@ -101,6 +102,12 @@ export default function StoreAdminPage() {
   const toggleCustomerActive = useToggleCustomerActive();
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
+  // Sellers (Dicolore)
+  const { data: sellers = [] } = useAllStoreSellers(isAdmin && store?.slug === 'dicolore' ? store?.id : undefined);
+  const createSeller = useCreateStoreSeller();
+  const updateSeller = useUpdateStoreSeller();
+  const deleteSeller = useDeleteStoreSeller();
+
   // Visits analytics state
   const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
     const d = new Date(); d.setDate(d.getDate() - 30); return d;
@@ -148,6 +155,10 @@ export default function StoreAdminPage() {
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Sellers state (Dicolore)
+  const [newSellerName, setNewSellerName] = useState('');
+  const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
 
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
@@ -987,6 +998,79 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Sellers management - Dicolore only */}
+            {store.slug === 'dicolore' && (
+              <Card className="mt-6">
+                <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Cadastre os vendedores que podem receber pedidos via WhatsApp. O cliente escolherá para quem enviar no checkout.</p>
+                  
+                  {/* Add new seller */}
+                  <div className="flex gap-2 items-end">
+                    <div className="grid gap-1 flex-1">
+                      <Label className="text-xs">Nome</Label>
+                      <Input value={newSellerName} onChange={e => setNewSellerName(e.target.value)} placeholder="Nome do vendedor" />
+                    </div>
+                    <div className="grid gap-1 flex-1">
+                      <Label className="text-xs">WhatsApp</Label>
+                      <Input value={newSellerWhatsapp} onChange={e => setNewSellerWhatsapp(e.target.value)} placeholder="5547999999999" />
+                    </div>
+                    <Button size="sm" disabled={!newSellerName.trim() || !newSellerWhatsapp.trim() || createSeller.isPending} onClick={async () => {
+                      await createSeller.mutateAsync({ store_id: store.id, name: newSellerName.trim(), whatsapp: newSellerWhatsapp.trim() });
+                      setNewSellerName(''); setNewSellerWhatsapp('');
+                      toast.success('Vendedor cadastrado!');
+                    }}>
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+
+                  {/* Sellers list */}
+                  {sellers.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>WhatsApp</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sellers.map(s => (
+                          <TableRow key={s.id}>
+                            <TableCell>{s.name}</TableCell>
+                            <TableCell>{s.whatsapp}</TableCell>
+                            <TableCell>
+                              <Badge className={s.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                                {s.is_active ? 'Ativo' : 'Inativo'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right space-x-1">
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                updateSeller.mutate({ id: s.id, is_active: !s.is_active });
+                                toast.success(s.is_active ? 'Vendedor desativado' : 'Vendedor ativado');
+                              }}>
+                                {s.is_active ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                if (confirm(`Remover vendedor ${s.name}?`)) {
+                                  deleteSeller.mutate({ id: s.id, storeId: store.id });
+                                  toast.success('Vendedor removido');
+                                }
+                              }}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                  {sellers.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum vendedor cadastrado</p>}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Service Orders - only for SERVICOS */}

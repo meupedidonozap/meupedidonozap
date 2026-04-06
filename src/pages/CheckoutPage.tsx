@@ -5,6 +5,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useCart } from '@/contexts/CartContext';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
@@ -35,6 +36,7 @@ export default function CheckoutPage() {
   const { cart, clearCart, itemDiscounts } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const { data: sellers = [] } = useStoreSellers(store?.id);
   const upsertProfile = useUpsertCustomerProfile();
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -47,6 +49,7 @@ export default function CheckoutPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [selectedSellerId, setSelectedSellerId] = useState<string>('');
 
   // Auto-fill from customer profile
   useEffect(() => {
@@ -132,6 +135,10 @@ export default function CheckoutPage() {
         return false;
       }
     }
+    if (sellers.length > 0 && !selectedSellerId) {
+      toast.error('Selecione o vendedor para enviar o pedido');
+      return false;
+    }
     return true;
   };
 
@@ -203,7 +210,10 @@ export default function CheckoutPage() {
         status: 'pendente',
       });
 
-      openWhatsApp(store.whatsapp, generateOrderMessage());
+      const targetWhatsapp = sellers.length > 0 && selectedSellerId
+        ? (sellers.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
+        : store.whatsapp;
+      openWhatsApp(targetWhatsapp, generateOrderMessage());
       toast.success('Pedido enviado!');
       setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
     } catch (err: any) {
@@ -294,6 +304,19 @@ export default function CheckoutPage() {
                     <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>
                   </RadioGroup>
                 </div>
+                {sellers.length > 0 && (
+                  <div className="space-y-3">
+                    <Label>Enviar pedido para</Label>
+                    <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                      <SelectTrigger><SelectValue placeholder="Selecione o vendedor" /></SelectTrigger>
+                      <SelectContent>
+                        {sellers.map(s => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-3">
                   <Label>Turno de Entrega</Label>
                   <RadioGroup value={formData.deliveryShift} onValueChange={value => handleInputChange('deliveryShift', value)} className="flex gap-4">
