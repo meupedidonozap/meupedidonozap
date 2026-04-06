@@ -49,6 +49,7 @@ export default function CheckoutPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [selectedSellerId, setSelectedSellerId] = useState<string>('');
 
   // Auto-fill from customer profile
   useEffect(() => {
