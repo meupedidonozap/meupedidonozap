@@ -157,8 +157,53 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const shippingEnabled = store && (store.type === 'LOJA' || store.type === 'ACESSORIOS') && store.settings.shipping?.enabled;
+  const selectedShippingOption = shippingOptions.find(o => o.code === selectedShipping);
+  const shippingFee = selectedShippingOption?.price || 0;
+  const deliveryFee = shippingEnabled ? shippingFee : (store?.settings.deliveryFee || 0);
+
   const totalDiscount = cart.couponDiscount + cart.quantityDiscount;
-  const totalWithDelivery = cart.total + (store.settings.deliveryFee || 0);
+  const totalWithDelivery = cart.total + deliveryFee;
+
+  const fetchShippingQuote = async (destinyCep: string) => {
+    if (!store || !shippingEnabled || !store.settings.shipping) return;
+    const shipping = store.settings.shipping;
+    if (!shipping.originCep) return;
+
+    setShippingLoading(true);
+    setShippingOptions([]);
+    setSelectedShipping('');
+    setShippingQuoted(false);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('correios-shipping', {
+        body: {
+          originCep: shipping.originCep,
+          destinyCep,
+          weight: shipping.defaultWeight,
+          length: shipping.defaultLength,
+          width: shipping.defaultWidth,
+          height: shipping.defaultHeight,
+        },
+      });
+
+      if (error) throw error;
+
+      const validOptions = (data.options as ShippingOption[]).filter(o => !o.error && o.price > 0);
+      setShippingOptions(validOptions);
+      if (validOptions.length === 1) {
+        setSelectedShipping(validOptions[0].code);
+      }
+      setShippingQuoted(true);
+
+      if (validOptions.length === 0) {
+        toast.error('Não foi possível calcular o frete para este CEP');
+      }
+    } catch {
+      toast.error('Erro ao calcular frete');
+    }
+    setShippingLoading(false);
+  };
 
   const generateOrderMessage = () => {
     return generateWhatsAppMessage({
