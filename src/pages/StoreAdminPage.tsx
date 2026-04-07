@@ -1096,6 +1096,8 @@ export default function StoreAdminPage() {
               </Card>
             )}
 
+            {/* Sellers management - Dicolore only */}
+            {store.slug === 'dicolore' && (
               <Card className="mt-6">
                 <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
