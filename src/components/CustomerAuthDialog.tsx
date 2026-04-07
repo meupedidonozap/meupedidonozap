@@ -89,8 +89,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
     if (error) {
       toast.error(error.message);
     } else if (hasSession) {
-      // Session is active immediately (auto-confirm enabled)
+      // Wait for onAuthStateChange to propagate the user before advancing
       toast.success('Conta criada! Preencha seus dados.');
+      // Small delay to ensure auth state is fully propagated
+      await new Promise(resolve => setTimeout(resolve, 500));
       setStep('profile');
     } else {
       // Needs email confirmation first
@@ -149,7 +151,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       toast.success('Cadastro completo!');
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar perfil');
+      const msg = err.message?.includes('row-level security')
+        ? 'Sua sessão expirou. Feche esta janela, faça login novamente e tente salvar.'
+        : err.message || 'Erro ao salvar perfil';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
