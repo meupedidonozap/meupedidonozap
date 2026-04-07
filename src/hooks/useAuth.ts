@@ -26,7 +26,8 @@ export function useAuth() {
       password,
       options: { emailRedirectTo: window.location.origin },
     });
-    return { user: data?.user ?? null, error };
+    const hasSession = !!data?.session;
+    return { user: data?.user ?? null, hasSession, error };
   };
 
   const signIn = async (email: string, password: string) => {

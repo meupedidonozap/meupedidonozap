@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MailCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { fetchAddressByCep } from '@/lib/cepLookup';
@@ -23,13 +23,14 @@ interface CustomerAuthDialogProps {
   storeId: string;
 }
 
+type Step = 'auth' | 'profile' | 'confirm-email';
+
 export default function CustomerAuthDialog({ open, onOpenChange, storeId }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>('auth');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({ email: '', password: '', confirmPassword: '' });
   const [profileData, setProfileData] = useState({
@@ -40,9 +41,16 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
   // Reset step when dialog closes
   useEffect(() => {
     if (!open) {
-      setStep(1);
+      setStep('auth');
     }
   }, [open]);
+
+  // If user becomes authenticated while on confirm-email step, advance to profile
+  useEffect(() => {
+    if (user && step === 'confirm-email') {
+      setStep('profile');
+    }
+  }, [user, step]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,16 +84,17 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       return;
     }
     setLoading(true);
-    const { user: newUser, error } = await signUp(registerData.email, registerData.password);
+    const { hasSession, error } = await signUp(registerData.email, registerData.password);
     setLoading(false);
     if (error) {
       toast.error(error.message);
-    } else if (newUser) {
-      setPendingUserId(newUser.id);
+    } else if (hasSession) {
+      // Session is active immediately (auto-confirm enabled)
       toast.success('Conta criada! Preencha seus dados.');
-      setStep(2);
+      setStep('profile');
     } else {
-      toast.error('Erro ao criar conta. Tente novamente.');
+      // Needs email confirmation first
+      setStep('confirm-email');
     }
   };
 
@@ -117,15 +126,14 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       toast.error('Preencha os campos obrigatórios');
       return;
     }
-    const effectiveUserId = user?.id ?? pendingUserId;
-    if (!effectiveUserId) {
-      toast.error('Erro de autenticação. Tente novamente.');
+    if (!user?.id) {
+      toast.error('Você precisa estar autenticado. Faça login e tente novamente.');
       return;
     }
     setLoading(true);
     try {
       await upsertProfile.mutateAsync({
-        userId: effectiveUserId,
+        userId: user.id,
         storeId,
         name: profileData.name,
         cpfCnpj: '',
@@ -151,10 +159,14 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{step === 1 ? 'Entrar ou Cadastrar' : 'Complete seu Cadastro'}</DialogTitle>
+          <DialogTitle>
+            {step === 'auth' && 'Entrar ou Cadastrar'}
+            {step === 'profile' && 'Complete seu Cadastro'}
+            {step === 'confirm-email' && 'Verifique seu E-mail'}
+          </DialogTitle>
         </DialogHeader>
 
-        {step === 1 ? (
+        {step === 'auth' && (
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
@@ -197,7 +209,25 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
               </form>
             </TabsContent>
           </Tabs>
-        ) : (
+        )}
+
+        {step === 'confirm-email' && (
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            <MailCheck className="h-12 w-12 text-primary" />
+            <p className="text-sm text-muted-foreground">
+              Enviamos um link de confirmação para <strong>{registerData.email}</strong>.
+              Abra seu e-mail e clique no link para ativar sua conta.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Após confirmar, volte aqui e faça login para completar seu cadastro.
+            </p>
+            <Button variant="outline" className="w-full" onClick={() => setStep('auth')}>
+              Voltar para Login
+            </Button>
+          </div>
+        )}
+
+        {step === 'profile' && (
           <form onSubmit={handleProfileSubmit} className="space-y-4">
             <p className="text-sm text-muted-foreground">Preencha seus dados para finalizar o cadastro.</p>
 
