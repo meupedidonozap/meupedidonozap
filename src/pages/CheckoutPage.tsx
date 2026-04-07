@@ -154,6 +154,10 @@ export default function CheckoutPage() {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
+    if (shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
+      toast.error('Selecione a modalidade de frete');
+      return false;
+    }
     return true;
   };
 
