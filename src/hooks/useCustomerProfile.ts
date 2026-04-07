@@ -67,7 +67,7 @@ export function useUpsertCustomerProfile() {
       // First check if there's an orphan profile (user_id IS NULL) with matching whatsapp in this store
       // If found, claim it by setting the user_id instead of creating a duplicate
       const cleanWhatsapp = profile.whatsapp.replace(/\D/g, '');
-      if (profile.userId && cleanWhatsapp) {
+      if (cleanWhatsapp) {
         const { data: orphan } = await supabase
           .from('customer_profiles')
           .select('id')
