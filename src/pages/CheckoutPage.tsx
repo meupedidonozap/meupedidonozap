@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2, LogIn } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +12,7 @@ import {
   generateWhatsAppMessage, openWhatsApp, downloadTxt,
 } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import type { PaymentMethod, DeliveryShift } from '@/types';
+
+interface ShippingOption {
+  code: string;
+  name: string;
+  price: number;
+  deadline: number;
+  error?: string;
+}
 
 const brazilianStates = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -50,6 +59,12 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+
+  // Shipping state
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<string>('');
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingQuoted, setShippingQuoted] = useState(false);
 
   // Auto-fill from customer profile
   useEffect(() => {
