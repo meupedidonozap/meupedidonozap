@@ -20,7 +20,8 @@ import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCusto
 import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
-import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
+import { fetchAddressByCep } from '@/lib/cepLookup';
+import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
