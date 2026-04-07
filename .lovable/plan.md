@@ -1,62 +1,75 @@
 
-Objetivo: fazer o cadastro funcionar exatamente assim: email + senha → endereço → pedido, sem validação de conta por e-mail.
 
-Status do que validei:
-- Não, o fluxo atual ainda não está 100% validado de ponta a ponta.
-- No código, `src/components/CustomerAuthDialog.tsx` ainda tem a etapa `confirm-email`, o que conflita com o fluxo simples que você pediu.
-- O salvamento do endereço depende de sessão autenticada real, porque a segurança da tabela `customer_profiles` exige `auth.uid() = user_id`.
-- O hook `useUpsertCustomerProfile()` já usa `getUser()` (isso está certo), mas o restante do fluxo ainda não garante cadastro simples com sessão imediata.
+# Adicionar CEP de Origem na Loja + Cotação de Frete no Checkout
 
-Plano de correção
+## Resumo
 
-1. Ajustar a autenticação para cadastro imediato
-- Ativar no backend o cadastro com sessão imediata, sem exigir confirmação de e-mail.
-- Isso é obrigatório para o fluxo simples funcionar de forma estável.
-- Não precisa afrouxar a segurança do banco para isso.
+1. Adicionar campo de CEP no cadastro/configurações da loja (admin)
+2. No checkout de lojas tipo LOJA e ACESSORIOS, quando o cliente digitar o CEP, calcular frete automaticamente usando uma edge function que consulta a API dos Correios
+3. Cliente escolhe entre PAC e SEDEX, e o valor é somado ao total
 
-2. Simplificar o `CustomerAuthDialog`
-- Remover a lógica/etapa `confirm-email`.
-- Depois do `signUp`, só avançar para o formulário de endereço quando a sessão real estiver pronta.
-- Se a sessão não aparecer, mostrar erro claro e impedir avanço para evitar perder pedido/cadastro.
+## Mudanças
 
-3. Fortalecer `useAuth.ts`
-- Parar de depender só do estado local/cached para decidir se o usuário está autenticado.
-- Fazer o hook refletir melhor a sessão real do backend após cadastro/login.
-- Fazer `signUp` retornar um estado confiável de “sessão pronta” antes de liberar o próximo passo.
+### 1. Tipo `StoreSettings` — adicionar configuração de frete
 
-4. Manter `useCustomerProfile.ts` seguro
-- Continuar usando o usuário autenticado real como fonte do `user_id`.
-- Não relaxar a RLS.
-- Garantir mensagem amigável se a sessão não existir, em vez de erro técnico.
+Em `src/types/index.ts`, adicionar ao `StoreSettings`:
 
-5. Revisão de consistência no checkout
-- Conferir `CheckoutPage.tsx` e `useOrders.ts` para garantir que, após salvar o endereço, o pedido também continue vinculado ao usuário sem inconsistência de sessão.
+```typescript
+shipping?: {
+  enabled: boolean;
+  originCep: string;
+  defaultWeight: number;  // kg
+  defaultLength: number;  // cm
+  defaultWidth: number;   // cm
+  defaultHeight: number;  // cm
+}
+```
 
-Validação final que precisa ser feita
-- Teste real na Dicolore com um cliente novo:
-  1. abrir a loja
-  2. criar conta com email e senha
-  3. preencher e salvar endereço
-  4. voltar ao checkout
-  5. enviar pedido
-- Revalidar também:
-  - login com cliente já existente
-  - autofill do endereço
-  - fluxo sem qualquer tela de confirmação de e-mail
+### 2. Admin — campo CEP de origem + config de frete
 
-Arquivos envolvidos
-- `src/components/CustomerAuthDialog.tsx`
-- `src/hooks/useAuth.ts`
-- `src/hooks/useCustomerProfile.ts`
-- `src/hooks/useOrders.ts` (ajuste de consistência, se necessário)
+Em `src/pages/StoreAdminPage.tsx`, na aba Configurações:
+- Substituir o campo "Endereço" (textarea livre) por campos estruturados: **CEP**, UF, Cidade, Bairro, Endereço, Número
+- Auto-preenchimento via ViaCEP (já existe `fetchAddressByCep`)
+- Para lojas tipo LOJA e ACESSORIOS, exibir seção "Frete Correios" com toggle para ativar e campos de peso/dimensões padrão
+- O CEP da loja é salvo em `settings.shipping.originCep` e o endereço completo continua no campo `address`
 
-Detalhe técnico
-- O problema não deve ser resolvido soltando a regra do banco.
-- A correção certa é alinhar autenticação + sessão + fluxo da UI.
-- Para o processo “simples” que você quer, a conta precisa entrar já autenticada, e o endereço só pode salvar depois disso.
+### 3. Edge Function `correios-shipping`
 
-Resultado esperado
-- O cliente cria a conta e segue direto para o endereço.
-- O endereço salva sem erro.
-- O pedido fica vinculado ao cliente.
-- Não existe mais etapa de validação por e-mail nesse fluxo.
+Nova função em `supabase/functions/correios-shipping/index.ts`:
+- Recebe: CEP origem, CEP destino, peso, dimensões
+- Consulta API pública dos Correios (calculador de preços/prazos)
+- Retorna opções PAC e SEDEX com preço e prazo estimado
+- Sem necessidade de API key ou contrato
+
+### 4. Checkout — cotação de frete
+
+Em `src/pages/CheckoutPage.tsx`, para lojas com `settings.shipping?.enabled`:
+- Quando CEP do cliente for digitado (8 dígitos), chamar a edge function
+- Exibir opções de frete (ex: "PAC — R$ 25,90 (8 dias úteis)" / "SEDEX — R$ 45,00 (3 dias úteis)")
+- Cliente seleciona a modalidade
+- Valor do frete substitui a `deliveryFee` fixa no cálculo do total
+- Para lojas sem frete Correios ativado, continua com taxa fixa como hoje
+
+### 5. Nenhuma migração de banco
+
+Tudo fica no JSONB `settings` da tabela `stores` (já existente). O valor do frete já é salvo no campo `delivery_fee` do pedido.
+
+## Fluxo
+
+```text
+Admin configura CEP de origem + peso/dimensões na aba Configurações
+                    ↓
+Cliente no checkout digita CEP → sistema consulta Correios
+                    ↓
+Mostra: PAC (R$ X, Y dias) / SEDEX (R$ X, Y dias)
+                    ↓
+Cliente escolhe → frete somado ao total → pedido salvo com frete real
+```
+
+## Arquivos envolvidos
+
+- `src/types/index.ts` — tipo `shipping` no `StoreSettings`
+- `supabase/functions/correios-shipping/index.ts` — nova edge function
+- `src/pages/StoreAdminPage.tsx` — CEP de origem + config frete
+- `src/pages/CheckoutPage.tsx` — cotação + seleção de frete
+
