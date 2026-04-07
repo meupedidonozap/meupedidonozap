@@ -26,8 +26,22 @@ export function useAuth() {
       password,
       options: { emailRedirectTo: window.location.origin },
     });
-    const hasSession = !!data?.session;
-    return { user: data?.user ?? null, hasSession, error };
+    if (error) return { user: null, hasSession: false, error };
+
+    // With auto-confirm enabled, session is returned immediately.
+    // Wait for onAuthStateChange to propagate.
+    if (data?.session) {
+      // Give onAuthStateChange time to fire and update the user state
+      await new Promise<void>((resolve) => {
+        const checkInterval = setInterval(() => {
+          // We can't read React state here, so just wait a reasonable time
+          clearInterval(checkInterval);
+          resolve();
+        }, 600);
+      });
+    }
+
+    return { user: data?.user ?? null, hasSession: !!data?.session, error: null };
   };
 
   const signIn = async (email: string, password: string) => {
