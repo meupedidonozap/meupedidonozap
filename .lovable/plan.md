@@ -1,58 +1,62 @@
 
+Objetivo: fazer o cadastro funcionar exatamente assim: email + senha → endereço → pedido, sem validação de conta por e-mail.
 
-# Corrigir erro de RLS ao salvar perfil de cliente
+Status do que validei:
+- Não, o fluxo atual ainda não está 100% validado de ponta a ponta.
+- No código, `src/components/CustomerAuthDialog.tsx` ainda tem a etapa `confirm-email`, o que conflita com o fluxo simples que você pediu.
+- O salvamento do endereço depende de sessão autenticada real, porque a segurança da tabela `customer_profiles` exige `auth.uid() = user_id`.
+- O hook `useUpsertCustomerProfile()` já usa `getUser()` (isso está certo), mas o restante do fluxo ainda não garante cadastro simples com sessão imediata.
 
-## Diagnóstico
+Plano de correção
 
-Analisei os logs do banco de dados e encontrei o erro exato:
+1. Ajustar a autenticação para cadastro imediato
+- Ativar no backend o cadastro com sessão imediata, sem exigir confirmação de e-mail.
+- Isso é obrigatório para o fluxo simples funcionar de forma estável.
+- Não precisa afrouxar a segurança do banco para isso.
 
-```
-new row violates row-level security policy for table "customer_profiles"
-```
+2. Simplificar o `CustomerAuthDialog`
+- Remover a lógica/etapa `confirm-email`.
+- Depois do `signUp`, só avançar para o formulário de endereço quando a sessão real estiver pronta.
+- Se a sessão não aparecer, mostrar erro claro e impedir avanço para evitar perder pedido/cadastro.
 
-A query que falhou é o UPSERT executado por `useUpsertCustomerProfile`. Embora o código já verifique a sessão com `supabase.auth.getSession()`, este método retorna a sessão **cacheada localmente**, que pode estar com o token JWT expirado. Quando o Supabase recebe o token expirado, `auth.uid()` retorna NULL, e a política `auth.uid() = user_id` falha.
+3. Fortalecer `useAuth.ts`
+- Parar de depender só do estado local/cached para decidir se o usuário está autenticado.
+- Fazer o hook refletir melhor a sessão real do backend após cadastro/login.
+- Fazer `signUp` retornar um estado confiável de “sessão pronta” antes de liberar o próximo passo.
 
-## Solução
+4. Manter `useCustomerProfile.ts` seguro
+- Continuar usando o usuário autenticado real como fonte do `user_id`.
+- Não relaxar a RLS.
+- Garantir mensagem amigável se a sessão não existir, em vez de erro técnico.
 
-### 1. `src/hooks/useCustomerProfile.ts` — Trocar `getSession` por validação real
+5. Revisão de consistência no checkout
+- Conferir `CheckoutPage.tsx` e `useOrders.ts` para garantir que, após salvar o endereço, o pedido também continue vinculado ao usuário sem inconsistência de sessão.
 
-Substituir `supabase.auth.getSession()` por `supabase.auth.getUser()`, que faz uma chamada real ao servidor de autenticação e garante que o token é válido. Se o token estiver expirado, o Supabase client automaticamente tenta refresh antes de retornar.
+Validação final que precisa ser feita
+- Teste real na Dicolore com um cliente novo:
+  1. abrir a loja
+  2. criar conta com email e senha
+  3. preencher e salvar endereço
+  4. voltar ao checkout
+  5. enviar pedido
+- Revalidar também:
+  - login com cliente já existente
+  - autofill do endereço
+  - fluxo sem qualquer tela de confirmação de e-mail
 
-```typescript
-// ANTES (pode retornar sessão com token expirado):
-const { data: { session } } = await supabase.auth.getSession();
-if (!session?.user) { throw new Error('...'); }
-const authenticatedUserId = session.user.id;
+Arquivos envolvidos
+- `src/components/CustomerAuthDialog.tsx`
+- `src/hooks/useAuth.ts`
+- `src/hooks/useCustomerProfile.ts`
+- `src/hooks/useOrders.ts` (ajuste de consistência, se necessário)
 
-// DEPOIS (valida no servidor):
-const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-if (authError || !authUser) {
-  throw new Error('Sua sessão expirou. Faça login novamente.');
-}
-const authenticatedUserId = authUser.id;
-```
+Detalhe técnico
+- O problema não deve ser resolvido soltando a regra do banco.
+- A correção certa é alinhar autenticação + sessão + fluxo da UI.
+- Para o processo “simples” que você quer, a conta precisa entrar já autenticada, e o endereço só pode salvar depois disso.
 
-### 2. `src/components/CustomerAuthDialog.tsx` — Aguardar sessão real antes do profile step
-
-Após signup com `hasSession: true`, adicionar um pequeno delay ou polling para garantir que `onAuthStateChange` já propagou o `user` antes de liberar o form de perfil. Isso evita que o form apareça antes da sessão estar totalmente ativa.
-
-### 3. Melhorar mensagem de erro
-
-Na `handleProfileSubmit` e no `catch` do upsert, traduzir erros de RLS para mensagens amigáveis:
-
-```typescript
-catch (err: any) {
-  const msg = err.message?.includes('row-level security')
-    ? 'Sua sessão expirou. Feche esta janela, faça login novamente e tente salvar.'
-    : err.message || 'Erro ao salvar perfil';
-  toast.error(msg);
-}
-```
-
-## Resultado esperado
-
-- O token JWT é validado no servidor antes de qualquer operação no banco
-- Se o token expirou, o cliente tenta refresh automaticamente
-- Se o refresh falhar, o usuário recebe mensagem clara para fazer login novamente
-- Novos cadastros funcionam sem erro de RLS
-
+Resultado esperado
+- O cliente cria a conta e segue direto para o endereço.
+- O endereço salva sem erro.
+- O pedido fica vinculado ao cliente.
+- Não existe mais etapa de validação por e-mail nesse fluxo.
