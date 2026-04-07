@@ -46,6 +46,15 @@ export interface Store {
   settings: StoreSettings;
 }
 
+export interface ShippingSettings {
+  enabled: boolean;
+  originCep: string;
+  defaultWeight: number;
+  defaultLength: number;
+  defaultWidth: number;
+  defaultHeight: number;
+}
+
 export interface StoreSettings {
   primaryColor: string;
   accentColor: string;
@@ -56,6 +65,7 @@ export interface StoreSettings {
   acceptBoleto: boolean;
   workingHours: WorkingHours;
   discountRules: DiscountRule[];
+  shipping?: ShippingSettings;
 }
 
 export interface WorkingHours {

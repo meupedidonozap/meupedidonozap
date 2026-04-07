@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2, LogIn } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +12,7 @@ import {
   generateWhatsAppMessage, openWhatsApp, downloadTxt,
 } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import type { PaymentMethod, DeliveryShift } from '@/types';
+
+interface ShippingOption {
+  code: string;
+  name: string;
+  price: number;
+  deadline: number;
+  error?: string;
+}
 
 const brazilianStates = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -50,6 +59,12 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+
+  // Shipping state
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShipping, setSelectedShipping] = useState<string>('');
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingQuoted, setShippingQuoted] = useState(false);
 
   // Auto-fill from customer profile
   useEffect(() => {
@@ -139,11 +154,60 @@ export default function CheckoutPage() {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
+    if (shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
+      toast.error('Selecione a modalidade de frete');
+      return false;
+    }
     return true;
   };
 
+  const shippingEnabled = store && (store.type === 'LOJA' || store.type === 'ACESSORIOS') && store.settings.shipping?.enabled;
+  const selectedShippingOption = shippingOptions.find(o => o.code === selectedShipping);
+  const shippingFee = selectedShippingOption?.price || 0;
+  const deliveryFee = shippingEnabled ? shippingFee : (store?.settings.deliveryFee || 0);
+
   const totalDiscount = cart.couponDiscount + cart.quantityDiscount;
-  const totalWithDelivery = cart.total + (store.settings.deliveryFee || 0);
+  const totalWithDelivery = cart.total + deliveryFee;
+
+  const fetchShippingQuote = async (destinyCep: string) => {
+    if (!store || !shippingEnabled || !store.settings.shipping) return;
+    const shipping = store.settings.shipping;
+    if (!shipping.originCep) return;
+
+    setShippingLoading(true);
+    setShippingOptions([]);
+    setSelectedShipping('');
+    setShippingQuoted(false);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('correios-shipping', {
+        body: {
+          originCep: shipping.originCep,
+          destinyCep,
+          weight: shipping.defaultWeight,
+          length: shipping.defaultLength,
+          width: shipping.defaultWidth,
+          height: shipping.defaultHeight,
+        },
+      });
+
+      if (error) throw error;
+
+      const validOptions = (data.options as ShippingOption[]).filter(o => !o.error && o.price > 0);
+      setShippingOptions(validOptions);
+      if (validOptions.length === 1) {
+        setSelectedShipping(validOptions[0].code);
+      }
+      setShippingQuoted(true);
+
+      if (validOptions.length === 0) {
+        toast.error('Não foi possível calcular o frete para este CEP');
+      }
+    } catch {
+      toast.error('Erro ao calcular frete');
+    }
+    setShippingLoading(false);
+  };
 
   const generateOrderMessage = () => {
     return generateWhatsAppMessage({
@@ -202,7 +266,7 @@ export default function CheckoutPage() {
         })),
         subtotal: cart.subtotal,
         discount: totalDiscount,
-        deliveryFee: store.settings.deliveryFee || 0,
+        deliveryFee,
         total: totalWithDelivery,
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
@@ -269,6 +333,7 @@ export default function CheckoutPage() {
                         if (result) {
                           setFormData(prev => ({ ...prev, uf: result.uf, city: result.city, neighborhood: result.neighborhood, address: result.address }));
                         }
+                        fetchShippingQuote(cleaned);
                       }
                     }} placeholder="00000-000" />
                   </div>
@@ -291,6 +356,44 @@ export default function CheckoutPage() {
                 <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
               </CardContent>
             </Card>
+
+            {/* Shipping options */}
+            {shippingEnabled && (
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> Frete</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {shippingLoading && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Calculando frete...
+                    </div>
+                  )}
+                  {!shippingLoading && !shippingQuoted && (
+                    <p className="text-sm text-muted-foreground">Digite o CEP acima para calcular o frete.</p>
+                  )}
+                  {!shippingLoading && shippingQuoted && shippingOptions.length === 0 && (
+                    <p className="text-sm text-destructive">Não foi possível calcular o frete para este CEP.</p>
+                  )}
+                  {!shippingLoading && shippingOptions.length > 0 && (
+                    <RadioGroup value={selectedShipping} onValueChange={setSelectedShipping} className="space-y-2">
+                      {shippingOptions.map(opt => (
+                        <div key={opt.code} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50">
+                          <RadioGroupItem value={opt.code} id={`shipping-${opt.code}`} />
+                          <Label htmlFor={`shipping-${opt.code}`} className="flex-1 cursor-pointer">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="font-medium">{opt.name}</span>
+                                <span className="text-sm text-muted-foreground ml-2">({opt.deadline} dias úteis)</span>
+                              </div>
+                              <span className="font-semibold">{formatCurrency(opt.price)}</span>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader><CardTitle>Pagamento e Entrega</CardTitle></CardHeader>
@@ -358,7 +461,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
                   {cart.quantityDiscount > 0 && <div className="flex justify-between text-accent"><span>Desc. quantidade</span><span>-{formatCurrency(cart.quantityDiscount)}</span></div>}
                   {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
-                  {store.settings.deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Taxa de entrega</span><span>{formatCurrency(store.settings.deliveryFee)}</span></div>}
+                  {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{selectedShippingOption ? `Frete (${selectedShippingOption.name})` : 'Taxa de entrega'}</span><span>{formatCurrency(deliveryFee)}</span></div>}
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
                 </div>
                 <div className="grid gap-2 pt-4">

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
@@ -20,7 +20,8 @@ import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCusto
 import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
-import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule } from '@/types';
+import { fetchAddressByCep } from '@/lib/cepLookup';
+import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
@@ -160,6 +161,15 @@ export default function StoreAdminPage() {
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
 
+  // Shipping settings state
+  const [shippingEnabled, setShippingEnabled] = useState(false);
+  const [shippingOriginCep, setShippingOriginCep] = useState('');
+  const [shippingWeight, setShippingWeight] = useState('0.5');
+  const [shippingLength, setShippingLength] = useState('20');
+  const [shippingWidth, setShippingWidth] = useState('15');
+  const [shippingHeight, setShippingHeight] = useState('10');
+  const [shippingInitialized, setShippingInitialized] = useState(false);
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
@@ -175,6 +185,19 @@ export default function StoreAdminPage() {
   if (store && !discountRulesInitialized) {
     setDiscountRulesLocal((store.settings.discountRules || []).filter((r: DiscountRule) => r.type === 'group'));
     setDiscountRulesInitialized(true);
+  }
+
+  if (store && !shippingInitialized) {
+    const s = store.settings.shipping;
+    if (s) {
+      setShippingEnabled(s.enabled);
+      setShippingOriginCep(s.originCep || '');
+      setShippingWeight(String(s.defaultWeight || 0.5));
+      setShippingLength(String(s.defaultLength || 20));
+      setShippingWidth(String(s.defaultWidth || 15));
+      setShippingHeight(String(s.defaultHeight || 10));
+    }
+    setShippingInitialized(true);
   }
 
   // Filter orders by date range
@@ -302,6 +325,17 @@ export default function StoreAdminPage() {
 
   const handleSaveSettings = async () => {
     try {
+      const shippingData: ShippingSettings | undefined = (store.type === 'LOJA' || store.type === 'ACESSORIOS')
+        ? {
+            enabled: shippingEnabled,
+            originCep: shippingOriginCep.replace(/\D/g, ''),
+            defaultWeight: parseFloat(shippingWeight) || 0.5,
+            defaultLength: parseFloat(shippingLength) || 20,
+            defaultWidth: parseFloat(shippingWidth) || 15,
+            defaultHeight: parseFloat(shippingHeight) || 10,
+          }
+        : store.settings.shipping;
+
       await updateStore.mutateAsync({
         id: store.id,
         name: settingsName,
@@ -309,6 +343,7 @@ export default function StoreAdminPage() {
         phone: settingsPhone,
         whatsapp: settingsWhatsapp,
         logo: settingsLogo,
+        settings: { ...store.settings, shipping: shippingData },
       });
       toast.success('Configurações salvas!');
     } catch {
@@ -998,6 +1033,68 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Shipping config - LOJA and ACESSORIOS only */}
+            {(store.type === 'LOJA' || store.type === 'ACESSORIOS') && (
+              <Card className="mt-6">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> Frete Correios</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Configure o frete via Correios. O cliente poderá ver a cotação de PAC e SEDEX no checkout.</p>
+                  <div className="flex items-center gap-3">
+                    <Label>Ativar frete Correios</Label>
+                    <button onClick={() => setShippingEnabled(!shippingEnabled)} className="text-muted-foreground hover:text-foreground">
+                      {shippingEnabled ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  {shippingEnabled && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label>CEP de Origem (da loja)</Label>
+                        <Input
+                          value={shippingOriginCep}
+                          onChange={async e => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            const formatted = val.length > 5 ? `${val.slice(0, 5)}-${val.slice(5)}` : val;
+                            setShippingOriginCep(formatted);
+                            if (val.length === 8) {
+                              const result = await fetchAddressByCep(val);
+                              if (result) {
+                                setSettingsAddress(`${result.address}, ${result.neighborhood} - ${result.city}/${result.uf}`);
+                              }
+                            }
+                          }}
+                          placeholder="00000-000"
+                          maxLength={9}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Peso padrão (kg)</Label>
+                          <Input type="number" step="0.1" min="0.1" value={shippingWeight} onChange={e => setShippingWeight(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Comprimento (cm)</Label>
+                          <Input type="number" min="16" value={shippingLength} onChange={e => setShippingLength(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Largura (cm)</Label>
+                          <Input type="number" min="11" value={shippingWidth} onChange={e => setShippingWidth(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Altura (cm)</Label>
+                          <Input type="number" min="2" value={shippingHeight} onChange={e => setShippingHeight(e.target.value)} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Dimensões mínimas dos Correios: 16x11x2 cm, peso mínimo 300g.</p>
+                      <Button onClick={handleSaveSettings} disabled={updateStore.isPending} size="sm">
+                        {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Salvar Configurações de Frete
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Sellers management - Dicolore only */}
             {store.slug === 'dicolore' && (
