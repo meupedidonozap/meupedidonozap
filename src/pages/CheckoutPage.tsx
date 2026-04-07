@@ -461,7 +461,7 @@ export default function CheckoutPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
                   {cart.quantityDiscount > 0 && <div className="flex justify-between text-accent"><span>Desc. quantidade</span><span>-{formatCurrency(cart.quantityDiscount)}</span></div>}
                   {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
-                  {store.settings.deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Taxa de entrega</span><span>{formatCurrency(store.settings.deliveryFee)}</span></div>}
+                  {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{selectedShippingOption ? `Frete (${selectedShippingOption.name})` : 'Taxa de entrega'}</span><span>{formatCurrency(deliveryFee)}</span></div>}
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
                 </div>
                 <div className="grid gap-2 pt-4">
