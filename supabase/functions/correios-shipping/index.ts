@@ -46,90 +46,99 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Weight in grams (API expects grams), minimum 300g
-    const weightGrams = Math.max(Math.round((weight || 0.3) * 1000), 300);
+    const safeWeight = Math.max(weight || 0.3, 0.3);
     const safeLength = Math.max(length || 16, 16);
     const safeWidth = Math.max(width || 11, 11);
     const safeHeight = Math.max(height || 2, 2);
 
     // Service codes: 04510 = PAC, 04014 = SEDEX
-    const serviceCodes = ['04510', '04014'];
-    const serviceNames: Record<string, string> = {
-      '04510': 'PAC',
-      '04014': 'SEDEX',
-    };
+    const services = [
+      { code: '04510', name: 'PAC' },
+      { code: '04014', name: 'SEDEX' },
+    ];
+
+    const params = new URLSearchParams({
+      nCdEmpresa: '',
+      sDsSenha: '',
+      nCdServico: services.map(s => s.code).join(','),
+      sCepOrigem: cleanOrigin,
+      sCepDestino: cleanDestiny,
+      nVlPeso: String(safeWeight),
+      nCdFormato: '1',
+      nVlComprimento: String(safeLength),
+      nVlAltura: String(safeHeight),
+      nVlLargura: String(safeWidth),
+      nVlDiametro: '0',
+      sCdMaoPropria: 'N',
+      nVlValorDeclarado: '0',
+      sCdAvisoRecebimento: 'N',
+      StrRetorno: 'xml',
+    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const url = `http://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx?${params.toString()}`;
+    console.log('Fetching:', url);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    const text = await res.text();
+    console.log('Response length:', text.length);
 
     const options: ShippingOption[] = [];
 
-    for (const code of serviceCodes) {
-      try {
-        const params = new URLSearchParams({
-          nCdEmpresa: '',
-          sDsSenha: '',
-          nCdServico: code,
-          sCepOrigem: cleanOrigin,
-          sCepDestino: cleanDestiny,
-          nVlPeso: String(weightGrams / 1000),
-          nCdFormato: '1',
-          nVlComprimento: String(safeLength),
-          nVlAltura: String(safeHeight),
-          nVlLargura: String(safeWidth),
-          nVlDiametro: '0',
-          sCdMaoPropria: 'N',
-          nVlValorDeclarado: '0',
-          sCdAvisoRecebimento: 'N',
-          StrRetorno: 'xml',
-        });
+    // Parse each cServico block
+    const serviceBlocks = text.match(/<cServico>([\s\S]*?)<\/cServico>/g) || [];
 
-        const url = `http://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx?${params.toString()}`;
-        const res = await fetch(url);
-        const text = await res.text();
+    for (const block of serviceBlocks) {
+      const codeMatch = block.match(/<Codigo>(\d+)<\/Codigo>/);
+      const valorMatch = block.match(/<Valor>([\d.,]+)<\/Valor>/);
+      const prazoMatch = block.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/);
+      const erroMatch = block.match(/<Erro>(\d*)<\/Erro>/);
+      const msgErroMatch = block.match(/<MsgErro>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/MsgErro>/);
 
-        // Parse XML response
-        const valorMatch = text.match(/<Valor>([\d.,]+)<\/Valor>/);
-        const prazoMatch = text.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/);
-        const erroMatch = text.match(/<Erro>(\d+)<\/Erro>/);
-        const msgErroMatch = text.match(/<MsgErro><!\[CDATA\[(.*?)\]\]><\/MsgErro>/);
+      const code = codeMatch ? codeMatch[1] : '';
+      const service = services.find(s => s.code === code);
+      if (!service) continue;
 
-        const erro = erroMatch ? erroMatch[1] : '0';
+      const erro = erroMatch ? erroMatch[1] : '0';
 
-        if (erro === '0' || erro === '') {
-          const valor = valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 0;
-          const prazo = prazoMatch ? parseInt(prazoMatch[1]) : 0;
+      if (erro === '0' || erro === '') {
+        const valor = valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 0;
+        const prazo = prazoMatch ? parseInt(prazoMatch[1]) : 0;
 
-          if (valor > 0) {
-            options.push({
-              code,
-              name: serviceNames[code],
-              price: valor,
-              deadline: prazo,
-            });
-          }
-        } else {
+        if (valor > 0) {
           options.push({
             code,
-            name: serviceNames[code],
-            price: 0,
-            deadline: 0,
-            error: msgErroMatch ? msgErroMatch[1] : `Erro ${erro}`,
+            name: service.name,
+            price: valor,
+            deadline: prazo,
           });
         }
-      } catch (e) {
+      } else {
         options.push({
           code,
-          name: serviceNames[code],
+          name: service.name,
           price: 0,
           deadline: 0,
-          error: 'Erro ao consultar Correios',
+          error: msgErroMatch ? msgErroMatch[1] : `Erro ${erro}`,
         });
       }
+    }
+
+    // If no blocks parsed, try fallback
+    if (options.length === 0 && text.length > 0) {
+      console.log('No cServico blocks found, raw:', text.substring(0, 500));
     }
 
     return new Response(JSON.stringify({ options }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'Erro interno' }), {
+    console.error('Error:', err);
+    return new Response(JSON.stringify({ error: 'Erro ao consultar Correios' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
