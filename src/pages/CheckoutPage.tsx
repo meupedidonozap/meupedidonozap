@@ -266,7 +266,7 @@ export default function CheckoutPage() {
         })),
         subtotal: cart.subtotal,
         discount: totalDiscount,
-        deliveryFee: store.settings.deliveryFee || 0,
+        deliveryFee,
         total: totalWithDelivery,
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
