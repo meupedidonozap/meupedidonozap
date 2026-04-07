@@ -105,7 +105,7 @@ export function useUpsertCustomerProfile() {
       const { data, error } = await supabase
         .from('customer_profiles')
         .upsert({
-          user_id: profile.userId,
+          user_id: authenticatedUserId,
           store_id: profile.storeId,
           name: profile.name,
           cpf_cnpj: profile.cpfCnpj,
