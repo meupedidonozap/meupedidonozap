@@ -51,86 +51,103 @@ Deno.serve(async (req) => {
     const safeWidth = Math.max(width || 11, 11);
     const safeHeight = Math.max(height || 2, 2);
 
-    // Service codes: 04510 = PAC, 04014 = SEDEX
     const services = [
       { code: '04510', name: 'PAC' },
       { code: '04014', name: 'SEDEX' },
     ];
 
-    const params = new URLSearchParams({
-      nCdEmpresa: '',
-      sDsSenha: '',
-      nCdServico: services.map(s => s.code).join(','),
-      sCepOrigem: cleanOrigin,
-      sCepDestino: cleanDestiny,
-      nVlPeso: String(safeWeight),
-      nCdFormato: '1',
-      nVlComprimento: String(safeLength),
-      nVlAltura: String(safeHeight),
-      nVlLargura: String(safeWidth),
-      nVlDiametro: '0',
-      sCdMaoPropria: 'N',
-      nVlValorDeclarado: '0',
-      sCdAvisoRecebimento: 'N',
-      StrRetorno: 'xml',
-    });
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    const url = `http://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx?${params.toString()}`;
-    console.log('Fetching:', url);
-
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    const text = await res.text();
-    console.log('Response length:', text.length);
-
     const options: ShippingOption[] = [];
 
-    // Parse each cServico block
-    const serviceBlocks = text.match(/<cServico>([\s\S]*?)<\/cServico>/g) || [];
+    // Try multiple API endpoints
+    const apis = [
+      `https://www.cepcerto.com/ws/json-frete/${cleanOrigin}/${cleanDestiny}/${safeWeight}/${safeLength}/${safeHeight}/${safeWidth}`,
+    ];
 
-    for (const block of serviceBlocks) {
-      const codeMatch = block.match(/<Codigo>(\d+)<\/Codigo>/);
-      const valorMatch = block.match(/<Valor>([\d.,]+)<\/Valor>/);
-      const prazoMatch = block.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/);
-      const erroMatch = block.match(/<Erro>(\d*)<\/Erro>/);
-      const msgErroMatch = block.match(/<MsgErro>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/MsgErro>/);
+    // Try CepCerto API first (free, no auth needed, fast)
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
-      const code = codeMatch ? codeMatch[1] : '';
-      const service = services.find(s => s.code === code);
-      if (!service) continue;
+      const res = await fetch(apis[0], { signal: controller.signal });
+      clearTimeout(timeout);
 
-      const erro = erroMatch ? erroMatch[1] : '0';
+      const data = await res.json();
+      console.log('CepCerto response:', JSON.stringify(data));
 
-      if (erro === '0' || erro === '') {
-        const valor = valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 0;
-        const prazo = prazoMatch ? parseInt(prazoMatch[1]) : 0;
-
-        if (valor > 0) {
-          options.push({
-            code,
-            name: service.name,
-            price: valor,
-            deadline: prazo,
-          });
-        }
-      } else {
+      if (data.valorpac && parseFloat(data.valorpac) > 0) {
         options.push({
-          code,
-          name: service.name,
-          price: 0,
-          deadline: 0,
-          error: msgErroMatch ? msgErroMatch[1] : `Erro ${erro}`,
+          code: '04510',
+          name: 'PAC',
+          price: parseFloat(data.valorpac.replace(',', '.')),
+          deadline: parseInt(data.prazopac) || 10,
         });
       }
+
+      if (data.valorsedex && parseFloat(data.valorsedex) > 0) {
+        options.push({
+          code: '04014',
+          name: 'SEDEX',
+          price: parseFloat(data.valorsedex.replace(',', '.')),
+          deadline: parseInt(data.prazosedex) || 5,
+        });
+      }
+    } catch (e) {
+      console.error('CepCerto failed:', e);
     }
 
-    // If no blocks parsed, try fallback
-    if (options.length === 0 && text.length > 0) {
-      console.log('No cServico blocks found, raw:', text.substring(0, 500));
+    // Fallback: try Correios WS (may be slow)
+    if (options.length === 0) {
+      try {
+        const params = new URLSearchParams({
+          nCdEmpresa: '',
+          sDsSenha: '',
+          nCdServico: '04510,04014',
+          sCepOrigem: cleanOrigin,
+          sCepDestino: cleanDestiny,
+          nVlPeso: String(safeWeight),
+          nCdFormato: '1',
+          nVlComprimento: String(safeLength),
+          nVlAltura: String(safeHeight),
+          nVlLargura: String(safeWidth),
+          nVlDiametro: '0',
+          sCdMaoPropria: 'N',
+          nVlValorDeclarado: '0',
+          sCdAvisoRecebimento: 'N',
+          StrRetorno: 'xml',
+        });
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        const url = `https://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx?${params.toString()}`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        const text = await res.text();
+        const serviceBlocks = text.match(/<cServico>([\s\S]*?)<\/cServico>/g) || [];
+
+        for (const block of serviceBlocks) {
+          const codeMatch = block.match(/<Codigo>(\d+)<\/Codigo>/);
+          const valorMatch = block.match(/<Valor>([\d.,]+)<\/Valor>/);
+          const prazoMatch = block.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/);
+          const erroMatch = block.match(/<Erro>(\d*)<\/Erro>/);
+
+          const code = codeMatch ? codeMatch[1] : '';
+          const service = services.find(s => s.code === code);
+          if (!service) continue;
+
+          const erro = erroMatch ? erroMatch[1] : '0';
+          if (erro === '0' || erro === '') {
+            const valor = valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 0;
+            const prazo = prazoMatch ? parseInt(prazoMatch[1]) : 0;
+            if (valor > 0) {
+              options.push({ code, name: service.name, price: valor, deadline: prazo });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Correios WS failed:', e);
+      }
     }
 
     return new Response(JSON.stringify({ options }), {
@@ -138,7 +155,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error('Error:', err);
-    return new Response(JSON.stringify({ error: 'Erro ao consultar Correios' }), {
+    return new Response(JSON.stringify({ error: 'Erro ao consultar frete' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
