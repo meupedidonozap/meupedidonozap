@@ -353,7 +353,44 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Shipping options */}
+            {shippingEnabled && (
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> Frete</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {shippingLoading && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Calculando frete...
+                    </div>
+                  )}
+                  {!shippingLoading && !shippingQuoted && (
+                    <p className="text-sm text-muted-foreground">Digite o CEP acima para calcular o frete.</p>
+                  )}
+                  {!shippingLoading && shippingQuoted && shippingOptions.length === 0 && (
+                    <p className="text-sm text-destructive">Não foi possível calcular o frete para este CEP.</p>
+                  )}
+                  {!shippingLoading && shippingOptions.length > 0 && (
+                    <RadioGroup value={selectedShipping} onValueChange={setSelectedShipping} className="space-y-2">
+                      {shippingOptions.map(opt => (
+                        <div key={opt.code} className="flex items-center space-x-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50">
+                          <RadioGroupItem value={opt.code} id={`shipping-${opt.code}`} />
+                          <Label htmlFor={`shipping-${opt.code}`} className="flex-1 cursor-pointer">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="font-medium">{opt.name}</span>
+                                <span className="text-sm text-muted-foreground ml-2">({opt.deadline} dias úteis)</span>
+                              </div>
+                              <span className="font-semibold">{formatCurrency(opt.price)}</span>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
               <CardHeader><CardTitle>Pagamento e Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
