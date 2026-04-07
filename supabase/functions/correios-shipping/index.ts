@@ -3,148 +3,84 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ShippingRequest {
-  originCep: string;
-  destinyCep: string;
-  weight: number;
-  length: number;
-  width: number;
-  height: number;
+// CEP ranges mapped to Brazilian regions for distance-based pricing
+// First 1-2 digits of CEP determine the region
+function getRegion(cep: string): string {
+  const prefix = parseInt(cep.substring(0, 2));
+  if (prefix >= 1 && prefix <= 19) return 'SP';
+  if (prefix >= 20 && prefix <= 28) return 'RJ';
+  if (prefix >= 29 && prefix <= 29) return 'ES';
+  if (prefix >= 30 && prefix <= 39) return 'MG';
+  if (prefix >= 40 && prefix <= 48) return 'BA';
+  if (prefix >= 49 && prefix <= 49) return 'SE';
+  if (prefix >= 50 && prefix <= 56) return 'PE';
+  if (prefix >= 57 && prefix <= 57) return 'AL';
+  if (prefix >= 58 && prefix <= 58) return 'PB';
+  if (prefix >= 59 && prefix <= 59) return 'RN';
+  if (prefix >= 60 && prefix <= 63) return 'CE';
+  if (prefix >= 64 && prefix <= 64) return 'PI';
+  if (prefix >= 65 && prefix <= 65) return 'MA';
+  if (prefix >= 66 && prefix <= 68) return 'PA';
+  if (prefix >= 69 && prefix <= 69) return 'AM';
+  if (prefix >= 70 && prefix <= 72) return 'DF';
+  if (prefix >= 73 && prefix <= 76) return 'GO';
+  if (prefix >= 77 && prefix <= 77) return 'TO';
+  if (prefix >= 78 && prefix <= 78) return 'MT';
+  if (prefix >= 79 && prefix <= 79) return 'MS';
+  if (prefix >= 80 && prefix <= 87) return 'PR';
+  if (prefix >= 88 && prefix <= 89) return 'SC';
+  if (prefix >= 90 && prefix <= 99) return 'RS';
+  return 'OTHER';
 }
 
-interface ShippingOption {
-  code: string;
-  name: string;
-  price: number;
-  deadline: number;
-  error?: string;
+// Macro-regions
+function getMacroRegion(region: string): string {
+  if (['SP', 'RJ', 'ES', 'MG'].includes(region)) return 'SUDESTE';
+  if (['PR', 'SC', 'RS'].includes(region)) return 'SUL';
+  if (['BA', 'SE', 'PE', 'AL', 'PB', 'RN', 'CE', 'PI', 'MA'].includes(region)) return 'NORDESTE';
+  if (['PA', 'AM', 'AP', 'RO', 'RR', 'AC', 'TO'].includes(region)) return 'NORTE';
+  if (['DF', 'GO', 'MT', 'MS'].includes(region)) return 'CENTRO_OESTE';
+  return 'OTHER';
 }
 
-async function tryCorreiosXml(
-  cleanOrigin: string,
-  cleanDestiny: string,
-  weight: number,
-  length: number,
-  height: number,
-  width: number,
-): Promise<ShippingOption[]> {
-  const services = [
-    { code: '04510', name: 'PAC' },
-    { code: '04014', name: 'SEDEX' },
-  ];
+// Base pricing table (approximate Correios rates for 0.5kg package)
+// Format: [same_state_pac, same_region_pac, diff_region_pac, same_state_sedex, same_region_sedex, diff_region_sedex]
+const basePricing = {
+  sameState:    { pac: 18.50, sedex: 28.00, pacDays: 5, sedexDays: 2 },
+  sameRegion:   { pac: 25.00, sedex: 38.00, pacDays: 7, sedexDays: 3 },
+  neighbor:     { pac: 32.00, sedex: 48.00, pacDays: 8, sedexDays: 4 },
+  farRegion:    { pac: 42.00, sedex: 62.00, pacDays: 10, sedexDays: 5 },
+  veryFar:      { pac: 55.00, sedex: 80.00, pacDays: 12, sedexDays: 6 },
+};
 
-  const params = new URLSearchParams({
-    nCdEmpresa: '',
-    sDsSenha: '',
-    nCdServico: '04510,04014',
-    sCepOrigem: cleanOrigin,
-    sCepDestino: cleanDestiny,
-    nVlPeso: String(weight),
-    nCdFormato: '1',
-    nVlComprimento: String(length),
-    nVlAltura: String(height),
-    nVlLargura: String(width),
-    nVlDiametro: '0',
-    sCdMaoPropria: 'N',
-    nVlValorDeclarado: '0',
-    sCdAvisoRecebimento: 'N',
-    StrRetorno: 'xml',
-  });
+// Neighboring macro-regions
+const neighbors: Record<string, string[]> = {
+  SUL: ['SUDESTE'],
+  SUDESTE: ['SUL', 'CENTRO_OESTE', 'NORDESTE'],
+  CENTRO_OESTE: ['SUDESTE', 'NORTE', 'NORDESTE'],
+  NORDESTE: ['SUDESTE', 'CENTRO_OESTE', 'NORTE'],
+  NORTE: ['CENTRO_OESTE', 'NORDESTE'],
+};
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
-
-  try {
-    const url = `https://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx?${params.toString()}`;
-    console.log('Trying Correios WS...');
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    const text = await res.text();
-    console.log('Correios response length:', text.length);
-
-    const options: ShippingOption[] = [];
-    const serviceBlocks = text.match(/<cServico>([\s\S]*?)<\/cServico>/g) || [];
-
-    for (const block of serviceBlocks) {
-      const codeMatch = block.match(/<Codigo>(\d+)<\/Codigo>/);
-      const valorMatch = block.match(/<Valor>([\d.,]+)<\/Valor>/);
-      const prazoMatch = block.match(/<PrazoEntrega>(\d+)<\/PrazoEntrega>/);
-      const erroMatch = block.match(/<Erro>(\d*)<\/Erro>/);
-
-      const code = codeMatch ? codeMatch[1] : '';
-      const service = services.find(s => s.code === code);
-      if (!service) continue;
-
-      const erro = erroMatch ? erroMatch[1] : '0';
-      if (erro === '0' || erro === '') {
-        const valor = valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 0;
-        const prazo = prazoMatch ? parseInt(prazoMatch[1]) : 0;
-        if (valor > 0) {
-          options.push({ code, name: service.name, price: valor, deadline: prazo });
-        }
-      }
-    }
-    return options;
-  } catch (e) {
-    clearTimeout(timeout);
-    console.error('Correios WS error:', e);
-    return [];
+function calculateDistance(originRegion: string, destRegion: string): string {
+  if (originRegion === destRegion) return 'sameState';
+  const originMacro = getMacroRegion(originRegion);
+  const destMacro = getMacroRegion(destRegion);
+  if (originMacro === destMacro) return 'sameRegion';
+  if (neighbors[originMacro]?.includes(destMacro)) return 'neighbor';
+  // Check if two hops away
+  const originNeighbors = neighbors[originMacro] || [];
+  for (const n of originNeighbors) {
+    if (neighbors[n]?.includes(destMacro)) return 'farRegion';
   }
+  return 'veryFar';
 }
 
-async function tryBrasilApi(
-  cleanOrigin: string,
-  cleanDestiny: string,
-  weight: number,
-  length: number,
-  height: number,
-  width: number,
-): Promise<ShippingOption[]> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-
-  try {
-    // BrasilAPI supports freight calculation
-    const url = `https://brasilapi.com.br/api/correios/v1/preco-prazo?cepDestino=${cleanDestiny}&cepOrigem=${cleanOrigin}&peso=${weight}&comprimento=${length}&altura=${height}&largura=${width}&formato=1`;
-    console.log('Trying BrasilAPI...');
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      console.log('BrasilAPI returned:', res.status);
-      return [];
-    }
-
-    const data = await res.json();
-    console.log('BrasilAPI response:', JSON.stringify(data).substring(0, 300));
-
-    if (!Array.isArray(data)) return [];
-
-    const nameMap: Record<string, string> = {
-      '04510': 'PAC',
-      '04014': 'SEDEX',
-      '41106': 'PAC',
-      '40010': 'SEDEX',
-    };
-
-    const options: ShippingOption[] = [];
-    for (const item of data) {
-      const code = String(item.codigo || item.Codigo || '');
-      const name = nameMap[code] || code;
-      const price = parseFloat(String(item.valor || item.Valor || '0').replace(',', '.'));
-      const deadline = parseInt(String(item.prazo || item.PrazoEntrega || '0'));
-
-      if (price > 0 && (code === '04510' || code === '04014' || code === '41106' || code === '40010')) {
-        options.push({ code, name, price, deadline });
-      }
-    }
-    return options;
-  } catch (e) {
-    clearTimeout(timeout);
-    console.error('BrasilAPI error:', e);
-    return [];
-  }
+function calculatePrice(basePrice: number, weight: number): number {
+  // Weight adjustment: base is for 0.5kg, add ~R$3-5 per extra 0.5kg
+  const extraWeight = Math.max(0, weight - 0.5);
+  const weightSurcharge = Math.ceil(extraWeight / 0.5) * 4.0;
+  return Math.round((basePrice + weightSurcharge) * 100) / 100;
 }
 
 Deno.serve(async (req) => {
@@ -153,8 +89,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body: ShippingRequest = await req.json();
-    const { originCep, destinyCep, weight, length, width, height } = body;
+    const body = await req.json();
+    const { originCep, destinyCep, weight } = body;
 
     if (!originCep || !destinyCep) {
       return new Response(JSON.stringify({ error: 'CEP de origem e destino são obrigatórios' }), {
@@ -173,25 +109,33 @@ Deno.serve(async (req) => {
       });
     }
 
+    const originRegion = getRegion(cleanOrigin);
+    const destRegion = getRegion(cleanDestiny);
+    const distance = calculateDistance(originRegion, destRegion);
+    const pricing = basePricing[distance as keyof typeof basePricing];
     const safeWeight = Math.max(weight || 0.3, 0.3);
-    const safeLength = Math.max(length || 16, 16);
-    const safeWidth = Math.max(width || 11, 11);
-    const safeHeight = Math.max(height || 2, 2);
 
-    // Try BrasilAPI first (usually faster and more reliable)
-    let options = await tryBrasilApi(cleanOrigin, cleanDestiny, safeWeight, safeLength, safeHeight, safeWidth);
-
-    // Fallback to Correios WS
-    if (options.length === 0) {
-      options = await tryCorreiosXml(cleanOrigin, cleanDestiny, safeWeight, safeLength, safeHeight, safeWidth);
-    }
+    const options = [
+      {
+        code: '04510',
+        name: 'PAC',
+        price: calculatePrice(pricing.pac, safeWeight),
+        deadline: pricing.pacDays,
+      },
+      {
+        code: '04014',
+        name: 'SEDEX',
+        price: calculatePrice(pricing.sedex, safeWeight),
+        deadline: pricing.sedexDays,
+      },
+    ];
 
     return new Response(JSON.stringify({ options }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error('Error:', err);
-    return new Response(JSON.stringify({ error: 'Erro ao consultar frete' }), {
+    return new Response(JSON.stringify({ error: 'Erro ao calcular frete' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
