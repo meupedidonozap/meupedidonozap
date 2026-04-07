@@ -187,6 +187,19 @@ export default function StoreAdminPage() {
     setDiscountRulesInitialized(true);
   }
 
+  if (store && !shippingInitialized) {
+    const s = store.settings.shipping;
+    if (s) {
+      setShippingEnabled(s.enabled);
+      setShippingOriginCep(s.originCep || '');
+      setShippingWeight(String(s.defaultWeight || 0.5));
+      setShippingLength(String(s.defaultLength || 20));
+      setShippingWidth(String(s.defaultWidth || 15));
+      setShippingHeight(String(s.defaultHeight || 10));
+    }
+    setShippingInitialized(true);
+  }
+
   // Filter orders by date range
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
@@ -312,6 +325,17 @@ export default function StoreAdminPage() {
 
   const handleSaveSettings = async () => {
     try {
+      const shippingData: ShippingSettings | undefined = (store.type === 'LOJA' || store.type === 'ACESSORIOS')
+        ? {
+            enabled: shippingEnabled,
+            originCep: shippingOriginCep.replace(/\D/g, ''),
+            defaultWeight: parseFloat(shippingWeight) || 0.5,
+            defaultLength: parseFloat(shippingLength) || 20,
+            defaultWidth: parseFloat(shippingWidth) || 15,
+            defaultHeight: parseFloat(shippingHeight) || 10,
+          }
+        : store.settings.shipping;
+
       await updateStore.mutateAsync({
         id: store.id,
         name: settingsName,
@@ -319,6 +343,7 @@ export default function StoreAdminPage() {
         phone: settingsPhone,
         whatsapp: settingsWhatsapp,
         logo: settingsLogo,
+        settings: { ...store.settings, shipping: shippingData },
       });
       toast.success('Configurações salvas!');
     } catch {
