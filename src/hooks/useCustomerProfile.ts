@@ -81,7 +81,7 @@ export function useUpsertCustomerProfile() {
           const { data, error } = await supabase
             .from('customer_profiles')
             .update({
-              user_id: profile.userId,
+              user_id: authenticatedUserId,
               name: profile.name,
               cpf_cnpj: profile.cpfCnpj,
               whatsapp: profile.whatsapp,
