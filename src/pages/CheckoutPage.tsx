@@ -329,6 +329,7 @@ export default function CheckoutPage() {
                         if (result) {
                           setFormData(prev => ({ ...prev, uf: result.uf, city: result.city, neighborhood: result.neighborhood, address: result.address }));
                         }
+                        fetchShippingQuote(cleaned);
                       }
                     }} placeholder="00000-000" />
                   </div>
