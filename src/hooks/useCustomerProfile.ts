@@ -56,13 +56,13 @@ export function useUpsertCustomerProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: Omit<CustomerProfile, 'id'>) => {
-      // Verify there's an active authenticated session before touching the DB
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        throw new Error('Você precisa estar autenticado para salvar seu perfil. Faça login e tente novamente.');
+      // Validate session on the server (refreshes token if expired)
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw new Error('Sua sessão expirou. Faça login novamente.');
       }
-      // Use session user_id as source of truth (matches RLS auth.uid())
-      const authenticatedUserId = session.user.id;
+      // Use server-validated user_id as source of truth (matches RLS auth.uid())
+      const authenticatedUserId = authUser.id;
 
       // First check if there's an orphan profile (user_id IS NULL) with matching whatsapp in this store
       // If found, claim it by setting the user_id instead of creating a duplicate
