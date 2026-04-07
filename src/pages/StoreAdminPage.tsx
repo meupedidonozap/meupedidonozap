@@ -1034,8 +1034,68 @@ export default function StoreAdminPage() {
               </CardContent>
             </Card>
 
-            {/* Sellers management - Dicolore only */}
-            {store.slug === 'dicolore' && (
+            {/* Shipping config - LOJA and ACESSORIOS only */}
+            {(store.type === 'LOJA' || store.type === 'ACESSORIOS') && (
+              <Card className="mt-6">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> Frete Correios</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Configure o frete via Correios. O cliente poderá ver a cotação de PAC e SEDEX no checkout.</p>
+                  <div className="flex items-center gap-3">
+                    <Label>Ativar frete Correios</Label>
+                    <button onClick={() => setShippingEnabled(!shippingEnabled)} className="text-muted-foreground hover:text-foreground">
+                      {shippingEnabled ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  {shippingEnabled && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label>CEP de Origem (da loja)</Label>
+                        <Input
+                          value={shippingOriginCep}
+                          onChange={async e => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            const formatted = val.length > 5 ? `${val.slice(0, 5)}-${val.slice(5)}` : val;
+                            setShippingOriginCep(formatted);
+                            if (val.length === 8) {
+                              const result = await fetchAddressByCep(val);
+                              if (result) {
+                                setSettingsAddress(`${result.address}, ${result.neighborhood} - ${result.city}/${result.uf}`);
+                              }
+                            }
+                          }}
+                          placeholder="00000-000"
+                          maxLength={9}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Peso padrão (kg)</Label>
+                          <Input type="number" step="0.1" min="0.1" value={shippingWeight} onChange={e => setShippingWeight(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Comprimento (cm)</Label>
+                          <Input type="number" min="16" value={shippingLength} onChange={e => setShippingLength(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Largura (cm)</Label>
+                          <Input type="number" min="11" value={shippingWidth} onChange={e => setShippingWidth(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Altura (cm)</Label>
+                          <Input type="number" min="2" value={shippingHeight} onChange={e => setShippingHeight(e.target.value)} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Dimensões mínimas dos Correios: 16x11x2 cm, peso mínimo 300g.</p>
+                      <Button onClick={handleSaveSettings} disabled={updateStore.isPending} size="sm">
+                        {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Salvar Configurações de Frete
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
               <Card className="mt-6">
                 <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
