@@ -1,67 +1,34 @@
 
 
-# Seleção de Vendedor no Checkout da Dicolore
+# Corrigir erro no cadastro de clientes
 
-## Resumo
+## Diagnóstico
 
-Criar uma tabela `store_sellers` para cadastrar vendedores (nome + WhatsApp) vinculados à loja. No painel admin da Dicolore, uma seção para gerenciar vendedores. No checkout, se a loja tiver vendedores cadastrados, exibir um seletor para o cliente escolher para quem enviar o pedido via WhatsApp.
-
-## Mudanças
-
-### 1. Nova tabela `store_sellers` (migração)
+O trigger `on_auth_user_created` executa a função `handle_new_user()` toda vez que um usuário se cadastra. Essa função tenta:
 
 ```sql
-CREATE TABLE public.store_sellers (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  store_id uuid NOT NULL,
-  name text NOT NULL,
-  whatsapp text NOT NULL,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.store_sellers ENABLE ROW LEVEL SECURITY;
-
--- Leitura pública (para o checkout)
-CREATE POLICY "Public read active sellers" ON public.store_sellers
-  FOR SELECT TO public USING (is_active = true);
-
--- Admin da loja gerencia
-CREATE POLICY "Store admins manage sellers" ON public.store_sellers
-  FOR ALL TO authenticated
-  USING (is_store_admin(auth.uid(), store_id))
-  WITH CHECK (is_store_admin(auth.uid(), store_id));
+INSERT INTO public.customer_profiles (user_id, email)
+VALUES (new.id, new.email);
 ```
 
-### 2. Hook `useStoreSellers` (novo arquivo)
+**Dois problemas fatais:**
+1. A tabela `customer_profiles` **não tem coluna `email`** — o INSERT falha com "column does not exist"
+2. A coluna `store_id` é **NOT NULL** sem default — mesmo que `email` existisse, falharia por falta de `store_id`
 
-**`src/hooks/useStoreSellers.ts`** — CRUD para vendedores de uma loja usando React Query.
+Resultado: toda tentativa de signup falha silenciosamente no banco.
 
-### 3. Painel Admin — Aba/seção de Vendedores
+## Solução
 
-**`src/pages/StoreAdminPage.tsx`** — Apenas para a loja Dicolore (verificando `store.slug === 'dicolore'`), adicionar uma seção na aba Configurações (ou sub-aba) para listar, adicionar, editar e remover vendedores (nome + WhatsApp).
+**Remover o trigger e a função** — eles são desnecessários porque o perfil do cliente já é criado na etapa 2 do cadastro (via `useUpsertCustomerProfile`), que inclui o `store_id` correto.
 
-### 4. Checkout — Seletor de vendedor
+### Migração SQL
 
-**`src/pages/CheckoutPage.tsx`**:
-- Buscar vendedores ativos da loja via `useStoreSellers`
-- Se houver vendedores cadastrados, exibir um `Select` ou lista de radio buttons na seção "Pagamento e Entrega" para o cliente escolher o vendedor
-- O WhatsApp selecionado substitui `store.whatsapp` na chamada `openWhatsApp(selectedPhone, ...)`
-- Se não houver vendedores, comportamento atual (envia para `store.whatsapp`)
-
-### Fluxo
-
-```text
-Admin cadastra vendedores (nome + whatsapp)
-         ↓
-Cliente no checkout vê lista de vendedores
-         ↓
-Escolhe vendedor → pedido vai para o WhatsApp dele
-         ↓
-Se não há vendedores cadastrados → funciona como hoje (número fixo da loja)
+```sql
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user();
 ```
 
-### Escopo da Dicolore
+### Nenhuma outra mudança
 
-A funcionalidade é genérica (qualquer loja pode ter vendedores), mas a seção no admin só aparece para `slug === 'dicolore'`. Futuramente pode ser liberada para todas.
+O fluxo de cadastro em `CustomerAuthDialog.tsx` + `useUpsertCustomerProfile` já cria o perfil corretamente com todos os campos. Basta remover o trigger que está impedindo o signup.
 
