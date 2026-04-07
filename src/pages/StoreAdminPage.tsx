@@ -161,6 +161,15 @@ export default function StoreAdminPage() {
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
 
+  // Shipping settings state
+  const [shippingEnabled, setShippingEnabled] = useState(false);
+  const [shippingOriginCep, setShippingOriginCep] = useState('');
+  const [shippingWeight, setShippingWeight] = useState('0.5');
+  const [shippingLength, setShippingLength] = useState('20');
+  const [shippingWidth, setShippingWidth] = useState('15');
+  const [shippingHeight, setShippingHeight] = useState('10');
+  const [shippingInitialized, setShippingInitialized] = useState(false);
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
