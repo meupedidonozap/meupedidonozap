@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, MailCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { fetchAddressByCep } from '@/lib/cepLookup';
@@ -23,7 +23,7 @@ interface CustomerAuthDialogProps {
   storeId: string;
 }
 
-type Step = 'auth' | 'profile' | 'confirm-email';
+type Step = 'auth' | 'profile';
 
 export default function CustomerAuthDialog({ open, onOpenChange, storeId }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
@@ -44,13 +44,6 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       setStep('auth');
     }
   }, [open]);
-
-  // If user becomes authenticated while on confirm-email step, advance to profile
-  useEffect(() => {
-    if (user && step === 'confirm-email') {
-      setStep('profile');
-    }
-  }, [user, step]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,14 +82,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
     if (error) {
       toast.error(error.message);
     } else if (hasSession) {
-      // Wait for onAuthStateChange to propagate the user before advancing
       toast.success('Conta criada! Preencha seus dados.');
-      // Small delay to ensure auth state is fully propagated
-      await new Promise(resolve => setTimeout(resolve, 500));
       setStep('profile');
     } else {
-      // Needs email confirmation first
-      setStep('confirm-email');
+      toast.error('Não foi possível criar a conta. Tente novamente.');
     }
   };
 
@@ -129,7 +118,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       return;
     }
     if (!user?.id) {
-      toast.error('Você precisa estar autenticado. Faça login e tente novamente.');
+      toast.error('Sessão não encontrada. Feche esta janela, faça login e tente novamente.');
       return;
     }
     setLoading(true);
@@ -167,7 +156,6 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
           <DialogTitle>
             {step === 'auth' && 'Entrar ou Cadastrar'}
             {step === 'profile' && 'Complete seu Cadastro'}
-            {step === 'confirm-email' && 'Verifique seu E-mail'}
           </DialogTitle>
         </DialogHeader>
 
@@ -214,22 +202,6 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
               </form>
             </TabsContent>
           </Tabs>
-        )}
-
-        {step === 'confirm-email' && (
-          <div className="flex flex-col items-center gap-4 py-6 text-center">
-            <MailCheck className="h-12 w-12 text-primary" />
-            <p className="text-sm text-muted-foreground">
-              Enviamos um link de confirmação para <strong>{registerData.email}</strong>.
-              Abra seu e-mail e clique no link para ativar sua conta.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Após confirmar, volte aqui e faça login para completar seu cadastro.
-            </p>
-            <Button variant="outline" className="w-full" onClick={() => setStep('auth')}>
-              Voltar para Login
-            </Button>
-          </div>
         )}
 
         {step === 'profile' && (
