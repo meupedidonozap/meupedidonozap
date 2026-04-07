@@ -56,10 +56,18 @@ export function useUpsertCustomerProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: Omit<CustomerProfile, 'id'>) => {
+      // Verify there's an active authenticated session before touching the DB
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('Você precisa estar autenticado para salvar seu perfil. Faça login e tente novamente.');
+      }
+      // Use session user_id as source of truth (matches RLS auth.uid())
+      const authenticatedUserId = session.user.id;
+
       // First check if there's an orphan profile (user_id IS NULL) with matching whatsapp in this store
       // If found, claim it by setting the user_id instead of creating a duplicate
       const cleanWhatsapp = profile.whatsapp.replace(/\D/g, '');
-      if (profile.userId && cleanWhatsapp) {
+      if (cleanWhatsapp) {
         const { data: orphan } = await supabase
           .from('customer_profiles')
           .select('id')
@@ -73,7 +81,7 @@ export function useUpsertCustomerProfile() {
           const { data, error } = await supabase
             .from('customer_profiles')
             .update({
-              user_id: profile.userId,
+              user_id: authenticatedUserId,
               name: profile.name,
               cpf_cnpj: profile.cpfCnpj,
               whatsapp: profile.whatsapp,
@@ -97,7 +105,7 @@ export function useUpsertCustomerProfile() {
       const { data, error } = await supabase
         .from('customer_profiles')
         .upsert({
-          user_id: profile.userId,
+          user_id: authenticatedUserId,
           store_id: profile.storeId,
           name: profile.name,
           cpf_cnpj: profile.cpfCnpj,
