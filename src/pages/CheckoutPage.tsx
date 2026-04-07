@@ -391,6 +391,7 @@ export default function CheckoutPage() {
               </Card>
             )}
 
+            <Card>
               <CardHeader><CardTitle>Pagamento e Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
