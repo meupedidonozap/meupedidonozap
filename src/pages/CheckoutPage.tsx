@@ -456,7 +456,7 @@ export default function CheckoutPage() {
                       <span className="shrink-0">{formatCurrency(discountedPrice * item.quantity)}</span>
                     </div>
                     );
-                  ))}
+                  })}
                 </div>
                 <div className="border-t pt-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
