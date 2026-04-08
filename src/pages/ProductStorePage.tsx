@@ -73,10 +73,13 @@ export default function ProductStorePage() {
     const variantData = variant && product.hasVariants
       ? product.variants?.find(v => v.color === variant.color && v.size === variant.size)
       : null;
+    // Resolve groupId: usa group_id do produto, senão usa o nome da categoria
+    const category = categories.find(c => c.id === product.categoryId);
+    const resolvedGroupId = product.groupId || category?.name || undefined;
     addItem({
       productId: product.id,
       variantId: variantData?.id,
-      groupId: product.groupId,
+      groupId: resolvedGroupId,
       name: product.name,
       code: product.code,
       color: variant?.color,

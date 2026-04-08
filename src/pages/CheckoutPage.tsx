@@ -217,7 +217,7 @@ export default function CheckoutPage() {
         address: `${formData.address}, ${formData.number}`,
         neighborhood: formData.neighborhood, city: formData.city, uf: formData.uf, cep: formData.cep,
       },
-      items: cart.items.map(item => ({ code: item.code, name: item.name, quantity: item.quantity, price: item.price, size: item.size, color: item.color })),
+      items: cart.items.map(item => ({ code: item.code, name: item.name, quantity: item.quantity, price: item.price, discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || 0 })),
       subtotal: cart.subtotal,
       discount: cart.couponDiscount,
       total: totalWithDelivery,
@@ -441,21 +441,22 @@ export default function CheckoutPage() {
               <CardHeader><CardTitle>Resumo do Pedido</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="max-h-48 space-y-2 overflow-auto">
-                  {cart.items.map(item => (
+                  {cart.items.map(item => {
+                    const itemKey = `${item.productId}-${item.variantId || ''}`;
+                    const discPct = itemDiscounts[itemKey] || 0;
+                    const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+                    return (
                     <div key={`${item.productId}-${item.variantId}`} className="flex justify-between text-sm gap-2">
                       <div className="text-muted-foreground min-w-0">
                         <div>{item.quantity}x {item.name}</div>
-                        {(item.size || item.color) && (
-                          <div className="text-xs opacity-70 mt-0.5">
-                            {item.size && <span>Tam: {item.size}</span>}
-                            {item.size && item.color && <span className="mx-1">•</span>}
-                            {item.color && <span>Cor: {item.color}</span>}
-                          </div>
+                        {discPct > 0 && (
+                          <div className="text-xs text-accent mt-0.5">-{discPct}%</div>
                         )}
                       </div>
-                      <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
+                      <span className="shrink-0">{formatCurrency(discountedPrice * item.quantity)}</span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="border-t pt-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
