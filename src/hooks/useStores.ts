@@ -94,8 +94,9 @@ export function useUpdateStore() {
       if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
       if (updates.banner !== undefined) dbUpdates.banner = updates.banner;
 
-      const { error } = await supabase.from('stores').update(dbUpdates).eq('id', id);
+      const { data, error } = await supabase.from('stores').update(dbUpdates).eq('id', id).select('id').single();
       if (error) throw error;
+      if (!data) throw new Error('Não foi possível atualizar a loja. Verifique suas permissões.');
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['stores'] }),
   });
