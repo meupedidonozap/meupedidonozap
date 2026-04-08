@@ -33,10 +33,7 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
       const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
       const itemTotal = discountedPrice * item.quantity;
       const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
-      const variantParts: string[] = [];
-      if (item.size) variantParts.push(`Tam: ${item.size}`);
-      if (item.color) variantParts.push(`Cor: ${item.color}`);
-      const variantLine = variantParts.length > 0 ? `<div style="padding-left:16px">${variantParts.join('  |  ')}</div>` : '';
+      const variantLine = '';
       const discountLine = discPct > 0
         ? `<div style="padding-left:16px;text-decoration:line-through;color:#999">${formatCurrency(item.price)} un.</div>
            <div style="padding-left:16px;font-weight:bold">-${discPct}% → ${formatCurrency(discountedPrice)} un.</div>`
@@ -146,8 +143,6 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.code || '-'}</td>
-        <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.size || '-'}</td>
-        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.color || '-'}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${priceCell}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${formatCurrency(itemTotal)}</td>
@@ -218,8 +213,6 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
           <th style="text-align:center;width:32px">#</th>
           <th>Produto</th>
           <th style="width:80px">Código</th>
-          <th style="text-align:center;width:50px">Tam</th>
-          <th style="width:70px">Cor</th>
           <th style="text-align:center;width:40px">Qtd</th>
           <th style="text-align:right;width:85px">Preço Unit.</th>
           <th style="text-align:right;width:85px">Total</th>

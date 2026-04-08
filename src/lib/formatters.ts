@@ -76,8 +76,7 @@ export function generateWhatsAppMessage(order: {
     name: string;
     quantity: number;
     price: number;
-    size?: string;
-    color?: string;
+    discountPercent?: number;
   }>;
   subtotal: number;
   discount: number;
@@ -104,25 +103,34 @@ export function generateWhatsAppMessage(order: {
   let message = `PEDIDO ${order.storeName.toUpperCase()} - ${dateStr}\n`;
   message += `================================\n`;
   message += `CLIENTE: ${order.customer.name}\n`;
-  message += `CPF/CNPJ: ${order.customer.cpfCnpj} | Tel: ${order.customer.whatsapp}\n`;
+  if (order.customer.cpfCnpj) {
+    message += `CPF/CNPJ: ${order.customer.cpfCnpj} | Tel: ${order.customer.whatsapp}\n`;
+  } else {
+    message += `Tel: ${order.customer.whatsapp}\n`;
+  }
   message += `Endereço: ${order.customer.address} - ${order.customer.neighborhood} - ${order.customer.cep} ${order.customer.city}/${order.customer.uf}\n`;
   message += `Pagamento: ${paymentMap[order.paymentMethod] || order.paymentMethod} | Entrega: ${shiftMap[order.deliveryShift] || order.deliveryShift}\n`;
   message += `\n`;
   message += `ITENS DO PEDIDO\n`;
   message += `--------------------------------\n`;
-  message += `# | Código        | Produto               | Tam | Cor       | Qtd | Unit       | Total\n`;
+  message += `# | Código | Produto | Qtd | Unit | Total\n`;
   message += `--------------------------------\n`;
 
   order.items.forEach((item, index) => {
-    const total = item.price * item.quantity;
-    const tamStr = (item.size || '-').slice(0, 10).padEnd(3);
-    const corStr = (item.color || '-').slice(0, 9);
-    message += `${index + 1} | ${item.code.slice(0, 13)} | ${item.name.slice(0, 21)} | ${tamStr} | ${corStr} | ${item.quantity} | ${formatCurrency(item.price)} | ${formatCurrency(total)}\n`;
+    const discPct = item.discountPercent || 0;
+    const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+    const total = discountedPrice * item.quantity;
+    const priceStr = discPct > 0
+      ? `${formatCurrency(discountedPrice)} (-${discPct}%)`
+      : formatCurrency(item.price);
+    message += `${index + 1} | ${item.code.slice(0, 13)} | ${item.name.slice(0, 21)} | ${item.quantity} | ${priceStr} | ${formatCurrency(total)}\n`;
   });
 
   message += `--------------------------------\n`;
   message += `Subtotal: ${formatCurrency(order.subtotal)}\n`;
-  message += `Desconto: -${formatCurrency(order.discount)}\n`;
+  if (order.discount > 0) {
+    message += `Desconto: -${formatCurrency(order.discount)}\n`;
+  }
   message += `\n`;
   message += `TOTAL:    ${formatCurrency(order.total)}\n`;
 
