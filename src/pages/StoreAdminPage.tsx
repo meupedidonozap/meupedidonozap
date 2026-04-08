@@ -384,8 +384,9 @@ export default function StoreAdminPage() {
         settings: { ...store.settings, discountRules: allRules },
       });
       toast.success('Regras de desconto salvas!');
-    } catch {
-      toast.error('Erro ao salvar regras');
+    } catch (err: any) {
+      console.error('Erro ao salvar regras:', err);
+      toast.error(err?.message || 'Erro ao salvar regras');
     }
     setSavingRules(false);
   };
