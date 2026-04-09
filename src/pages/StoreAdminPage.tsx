@@ -1163,6 +1163,28 @@ export default function StoreAdminPage() {
               </Card>
             )}
 
+            {/* Otimizar Imagens */}
+            <Card className="mt-6">
+              <CardHeader><CardTitle>Otimizar Imagens</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Recomprime todas as imagens dos produtos para carregar mais rápido na vitrine. Imagens já otimizadas (menos de 100KB) serão ignoradas.
+                </p>
+                {optimizing && optimizeTotal > 0 && (
+                  <div className="space-y-2">
+                    <Progress value={(optimizeProgress / optimizeTotal) * 100} className="h-3" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Otimizando {optimizeProgress} de {optimizeTotal}...
+                    </p>
+                  </div>
+                )}
+                <Button onClick={handleOptimizeImages} disabled={optimizing} size="sm" variant="outline">
+                  {optimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {optimizing ? 'Otimizando...' : 'Otimizar Imagens'}
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Sellers management - Dicolore only */}
             {store.slug === 'dicolore' && (
               <Card className="mt-6">
