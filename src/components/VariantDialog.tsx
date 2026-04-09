@@ -84,7 +84,7 @@ export default function VariantDialog({
                   {images.map((img, i) => (
                     <CarouselItem key={img.id || i}>
                       <div className="aspect-square overflow-hidden rounded-lg bg-muted">
-                        <img src={img.imageUrl} alt={img.label || product.name} className="h-full w-full object-cover" />
+                        <img src={img.imageUrl} alt={img.label || product.name} loading="lazy" className="h-full w-full object-cover" />
                       </div>
                     </CarouselItem>
                   ))}
@@ -113,7 +113,7 @@ export default function VariantDialog({
             </div>
           ) : product.image ? (
             <div className="flex justify-center">
-              <img src={product.image} alt={product.name} className="h-48 w-48 rounded-lg object-cover" />
+              <img src={product.image} alt={product.name} loading="lazy" className="h-48 w-48 rounded-lg object-cover" />
             </div>
           ) : null}
 
