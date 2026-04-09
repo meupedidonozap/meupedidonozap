@@ -1,43 +1,43 @@
 
 
-# Mensagem WhatsApp compacta para pedidos extensos
+# Otimizar performance de imagens na loja
 
-## Formato proposto
+## Problema
 
-```text
-📋 *PEDIDO DICOLORE PROFISSIONAL*
-📅 08/04/2026, 17:29
+As imagens são enviadas no tamanho original (sem compressão) e todas carregam de uma vez na página, causando lentidão.
 
-👤 DENIS TESTE 2
-📱 (47) 99717-8657
-📍 Rod. Dep. Antônio Heil, 542 - Limoeiro
-    88352-502 Brusque/SC
-💳 PIX | 🚚 Tarde
+## Solução (duas frentes)
 
-━━━━━━━━━━━━━━━━━━
-📦 *ITENS (3)*
-━━━━━━━━━━━━━━━━━━
-• 000 Extra Clareador C | 6un | R$ 18,90 → *R$ 17,96* (-5%) | *R$ 107,73*
-• OX 20 Vol 900ml | 2un | R$ 25,00 | *R$ 50,00*
-• Máscara Hidratante | 1un | R$ 38,50 | *R$ 38,50*
-━━━━━━━━━━━━━━━━━━
+### 1. Comprimir imagens no upload (`src/lib/storage.ts`)
 
-Subtotal: R$ 196,23
-💰 *TOTAL: R$ 196,23*
-```
+Antes de enviar ao storage, redimensionar e comprimir a imagem no navegador usando Canvas:
+- Resolução máxima: 800x800px (suficiente para vitrine)
+- Formato: WebP (70-80% menor que JPEG)
+- Qualidade: 0.8
+- Fallback para JPEG se o navegador não suportar WebP
 
-## O que muda
+Isso reduz imagens de 2-5MB para 50-150KB.
 
-- Cada item em **uma linha só** com bullet `•`: nome | qtd | preço | total
-- Sem cabeçalho de tabela, sem numeração sequencial, sem pipes duplos
-- Desconto inline: preço original → preço com desconto (-X%)
-- Emojis para seções (📋📦💳🚚💰)
-- Negrito WhatsApp (`*texto*`) nos valores importantes
-- CPF/CNPJ só aparece se preenchido
-- Separadores com `━` (mais limpo que `---`)
-- Contador de itens no cabeçalho da seção
+### 2. Lazy loading nas imagens da vitrine (`src/pages/ProductStorePage.tsx`)
 
-## Arquivo modificado
+Adicionar `loading="lazy"` em todas as tags `<img>` da listagem de produtos (list view e grid view). O navegador só carrega a imagem quando ela está prestes a aparecer na tela.
 
-- `src/lib/formatters.ts` — reescrever `generateWhatsAppMessage`
+Também adicionar nos componentes:
+- `src/components/VariantDialog.tsx` — imagens do carrossel
+
+### 3. Recomprimir imagens existentes (script único)
+
+Criar um botão no admin "Otimizar imagens" que reprocessa as imagens já salvas, ou orientar o usuário que as novas fotos já serão otimizadas e as antigas podem ser reenviadas gradualmente.
+
+## Arquivos modificados
+
+- `src/lib/storage.ts` — adicionar função de compressão com Canvas antes do upload
+- `src/pages/ProductStorePage.tsx` — `loading="lazy"` nas `<img>`
+- `src/components/VariantDialog.tsx` — `loading="lazy"` nas `<img>`
+
+## Resultado esperado
+
+- Upload de fotos 5-10x menor em tamanho
+- Página carrega muito mais rápido (imagens só carregam quando visíveis)
+- Qualidade visual mantida para o contexto de vitrine
 
