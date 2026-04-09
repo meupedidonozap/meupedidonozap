@@ -46,7 +46,8 @@ import {
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { printOrder } from '@/lib/printOrder';
-import { uploadProductImage } from '@/lib/storage';
+import { uploadProductImage, recompressExistingImage } from '@/lib/storage';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -161,6 +162,10 @@ export default function StoreAdminPage() {
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
 
+  // Image optimization state
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeProgress, setOptimizeProgress] = useState(0);
+  const [optimizeTotal, setOptimizeTotal] = useState(0);
   // Shipping settings state
   const [shippingEnabled, setShippingEnabled] = useState(false);
   const [shippingOriginCep, setShippingOriginCep] = useState('');
@@ -349,6 +354,63 @@ export default function StoreAdminPage() {
     } catch {
       toast.error('Erro ao salvar');
     }
+  };
+
+  const handleOptimizeImages = async () => {
+    if (optimizing) return;
+    setOptimizing(true);
+    setOptimizeProgress(0);
+
+    try {
+      const imageUrls: string[] = [];
+
+      // Get product IDs and main images
+      const { data: prods } = await supabase
+        .from('products')
+        .select('id, image_url')
+        .eq('store_id', store.id);
+
+      const productIds = (prods || []).map(p => p.id);
+      for (const p of prods || []) {
+        if (p.image_url) imageUrls.push(p.image_url);
+      }
+
+      // Get additional product images
+      if (productIds.length > 0) {
+        const { data: prodImages } = await supabase
+          .from('product_images')
+          .select('image_url')
+          .in('product_id', productIds);
+
+        for (const pi of prodImages || []) {
+          if (pi.image_url) imageUrls.push(pi.image_url);
+        }
+      }
+
+      // Deduplicate
+      const unique = [...new Set(imageUrls)];
+      setOptimizeTotal(unique.length);
+
+      if (unique.length === 0) {
+        toast.info('Nenhuma imagem encontrada para otimizar');
+        setOptimizing(false);
+        return;
+      }
+
+      let optimized = 0;
+      for (let i = 0; i < unique.length; i++) {
+        const result = await recompressExistingImage(unique[i]);
+        if (result) optimized++;
+        setOptimizeProgress(i + 1);
+      }
+
+      toast.success(`${optimized} de ${unique.length} imagens otimizadas!`);
+    } catch (err: any) {
+      console.error('Erro ao otimizar:', err);
+      toast.error('Erro ao otimizar imagens');
+    }
+
+    setOptimizing(false);
   };
 
   const handleAddDiscountRule = () => {
@@ -1096,6 +1158,28 @@ export default function StoreAdminPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Otimizar Imagens */}
+            <Card className="mt-6">
+              <CardHeader><CardTitle>Otimizar Imagens</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Recomprime todas as imagens dos produtos para carregar mais rápido na vitrine. Imagens já otimizadas (menos de 100KB) serão ignoradas.
+                </p>
+                {optimizing && optimizeTotal > 0 && (
+                  <div className="space-y-2">
+                    <Progress value={(optimizeProgress / optimizeTotal) * 100} className="h-3" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      Otimizando {optimizeProgress} de {optimizeTotal}...
+                    </p>
+                  </div>
+                )}
+                <Button onClick={handleOptimizeImages} disabled={optimizing} size="sm" variant="outline">
+                  {optimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {optimizing ? 'Otimizando...' : 'Otimizar Imagens'}
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Sellers management - Dicolore only */}
             {store.slug === 'dicolore' && (
