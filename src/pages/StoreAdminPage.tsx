@@ -162,6 +162,10 @@ export default function StoreAdminPage() {
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
 
+  // Image optimization state
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeProgress, setOptimizeProgress] = useState(0);
+  const [optimizeTotal, setOptimizeTotal] = useState(0);
   // Shipping settings state
   const [shippingEnabled, setShippingEnabled] = useState(false);
   const [shippingOriginCep, setShippingOriginCep] = useState('');
