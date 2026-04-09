@@ -1,43 +1,51 @@
 
 
-# Otimizar performance de imagens na loja
+# Recomprimir imagens existentes no storage
 
 ## Problema
 
-As imagens são enviadas no tamanho original (sem compressão) e todas carregam de uma vez na página, causando lentidão.
+A compressão implementada só atua em **novas** imagens. As fotos já enviadas continuam no tamanho original (2-5MB cada), causando lentidão na loja.
 
-## Solução (duas frentes)
+## Solução
 
-### 1. Comprimir imagens no upload (`src/lib/storage.ts`)
+Criar um botão **"Otimizar Imagens"** na aba de Configurações do admin da loja. Ao clicar:
 
-Antes de enviar ao storage, redimensionar e comprimir a imagem no navegador usando Canvas:
-- Resolução máxima: 800x800px (suficiente para vitrine)
-- Formato: WebP (70-80% menor que JPEG)
-- Qualidade: 0.8
-- Fallback para JPEG se o navegador não suportar WebP
+1. Lista todos os produtos da loja que têm imagem
+2. Para cada imagem, baixa do storage → comprime no navegador (mesma função Canvas 800x800 WebP) → faz upload substituindo o arquivo
+3. Mostra progresso: "Otimizando 3/25..."
+4. Ao terminar, mostra quantas foram otimizadas
 
-Isso reduz imagens de 2-5MB para 50-150KB.
+## Fluxo
 
-### 2. Lazy loading nas imagens da vitrine (`src/pages/ProductStorePage.tsx`)
-
-Adicionar `loading="lazy"` em todas as tags `<img>` da listagem de produtos (list view e grid view). O navegador só carrega a imagem quando ela está prestes a aparecer na tela.
-
-Também adicionar nos componentes:
-- `src/components/VariantDialog.tsx` — imagens do carrossel
-
-### 3. Recomprimir imagens existentes (script único)
-
-Criar um botão no admin "Otimizar imagens" que reprocessa as imagens já salvas, ou orientar o usuário que as novas fotos já serão otimizadas e as antigas podem ser reenviadas gradualmente.
+```text
+Admin clica "Otimizar Imagens"
+       ↓
+Busca produtos com image_url
+       ↓
+Para cada imagem:
+  fetch(url) → blob → compressImage() → upload(upsert:true)
+       ↓
+Progresso: "5 de 25 otimizadas..."
+       ↓
+Toast: "25 imagens otimizadas!"
+```
 
 ## Arquivos modificados
 
-- `src/lib/storage.ts` — adicionar função de compressão com Canvas antes do upload
-- `src/pages/ProductStorePage.tsx` — `loading="lazy"` nas `<img>`
-- `src/components/VariantDialog.tsx` — `loading="lazy"` nas `<img>`
+- **`src/lib/storage.ts`** — exportar `compressImage` e criar função `recompressExistingImage(imageUrl, storeId)` que baixa, comprime e reenvia
+- **`src/pages/StoreAdminPage.tsx`** — adicionar botão "Otimizar Imagens" na aba Configurações com barra de progresso
+
+## Detalhe técnico
+
+- A função usa `fetch(imageUrl)` para baixar a imagem existente como blob
+- Converte para `File`, passa pelo `compressImage` (800x800, WebP, 0.8)
+- Faz `upload` com `upsert: true` no **mesmo path** extraído da URL original
+- Também processa imagens da tabela `product_images` (fotos de variantes)
+- Imagens que já são pequenas (<100KB) são puladas automaticamente
 
 ## Resultado esperado
 
-- Upload de fotos 5-10x menor em tamanho
-- Página carrega muito mais rápido (imagens só carregam quando visíveis)
-- Qualidade visual mantida para o contexto de vitrine
+- Um clique otimiza todas as fotos antigas da loja
+- A loja carrega muito mais rápido após a otimização
+- Processo mostra progresso visual para o admin
 
