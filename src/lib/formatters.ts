@@ -100,41 +100,44 @@ export function generateWhatsAppMessage(order: {
     noite: 'Noite',
   };
 
-  let message = `PEDIDO ${order.storeName.toUpperCase()} - ${dateStr}\n`;
-  message += `================================\n`;
-  message += `CLIENTE: ${order.customer.name}\n`;
-  if (order.customer.cpfCnpj) {
-    message += `CPF/CNPJ: ${order.customer.cpfCnpj} | Tel: ${order.customer.whatsapp}\n`;
-  } else {
-    message += `Tel: ${order.customer.whatsapp}\n`;
-  }
-  message += `Endereço: ${order.customer.address} - ${order.customer.neighborhood} - ${order.customer.cep} ${order.customer.city}/${order.customer.uf}\n`;
-  message += `Pagamento: ${paymentMap[order.paymentMethod] || order.paymentMethod} | Entrega: ${shiftMap[order.deliveryShift] || order.deliveryShift}\n`;
-  message += `\n`;
-  message += `ITENS DO PEDIDO\n`;
-  message += `--------------------------------\n`;
-  message += `# | Código | Produto | Qtd | Unit | Total\n`;
-  message += `--------------------------------\n`;
+  const sep = '━━━━━━━━━━━━━━━━━━';
 
-  order.items.forEach((item, index) => {
+  let msg = `📋 *PEDIDO ${order.storeName.toUpperCase()}*\n`;
+  msg += `📅 ${dateStr}\n\n`;
+
+  msg += `👤 ${order.customer.name}\n`;
+  if (order.customer.cpfCnpj) {
+    msg += `🪪 ${order.customer.cpfCnpj}\n`;
+  }
+  msg += `📱 ${order.customer.whatsapp}\n`;
+  msg += `📍 ${order.customer.address} - ${order.customer.neighborhood}\n`;
+  msg += `    ${order.customer.cep} ${order.customer.city}/${order.customer.uf}\n`;
+  msg += `💳 ${paymentMap[order.paymentMethod] || order.paymentMethod} | 🚚 ${shiftMap[order.deliveryShift] || order.deliveryShift}\n\n`;
+
+  msg += `${sep}\n`;
+  msg += `📦 *ITENS (${order.items.length})*\n`;
+  msg += `${sep}\n`;
+
+  for (const item of order.items) {
     const discPct = item.discountPercent || 0;
     const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
-    const total = discountedPrice * item.quantity;
+    const totalItem = discountedPrice * item.quantity;
+
     const priceStr = discPct > 0
-      ? `${formatCurrency(discountedPrice)} (-${discPct}%)`
+      ? `${formatCurrency(item.price)} → *${formatCurrency(discountedPrice)}* (-${discPct}%)`
       : formatCurrency(item.price);
-    message += `${index + 1} | ${item.code.slice(0, 13)} | ${item.name.slice(0, 21)} | ${item.quantity} | ${priceStr} | ${formatCurrency(total)}\n`;
-  });
 
-  message += `--------------------------------\n`;
-  message += `Subtotal: ${formatCurrency(order.subtotal)}\n`;
-  if (order.discount > 0) {
-    message += `Desconto: -${formatCurrency(order.discount)}\n`;
+    msg += `• ${item.name} | ${item.quantity}un | ${priceStr} | *${formatCurrency(totalItem)}*\n`;
   }
-  message += `\n`;
-  message += `TOTAL:    ${formatCurrency(order.total)}\n`;
 
-  return message;
+  msg += `${sep}\n\n`;
+  msg += `Subtotal: ${formatCurrency(order.subtotal)}\n`;
+  if (order.discount > 0) {
+    msg += `Desconto: -${formatCurrency(order.discount)}\n`;
+  }
+  msg += `💰 *TOTAL: ${formatCurrency(order.total)}*\n`;
+
+  return msg;
 }
 
 export function openWhatsApp(phone: string, message: string): void {
