@@ -356,7 +356,68 @@ export default function StoreAdminPage() {
     }
   };
 
-  const handleAddDiscountRule = () => {
+  const handleOptimizeImages = async () => {
+    if (optimizing) return;
+    setOptimizing(true);
+    setOptimizeProgress(0);
+
+    try {
+      // Gather all image URLs from products + product_images
+      const imageUrls: string[] = [];
+
+      const { data: prods } = await supabase
+        .from('products')
+        .select('image_url')
+        .eq('store_id', store.id)
+        .not('image_url', 'is', null);
+
+      if (prods) {
+        for (const p of prods) {
+          if (p.image_url) imageUrls.push(p.image_url);
+        }
+      }
+
+      const { data: prodImages } = await supabase
+        .from('product_images')
+        .select('image_url, product_id')
+        .in('product_id', (prods || []).map(() => '').length > 0
+          ? await supabase.from('products').select('id').eq('store_id', store.id).then(r => (r.data || []).map(p => p.id))
+          : []
+        );
+
+      if (prodImages) {
+        for (const pi of prodImages) {
+          if (pi.image_url) imageUrls.push(pi.image_url);
+        }
+      }
+
+      // Deduplicate
+      const unique = [...new Set(imageUrls)];
+      setOptimizeTotal(unique.length);
+
+      if (unique.length === 0) {
+        toast.info('Nenhuma imagem encontrada para otimizar');
+        setOptimizing(false);
+        return;
+      }
+
+      let optimized = 0;
+      for (let i = 0; i < unique.length; i++) {
+        const result = await recompressExistingImage(unique[i]);
+        if (result) optimized++;
+        setOptimizeProgress(i + 1);
+      }
+
+      toast.success(`${optimized} de ${unique.length} imagens otimizadas!`);
+    } catch (err: any) {
+      console.error('Erro ao otimizar:', err);
+      toast.error('Erro ao otimizar imagens');
+    }
+
+    setOptimizing(false);
+  };
+
+
     if (!newRule.groupId.trim() || !newRule.minQuantity || !newRule.discountPercent) {
       toast.error('Preencha todos os campos da regra');
       return;
