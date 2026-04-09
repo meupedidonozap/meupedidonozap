@@ -387,7 +387,7 @@ export default function ProductStorePage() {
               <Card key={product.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => handleProductClick(product)}>
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-                    {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
+                    {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
@@ -404,7 +404,7 @@ export default function ProductStorePage() {
             {filteredProducts.map(product => (
               <Card key={product.id} className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md" onClick={() => handleProductClick(product)}>
                 <div className="aspect-square overflow-hidden bg-muted">
-                  {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
+                  {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
                 </div>
                 <CardContent className="p-3">
                   <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
