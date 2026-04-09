@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
  * - WebP with 0.8 quality (fallback to JPEG)
  * - Reduces file size by 70-90%
  */
-async function compressImage(file: File, maxSize = 800, quality = 0.8): Promise<File> {
+export async function compressImage(file: File, maxSize = 800, quality = 0.8): Promise<File> {
   // Skip non-image files
   if (!file.type.startsWith('image/')) return file;
 
@@ -74,4 +74,56 @@ export async function uploadProductImage(file: File, storeId: string): Promise<s
     .getPublicUrl(fileName);
 
   return data.publicUrl;
+}
+
+/**
+ * Extract the storage path from a full public URL.
+ * e.g. "https://xxx.supabase.co/storage/v1/object/public/product-images/storeId/123.jpg"
+ * → "storeId/123.jpg"
+ */
+function extractStoragePath(publicUrl: string): string | null {
+  const marker = '/product-images/';
+  const idx = publicUrl.indexOf(marker);
+  if (idx === -1) return null;
+  return publicUrl.substring(idx + marker.length);
+}
+
+/**
+ * Recompress a single existing image in storage.
+ * Downloads it, compresses via Canvas, re-uploads with upsert.
+ * Returns true if optimized, false if skipped.
+ */
+export async function recompressExistingImage(imageUrl: string): Promise<boolean> {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return false;
+
+    const blob = await response.blob();
+
+    // Skip small images (already optimized)
+    if (blob.size < 100_000) return false;
+
+    const originalFile = new File([blob], 'image.jpg', { type: blob.type || 'image/jpeg' });
+    const compressed = await compressImage(originalFile);
+
+    // If compression didn't help much, skip
+    if (compressed.size >= blob.size * 0.9) return false;
+
+    const storagePath = extractStoragePath(imageUrl);
+    if (!storagePath) return false;
+
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(storagePath, compressed, { upsert: true });
+
+    if (error) {
+      console.error('Erro ao reenviar imagem:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Erro ao recomprimir imagem:', err);
+    return false;
+  }
 }
