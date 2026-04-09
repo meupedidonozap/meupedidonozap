@@ -46,7 +46,8 @@ import {
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { printOrder } from '@/lib/printOrder';
-import { uploadProductImage } from '@/lib/storage';
+import { uploadProductImage, recompressExistingImage } from '@/lib/storage';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
