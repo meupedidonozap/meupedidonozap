@@ -362,31 +362,27 @@ export default function StoreAdminPage() {
     setOptimizeProgress(0);
 
     try {
-      // Gather all image URLs from products + product_images
       const imageUrls: string[] = [];
 
+      // Get product IDs and main images
       const { data: prods } = await supabase
         .from('products')
-        .select('image_url')
-        .eq('store_id', store.id)
-        .not('image_url', 'is', null);
+        .select('id, image_url')
+        .eq('store_id', store.id);
 
-      if (prods) {
-        for (const p of prods) {
-          if (p.image_url) imageUrls.push(p.image_url);
-        }
+      const productIds = (prods || []).map(p => p.id);
+      for (const p of prods || []) {
+        if (p.image_url) imageUrls.push(p.image_url);
       }
 
-      const { data: prodImages } = await supabase
-        .from('product_images')
-        .select('image_url, product_id')
-        .in('product_id', (prods || []).map(() => '').length > 0
-          ? await supabase.from('products').select('id').eq('store_id', store.id).then(r => (r.data || []).map(p => p.id))
-          : []
-        );
+      // Get additional product images
+      if (productIds.length > 0) {
+        const { data: prodImages } = await supabase
+          .from('product_images')
+          .select('image_url')
+          .in('product_id', productIds);
 
-      if (prodImages) {
-        for (const pi of prodImages) {
+        for (const pi of prodImages || []) {
           if (pi.image_url) imageUrls.push(pi.image_url);
         }
       }
