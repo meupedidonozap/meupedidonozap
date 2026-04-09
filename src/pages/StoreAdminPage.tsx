@@ -417,7 +417,7 @@ export default function StoreAdminPage() {
     setOptimizing(false);
   };
 
-
+  const handleAddDiscountRule = () => {
     if (!newRule.groupId.trim() || !newRule.minQuantity || !newRule.discountPercent) {
       toast.error('Preencha todos os campos da regra');
       return;
