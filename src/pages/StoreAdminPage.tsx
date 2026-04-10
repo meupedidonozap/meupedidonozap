@@ -616,7 +616,7 @@ export default function StoreAdminPage() {
                       <TableRow key={product.id}>
                         <TableCell>
                           {product.image ? (
-                            <img src={product.image} alt={product.name} className="h-10 w-10 rounded object-cover" />
+                            <img src={product.image} alt={product.name} className="h-10 w-10 rounded object-contain bg-white" />
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded bg-muted text-xs text-muted-foreground">Sem</div>
                           )}

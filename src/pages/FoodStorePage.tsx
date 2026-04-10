@@ -167,7 +167,7 @@ export default function FoodStorePage() {
                             <p className="mt-2 font-bold text-accent">{formatCurrency(item.price)}</p>
                           </div>
                           <div className="flex flex-col items-end justify-between">
-                            {item.image && <img src={item.image} alt={item.name} className="h-20 w-20 rounded-lg object-cover" />}
+                            {item.image && <img src={item.image} alt={item.name} className="h-20 w-20 rounded-lg object-contain bg-white" />}
                             <div className="mt-2">
                               {quantity > 0 ? (
                                 <div className="flex items-center gap-2">

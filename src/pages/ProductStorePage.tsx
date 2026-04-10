@@ -386,8 +386,8 @@ export default function ProductStorePage() {
             {filteredProducts.map(product => (
               <Card key={product.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="flex items-center gap-4 p-4">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-                    {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-white">
+                    {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-contain" /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Sem foto</div>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
@@ -403,8 +403,8 @@ export default function ProductStorePage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {filteredProducts.map(product => (
               <Card key={product.id} className="overflow-hidden transition-shadow hover:shadow-md">
-                <div className="aspect-square overflow-hidden bg-muted">
-                  {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
+                <div className="aspect-square overflow-hidden bg-white">
+                  {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-contain p-1" /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Sem foto</div>}
                 </div>
                 <CardContent className="p-3">
                   <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
