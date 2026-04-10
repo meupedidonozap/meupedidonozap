@@ -408,11 +408,13 @@ export default function CheckoutPage() {
                   </RadioGroup>
                 </div>
                 {sellers.length > 0 && (
-                  <div className="space-y-3">
-                    <Label>Enviar pedido para</Label>
+                  <div className="rounded-lg border-2 border-primary/60 bg-primary/5 p-4 space-y-3">
+                    <Label className="text-base font-bold flex items-center gap-2">
+                      📱 Enviar pedido para <span className="text-destructive">*</span>
+                    </Label>
                     <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
-                      <SelectTrigger><SelectValue placeholder="Selecione o vendedor" /></SelectTrigger>
-                      <SelectContent>
+                      <SelectTrigger className="border-primary/40"><SelectValue placeholder="Selecione o vendedor" /></SelectTrigger>
+                      <SelectContent className="max-h-[40vh]">
                         {sellers.map(s => (
                           <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                         ))}
