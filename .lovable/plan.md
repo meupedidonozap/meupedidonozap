@@ -1,40 +1,39 @@
 
 
-# Correções: Carrinho, Vendedor e Rolagem
+# Ajustar exibição de imagens nos quadros da vitrine
 
-## 1. Carrinho: somente botão "+" adiciona ao carrinho
+## Problema
 
-**Problema**: Em `ProductStorePage.tsx`, clicar em qualquer lugar do Card do produto chama `handleProductClick`, que para produtos sem variantes adiciona direto ao carrinho. O usuario pode querer apenas ver detalhes/foto.
+Imagens de alta resolução com proporções diferentes do quadro (ex: retangulares, verticais) ficam cortadas ou "vazando" porque o CSS usa `object-cover`, que preenche o quadro inteiro cortando o excesso. Para um catálogo virtual profissional, o ideal é que a imagem caiba inteira no quadro, como fazem sistemas de catálogo — mostrando o produto completo com fundo limpo.
 
-**Solução** (`src/pages/ProductStorePage.tsx`):
-- Remover o `onClick={() => handleProductClick(product)}` do Card (tanto list view linha 387 quanto grid view linha 405)
-- Remover `cursor-pointer` do Card
-- Mover o `onClick` para o botão `+` apenas, com `e.stopPropagation()`
-- Para produtos com variantes, o botão `+` abrirá o VariantDialog
-- O card em si não faz nada ao ser clicado
+## Solução
 
-**FoodStorePage**: Já usa botões explícitos "Adicionar" - nenhuma mudanca necessária.
+Trocar `object-cover` por `object-contain` nas imagens de produto da vitrine e do admin. Isso faz a imagem inteira caber no quadro sem cortar nada. O espaço que sobrar fica com fundo branco (ou cinza claro), criando uma apresentação limpa e padronizada — exatamente como catálogos profissionais fazem.
 
-## 2. Campo "Vendedor" mais evidente
+```text
+object-cover  → corta a imagem para preencher o quadro (problema atual)
+object-contain → encaixa a imagem inteira dentro do quadro (solução)
+```
 
-**Problema**: O campo "Enviar pedido para" com o select de vendedor é discreto demais no checkout.
+A compressão de 800x800px já implementada continua perfeita — o tamanho do arquivo fica pequeno, e o CSS cuida de encaixar visualmente no quadro.
 
-**Solução** (`src/pages/CheckoutPage.tsx`, linhas 410-421):
-- Envolver o campo vendedor em um container com borda colorida (border-accent ou border-primary), background sutil, e padding
-- Trocar o label para algo mais chamativo como "📱 Enviar pedido para" com fonte maior/negrito
-- Adicionar um asterisco `*` indicando obrigatoriedade
-- Aplicar para TODAS as lojas que têm sellers configurados (já funciona assim)
+## Alterações
 
-## 3. Rolagem na lista de vendedores (Select)
+### `src/pages/ProductStorePage.tsx`
+- **Grid view** (quadro quadrado): trocar `object-cover` por `object-contain` e adicionar `bg-white` no container
+- **List view** (miniatura): trocar `object-cover` por `object-contain` e adicionar `bg-white`
+- **Carrinho** (miniatura): manter `object-cover` (é pequeno, não precisa)
 
-**Problema**: Com muitos vendedores, o dropdown do Select pode não caber na tela, especialmente mobile com teclado aberto.
+### `src/pages/StoreAdminPage.tsx`
+- Tabela de produtos no admin: trocar `object-cover` por `object-contain bg-white` na miniatura
 
-**Solução** (`src/pages/CheckoutPage.tsx`):
-- Adicionar `className="max-h-[200px] overflow-y-auto"` no `SelectContent` do vendedor, garantindo scroll em telas pequenas
-- O Radix Select já tem `max-h-96` (384px) por padrao no componente, mas em mobile com teclado aberto isso pode ser muito. Reduzir para `max-h-[40vh]` especificamente neste SelectContent
+### `src/pages/FoodStorePage.tsx`
+- Miniatura do item: trocar `object-cover` por `object-contain bg-white`
 
-## Arquivos modificados
+## Resultado esperado
 
-- `src/pages/ProductStorePage.tsx` — remover onClick do Card, mover para botao +
-- `src/pages/CheckoutPage.tsx` — destacar campo vendedor + scroll no SelectContent
+- Todas as fotos de produto ficam enquadradas corretamente, sem cortar
+- Produtos com fotos retangulares ou verticais aparecem inteiros
+- Fundo branco limpo no espaço que sobra — visual de catálogo profissional
+- Não precisa reeditar nenhuma imagem manualmente
 
