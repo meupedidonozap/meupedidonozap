@@ -384,7 +384,7 @@ export default function ProductStorePage() {
         {viewMode === 'list' ? (
           <div className="space-y-3">
             {filteredProducts.map(product => (
-              <Card key={product.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => handleProductClick(product)}>
+              <Card key={product.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
@@ -394,7 +394,7 @@ export default function ProductStorePage() {
                     <h3 className="font-medium line-clamp-3">{product.name}</h3>
                     <p className="text-lg font-bold text-primary">{formatCurrency(product.basePrice)}</p>
                   </div>
-                  <Button size="icon" className="shrink-0 bg-primary hover:bg-primary/90"><Plus className="h-5 w-5" /></Button>
+                  <Button size="icon" className="shrink-0 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-5 w-5" /></Button>
                 </CardContent>
               </Card>
             ))}
@@ -402,7 +402,7 @@ export default function ProductStorePage() {
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {filteredProducts.map(product => (
-              <Card key={product.id} className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md" onClick={() => handleProductClick(product)}>
+              <Card key={product.id} className="overflow-hidden transition-shadow hover:shadow-md">
                 <div className="aspect-square overflow-hidden bg-muted">
                   {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-muted-foreground">Sem foto</div>}
                 </div>
@@ -411,7 +411,7 @@ export default function ProductStorePage() {
                   <h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
                   <div className="mt-2 flex items-center justify-between">
                     <p className="font-bold text-primary">{formatCurrency(product.basePrice)}</p>
-                    <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90"><Plus className="h-4 w-4" /></Button>
+                    <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-4 w-4" /></Button>
                   </div>
                 </CardContent>
               </Card>
