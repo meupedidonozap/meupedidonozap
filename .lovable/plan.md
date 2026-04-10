@@ -1,51 +1,40 @@
 
 
-# Recomprimir imagens existentes no storage
+# Correções: Carrinho, Vendedor e Rolagem
 
-## Problema
+## 1. Carrinho: somente botão "+" adiciona ao carrinho
 
-A compressão implementada só atua em **novas** imagens. As fotos já enviadas continuam no tamanho original (2-5MB cada), causando lentidão na loja.
+**Problema**: Em `ProductStorePage.tsx`, clicar em qualquer lugar do Card do produto chama `handleProductClick`, que para produtos sem variantes adiciona direto ao carrinho. O usuario pode querer apenas ver detalhes/foto.
 
-## Solução
+**Solução** (`src/pages/ProductStorePage.tsx`):
+- Remover o `onClick={() => handleProductClick(product)}` do Card (tanto list view linha 387 quanto grid view linha 405)
+- Remover `cursor-pointer` do Card
+- Mover o `onClick` para o botão `+` apenas, com `e.stopPropagation()`
+- Para produtos com variantes, o botão `+` abrirá o VariantDialog
+- O card em si não faz nada ao ser clicado
 
-Criar um botão **"Otimizar Imagens"** na aba de Configurações do admin da loja. Ao clicar:
+**FoodStorePage**: Já usa botões explícitos "Adicionar" - nenhuma mudanca necessária.
 
-1. Lista todos os produtos da loja que têm imagem
-2. Para cada imagem, baixa do storage → comprime no navegador (mesma função Canvas 800x800 WebP) → faz upload substituindo o arquivo
-3. Mostra progresso: "Otimizando 3/25..."
-4. Ao terminar, mostra quantas foram otimizadas
+## 2. Campo "Vendedor" mais evidente
 
-## Fluxo
+**Problema**: O campo "Enviar pedido para" com o select de vendedor é discreto demais no checkout.
 
-```text
-Admin clica "Otimizar Imagens"
-       ↓
-Busca produtos com image_url
-       ↓
-Para cada imagem:
-  fetch(url) → blob → compressImage() → upload(upsert:true)
-       ↓
-Progresso: "5 de 25 otimizadas..."
-       ↓
-Toast: "25 imagens otimizadas!"
-```
+**Solução** (`src/pages/CheckoutPage.tsx`, linhas 410-421):
+- Envolver o campo vendedor em um container com borda colorida (border-accent ou border-primary), background sutil, e padding
+- Trocar o label para algo mais chamativo como "📱 Enviar pedido para" com fonte maior/negrito
+- Adicionar um asterisco `*` indicando obrigatoriedade
+- Aplicar para TODAS as lojas que têm sellers configurados (já funciona assim)
+
+## 3. Rolagem na lista de vendedores (Select)
+
+**Problema**: Com muitos vendedores, o dropdown do Select pode não caber na tela, especialmente mobile com teclado aberto.
+
+**Solução** (`src/pages/CheckoutPage.tsx`):
+- Adicionar `className="max-h-[200px] overflow-y-auto"` no `SelectContent` do vendedor, garantindo scroll em telas pequenas
+- O Radix Select já tem `max-h-96` (384px) por padrao no componente, mas em mobile com teclado aberto isso pode ser muito. Reduzir para `max-h-[40vh]` especificamente neste SelectContent
 
 ## Arquivos modificados
 
-- **`src/lib/storage.ts`** — exportar `compressImage` e criar função `recompressExistingImage(imageUrl, storeId)` que baixa, comprime e reenvia
-- **`src/pages/StoreAdminPage.tsx`** — adicionar botão "Otimizar Imagens" na aba Configurações com barra de progresso
-
-## Detalhe técnico
-
-- A função usa `fetch(imageUrl)` para baixar a imagem existente como blob
-- Converte para `File`, passa pelo `compressImage` (800x800, WebP, 0.8)
-- Faz `upload` com `upsert: true` no **mesmo path** extraído da URL original
-- Também processa imagens da tabela `product_images` (fotos de variantes)
-- Imagens que já são pequenas (<100KB) são puladas automaticamente
-
-## Resultado esperado
-
-- Um clique otimiza todas as fotos antigas da loja
-- A loja carrega muito mais rápido após a otimização
-- Processo mostra progresso visual para o admin
+- `src/pages/ProductStorePage.tsx` — remover onClick do Card, mover para botao +
+- `src/pages/CheckoutPage.tsx` — destacar campo vendedor + scroll no SelectContent
 
