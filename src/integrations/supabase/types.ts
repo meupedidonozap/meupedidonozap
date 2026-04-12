@@ -268,6 +268,89 @@ export type Database = {
           },
         ]
       }
+      pizza_flavors: {
+        Row: {
+          category_id: string | null
+          description: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          store_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          store_id: string
+        }
+        Update: {
+          category_id?: string | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pizza_flavors_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pizza_flavors_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pizza_sizes: {
+        Row: {
+          id: string
+          is_active: boolean
+          max_flavors: number
+          name: string
+          price: number
+          sort_order: number
+          store_id: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          max_flavors?: number
+          name: string
+          price?: number
+          sort_order?: number
+          store_id: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          max_flavors?: number
+          name?: string
+          price?: number
+          sort_order?: number
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pizza_sizes_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admins: {
         Row: {
           created_at: string
