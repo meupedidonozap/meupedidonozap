@@ -33,6 +33,7 @@ const storeTypeLabels: Record<StoreTypeEnum, string> = {
   ACESSORIOS: 'Acessórios',
   COMIDA: 'Delivery de Comida',
   SERVICOS: 'Serviços',
+  PIZZARIA: 'Pizzaria',
 };
 
 const storeTypeBadgeColors: Record<StoreTypeEnum, string> = {
@@ -40,6 +41,7 @@ const storeTypeBadgeColors: Record<StoreTypeEnum, string> = {
   ACESSORIOS: 'bg-purple-100 text-purple-700',
   COMIDA: 'bg-orange-100 text-orange-700',
   SERVICOS: 'bg-teal-100 text-teal-700',
+  PIZZARIA: 'bg-red-100 text-red-700',
 };
 
 const defaultSettings = {
