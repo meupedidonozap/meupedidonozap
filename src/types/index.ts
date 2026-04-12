@@ -1,5 +1,26 @@
 // Store types
-export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA' | 'SERVICOS';
+export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA' | 'SERVICOS' | 'PIZZARIA';
+
+// Pizza types
+export interface PizzaSize {
+  id: string;
+  storeId: string;
+  name: string;
+  maxFlavors: number;
+  price: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface PizzaFlavor {
+  id: string;
+  storeId: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  categoryId?: string;
+  isActive: boolean;
+}
 
 export type ServiceOrderStatus = 'aberta' | 'em_andamento' | 'concluida' | 'pago' | 'cancelada';
 
