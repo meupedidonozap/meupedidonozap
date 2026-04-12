@@ -4,6 +4,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useTrackVisit } from '@/hooks/useStoreVisits';
 import ProductStorePage from './ProductStorePage';
 import FoodStorePage from './FoodStorePage';
+import PizzaStorePage from './PizzaStorePage';
 import { Loader2 } from 'lucide-react';
 
 export default function StorePage() {
@@ -27,6 +28,10 @@ export default function StorePage() {
 
   if (store?.type === 'COMIDA') {
     return <FoodStorePage />;
+  }
+
+  if (store?.type === 'PIZZARIA') {
+    return <PizzaStorePage />;
   }
 
   // SERVICOS and LOJA/ACESSORIOS all use ProductStorePage

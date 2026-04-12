@@ -287,6 +287,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       <SelectItem value="ACESSORIOS">Acessórios</SelectItem>
                       <SelectItem value="COMIDA">Delivery de Comida</SelectItem>
                       <SelectItem value="SERVICOS">Serviços</SelectItem>
+                      <SelectItem value="PIZZARIA">Pizzaria</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
