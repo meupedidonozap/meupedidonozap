@@ -217,6 +217,7 @@ export type Database = {
           items: Json
           observations: string | null
           order_number: number
+          origem: string
           payment_method: string
           status: string
           store_id: string
@@ -234,6 +235,7 @@ export type Database = {
           items?: Json
           observations?: string | null
           order_number?: number
+          origem?: string
           payment_method?: string
           status?: string
           store_id: string
@@ -251,6 +253,7 @@ export type Database = {
           items?: Json
           observations?: string | null
           order_number?: number
+          origem?: string
           payment_method?: string
           status?: string
           store_id?: string
