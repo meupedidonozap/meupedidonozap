@@ -17,6 +17,7 @@ function mapOrder(row: any): Order {
     deliveryShift: row.delivery_shift as DeliveryShift,
     observations: row.observations || undefined,
     status: row.status as OrderStatus,
+    origem: row.origem || 'web',
     createdAt: row.created_at,
   };
 }
