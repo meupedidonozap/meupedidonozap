@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.correios-shipping]
 verify_jwt = false
+
+[functions.criar-pedido]
+verify_jwt = false

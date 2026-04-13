@@ -12,6 +12,7 @@ import StorePage from "./pages/StorePage";
 import CheckoutPage from "./pages/CheckoutPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
 import NotFound from "./pages/NotFound";
+import KitchenPage from "./pages/KitchenPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/:slug/admin" element={<StoreAdminPage />} />
             <Route path="/:slug/checkout" element={<CheckoutPage />} />
             <Route path="/:slug/pedidos" element={<OrderHistoryPage />} />
+            <Route path="/:slug/cozinha" element={<KitchenPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
