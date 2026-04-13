@@ -235,7 +235,7 @@ export interface Order {
   deliveryShift: DeliveryShift;
   observations?: string;
   status: OrderStatus;
-  origem: string;
+  origem?: string;
   createdAt: string;
 }
 
