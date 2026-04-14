@@ -130,6 +130,7 @@ export default function StoreAdminPage() {
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [syncingPrices, setSyncingPrices] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
