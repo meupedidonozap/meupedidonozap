@@ -288,7 +288,27 @@ export default function StoreAdminPage() {
     setProductDialogOpen(true);
   };
 
-  const handleAddCategory = async () => {
+  const handleSyncPrices = async () => {
+    if (!store) return;
+    setSyncingPrices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-prices', {
+        body: { store_id: store.id },
+      });
+      if (error) throw error;
+      if (data?.updated_count > 0) {
+        toast.success(`${data.updated_count} preço(s) atualizado(s)`);
+        qc.invalidateQueries({ queryKey: ['products'] });
+      } else {
+        toast.info('Nenhum preço precisou ser atualizado');
+      }
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar preços: ' + (err.message || err));
+    } finally {
+      setSyncingPrices(false);
+    }
+  };
+
     if (!newCategoryName.trim()) return;
     await createCategory.mutateAsync({ storeId: store.id, name: newCategoryName });
     setNewCategoryName('');
