@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users, Layers, BarChart3,
+  CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -591,6 +591,9 @@ export default function StoreAdminPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Produtos</h3>
               <div className="flex items-center gap-2">
+                <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
+                  {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
+                </Button>
                 <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
                   <Upload className="h-4 w-4" /> Importar Excel
                 </Button>
