@@ -309,6 +309,7 @@ export default function StoreAdminPage() {
     }
   };
 
+  const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     await createCategory.mutateAsync({ storeId: store.id, name: newCategoryName });
     setNewCategoryName('');
