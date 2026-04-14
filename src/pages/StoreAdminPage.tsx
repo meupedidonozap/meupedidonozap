@@ -1,10 +1,11 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users, Layers, BarChart3,
+  CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -89,6 +90,7 @@ export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, isAdmin, loading: adminLoading } = useStoreAdmin(store?.id);
+  const qc = useQueryClient();
   const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
   const { data: products = [] } = useProducts(store?.id);
@@ -130,6 +132,7 @@ export default function StoreAdminPage() {
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [syncingPrices, setSyncingPrices] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
@@ -285,6 +288,27 @@ export default function StoreAdminPage() {
   const handleNewProduct = () => {
     setEditingProduct(null);
     setProductDialogOpen(true);
+  };
+
+  const handleSyncPrices = async () => {
+    if (!store) return;
+    setSyncingPrices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-prices', {
+        body: { store_id: store.id },
+      });
+      if (error) throw error;
+      if (data?.updated_count > 0) {
+        toast.success(`${data.updated_count} preço(s) atualizado(s)`);
+        qc.invalidateQueries({ queryKey: ['products'] });
+      } else {
+        toast.info('Nenhum preço precisou ser atualizado');
+      }
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar preços: ' + (err.message || err));
+    } finally {
+      setSyncingPrices(false);
+    }
   };
 
   const handleAddCategory = async () => {
@@ -591,6 +615,9 @@ export default function StoreAdminPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Produtos</h3>
               <div className="flex items-center gap-2">
+                <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
+                  {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
+                </Button>
                 <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
                   <Upload className="h-4 w-4" /> Importar Excel
                 </Button>
