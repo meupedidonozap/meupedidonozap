@@ -1,36 +1,53 @@
 
 
-# Adicionar rolagem na lista de categorias do sidebar
+# Corrigir sincronização de preços e adicionar atualização de categorias
 
-## Problema
-O sidebar de categorias (Sheet lateral) nas lojas do tipo produto usa um `div` simples sem controle de overflow. Quando existem muitas categorias (como na DICOLORE), as categorias que ficam abaixo da tela ficam inacessiveis.
+## Problemas identificados
 
-## Solucao
+1. **Bug no parser CSV**: O código usa `split(",")` simples, que quebra valores entre aspas como `"94,9"`. O Google Sheets exporta preços com vírgula decimal entre aspas (ex: `"94,9"`, `"326,7"`). O split trata a vírgula do preço como separador de coluna, resultando em preço inválido → produto ignorado.
 
-Envolver a lista de categorias em um `ScrollArea` do Radix (ja existe no projeto em `src/components/ui/scroll-area.tsx`), limitando a altura ao espaco disponivel na Sheet e permitindo rolagem suave.
+2. **Planilha sem coluna "Des GRP"**: A planilha publicada atualmente só tem 3 colunas: `procod`, `protabcod`, `protabpre`. Para sincronizar categorias, o usuário precisa adicionar a coluna `Des GRP` na planilha.
 
-### Arquivo: `src/pages/ProductStorePage.tsx`
+3. **Contagem correta**: A planilha tem ~3750 linhas, mas ~597 com preço > 0 (ativos). O banco tem 354 produtos. A diferença entre 288 e 597 provavelmente vem do bug de parsing que descartava itens com preços entre aspas.
 
-- Importar `ScrollArea` de `@/components/ui/scroll-area`
-- Envolver o bloco de botoes de categoria (linhas 197-208) em um `ScrollArea` com `className="flex-1 mt-6"` e altura maxima calculada para caber na Sheet
-- Estrutura resultante:
+## Solução
 
+### 1. Reescrever o parser CSV na Edge Function `sync-prices`
+
+Substituir `split(",")` por um parser que respeita campos entre aspas (RFC 4180). Isso garante que `"94,9"` seja lido como `94.9` corretamente.
+
+### 2. Adicionar sincronização de categorias
+
+- Buscar a coluna `Des GRP` (ou `des grp`) do CSV
+- Para cada produto na planilha, verificar se o `Des GRP` corresponde a uma categoria existente na loja
+- Se o produto no banco estiver em categoria diferente, atualizar o `category_id`
+- Se a categoria do `Des GRP` não existir no banco, criar automaticamente
+
+### 3. Melhorar o resumo retornado
+
+Retornar contagens separadas: preços atualizados, categorias atualizadas, categorias criadas.
+
+### 4. Atualizar o toast no admin
+
+Mostrar resumo completo: preços + categorias atualizados.
+
+## Requisito do usuário
+
+**A coluna `Des GRP` precisa ser adicionada na planilha do Google Sheets.** Atualmente só existem `procod`, `protabcod`, `protabpre`. Sem essa coluna, a sincronização de categorias não funcionará.
+
+## Detalhes técnicos
+
+### Parser CSV correto (trecho)
 ```text
-SheetContent (side="left", w-80, flex flex-col h-full)
-  SheetHeader → "Categorias"
-  ScrollArea (flex-1, overflow auto)
-    div (space-y-1, p-1)
-      button "Todos os Produtos"
-      button categoria 1
-      button categoria 2
-      ...
-  /ScrollArea
-/SheetContent
+Entrada:  KIT024,4,"94,9"
+Split simples: ["KIT024", "4", "\"94", "9\""]  ← ERRADO
+Parser RFC:    ["KIT024", "4", "94,9"]          ← CORRETO
 ```
 
-- Ajustar o `SheetContent` para usar `flex flex-col` e garantir que o `ScrollArea` ocupe o espaco restante com `flex-1`
-- A barra de rolagem aparece automaticamente quando o conteudo excede a area visivel
+### Arquivos alterados
 
-### Resultado
-O sidebar de categorias vai ter rolagem suave quando houver muitas categorias, funcionando bem em telas pequenas e tablets.
+| Arquivo | Ação |
+|---------|------|
+| `supabase/functions/sync-prices/index.ts` | Reescrever parser CSV + adicionar sync de categorias |
+| `src/pages/StoreAdminPage.tsx` | Atualizar toast com resumo de categorias |
 
