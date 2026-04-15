@@ -1,59 +1,36 @@
 
 
-# Atualizar Precos via Planilha Google Sheets
+# Adicionar rolagem na lista de categorias do sidebar
 
-## Contexto
+## Problema
+O sidebar de categorias (Sheet lateral) nas lojas do tipo produto usa um `div` simples sem controle de overflow. Quando existem muitas categorias (como na DICOLORE), as categorias que ficam abaixo da tela ficam inacessiveis.
 
-A planilha publica tem 3 colunas:
-- `procod` = codigo do produto (ex: `DV5938032`, `KIT024`)
-- `protabcod` = codigo da tabela (sempre `4`)
-- `protabpre` = preco (formato BR com virgula, ex: `94,9`, `326,7`, ou `0` para sem preco)
+## Solucao
 
-Os produtos no banco tem um campo `code` que corresponde ao `procod` da planilha, e `base_price` que deve ser atualizado com `protabpre`.
+Envolver a lista de categorias em um `ScrollArea` do Radix (ja existe no projeto em `src/components/ui/scroll-area.tsx`), limitando a altura ao espaco disponivel na Sheet e permitindo rolagem suave.
 
-## Plano
+### Arquivo: `src/pages/ProductStorePage.tsx`
 
-### 1. Criar Edge Function `sync-prices`
+- Importar `ScrollArea` de `@/components/ui/scroll-area`
+- Envolver o bloco de botoes de categoria (linhas 197-208) em um `ScrollArea` com `className="flex-1 mt-6"` e altura maxima calculada para caber na Sheet
+- Estrutura resultante:
 
-Uma Edge Function que:
-- Faz fetch da planilha CSV publica do Google Sheets
-- Parseia o CSV extraindo `procod` e `protabpre`
-- Ignora linhas com preco 0
-- Busca todos os produtos da loja no banco
-- Compara `code` do produto com `procod` da planilha
-- Atualiza `base_price` dos produtos que tem preco diferente
-- Retorna um resumo: quantos atualizados, quais codigos, precos antigos vs novos
-
-Endpoint: `POST /sync-prices` com body `{ "store_id": "uuid" }`
-
-### 2. Adicionar botao "Atualizar Precos" no painel admin
-
-Na aba de Produtos do `StoreAdminPage.tsx`:
-- Botao "Atualizar Precos" ao lado do botao de importar
-- Ao clicar, chama a Edge Function `sync-prices`
-- Mostra loading enquanto processa
-- Exibe toast com resumo (ex: "12 precos atualizados")
-- Recarrega a lista de produtos apos a atualizacao
-
-### 3. URL da planilha
-
-A URL do CSV sera hardcoded na Edge Function por enquanto (pode ser movida para settings da loja futuramente):
-```
-https://docs.google.com/spreadsheets/d/e/2PACX-1vTiEn32ibtrbsQQf4UAjNo3gJk13p7g4olYSWl2IRSNvkowpT1etqnS887s-mEAF2vrEAXnGMY96OKD/pub?output=csv
+```text
+SheetContent (side="left", w-80, flex flex-col h-full)
+  SheetHeader → "Categorias"
+  ScrollArea (flex-1, overflow auto)
+    div (space-y-1, p-1)
+      button "Todos os Produtos"
+      button categoria 1
+      button categoria 2
+      ...
+  /ScrollArea
+/SheetContent
 ```
 
-## Detalhes tecnicos
+- Ajustar o `SheetContent` para usar `flex flex-col` e garantir que o `ScrollArea` ocupe o espaco restante com `flex-1`
+- A barra de rolagem aparece automaticamente quando o conteudo excede a area visivel
 
-- A Edge Function usa `SUPABASE_SERVICE_ROLE_KEY` para bypass de RLS ao atualizar precos
-- Precos no formato BR (virgula) sao convertidos para numero (`"94,9"` -> `94.9`)
-- Apenas produtos com `store_id` correspondente sao afetados
-- Produtos com preco 0 na planilha sao ignorados (nao zera o preco)
-- Nenhuma migracao de banco necessaria
-
-## Arquivos
-
-| Arquivo | Acao |
-|---------|------|
-| `supabase/functions/sync-prices/index.ts` | Criar |
-| `src/pages/StoreAdminPage.tsx` | Adicionar botao na aba Produtos |
+### Resultado
+O sidebar de categorias vai ter rolagem suave quando houver muitas categorias, funcionando bem em telas pequenas e tablets.
 
