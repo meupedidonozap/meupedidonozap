@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+
 import { Helmet } from 'react-helmet-async';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -23,6 +24,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
@@ -192,20 +194,22 @@ export default function ProductStorePage() {
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-80">
+            <SheetContent side="left" className="w-80 flex flex-col h-full">
               <SheetHeader><SheetTitle>Categorias</SheetTitle></SheetHeader>
-              <div className="mt-6 space-y-1">
-                <button onClick={() => { setSelectedCategory('all'); setIsCategoryOpen(false); }}
-                  className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
-                  Todos os Produtos
-                </button>
-                {categories.map(category => (
-                  <button key={category.id} onClick={() => { setSelectedCategory(category.id); setIsCategoryOpen(false); }}
-                    className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === category.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
-                    {category.name}
+              <ScrollArea className="flex-1 mt-6 -mr-4 pr-4">
+                <div className="space-y-1">
+                  <button onClick={() => { setSelectedCategory('all'); setIsCategoryOpen(false); }}
+                    className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                    Todos os Produtos
                   </button>
-                ))}
-              </div>
+                  {categories.map(category => (
+                    <button key={category.id} onClick={() => { setSelectedCategory(category.id); setIsCategoryOpen(false); }}
+                      className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === category.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </SheetContent>
           </Sheet>
           <Link to={`/${store.slug}`} className="min-w-0 flex items-center gap-2">
