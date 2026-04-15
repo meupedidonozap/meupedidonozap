@@ -298,11 +298,16 @@ export default function StoreAdminPage() {
         body: { store_id: store.id },
       });
       if (error) throw error;
-      if (data?.updated_count > 0) {
-        toast.success(`${data.updated_count} preço(s) atualizado(s)`);
+      const parts: string[] = [];
+      if (data?.updated_prices > 0) parts.push(`${data.updated_prices} preço(s)`);
+      if (data?.updated_categories > 0) parts.push(`${data.updated_categories} categoria(s)`);
+      if (data?.created_categories > 0) parts.push(`${data.created_categories} categoria(s) criada(s)`);
+      if (parts.length > 0) {
+        toast.success(`Atualizado: ${parts.join(', ')}. Planilha: ${data.total_sheet_codes} códigos / Banco: ${data.total_products} produtos`);
         qc.invalidateQueries({ queryKey: ['products'] });
+        qc.invalidateQueries({ queryKey: ['categories'] });
       } else {
-        toast.info('Nenhum preço precisou ser atualizado');
+        toast.info(`Nenhuma alteração necessária. Planilha: ${data?.total_sheet_codes || 0} códigos / Banco: ${data?.total_products || 0} produtos`);
       }
     } catch (err: any) {
       toast.error('Erro ao sincronizar preços: ' + (err.message || err));
