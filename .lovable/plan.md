@@ -1,53 +1,53 @@
+# Simplificar criação de senha + Redefinição de senha
 
+## Mudanças no `src/components/CustomerAuthDialog.tsx`
 
-# Corrigir sincronização de preços e adicionar atualização de categorias
+### 1. Simplificar formulário de cadastro
+- **Remover** o campo "Confirmar Senha" do estado e do JSX
+- **Atualizar** placeholder da senha para `"Crie uma senha simples (mín. 6 caracteres)"`
+- **Adicionar** texto auxiliar abaixo do campo: `"Dica: use algo fácil de lembrar, ex: seunome123"`
+- **Adicionar** botão de mostrar/ocultar senha (ícones `Eye` / `EyeOff` da `lucide-react`) posicionado dentro do `Input` no canto direito
+- Aplicar o mesmo botão de mostrar/ocultar também no campo de senha do **login**
 
-## Problemas identificados
+### 2. Adicionar fluxo "Esqueci minha senha"
+- Adicionar novo `Step`: `'auth' | 'profile' | 'forgot'`
+- Na aba **Entrar**, abaixo do botão, adicionar link discreto: `"Esqueci minha senha"` que muda para `step = 'forgot'`
+- Nova tela `forgot`:
+  - Campo único de email
+  - Texto explicativo: `"Enviaremos um link no seu email para criar uma nova senha."`
+  - Botão `"Enviar link"` que chama `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/redefinir-senha' })`
+  - Link `"Voltar"` para retornar ao `step = 'auth'`
+  - Após sucesso: toast `"Link enviado! Verifique seu email."` e voltar para `auth`
 
-1. **Bug no parser CSV**: O código usa `split(",")` simples, que quebra valores entre aspas como `"94,9"`. O Google Sheets exporta preços com vírgula decimal entre aspas (ex: `"94,9"`, `"326,7"`). O split trata a vírgula do preço como separador de coluna, resultando em preço inválido → produto ignorado.
+## Nova página `src/pages/ResetPasswordPage.tsx` (criar)
 
-2. **Planilha sem coluna "Des GRP"**: A planilha publicada atualmente só tem 3 colunas: `procod`, `protabcod`, `protabpre`. Para sincronizar categorias, o usuário precisa adicionar a coluna `Des GRP` na planilha.
+Página pública para o usuário definir a nova senha após clicar no link do email.
 
-3. **Contagem correta**: A planilha tem ~3750 linhas, mas ~597 com preço > 0 (ativos). O banco tem 354 produtos. A diferença entre 288 e 597 provavelmente vem do bug de parsing que descartava itens com preços entre aspas.
+- Detecta o token de recuperação automaticamente via `supabase.auth.onAuthStateChange` (evento `PASSWORD_RECOVERY`)
+- Formulário com 1 campo: nova senha (com botão mostrar/ocultar)
+- Validação: mínimo 6 caracteres
+- Ao submeter: `supabase.auth.updateUser({ password })`
+- Após sucesso: toast `"Senha redefinida!"` + redireciona para `/` (HomePage) ou para a última loja visitada
+- Caso o usuário acesse a página sem um token válido: mostra mensagem `"Link inválido ou expirado"` com botão para voltar
 
-## Solução
+## Roteamento em `src/App.tsx`
 
-### 1. Reescrever o parser CSV na Edge Function `sync-prices`
+- Adicionar nova rota pública: `<Route path="/redefinir-senha" element={<ResetPasswordPage />} />`
+- Importar a nova página
+- A rota deve ficar **antes** da rota dinâmica `/:slug` para evitar conflito
 
-Substituir `split(",")` por um parser que respeita campos entre aspas (RFC 4180). Isso garante que `"94,9"` seja lido como `94.9` corretamente.
+## Considerações
 
-### 2. Adicionar sincronização de categorias
+- O fluxo de reset usa o sistema de email padrão do Lovable Cloud (já funciona sem configuração adicional)
+- O link do email leva para `/redefinir-senha` independente da loja, pois o reset não é por tenant
+- Após o reset, o usuário pode fazer login normalmente em qualquer loja
+- A validação mínima de 6 caracteres é exigência do Supabase Auth e não pode ser reduzida
+- O `useAuth` já expõe o necessário; não precisamos adicionar funções novas (chamamos `supabase.auth.resetPasswordForEmail` diretamente)
 
-- Buscar a coluna `Des GRP` (ou `des grp`) do CSV
-- Para cada produto na planilha, verificar se o `Des GRP` corresponde a uma categoria existente na loja
-- Se o produto no banco estiver em categoria diferente, atualizar o `category_id`
-- Se a categoria do `Des GRP` não existir no banco, criar automaticamente
-
-### 3. Melhorar o resumo retornado
-
-Retornar contagens separadas: preços atualizados, categorias atualizadas, categorias criadas.
-
-### 4. Atualizar o toast no admin
-
-Mostrar resumo completo: preços + categorias atualizados.
-
-## Requisito do usuário
-
-**A coluna `Des GRP` precisa ser adicionada na planilha do Google Sheets.** Atualmente só existem `procod`, `protabcod`, `protabpre`. Sem essa coluna, a sincronização de categorias não funcionará.
-
-## Detalhes técnicos
-
-### Parser CSV correto (trecho)
-```text
-Entrada:  KIT024,4,"94,9"
-Split simples: ["KIT024", "4", "\"94", "9\""]  ← ERRADO
-Parser RFC:    ["KIT024", "4", "94,9"]          ← CORRETO
-```
-
-### Arquivos alterados
+## Arquivos
 
 | Arquivo | Ação |
-|---------|------|
-| `supabase/functions/sync-prices/index.ts` | Reescrever parser CSV + adicionar sync de categorias |
-| `src/pages/StoreAdminPage.tsx` | Atualizar toast com resumo de categorias |
-
+|---|---|
+| `src/components/CustomerAuthDialog.tsx` | Modificar (remover confirm, adicionar mostrar senha, adicionar fluxo forgot) |
+| `src/pages/ResetPasswordPage.tsx` | Criar |
+| `src/App.tsx` | Adicionar rota `/redefinir-senha` |
