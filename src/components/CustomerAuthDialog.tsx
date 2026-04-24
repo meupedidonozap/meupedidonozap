@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { formatPhone, formatCEP } from '@/lib/formatters';
@@ -23,7 +24,7 @@ interface CustomerAuthDialogProps {
   storeId: string;
 }
 
-type Step = 'auth' | 'profile';
+type Step = 'auth' | 'profile' | 'forgot';
 
 export default function CustomerAuthDialog({ open, onOpenChange, storeId }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
@@ -32,7 +33,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<Step>('auth');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [registerData, setRegisterData] = useState({ email: '', password: '', confirmPassword: '' });
+  const [registerData, setRegisterData] = useState({ email: '', password: '' });
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [showRegPwd, setShowRegPwd] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '', whatsapp: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
@@ -72,10 +76,6 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       toast.error('A senha deve ter pelo menos 6 caracteres');
       return;
     }
-    if (registerData.password !== registerData.confirmPassword) {
-      toast.error('As senhas não coincidem');
-      return;
-    }
     setLoading(true);
     const { hasSession, error } = await signUp(registerData.email, registerData.password);
     setLoading(false);
@@ -86,6 +86,26 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       setStep('profile');
     } else {
       toast.error('Não foi possível criar a conta. Tente novamente.');
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast.error('Informe o email');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Link enviado! Verifique seu email.');
+      setForgotEmail('');
+      setStep('auth');
     }
   };
 
@@ -156,6 +176,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
           <DialogTitle>
             {step === 'auth' && 'Entrar ou Cadastrar'}
             {step === 'profile' && 'Complete seu Cadastro'}
+            {step === 'forgot' && 'Redefinir Senha'}
           </DialogTitle>
         </DialogHeader>
 
@@ -173,12 +194,24 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="login-password">Senha</Label>
-                  <Input id="login-password" type="password" value={loginData.password} onChange={e => setLoginData(p => ({ ...p, password: e.target.value }))} placeholder="••••••" />
+                  <div className="relative">
+                    <Input id="login-password" type={showLoginPwd ? 'text' : 'password'} value={loginData.password} onChange={e => setLoginData(p => ({ ...p, password: e.target.value }))} placeholder="••••••" className="pr-10" />
+                    <button type="button" onClick={() => setShowLoginPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showLoginPwd ? 'Ocultar senha' : 'Mostrar senha'}>
+                      {showLoginPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Entrar
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => setStep('forgot')}
+                  className="block w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
               </form>
             </TabsContent>
             <TabsContent value="register">
@@ -189,11 +222,13 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="reg-password">Senha</Label>
-                  <Input id="reg-password" type="password" value={registerData.password} onChange={e => setRegisterData(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="reg-confirm">Confirmar Senha</Label>
-                  <Input id="reg-confirm" type="password" value={registerData.confirmPassword} onChange={e => setRegisterData(p => ({ ...p, confirmPassword: e.target.value }))} placeholder="Repita a senha" />
+                  <div className="relative">
+                    <Input id="reg-password" type={showRegPwd ? 'text' : 'password'} value={registerData.password} onChange={e => setRegisterData(p => ({ ...p, password: e.target.value }))} placeholder="Crie uma senha simples (mín. 6 caracteres)" className="pr-10" />
+                    <button type="button" onClick={() => setShowRegPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showRegPwd ? 'Ocultar senha' : 'Mostrar senha'}>
+                      {showRegPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Dica: use algo fácil de lembrar, ex: seunome123</p>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -202,6 +237,36 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
               </form>
             </TabsContent>
           </Tabs>
+        )}
+
+        {step === 'forgot' && (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Enviaremos um link no seu email para criar uma nova senha.
+            </p>
+            <div className="grid gap-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                value={forgotEmail}
+                onChange={e => setForgotEmail(e.target.value)}
+                placeholder="seu@email.com"
+                autoFocus
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Enviar link
+            </Button>
+            <button
+              type="button"
+              onClick={() => setStep('auth')}
+              className="block w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Voltar
+            </button>
+          </form>
         )}
 
         {step === 'profile' && (
