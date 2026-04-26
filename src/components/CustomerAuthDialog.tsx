@@ -22,11 +22,12 @@ interface CustomerAuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   storeId: string;
+  storeSlug?: string;
 }
 
 type Step = 'auth' | 'profile' | 'forgot';
 
-export default function CustomerAuthDialog({ open, onOpenChange, storeId }: CustomerAuthDialogProps) {
+export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
   const [loading, setLoading] = useState(false);
@@ -96,8 +97,12 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId }: Cust
       return;
     }
     setLoading(true);
+    const slug = storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || '';
+    const redirectTo = slug
+      ? `${window.location.origin}/${slug}/redefinir-senha`
+      : `${window.location.origin}/redefinir-senha`;
     const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: `${window.location.origin}/redefinir-senha`,
+      redirectTo,
     });
     setLoading(false);
     if (error) {
