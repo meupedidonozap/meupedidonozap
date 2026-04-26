@@ -1504,6 +1504,64 @@ export default function StoreAdminPage() {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Reset password dialog */}
+            <Dialog open={!!resetPwdCustomer} onOpenChange={(v) => { if (!v) { setResetPwdCustomer(null); setResetPwdValue(''); } }}>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Redefinir Senha</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Defina uma nova senha para <strong>{resetPwdCustomer?.name || 'este cliente'}</strong>.
+                    Informe a nova senha ao cliente — ele poderá alterá-la depois.
+                  </p>
+                  <div className="grid gap-1">
+                    <Label className="text-sm">Nova senha (mín. 6 caracteres)</Label>
+                    <Input
+                      type="text"
+                      value={resetPwdValue}
+                      onChange={e => setResetPwdValue(e.target.value)}
+                      placeholder="ex: cliente123"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setResetPwdCustomer(null); setResetPwdValue(''); }}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    disabled={resetPwdValue.length < 6 || resetPwdLoading}
+                    onClick={async () => {
+                      if (!resetPwdCustomer) return;
+                      setResetPwdLoading(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('admin-reset-customer-password', {
+                          body: {
+                            storeId: resetPwdCustomer.storeId,
+                            customerProfileId: resetPwdCustomer.id,
+                            newPassword: resetPwdValue,
+                          },
+                        });
+                        if (error) throw error;
+                        if ((data as any)?.error) throw new Error((data as any).error);
+                        toast.success('Senha redefinida com sucesso!');
+                        setResetPwdCustomer(null);
+                        setResetPwdValue('');
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Erro ao redefinir senha');
+                      } finally {
+                        setResetPwdLoading(false);
+                      }
+                    }}
+                  >
+                    {resetPwdLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </main>
