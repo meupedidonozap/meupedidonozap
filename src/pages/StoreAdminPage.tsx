@@ -1636,6 +1636,7 @@ export default function StoreAdminPage() {
         serviceOrder={selectedSO}
         storeName={store.name}
         storeWhatsapp={store.whatsapp}
+        readOnly={!isAdmin && !permissions.can_manage_service_orders}
         onOrderUpdate={async ({ orderId, status, total, subtotal }) => {
           await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total, subtotal });
         }}
