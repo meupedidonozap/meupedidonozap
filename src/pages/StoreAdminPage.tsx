@@ -142,6 +142,9 @@ export default function StoreAdminPage() {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+  const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
+  const [resetPwdValue, setResetPwdValue] = useState('');
+  const [resetPwdLoading, setResetPwdLoading] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
