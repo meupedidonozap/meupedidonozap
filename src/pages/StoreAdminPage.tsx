@@ -90,16 +90,16 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
-  const { user, isAdmin, loading: adminLoading } = useStoreAdmin(store?.id);
+  const { user, isAdmin, hasAccess, permissions, loading: adminLoading } = useStoreAdmin(store?.id);
   const qc = useQueryClient();
   const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
   const { data: products = [] } = useProducts(store?.id);
   const { data: foodItems = [] } = useFoodItems(store?.id);
-  const { data: orders = [] } = useOrders(isAdmin ? store?.id : undefined);
+  const { data: orders = [] } = useOrders(hasAccess && (isAdmin || permissions.can_view_orders) ? store?.id : undefined);
   const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
-  const { data: serviceOrders = [] } = useServiceOrders(isAdmin && store?.type === 'SERVICOS' ? store?.id : undefined);
-  const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
+  const { data: serviceOrders = [] } = useServiceOrders(hasAccess && store?.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders) ? store?.id : undefined);
+  const { data: customerProfiles = [] } = useStoreCustomerProfiles(hasAccess && (isAdmin || permissions.can_view_customers) ? store?.id : undefined);
   const createServiceOrder = useCreateServiceOrder();
   const deleteServiceOrder = useDeleteServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
