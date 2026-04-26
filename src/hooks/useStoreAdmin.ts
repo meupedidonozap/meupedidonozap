@@ -2,28 +2,91 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+export interface StorePermissions {
+  can_view_service_orders: boolean;
+  can_manage_service_orders: boolean;
+  can_view_orders: boolean;
+  can_manage_orders: boolean;
+  can_manage_products: boolean;
+  can_view_customers: boolean;
+}
+
+const FULL_PERMS: StorePermissions = {
+  can_view_service_orders: true,
+  can_manage_service_orders: true,
+  can_view_orders: true,
+  can_manage_orders: true,
+  can_manage_products: true,
+  can_view_customers: true,
+};
+
+const NO_PERMS: StorePermissions = {
+  can_view_service_orders: false,
+  can_manage_service_orders: false,
+  can_view_orders: false,
+  can_manage_orders: false,
+  can_manage_products: false,
+  can_view_customers: false,
+};
+
 export function useStoreAdmin(storeId: string | undefined) {
   const { user, loading: authLoading } = useAuth();
 
-  const { data: isAdmin, isLoading: adminLoading } = useQuery({
-    queryKey: ['store-admin', storeId, user?.id],
+  const { data, isLoading: accessLoading } = useQuery({
+    queryKey: ['store-access', storeId, user?.id],
     queryFn: async () => {
-      if (!user || !storeId) return false;
-      const { data } = await supabase
+      if (!user || !storeId) {
+        return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS };
+      }
+      // Check primary admin
+      const { data: adminRow } = await supabase
         .from('store_admins')
         .select('id')
         .eq('store_id', storeId)
         .eq('user_id', user.id)
         .maybeSingle();
-      return !!data;
+      if (adminRow) {
+        return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS };
+      }
+      // Check secondary store user
+      const { data: storeUser } = await supabase
+        .from('store_users')
+        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, is_active')
+        .eq('store_id', storeId)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (storeUser) {
+        return {
+          isAdmin: false,
+          isStoreUser: true,
+          permissions: {
+            can_view_service_orders: !!storeUser.can_view_service_orders,
+            can_manage_service_orders: !!storeUser.can_manage_service_orders,
+            can_view_orders: !!storeUser.can_view_orders,
+            can_manage_orders: !!storeUser.can_manage_orders,
+            can_manage_products: !!storeUser.can_manage_products,
+            can_view_customers: !!storeUser.can_view_customers,
+          },
+        };
+      }
+      return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS };
     },
     enabled: !!user && !!storeId,
     staleTime: 5 * 60 * 1000,
   });
 
+  const access = data ?? { isAdmin: false, isStoreUser: false, permissions: NO_PERMS };
+  // hasAccess = is admin OR is active store user with at least one permission
+  const hasAnyPermission = Object.values(access.permissions).some(Boolean);
+  const hasAccess = access.isAdmin || (access.isStoreUser && hasAnyPermission);
+
   return {
     user,
-    isAdmin: isAdmin ?? false,
-    loading: authLoading || adminLoading,
+    isAdmin: access.isAdmin,
+    isStoreUser: access.isStoreUser,
+    hasAccess,
+    permissions: access.permissions,
+    loading: authLoading || accessLoading,
   };
 }

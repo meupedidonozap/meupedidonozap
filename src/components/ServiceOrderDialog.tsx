@@ -42,9 +42,10 @@ interface Props {
   storeName: string;
   storeWhatsapp: string;
   onOrderUpdate?: (params: { orderId: string; status: string; total: number; subtotal: number }) => Promise<void>;
+  readOnly?: boolean;
 }
 
-export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, storeName, storeWhatsapp, onOrderUpdate }: Props) {
+export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, storeName, storeWhatsapp, onOrderUpdate, readOnly = false }: Props) {
   const updateSO = useUpdateServiceOrder();
   const { data: products = [] } = useProducts(serviceOrder?.storeId);
 
@@ -81,7 +82,7 @@ export default function ServiceOrderDialog({ open, onOpenChange, serviceOrder, s
     onOpenChange(v);
   };
 
-  const isLocked = originalStatus === 'pago' && !unlocked;
+  const isLocked = (originalStatus === 'pago' && !unlocked) || readOnly;
 
   const filteredProducts = useMemo(() => {
     if (!productSearch.trim()) return products.slice(0, 10);

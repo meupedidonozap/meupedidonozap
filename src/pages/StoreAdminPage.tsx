@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound,
+  CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +28,7 @@ import ImportProductsDialog from '@/components/ImportProductsDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
+import StoreUsersTab from '@/components/StoreUsersTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -89,16 +90,16 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
-  const { user, isAdmin, loading: adminLoading } = useStoreAdmin(store?.id);
+  const { user, isAdmin, hasAccess, permissions, loading: adminLoading } = useStoreAdmin(store?.id);
   const qc = useQueryClient();
   const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
   const { data: products = [] } = useProducts(store?.id);
   const { data: foodItems = [] } = useFoodItems(store?.id);
-  const { data: orders = [] } = useOrders(isAdmin ? store?.id : undefined);
+  const { data: orders = [] } = useOrders(hasAccess && (isAdmin || permissions.can_view_orders) ? store?.id : undefined);
   const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
-  const { data: serviceOrders = [] } = useServiceOrders(isAdmin && store?.type === 'SERVICOS' ? store?.id : undefined);
-  const { data: customerProfiles = [] } = useStoreCustomerProfiles(isAdmin ? store?.id : undefined);
+  const { data: serviceOrders = [] } = useServiceOrders(hasAccess && store?.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders) ? store?.id : undefined);
+  const { data: customerProfiles = [] } = useStoreCustomerProfiles(hasAccess && (isAdmin || permissions.can_view_customers) ? store?.id : undefined);
   const createServiceOrder = useCreateServiceOrder();
   const deleteServiceOrder = useDeleteServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
@@ -128,6 +129,20 @@ export default function StoreAdminPage() {
   const updateCategory = useUpdateCategory();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Auto-select default tab for restricted users
+  useEffect(() => {
+    if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
+      setActiveTab('service-orders');
+    } else if (!isAdmin && (permissions.can_view_orders || permissions.can_manage_orders)) {
+      setActiveTab('orders');
+    } else if (!isAdmin && permissions.can_manage_products) {
+      setActiveTab('products');
+    } else if (!isAdmin && permissions.can_view_customers) {
+      setActiveTab('customers');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -267,7 +282,7 @@ export default function StoreAdminPage() {
 
   // Auth gate
   if (!user) return <StoreAdminLogin storeName={store.name} />;
-  if (!isAdmin) {
+  if (!hasAccess) {
     return <StoreAdminAccessDenied email={user.email ?? ''} slug={slug!} />;
   }
 
@@ -516,21 +531,42 @@ export default function StoreAdminPage() {
       <main className="container py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 flex flex-wrap h-auto gap-1">
-            <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> Dashboard</TabsTrigger>
-            <TabsTrigger value="products" className="gap-2"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
-            <TabsTrigger value="categories" className="gap-2"><Tags className="h-4 w-4" /> Categorias</TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2">
-              <ShoppingCart className="h-4 w-4" /> Pedidos
-              {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
-            <TabsTrigger value="discounts" className="gap-2"><Layers className="h-4 w-4" /> Descontos</TabsTrigger>
-            {store.type === 'SERVICOS' && (
+            {isAdmin && (
+              <TabsTrigger value="dashboard" className="gap-2"><LayoutDashboard className="h-4 w-4" /> Dashboard</TabsTrigger>
+            )}
+            {(isAdmin || permissions.can_manage_products) && (
+              <TabsTrigger value="products" className="gap-2"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
+            )}
+            {(isAdmin || permissions.can_manage_products) && (
+              <TabsTrigger value="categories" className="gap-2"><Tags className="h-4 w-4" /> Categorias</TabsTrigger>
+            )}
+            {(isAdmin || permissions.can_view_orders || permissions.can_manage_orders) && (
+              <TabsTrigger value="orders" className="gap-2">
+                <ShoppingCart className="h-4 w-4" /> Pedidos
+                {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="discounts" className="gap-2"><Layers className="h-4 w-4" /> Descontos</TabsTrigger>
+            )}
+            {store.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders || permissions.can_manage_service_orders) && (
               <TabsTrigger value="service-orders" className="gap-2"><ClipboardList className="h-4 w-4" /> Ordens de Serviço</TabsTrigger>
             )}
-            <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
-            <TabsTrigger value="visits" className="gap-2"><BarChart3 className="h-4 w-4" /> Visitas</TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
+            {(isAdmin || permissions.can_view_customers) && (
+              <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="visits" className="gap-2"><BarChart3 className="h-4 w-4" /> Visitas</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="users" className="gap-2"><UserCog className="h-4 w-4" /> Usuários</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
+            )}
           </TabsList>
 
           {/* Dashboard */}
@@ -740,9 +776,16 @@ export default function StoreAdminPage() {
           <TabsContent value="orders" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Pedidos</h3>
-              <Button variant="outline" onClick={() => setNewOrderDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Novo Pedido
-              </Button>
+              <div className="flex items-center gap-2">
+                {!isAdmin && !permissions.can_manage_orders && (
+                  <Badge variant="secondary">Modo somente leitura</Badge>
+                )}
+                {(isAdmin || permissions.can_manage_orders) && (
+                  <Button variant="outline" onClick={() => setNewOrderDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Novo Pedido
+                  </Button>
+                )}
+              </div>
             </div>
             <Card>
               <CardContent className="p-0">
@@ -787,6 +830,7 @@ export default function StoreAdminPage() {
                                 <span className="ml-1">{statusConfig[order.status]?.label}</span>
                               </Badge>
                               {(() => {
+                                if (!isAdmin && !permissions.can_manage_orders) return null;
                                 const hasSO = serviceOrders.some(so => so.orderId === order.id);
                                 if (!hasSO && order.status !== 'cancelado') {
                                   return (
@@ -816,6 +860,7 @@ export default function StoreAdminPage() {
                               })()}
                             </div>
                           ) : (
+                            (isAdmin || permissions.can_manage_orders) ? (
                             <Select value={order.status} onValueChange={(value) => {
                               updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
                               toast.success('Status atualizado!');
@@ -832,11 +877,17 @@ export default function StoreAdminPage() {
                                 ))}
                               </SelectContent>
                             </Select>
+                            ) : (
+                              <Badge className={statusConfig[order.status]?.color}>
+                                {statusConfig[order.status]?.icon}
+                                <span className="ml-1">{statusConfig[order.status]?.label}</span>
+                              </Badge>
+                            )
                           )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            {store.type === 'SERVICOS' && (() => {
+                            {store.type === 'SERVICOS' && (isAdmin || permissions.can_manage_service_orders || permissions.can_view_service_orders) && (() => {
                               const existingSO = serviceOrders.find(so => so.orderId === order.id);
                               if (existingSO) {
                                 return (
@@ -844,10 +895,11 @@ export default function StoreAdminPage() {
                                     setSelectedSOId(existingSO.id);
                                     setSODialogOpen(true);
                                   }}>
-                                    <ClipboardList className="h-3 w-3" /> Abrir OS
+                                    <ClipboardList className="h-3 w-3" /> {(isAdmin || permissions.can_manage_service_orders) ? 'Abrir OS' : 'Ver OS'}
                                   </Button>
                                 );
                               }
+                              if (!isAdmin && !permissions.can_manage_service_orders) return null;
                               return (
                                 <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={async () => {
                                   try {
@@ -1293,7 +1345,12 @@ export default function StoreAdminPage() {
           {/* Service Orders - only for SERVICOS */}
           {store.type === 'SERVICOS' && (
             <TabsContent value="service-orders" className="animate-fade-in">
-              <div className="mb-4"><h3 className="text-lg font-semibold">Ordens de Serviço</h3></div>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Ordens de Serviço</h3>
+                {!isAdmin && !permissions.can_manage_service_orders && (
+                  <Badge variant="secondary">Modo somente leitura</Badge>
+                )}
+              </div>
               <Card>
                 <CardContent className="p-0">
                   <Table>
@@ -1324,9 +1381,11 @@ export default function StoreAdminPage() {
                           </TableCell>
                           <TableCell>{new Date(so.createdAt).toLocaleDateString('pt-BR')}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }}>
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }} title={(isAdmin || permissions.can_manage_service_orders) ? 'Editar OS' : 'Ver / Imprimir OS'}>
+                                {(isAdmin || permissions.can_manage_service_orders) ? <Edit2 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1563,6 +1622,13 @@ export default function StoreAdminPage() {
               </DialogContent>
             </Dialog>
           </TabsContent>
+
+          {/* Users (Admin only) */}
+          {isAdmin && (
+            <TabsContent value="users" className="animate-fade-in">
+              <StoreUsersTab storeId={store.id} storeType={store.type as StoreType} />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
@@ -1586,6 +1652,7 @@ export default function StoreAdminPage() {
         serviceOrder={selectedSO}
         storeName={store.name}
         storeWhatsapp={store.whatsapp}
+        readOnly={!isAdmin && !permissions.can_manage_service_orders}
         onOrderUpdate={async ({ orderId, status, total, subtotal }) => {
           await updateOrder.mutateAsync({ id: orderId, status: status as OrderStatus, total, subtotal });
         }}

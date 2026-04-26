@@ -630,6 +630,65 @@ export type Database = {
         }
         Relationships: []
       }
+      store_users: {
+        Row: {
+          can_manage_orders: boolean
+          can_manage_products: boolean
+          can_manage_service_orders: boolean
+          can_view_customers: boolean
+          can_view_orders: boolean
+          can_view_service_orders: boolean
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          store_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_manage_orders?: boolean
+          can_manage_products?: boolean
+          can_manage_service_orders?: boolean
+          can_view_customers?: boolean
+          can_view_orders?: boolean
+          can_view_service_orders?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          store_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_manage_orders?: boolean
+          can_manage_products?: boolean
+          can_manage_service_orders?: boolean
+          can_view_customers?: boolean
+          can_view_orders?: boolean
+          can_view_service_orders?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          store_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_users_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_visits: {
         Row: {
           id: string
@@ -718,6 +777,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_any_store_access: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_store_permission: {
+        Args: { _permission: string; _store_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_store_admin: {
         Args: { _store_id: string; _user_id: string }

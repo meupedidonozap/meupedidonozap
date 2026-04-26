@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
             .single();
           if (!catErr && newCat) {
             catId = newCat.id;
-            catMap.set(catKey, catId);
+            catMap.set(catKey, catId as string);
             categoriesCreated.push(sheet.category);
           }
         }
