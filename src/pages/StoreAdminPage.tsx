@@ -1398,6 +1398,18 @@ export default function StoreAdminPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            title={cp.userId ? 'Redefinir senha' : 'Cliente sem conta de acesso'}
+                            disabled={!cp.userId}
+                            onClick={() => {
+                              setResetPwdCustomer(cp);
+                              setResetPwdValue('');
+                            }}
+                          >
+                            <KeyRound className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             title="Excluir"
                             onClick={async () => {
                               const hasOrders = await checkCustomerHasOrders(cp.name, cp.storeId, cp.userId || undefined);
