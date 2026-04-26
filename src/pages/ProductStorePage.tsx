@@ -460,7 +460,7 @@ export default function ProductStorePage() {
           </Button>
         </div>
       )}
-      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store?.id || ''} />
+      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store?.id || ''} storeSlug={store?.slug} />
     </div>
   );
 }

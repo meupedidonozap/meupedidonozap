@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
-  CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw,
+  CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -142,6 +142,9 @@ export default function StoreAdminPage() {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+  const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
+  const [resetPwdValue, setResetPwdValue] = useState('');
+  const [resetPwdLoading, setResetPwdLoading] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
@@ -1395,6 +1398,18 @@ export default function StoreAdminPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            title={cp.userId ? 'Redefinir senha' : 'Cliente sem conta de acesso'}
+                            disabled={!cp.userId}
+                            onClick={() => {
+                              setResetPwdCustomer(cp);
+                              setResetPwdValue('');
+                            }}
+                          >
+                            <KeyRound className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             title="Excluir"
                             onClick={async () => {
                               const hasOrders = await checkCustomerHasOrders(cp.name, cp.storeId, cp.userId || undefined);
@@ -1484,6 +1499,64 @@ export default function StoreAdminPage() {
                     } catch { toast.error('Erro ao criar cliente'); }
                   }}>
                     {createCustomerProfile.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Reset password dialog */}
+            <Dialog open={!!resetPwdCustomer} onOpenChange={(v) => { if (!v) { setResetPwdCustomer(null); setResetPwdValue(''); } }}>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Redefinir Senha</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Defina uma nova senha para <strong>{resetPwdCustomer?.name || 'este cliente'}</strong>.
+                    Informe a nova senha ao cliente — ele poderá alterá-la depois.
+                  </p>
+                  <div className="grid gap-1">
+                    <Label className="text-sm">Nova senha (mín. 6 caracteres)</Label>
+                    <Input
+                      type="text"
+                      value={resetPwdValue}
+                      onChange={e => setResetPwdValue(e.target.value)}
+                      placeholder="ex: cliente123"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setResetPwdCustomer(null); setResetPwdValue(''); }}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    disabled={resetPwdValue.length < 6 || resetPwdLoading}
+                    onClick={async () => {
+                      if (!resetPwdCustomer) return;
+                      setResetPwdLoading(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('admin-reset-customer-password', {
+                          body: {
+                            storeId: resetPwdCustomer.storeId,
+                            customerProfileId: resetPwdCustomer.id,
+                            newPassword: resetPwdValue,
+                          },
+                        });
+                        if (error) throw error;
+                        if ((data as any)?.error) throw new Error((data as any).error);
+                        toast.success('Senha redefinida com sucesso!');
+                        setResetPwdCustomer(null);
+                        setResetPwdValue('');
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Erro ao redefinir senha');
+                      } finally {
+                        setResetPwdLoading(false);
+                      }
+                    }}
+                  >
+                    {resetPwdLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Salvar
                   </Button>
                 </div>
