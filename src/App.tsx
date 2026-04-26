@@ -41,6 +41,7 @@ const App = () => (
             <Route path="/:slug/checkout" element={<CheckoutPage />} />
             <Route path="/:slug/pedidos" element={<OrderHistoryPage />} />
             <Route path="/:slug/cozinha" element={<KitchenPage />} />
+            <Route path="/:slug/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
