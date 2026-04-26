@@ -232,6 +232,7 @@ export default function FoodStorePage() {
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
         storeId={store.id}
+        storeSlug={store.slug}
       />
     </div>
   );

@@ -486,6 +486,7 @@ export default function PizzaStorePage() {
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
         storeId={store.id}
+        storeSlug={store.slug}
       />
     </div>
   );
