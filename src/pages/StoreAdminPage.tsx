@@ -129,6 +129,20 @@ export default function StoreAdminPage() {
   const updateCategory = useUpdateCategory();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Auto-select default tab for restricted users
+  useEffect(() => {
+    if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
+      setActiveTab('service-orders');
+    } else if (!isAdmin && (permissions.can_view_orders || permissions.can_manage_orders)) {
+      setActiveTab('orders');
+    } else if (!isAdmin && permissions.can_manage_products) {
+      setActiveTab('products');
+    } else if (!isAdmin && permissions.can_view_customers) {
+      setActiveTab('customers');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
