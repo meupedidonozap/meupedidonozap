@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   const [ready, setReady] = useState(false);
   const [validToken, setValidToken] = useState(false);
   const [password, setPassword] = useState('');
@@ -52,7 +53,7 @@ export default function ResetPasswordPage() {
       return;
     }
     toast.success('Senha redefinida!');
-    navigate('/');
+    navigate(slug ? `/${slug}` : '/');
   };
 
   return (
