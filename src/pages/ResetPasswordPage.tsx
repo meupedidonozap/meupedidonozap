@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
               <p className="text-sm text-muted-foreground">
                 Link inválido ou expirado. Solicite um novo link de redefinição.
               </p>
-              <Button onClick={() => navigate('/')} className="w-full" variant="outline">
+              <Button onClick={() => navigate(slug ? `/${slug}` : '/')} className="w-full" variant="outline">
                 Voltar
               </Button>
             </div>
