@@ -1329,7 +1329,12 @@ export default function StoreAdminPage() {
           {/* Service Orders - only for SERVICOS */}
           {store.type === 'SERVICOS' && (
             <TabsContent value="service-orders" className="animate-fade-in">
-              <div className="mb-4"><h3 className="text-lg font-semibold">Ordens de Serviço</h3></div>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Ordens de Serviço</h3>
+                {!isAdmin && !permissions.can_manage_service_orders && (
+                  <Badge variant="secondary">Modo somente leitura</Badge>
+                )}
+              </div>
               <Card>
                 <CardContent className="p-0">
                   <Table>
@@ -1360,9 +1365,11 @@ export default function StoreAdminPage() {
                           </TableCell>
                           <TableCell>{new Date(so.createdAt).toLocaleDateString('pt-BR')}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }}>
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }} title={(isAdmin || permissions.can_manage_service_orders) ? 'Editar OS' : 'Ver / Imprimir OS'}>
+                                {(isAdmin || permissions.can_manage_service_orders) ? <Edit2 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
