@@ -776,9 +776,16 @@ export default function StoreAdminPage() {
           <TabsContent value="orders" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Pedidos</h3>
-              <Button variant="outline" onClick={() => setNewOrderDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Novo Pedido
-              </Button>
+              <div className="flex items-center gap-2">
+                {!isAdmin && !permissions.can_manage_orders && (
+                  <Badge variant="secondary">Modo somente leitura</Badge>
+                )}
+                {(isAdmin || permissions.can_manage_orders) && (
+                  <Button variant="outline" onClick={() => setNewOrderDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Novo Pedido
+                  </Button>
+                )}
+              </div>
             </div>
             <Card>
               <CardContent className="p-0">
