@@ -268,7 +268,7 @@ export default function StoreAdminPage() {
 
   // Auth gate
   if (!user) return <StoreAdminLogin storeName={store.name} />;
-  if (!isAdmin) {
+  if (!hasAccess) {
     return <StoreAdminAccessDenied email={user.email ?? ''} slug={slug!} />;
   }
 
