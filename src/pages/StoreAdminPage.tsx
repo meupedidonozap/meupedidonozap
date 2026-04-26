@@ -1599,6 +1599,13 @@ export default function StoreAdminPage() {
               </DialogContent>
             </Dialog>
           </TabsContent>
+
+          {/* Users (Admin only) */}
+          {isAdmin && (
+            <TabsContent value="users" className="animate-fade-in">
+              <StoreUsersTab storeId={store.id} storeType={store.type as StoreType} />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
