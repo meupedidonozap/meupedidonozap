@@ -830,6 +830,7 @@ export default function StoreAdminPage() {
                                 <span className="ml-1">{statusConfig[order.status]?.label}</span>
                               </Badge>
                               {(() => {
+                                if (!isAdmin && !permissions.can_manage_orders) return null;
                                 const hasSO = serviceOrders.some(so => so.orderId === order.id);
                                 if (!hasSO && order.status !== 'cancelado') {
                                   return (
@@ -859,6 +860,7 @@ export default function StoreAdminPage() {
                               })()}
                             </div>
                           ) : (
+                            (isAdmin || permissions.can_manage_orders) ? (
                             <Select value={order.status} onValueChange={(value) => {
                               updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
                               toast.success('Status atualizado!');
@@ -875,11 +877,17 @@ export default function StoreAdminPage() {
                                 ))}
                               </SelectContent>
                             </Select>
+                            ) : (
+                              <Badge className={statusConfig[order.status]?.color}>
+                                {statusConfig[order.status]?.icon}
+                                <span className="ml-1">{statusConfig[order.status]?.label}</span>
+                              </Badge>
+                            )
                           )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            {store.type === 'SERVICOS' && (() => {
+                            {store.type === 'SERVICOS' && (isAdmin || permissions.can_manage_service_orders || permissions.can_view_service_orders) && (() => {
                               const existingSO = serviceOrders.find(so => so.orderId === order.id);
                               if (existingSO) {
                                 return (
@@ -887,10 +895,11 @@ export default function StoreAdminPage() {
                                     setSelectedSOId(existingSO.id);
                                     setSODialogOpen(true);
                                   }}>
-                                    <ClipboardList className="h-3 w-3" /> Abrir OS
+                                    <ClipboardList className="h-3 w-3" /> {(isAdmin || permissions.can_manage_service_orders) ? 'Abrir OS' : 'Ver OS'}
                                   </Button>
                                 );
                               }
+                              if (!isAdmin && !permissions.can_manage_service_orders) return null;
                               return (
                                 <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={async () => {
                                   try {
