@@ -79,6 +79,18 @@ export function useUpdateOrderStatus() {
   });
 }
 
+export function useDeleteOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; storeId?: string }) => {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+  });
+}
+
 export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
