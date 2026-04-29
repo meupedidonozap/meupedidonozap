@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
-import { useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
+import { useOrders, useUpdateOrderStatus, useUpdateOrder, useDeleteOrder } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
