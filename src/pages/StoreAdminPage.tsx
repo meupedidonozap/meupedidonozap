@@ -124,6 +124,7 @@ export default function StoreAdminPage() {
   const deleteProduct = useDeleteProduct();
   const updateOrderStatus = useUpdateOrderStatus();
   const updateOrder = useUpdateOrder();
+  const deleteOrder = useDeleteOrder();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
   const updateCategory = useUpdateCategory();
