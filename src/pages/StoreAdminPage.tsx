@@ -857,27 +857,53 @@ export default function StoreAdminPage() {
                                     </Button>
                                   );
                                 }
+                                if (order.status === 'cancelado') {
+                                  return (
+                                    <Button variant="ghost" size="sm" className="text-xs text-destructive" title="Excluir pedido" onClick={async () => {
+                                      if (!confirm('Excluir permanentemente este pedido cancelado?')) return;
+                                      const so = serviceOrders.find(s => s.orderId === order.id);
+                                      if (so) {
+                                        await deleteServiceOrder.mutateAsync({ id: so.id, storeId: store.id });
+                                      }
+                                      await deleteOrder.mutateAsync({ id: order.id, storeId: store.id });
+                                      toast.success('Pedido excluído!');
+                                    }}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  );
+                                }
                                 return null;
                               })()}
                             </div>
                           ) : (
                             (isAdmin || permissions.can_manage_orders) ? (
-                            <Select value={order.status} onValueChange={(value) => {
-                              updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
-                              toast.success('Status atualizado!');
-                            }}>
-                              <SelectTrigger className="w-32">
-                                <Badge className={statusConfig[order.status]?.color}>
-                                  {statusConfig[order.status]?.icon}
-                                  <span className="ml-1">{statusConfig[order.status]?.label}</span>
-                                </Badge>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Object.entries(statusConfig).map(([key, cfg]) => (
-                                  <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-1">
+                              <Select value={order.status} onValueChange={(value) => {
+                                updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
+                                toast.success('Status atualizado!');
+                              }}>
+                                <SelectTrigger className="w-32">
+                                  <Badge className={statusConfig[order.status]?.color}>
+                                    {statusConfig[order.status]?.icon}
+                                    <span className="ml-1">{statusConfig[order.status]?.label}</span>
+                                  </Badge>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(statusConfig).map(([key, cfg]) => (
+                                    <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {order.status === 'cancelado' && (
+                                <Button variant="ghost" size="sm" className="text-destructive" title="Excluir pedido" onClick={async () => {
+                                  if (!confirm('Excluir permanentemente este pedido cancelado?')) return;
+                                  await deleteOrder.mutateAsync({ id: order.id, storeId: store.id });
+                                  toast.success('Pedido excluído!');
+                                }}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                             ) : (
                               <Badge className={statusConfig[order.status]?.color}>
                                 {statusConfig[order.status]?.icon}
