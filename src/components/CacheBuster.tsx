@@ -8,7 +8,21 @@ export default function CacheBuster() {
   const handleClearCache = async () => {
     setClearing(true);
     try {
-      // Clear all caches
+      // Preserve user data (cart + auth session). Only clear browser asset caches and SW.
+      // Snapshot Supabase auth keys and cart_* keys so they survive a defensive clear.
+      const preserved: Record<string, string> = {};
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          if (k.startsWith('cart_') || k.startsWith('sb-') || k.includes('supabase')) {
+            const v = localStorage.getItem(k);
+            if (v != null) preserved[k] = v;
+          }
+        }
+      } catch {}
+
+      // Clear all asset caches
       if ('caches' in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
@@ -20,9 +34,12 @@ export default function CacheBuster() {
         await Promise.all(regs.map(r => r.unregister()));
       }
 
-      // Clear localStorage and sessionStorage
-      try { localStorage.clear(); } catch {}
-      try { sessionStorage.clear(); } catch {}
+      // Restore preserved keys (in case anything else cleared them)
+      try {
+        for (const [k, v] of Object.entries(preserved)) {
+          if (localStorage.getItem(k) == null) localStorage.setItem(k, v);
+        }
+      } catch {}
 
       setDone(true);
 

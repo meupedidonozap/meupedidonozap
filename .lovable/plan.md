@@ -1,25 +1,44 @@
-## Permitir que lojas excluam pedidos cancelados
+## Problema diagnosticado
 
-### Objetivo
-Adicionar um botão de "Excluir" (lixeira) ao lado de pedidos com status `cancelado` no painel admin da loja, removendo permanentemente o registro do banco.
+O usuário **não** está com problema de cache do navegador. Está caindo em um loop causado pelo nosso próprio `ErrorBoundary`:
 
-### Contexto
-- A política RLS de `orders` já permite `DELETE` para `is_store_admin`, então não precisa de migration.
-- Falta apenas o hook de exclusão e a UI.
+1. Algo no código (provavelmente um erro JS específico no fluxo do carrinho da DICOLORE) dispara um crash do React.
+2. O `ErrorBoundary` mostra a tela "Ops! Algo deu errado" com o botão **"Limpar Cache e Atualizar"**.
+3. Esse botão (`src/components/CacheBuster.tsx`) chama `localStorage.clear()` e `sessionStorage.clear()`, **apagando o carrinho** (`cart_dicolore`) e a sessão do cliente logado.
+4. O usuário entra de novo, refaz o pedido, e o **mesmo crash acontece** — porque o problema nunca foi cache, e sim um bug em runtime. A tela aparece de novo, ela limpa de novo, perde tudo de novo. Loop infinito.
 
-### Mudanças
+Isso vai acontecer igual no Safari iOS e no Chrome — não é específico do navegador, é um bug do app que está sendo mascarado pelo ErrorBoundary.
 
-**1. `src/hooks/useOrders.ts`**
-- Adicionar `useDeleteOrder()`: mutation que faz `supabase.from('orders').delete().eq('id', id)` e invalida a query `['orders']`.
+## O que vou mudar
 
-**2. `src/pages/StoreAdminPage.tsx` (aba Pedidos, células de status)**
-- Para qualquer tipo de loja (LOJA/COMIDA/SERVICOS/etc), quando `order.status === 'cancelado'` e o usuário tem `isAdmin || permissions.can_manage_orders`, exibir um botão lixeira ao lado do badge.
-- Ao clicar: `confirm('Excluir permanentemente este pedido cancelado?')` → se SIM, se for SERVICOS e existir OS vinculada, deletar a OS antes; depois `deleteOrder.mutateAsync(order.id)` → `toast.success('Pedido excluído!')`.
-- Para SERVICOS: substituir o `return null` final do bloco (linha 859) pelo botão de exclusão quando cancelado.
-- Para outros tipos: ao lado do `<Select>` de status, adicionar o botão lixeira condicional quando `status === 'cancelado'`.
+### 1. `src/components/CacheBuster.tsx` — parar de destruir dados do usuário
+- **Remover** `localStorage.clear()` e `sessionStorage.clear()`. Esses storages guardam **carrinho e sessão de login**, não cache de versão. Limpá-los nunca resolve o erro real, só causa perda de dados.
+- Manter apenas: limpar `caches` API e desregistrar service workers (que é o que de fato resolve cache de assets).
+- Mesmo ajuste no auto-clear do `src/main.tsx` (rota `?limpar`): preservar carrinho e sessão.
 
-### Detalhes técnicos
-- Ícone: `Trash2` do lucide-react (já importado em vários lugares; verificar import no arquivo).
-- Variant: `ghost`, `size: 'sm'`, classe `text-destructive`.
-- Não criar nova migration — RLS DELETE já existe.
-- Não tocar em pedidos não-cancelados (manter fluxo de "cancelar" antes de "excluir").
+### 2. `src/components/ErrorBoundary.tsx` — diagnóstico em vez de loop
+- Em vez de oferecer "Limpar Cache" como solução padrão (que destrói dados), oferecer:
+  - **Botão primário "Recarregar página"** (apenas `window.location.reload()`).
+  - Botão secundário "Voltar à loja".
+  - Botão discreto "Limpar cache" só como último recurso, com aviso claro de que vai deslogar.
+- **Mostrar a mensagem de erro real** (`this.state.error?.message`) num bloco recolhível, para que possamos diagnosticar o crash quando o usuário enviar o print.
+- Logar o erro para o console com prefixo `[ErrorBoundary]` para facilitar capturar nos logs do navegador.
+
+### 3. Reforço defensivo no `CartContext`
+- No `setStoreId`, envolver o `JSON.parse(saved)` em try/catch já existe — mas se o parse retornar algo inválido (ex.: items não é array), pode quebrar renderização. Validar a forma do objeto carregado e descartar se estiver corrompido, em vez de retornar para o estado inicial silenciosamente.
+
+## O que isso resolve
+
+- **Quebra o ciclo**: mesmo que ainda exista um bug em runtime, o usuário não perde mais o carrinho ao tentar de novo, e a recarga simples já é suficiente na maioria dos casos transitórios.
+- **Permite diagnosticar**: na próxima vez que aparecer a tela de erro, vamos ver a mensagem real do crash e poder corrigir a causa-raiz.
+
+## Próximo passo (depois desta correção)
+
+Pedir à usuária da DICOLORE para reproduzir uma vez mais e mandar print da nova tela de erro (que agora vai mostrar a mensagem técnica). Com isso identificamos e corrigimos o crash original, em vez de só tratar o sintoma.
+
+## Arquivos afetados
+
+- `src/components/CacheBuster.tsx`
+- `src/components/ErrorBoundary.tsx`
+- `src/main.tsx`
+- `src/contexts/CartContext.tsx`
