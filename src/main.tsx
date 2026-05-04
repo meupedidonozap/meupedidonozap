@@ -6,6 +6,19 @@ import "./index.css";
 // Auto-clear cache when ?limpar is in URL
 if (window.location.search.includes('limpar')) {
   (async () => {
+    // Preserve cart and auth session through the cleanup
+    const preserved: Record<string, string> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        if (k.startsWith('cart_') || k.startsWith('sb-') || k.includes('supabase')) {
+          const v = localStorage.getItem(k);
+          if (v != null) preserved[k] = v;
+        }
+      }
+    } catch {}
+
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map(k => caches.delete(k)));
@@ -14,8 +27,12 @@ if (window.location.search.includes('limpar')) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r => r.unregister()));
     }
-    try { localStorage.clear(); } catch {}
-    try { sessionStorage.clear(); } catch {}
+    // Restore preserved keys
+    try {
+      for (const [k, v] of Object.entries(preserved)) {
+        if (localStorage.getItem(k) == null) localStorage.setItem(k, v);
+      }
+    } catch {}
     // Remove ?limpar and reload clean
     window.location.href = window.location.origin + window.location.pathname;
   })();

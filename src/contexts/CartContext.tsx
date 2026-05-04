@@ -115,9 +115,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
           const saved = localStorage.getItem(`cart_${storeId}`);
           if (saved) {
             const parsed = JSON.parse(saved) as Cart;
-            return parsed;
+            // Validate shape before trusting it
+            if (
+              parsed &&
+              typeof parsed === 'object' &&
+              Array.isArray((parsed as any).items) &&
+              typeof (parsed as any).storeId === 'string'
+            ) {
+              return {
+                storeId: parsed.storeId || storeId,
+                items: parsed.items.filter(
+                  (i: any) =>
+                    i &&
+                    typeof i.productId === 'string' &&
+                    typeof i.name === 'string' &&
+                    typeof i.price === 'number' &&
+                    typeof i.quantity === 'number'
+                ),
+                couponCode: parsed.couponCode,
+                couponDiscount: Number(parsed.couponDiscount) || 0,
+                quantityDiscount: Number(parsed.quantityDiscount) || 0,
+                subtotal: Number(parsed.subtotal) || 0,
+                total: Number(parsed.total) || 0,
+              };
+            }
+            // Corrupted -> drop it
+            try { localStorage.removeItem(`cart_${storeId}`); } catch {}
           }
-        } catch {}
+        } catch {
+          try { localStorage.removeItem(`cart_${storeId}`); } catch {}
+        }
         return { ...initialCart, storeId };
       }
       return prev;
