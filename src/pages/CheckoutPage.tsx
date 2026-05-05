@@ -468,7 +468,9 @@ export default function CheckoutPage() {
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
                 </div>
                 <div className="grid gap-2 pt-4">
-                  <Button variant="outline" onClick={handleDownloadTxt} className="w-full gap-2"><Download className="h-4 w-4" /> Baixar TXT</Button>
+                  {store.slug !== 'dicolore' && (
+                    <Button variant="outline" onClick={handleDownloadTxt} className="w-full gap-2"><Download className="h-4 w-4" /> Baixar TXT</Button>
+                  )}
                   <Button onClick={handleSendWhatsApp} disabled={isSubmitting} className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
                     <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
                   </Button>
