@@ -1431,6 +1431,13 @@ export default function StoreAdminPage() {
             </TabsContent>
           )}
 
+          {/* Salon - only for SALAO */}
+          {store.type === 'SALAO' && (
+            <TabsContent value="salon" className="animate-fade-in">
+              <SalonAdminTab storeId={store.id} />
+            </TabsContent>
+          )}
+
           {/* Customers */}
           <TabsContent value="customers" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
