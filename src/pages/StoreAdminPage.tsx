@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
+  Scissors,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +30,7 @@ import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
 import StoreUsersTab from '@/components/StoreUsersTab';
+import SalonAdminTab from '@/components/SalonAdminTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -555,6 +557,9 @@ export default function StoreAdminPage() {
             )}
             {store.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders || permissions.can_manage_service_orders) && (
               <TabsTrigger value="service-orders" className="gap-2"><ClipboardList className="h-4 w-4" /> Ordens de Serviço</TabsTrigger>
+            )}
+            {store.type === 'SALAO' && isAdmin && (
+              <TabsTrigger value="salon" className="gap-2"><Scissors className="h-4 w-4" /> Salão</TabsTrigger>
             )}
             {(isAdmin || permissions.can_view_customers) && (
               <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
@@ -1423,6 +1428,13 @@ export default function StoreAdminPage() {
                   </Table>
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
+
+          {/* Salon - only for SALAO */}
+          {store.type === 'SALAO' && (
+            <TabsContent value="salon" className="animate-fade-in">
+              <SalonAdminTab storeId={store.id} />
             </TabsContent>
           )}
 
