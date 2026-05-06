@@ -1,44 +1,82 @@
-## Problema diagnosticado
+## Novo segmento: SALAO (Salão de Beleza com Agendamento)
 
-O usuário **não** está com problema de cache do navegador. Está caindo em um loop causado pelo nosso próprio `ErrorBoundary`:
+Criar um novo tipo de loja `SALAO` que permite cadastrar serviços com duração e gerenciar uma agenda de horários por profissional, com reserva automática ao gerar pedido.
 
-1. Algo no código (provavelmente um erro JS específico no fluxo do carrinho da DICOLORE) dispara um crash do React.
-2. O `ErrorBoundary` mostra a tela "Ops! Algo deu errado" com o botão **"Limpar Cache e Atualizar"**.
-3. Esse botão (`src/components/CacheBuster.tsx`) chama `localStorage.clear()` e `sessionStorage.clear()`, **apagando o carrinho** (`cart_dicolore`) e a sessão do cliente logado.
-4. O usuário entra de novo, refaz o pedido, e o **mesmo crash acontece** — porque o problema nunca foi cache, e sim um bug em runtime. A tela aparece de novo, ela limpa de novo, perde tudo de novo. Loop infinito.
+---
 
-Isso vai acontecer igual no Safari iOS e no Chrome — não é específico do navegador, é um bug do app que está sendo mascarado pelo ErrorBoundary.
+### 1. Banco de dados (migration)
 
-## O que vou mudar
+**Adicionar tipo `SALAO`** ao enum `StoreType`.
 
-### 1. `src/components/CacheBuster.tsx` — parar de destruir dados do usuário
-- **Remover** `localStorage.clear()` e `sessionStorage.clear()`. Esses storages guardam **carrinho e sessão de login**, não cache de versão. Limpá-los nunca resolve o erro real, só causa perda de dados.
-- Manter apenas: limpar `caches` API e desregistrar service workers (que é o que de fato resolve cache de assets).
-- Mesmo ajuste no auto-clear do `src/main.tsx` (rota `?limpar`): preservar carrinho e sessão.
+**Nova tabela `salon_professionals`** (profissionais do salão):
+- store_id, name, photo_url, bio, is_active, sort_order
 
-### 2. `src/components/ErrorBoundary.tsx` — diagnóstico em vez de loop
-- Em vez de oferecer "Limpar Cache" como solução padrão (que destrói dados), oferecer:
-  - **Botão primário "Recarregar página"** (apenas `window.location.reload()`).
-  - Botão secundário "Voltar à loja".
-  - Botão discreto "Limpar cache" só como último recurso, com aviso claro de que vai deslogar.
-- **Mostrar a mensagem de erro real** (`this.state.error?.message`) num bloco recolhível, para que possamos diagnosticar o crash quando o usuário enviar o print.
-- Logar o erro para o console com prefixo `[ErrorBoundary]` para facilitar capturar nos logs do navegador.
+**Nova tabela `salon_services`** (serviços oferecidos):
+- store_id, name, description, price, duration_minutes (ex: 30, 60, 90), image_url, is_active, sort_order
+- (separada de `products` para ter o campo duração e simplificar)
 
-### 3. Reforço defensivo no `CartContext`
-- No `setStoreId`, envolver o `JSON.parse(saved)` em try/catch já existe — mas se o parse retornar algo inválido (ex.: items não é array), pode quebrar renderização. Validar a forma do objeto carregado e descartar se estiver corrompido, em vez de retornar para o estado inicial silenciosamente.
+**Tabela de associação `salon_service_professionals`**:
+- service_id, professional_id (quais profissionais executam quais serviços)
 
-## O que isso resolve
+**Nova tabela `salon_appointments`** (reservas de horário):
+- store_id, professional_id, service_id, order_id (opcional — link com pedido)
+- customer_name, customer_whatsapp
+- starts_at (timestamptz), ends_at (timestamptz)
+- status: `reservado` (pedido gerado) | `confirmado` (salão confirmou) | `concluido` | `cancelado`
+- created_at
+- **Constraint EXCLUDE** (via btree_gist) impedindo dois agendamentos do mesmo profissional com intervalo `[starts_at, ends_at)` sobreposto, exceto quando status=`cancelado`. Garante que não dá para reservar o mesmo horário duas vezes.
 
-- **Quebra o ciclo**: mesmo que ainda exista um bug em runtime, o usuário não perde mais o carrinho ao tentar de novo, e a recarga simples já é suficiente na maioria dos casos transitórios.
-- **Permite diagnosticar**: na próxima vez que aparecer a tela de erro, vamos ver a mensagem real do crash e poder corrigir a causa-raiz.
+**RLS**: leitura pública (para mostrar slots ocupados), escrita autenticada (admin da loja) + insert via Edge Function para cliente final.
 
-## Próximo passo (depois desta correção)
+### 2. Edge Function `criar-agendamento`
 
-Pedir à usuária da DICOLORE para reproduzir uma vez mais e mandar print da nova tela de erro (que agora vai mostrar a mensagem técnica). Com isso identificamos e corrigimos o crash original, em vez de só tratar o sintoma.
+Recebe `{ storeId, serviceId, professionalId, startsAt, customer, orderId? }`. Valida disponibilidade, calcula `endsAt` a partir de `duration_minutes`, insere na tabela. A constraint EXCLUDE garante que dois clientes simultâneos não consigam reservar o mesmo slot (o segundo recebe erro). Retorna o agendamento criado.
 
-## Arquivos afetados
+### 3. Admin do Salão (`/:slug/admin`)
 
-- `src/components/CacheBuster.tsx`
-- `src/components/ErrorBoundary.tsx`
-- `src/main.tsx`
-- `src/contexts/CartContext.tsx`
+Nova aba **"Salão"** visível só quando `store.type === 'SALAO'` com sub-abas:
+
+- **Profissionais**: CRUD (nome, foto, bio, ativar/desativar).
+- **Serviços**: CRUD com nome, descrição, preço, **duração em minutos**, foto, e seleção de quais profissionais executam.
+- **Agenda**: visualização semanal/diária mostrando agendamentos. Permite:
+  - Criar agendamento manual (escolher profissional, serviço, cliente, data/hora).
+  - Cancelar/confirmar/concluir agendamento.
+  - Bloquear horários (cria appointment do tipo "bloqueio" interno).
+
+Horários de funcionamento usam o `workingHours` já existente em `StoreSettings`.
+
+### 4. Storefront do Salão (`/:slug` quando type=SALAO)
+
+Nova página `SalonStorePage`:
+
+- Lista de serviços (cards com foto, nome, preço, duração).
+- Cliente clica em **Agendar** → abre `BookingDialog`:
+  1. **Escolher profissional** (lista os habilitados para aquele serviço; opção "Qualquer profissional" pega o primeiro disponível).
+  2. **Escolher data** (calendário shadcn, datas passadas e dias fechados desabilitados conforme `workingHours`).
+  3. **Escolher horário**: gera slots a partir do horário de abertura, com intervalo igual à `duration_minutes` do serviço, e remove os que conflitam com agendamentos existentes daquele profissional. Slots ocupados aparecem desabilitados.
+  4. **Confirmar dados do cliente** (nome, whatsapp — usa perfil logado se houver).
+  5. Ao confirmar: chama `criar-pedido` (cria order com 1 item = serviço) + `criar-agendamento` em sequência. Se a edge function de agendamento falhar (slot tomado entre o load e o submit), mostra erro pedindo para escolher outro horário sem criar pedido órfão.
+- Após sucesso: redireciona para tela de confirmação com WhatsApp do salão e mensagem pré-formatada.
+
+### 5. Tipos e hooks (frontend)
+
+- `src/types/index.ts`: adicionar `'SALAO'` em `StoreType` e novos tipos `SalonService`, `SalonProfessional`, `SalonAppointment`.
+- Novos hooks: `useSalonServices`, `useSalonProfessionals`, `useSalonAppointments` (com filtros por data/profissional), `useCreateAppointment`.
+- `StorePage.tsx`: rotear para `SalonStorePage` quando `store.type === 'SALAO'`.
+
+### 6. AdminPage (plataforma)
+
+Adicionar `SALAO` nas opções de tipo ao criar loja.
+
+---
+
+### Reserva imediata (regra do usuário)
+
+Conforme escolhido: **ao gerar o pedido o slot já é reservado** (status `reservado`). A constraint do banco impede sobreposição mesmo que dois clientes cliquem ao mesmo tempo. O salão depois confirma/conclui pelo admin. Se cancelar, libera o slot automaticamente (status `cancelado` é excluído da constraint).
+
+### Pontos não incluídos (futuro)
+
+- Notificações automáticas (lembrete por WhatsApp).
+- Pagamento online antecipado.
+- Sinal/caução para reserva.
+- Relatórios de ocupação por profissional.
