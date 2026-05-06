@@ -1,5 +1,46 @@
 // Store types
-export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA' | 'SERVICOS' | 'PIZZARIA';
+export type StoreType = 'LOJA' | 'ACESSORIOS' | 'COMIDA' | 'SERVICOS' | 'PIZZARIA' | 'SALAO';
+
+// Salon (SALAO) types
+export interface SalonProfessional {
+  id: string;
+  storeId: string;
+  name: string;
+  photoUrl?: string;
+  bio?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface SalonService {
+  id: string;
+  storeId: string;
+  name: string;
+  description: string;
+  price: number;
+  durationMinutes: number;
+  imageUrl?: string;
+  isActive: boolean;
+  sortOrder: number;
+  professionalIds: string[];
+}
+
+export type SalonAppointmentStatus = 'reservado' | 'confirmado' | 'concluido' | 'cancelado';
+
+export interface SalonAppointment {
+  id: string;
+  storeId: string;
+  professionalId: string;
+  serviceId?: string;
+  orderId?: string;
+  customerName: string;
+  customerWhatsapp?: string;
+  startsAt: string;
+  endsAt: string;
+  status: SalonAppointmentStatus;
+  notes?: string;
+  createdAt: string;
+}
 
 // Pizza types
 export interface PizzaSize {
