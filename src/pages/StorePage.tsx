@@ -5,6 +5,7 @@ import { useTrackVisit } from '@/hooks/useStoreVisits';
 import ProductStorePage from './ProductStorePage';
 import FoodStorePage from './FoodStorePage';
 import PizzaStorePage from './PizzaStorePage';
+import SalonStorePage from './SalonStorePage';
 import { Loader2 } from 'lucide-react';
 
 export default function StorePage() {
@@ -32,6 +33,10 @@ export default function StorePage() {
 
   if (store?.type === 'PIZZARIA') {
     return <PizzaStorePage />;
+  }
+
+  if (store?.type === 'SALAO') {
+    return <SalonStorePage />;
   }
 
   // SERVICOS and LOJA/ACESSORIOS all use ProductStorePage
