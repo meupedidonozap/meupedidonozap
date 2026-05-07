@@ -10,7 +10,7 @@ import {
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCategories } from '@/hooks/useCategories';
 import { useProducts } from '@/hooks/useProducts';
-import { useCoupons } from '@/hooks/useCoupons';
+import { supabase } from '@/integrations/supabase/client';
 import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrency } from '@/lib/formatters';
@@ -36,7 +36,6 @@ export default function ProductStorePage() {
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allProducts = [] } = useProducts(store?.id);
-  const { data: coupons = [] } = useCoupons(store?.id);
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules } = useCart();
   const { user, signOut } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
@@ -104,15 +103,23 @@ export default function ProductStorePage() {
     }
   };
 
-  const handleApplyCoupon = () => {
-    const coupon = coupons.find(c => c.code.toUpperCase() === couponInput.toUpperCase() && c.isActive);
-    if (!coupon) { toast.error('Cupom inválido'); return; }
-    if (cart.subtotal < coupon.minOrderValue) {
-      toast.error(`Pedido mínimo de ${formatCurrency(coupon.minOrderValue)} para este cupom`);
+  const handleApplyCoupon = async () => {
+    if (!store?.id || !couponInput.trim()) return;
+    const { data, error } = await supabase.rpc('validate_coupon', {
+      _store_id: store.id,
+      _code: couponInput.trim(),
+      _subtotal: cart.subtotal,
+    });
+    if (error) { toast.error('Erro ao validar cupom'); return; }
+    const result = data as any;
+    if (!result?.valid) {
+      if (result?.reason === 'expired') toast.error('Cupom expirado');
+      else if (result?.reason === 'exhausted') toast.error('Cupom esgotado');
+      else if (result?.reason === 'min_order') toast.error(`Pedido mínimo de ${formatCurrency(Number(result.minOrderValue) || 0)} para este cupom`);
+      else toast.error('Cupom inválido');
       return;
     }
-    const discount = coupon.discountPercent ? (cart.subtotal * coupon.discountPercent) / 100 : coupon.discountValue || 0;
-    applyCoupon(coupon.code, discount);
+    applyCoupon(result.code, Number(result.discount) || 0);
     toast.success('Cupom aplicado!');
     setCouponInput('');
   };
