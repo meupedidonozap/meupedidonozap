@@ -37,6 +37,8 @@ function mapProduct(row: any): Product {
     hasVariants: row.has_variants,
     variants: row.product_variants?.map(mapVariant) || [],
     images: row.product_images?.map(mapImage) || [],
+    durationMinutes: row.duration_minutes ?? 30,
+    professionalIds: row.salon_service_professionals?.map((l: any) => l.professional_id) || [],
   };
 }
 
@@ -46,7 +48,7 @@ export function useProducts(storeId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, product_variants(*), product_images(*)')
+        .select('*, product_variants(*), product_images(*), salon_service_professionals(professional_id)')
         .eq('store_id', storeId!)
         .order('name', { ascending: true });
       if (error) throw error;
@@ -93,6 +95,8 @@ export function useCreateProduct() {
       hasVariants: boolean;
       variants?: Omit<ProductVariant, 'id'>[];
       images?: { imageUrl: string; label?: string }[];
+      durationMinutes?: number;
+      professionalIds?: string[];
     }) => {
       const finalCode = product.code?.trim()
         ? product.code
@@ -109,6 +113,7 @@ export function useCreateProduct() {
         image_url: product.imageUrl || null,
         is_active: product.isActive,
         has_variants: product.hasVariants,
+        duration_minutes: product.durationMinutes ?? 30,
       }).select().single();
       if (error) throw error;
 
@@ -139,6 +144,12 @@ export function useCreateProduct() {
         if (iError) throw iError;
       }
 
+      // Salon: link professionals via salon_service_professionals (using product.id as service_id)
+      if (product.professionalIds && product.professionalIds.length > 0) {
+        const rows = product.professionalIds.map(pid => ({ service_id: data.id, professional_id: pid }));
+        await supabase.from('salon_service_professionals').insert(rows);
+      }
+
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
@@ -161,6 +172,8 @@ export function useUpdateProduct() {
       hasVariants?: boolean;
       variants?: Omit<ProductVariant, 'id'>[];
       images?: { imageUrl: string; label?: string }[];
+      durationMinutes?: number;
+      professionalIds?: string[];
     }) => {
       const updates: any = {};
       if (product.code !== undefined) updates.code = product.code;
@@ -172,6 +185,7 @@ export function useUpdateProduct() {
       if (product.imageUrl !== undefined) updates.image_url = product.imageUrl;
       if (product.isActive !== undefined) updates.is_active = product.isActive;
       if (product.hasVariants !== undefined) updates.has_variants = product.hasVariants;
+      if (product.durationMinutes !== undefined) updates.duration_minutes = product.durationMinutes;
 
       const { error } = await supabase.from('products').update(updates).eq('id', product.id);
       if (error) throw error;
@@ -207,6 +221,15 @@ export function useUpdateProduct() {
             }))
           );
           if (iError) throw iError;
+        }
+      }
+
+      // Salon: replace professional links
+      if (product.professionalIds !== undefined) {
+        await supabase.from('salon_service_professionals').delete().eq('service_id', product.id);
+        if (product.professionalIds.length > 0) {
+          const rows = product.professionalIds.map(pid => ({ service_id: product.id, professional_id: pid }));
+          await supabase.from('salon_service_professionals').insert(rows);
         }
       }
     },
