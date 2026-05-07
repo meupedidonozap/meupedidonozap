@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical } from 'lucide-react';
-import type { Product, ProductVariant, Category } from '@/types';
+import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical, Clock } from 'lucide-react';
+import type { Product, ProductVariant, Category, StoreType } from '@/types';
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
+import { useSalonProfessionals } from '@/hooks/useSalon';
+import { Checkbox } from '@/components/ui/checkbox';
 import { uploadProductImage } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +31,7 @@ interface ProductFormDialogProps {
   storeId: string;
   categories: Category[];
   product?: Product | null;
+  storeType?: StoreType;
 }
 
 interface VariantForm {
@@ -51,11 +54,14 @@ export default function ProductFormDialog({
   storeId,
   categories,
   product,
+  storeType,
 }: ProductFormDialogProps) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
+  const isSalon = storeType === 'SALAO';
+  const { data: professionals = [] } = useSalonProfessionals(isSalon ? storeId : undefined);
 
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -69,6 +75,8 @@ export default function ProductFormDialog({
   const [variants, setVariants] = useState<VariantForm[]>([]);
   const [productImages, setProductImages] = useState<ImageForm[]>([]);
   const [saving, setSaving] = useState(false);
+  const [durationMinutes, setDurationMinutes] = useState('30');
+  const [professionalIds, setProfessionalIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (product) {
@@ -81,6 +89,8 @@ export default function ProductFormDialog({
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
       setImageFile(null);
+      setDurationMinutes(String(product.durationMinutes ?? 30));
+      setProfessionalIds(product.professionalIds || []);
       setVariants(
         product.variants?.map(v => ({
           color: v.color || '',
@@ -108,6 +118,8 @@ export default function ProductFormDialog({
       setImageFile(null);
       setVariants([]);
       setProductImages([]);
+      setDurationMinutes('30');
+      setProfessionalIds([]);
     }
   }, [product, open]);
 
@@ -213,6 +225,8 @@ export default function ProductFormDialog({
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
+          durationMinutes: isSalon ? Number(durationMinutes) || 30 : undefined,
+          professionalIds: isSalon ? professionalIds : undefined,
         });
         toast.success('Produto atualizado!');
       } else {
@@ -228,6 +242,8 @@ export default function ProductFormDialog({
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
+          durationMinutes: isSalon ? Number(durationMinutes) || 30 : undefined,
+          professionalIds: isSalon ? professionalIds : undefined,
         });
         toast.success('Produto criado!');
       }
@@ -244,7 +260,7 @@ export default function ProductFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{product ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
+          <DialogTitle>{product ? (isSalon ? 'Editar Serviço' : 'Editar Produto') : (isSalon ? 'Novo Serviço' : 'Novo Produto')}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -302,7 +318,7 @@ export default function ProductFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Categoria</Label>
+              <Label>{isSalon ? 'Tipo de serviço' : 'Categoria'}</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
@@ -315,7 +331,7 @@ export default function ProductFormDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="price">Preço Base</Label>
+              <Label htmlFor="price">{isSalon ? 'Preço (R$)' : 'Preço Base'}</Label>
               <Input
                 id="price"
                 type="number"
@@ -327,6 +343,43 @@ export default function ProductFormDialog({
             </div>
           </div>
 
+          {isSalon && (
+            <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
+              <div className="grid gap-2">
+                <Label htmlFor="duration" className="flex items-center gap-2"><Clock className="h-4 w-4" /> Tempo de execução (minutos) *</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min={5}
+                  step={5}
+                  value={durationMinutes}
+                  onChange={e => setDurationMinutes(e.target.value)}
+                  placeholder="30"
+                />
+                <p className="text-xs text-muted-foreground">Usado para gerar os horários disponíveis na agenda.</p>
+              </div>
+              <div className="grid gap-2">
+                <Label>Profissionais que realizam este serviço</Label>
+                <div className="space-y-1 border rounded p-2 bg-background max-h-48 overflow-y-auto">
+                  {professionals.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Cadastre profissionais na aba Salão antes de vincular.</p>
+                  )}
+                  {professionals.filter(p => p.isActive).map(p => (
+                    <label key={p.id} className="flex items-center gap-2 cursor-pointer py-1">
+                      <Checkbox
+                        checked={professionalIds.includes(p.id)}
+                        onCheckedChange={() => setProfessionalIds(prev =>
+                          prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                        )}
+                      />
+                      <span>{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div>
               <Label>Status</Label>
@@ -335,6 +388,7 @@ export default function ProductFormDialog({
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
 
+          {!isSalon && (
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div>
               <Label>Possui Variantes</Label>
@@ -342,6 +396,7 @@ export default function ProductFormDialog({
             </div>
             <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
           </div>
+          )}
 
           {/* Multi-Image Upload (shown when has variants) */}
           {hasVariants && (
