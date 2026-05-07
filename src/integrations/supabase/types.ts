@@ -987,6 +987,10 @@ export type Database = {
         Args: { _store_id: string; _user_id: string }
         Returns: boolean
       }
+      validate_coupon: {
+        Args: { _code: string; _store_id: string; _subtotal: number }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
