@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { format, addDays, addMinutes, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Plus, Edit2, Trash2, Loader2, CalendarIcon, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { useSalonProfessionals, useUpsertProfessional, useDeleteProfessional, useSalonServices, useUpsertService, useDeleteService, useSalonAppointments, useCreateAppointment, useUpdateAppointmentStatus, useDeleteAppointment } from '@/hooks/useSalon';
-import type { SalonProfessional, SalonService, SalonAppointment, SalonAppointmentStatus } from '@/types';
+import { useSalonProfessionals, useUpsertProfessional, useDeleteProfessional, useSalonAppointments, useCreateAppointment, useUpdateAppointmentStatus, useDeleteAppointment } from '@/hooks/useSalon';
+import { useProducts } from '@/hooks/useProducts';
+import type { SalonProfessional, SalonAppointment, SalonAppointmentStatus, Product } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -245,7 +246,8 @@ function AgendaTab({ storeId }: { storeId: string }) {
   const toIso = endOfDay(date).toISOString();
   const { data: appts = [], isLoading } = useSalonAppointments(storeId, fromIso, toIso);
   const { data: pros = [] } = useSalonProfessionals(storeId);
-  const { data: services = [] } = useSalonServices(storeId);
+  const { data: products = [] } = useProducts(storeId);
+  const services = products.filter(p => p.isActive);
   const updateStatus = useUpdateAppointmentStatus();
   const del = useDeleteAppointment();
   const create = useCreateAppointment();
@@ -318,8 +320,8 @@ function NewAppointmentDialog({ open, onClose, storeId, pros, services, onCreate
     if (open) { setServiceId(''); setProfessionalId(''); setDate(undefined); setTime('09:00'); setName(''); setWhatsapp(''); }
   }, [open]);
 
-  const service = services.find((s: SalonService) => s.id === serviceId);
-  const eligiblePros = service ? pros.filter((p: SalonProfessional) => service.professionalIds.includes(p.id) && p.isActive) : pros.filter((p: SalonProfessional) => p.isActive);
+  const service = services.find((s: Product) => s.id === serviceId);
+  const eligiblePros = service ? pros.filter((p: SalonProfessional) => (service.professionalIds || []).includes(p.id) && p.isActive) : pros.filter((p: SalonProfessional) => p.isActive);
 
   const submit = () => {
     if (!service) { toast.error('Escolha um serviço'); return; }
@@ -328,7 +330,7 @@ function NewAppointmentDialog({ open, onClose, storeId, pros, services, onCreate
     if (!name.trim()) { toast.error('Nome do cliente obrigatório'); return; }
     const [hh, mm] = time.split(':').map(Number);
     const starts = new Date(date); starts.setHours(hh, mm, 0, 0);
-    const ends = addMinutes(starts, service.durationMinutes);
+    const ends = addMinutes(starts, service.durationMinutes ?? 30);
     onCreate({ storeId, professionalId, serviceId, customerName: name, customerWhatsapp: whatsapp, startsAt: starts.toISOString(), endsAt: ends.toISOString() });
   };
 
@@ -341,7 +343,7 @@ function NewAppointmentDialog({ open, onClose, storeId, pros, services, onCreate
             <Label>Serviço</Label>
             <Select value={serviceId} onValueChange={setServiceId}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>{services.map((s: SalonService) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.durationMinutes}min)</SelectItem>)}</SelectContent>
+              <SelectContent>{services.map((s: Product) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.durationMinutes ?? 30}min)</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
