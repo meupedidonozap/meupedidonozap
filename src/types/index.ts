@@ -128,6 +128,15 @@ export interface StoreSettings {
   workingHours: WorkingHours;
   discountRules: DiscountRule[];
   shipping?: ShippingSettings;
+  theme?: SalonTheme;
+}
+
+export type SalonThemePreset = 'masculino' | 'feminino' | 'neutro' | 'custom';
+
+export interface SalonTheme {
+  preset: SalonThemePreset;
+  primaryHsl?: string; // e.g. "220 80% 30%"
+  accentHsl?: string;
 }
 
 export interface WorkingHours {
@@ -196,6 +205,8 @@ export interface Product {
   hasVariants: boolean;
   variants?: ProductVariant[];
   images?: ProductImage[];
+  durationMinutes?: number;
+  professionalIds?: string[];
 }
 
 // Food delivery specific
