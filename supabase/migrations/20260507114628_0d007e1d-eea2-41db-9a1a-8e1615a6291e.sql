@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS duration_minutes integer NOT NULL DEFAULT 30;

@@ -449,6 +449,7 @@ export type Database = {
           code: string
           created_at: string
           description: string
+          duration_minutes: number
           group_id: string | null
           has_variants: boolean
           id: string
@@ -463,6 +464,7 @@ export type Database = {
           code?: string
           created_at?: string
           description?: string
+          duration_minutes?: number
           group_id?: string | null
           has_variants?: boolean
           id?: string
@@ -477,6 +479,7 @@ export type Database = {
           code?: string
           created_at?: string
           description?: string
+          duration_minutes?: number
           group_id?: string | null
           has_variants?: boolean
           id?: string
