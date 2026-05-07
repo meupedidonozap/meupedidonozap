@@ -5,10 +5,11 @@ import { format, addMinutes, isSameDay, parseISO, startOfDay, endOfDay } from 'd
 import { ptBR } from 'date-fns/locale';
 import { Loader2, MapPin, Phone, ArrowLeft, Clock, CalendarIcon, User as UserIcon } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
-import { useSalonServices, useSalonProfessionals, useSalonAppointments, useCreateAppointment } from '@/hooks/useSalon';
+import { useSalonProfessionals, useSalonAppointments, useCreateAppointment } from '@/hooks/useSalon';
+import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
-import type { SalonService, SalonProfessional } from '@/types';
+import type { SalonProfessional, Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,10 +46,24 @@ function buildSlots(date: Date, openHHmm: string, closeHHmm: string, durationMin
   return slots;
 }
 
+const THEME_PRESETS: Record<string, { primary: string; gradient: string }> = {
+  masculino: { primary: '215 50% 23%', gradient: 'linear-gradient(135deg, hsl(215 50% 23%), hsl(40 70% 45%))' },
+  feminino:  { primary: '340 75% 55%', gradient: 'linear-gradient(135deg, hsl(330 80% 60%), hsl(350 75% 55%))' },
+  neutro:    { primary: '0 0% 12%',    gradient: 'linear-gradient(135deg, hsl(0 0% 12%), hsl(40 60% 50%))' },
+};
+
+function getTheme(store: any) {
+  const t = store?.settings?.theme;
+  if (t?.preset === 'custom' && t.primaryHsl) {
+    return { primary: t.primaryHsl, gradient: `linear-gradient(135deg, hsl(${t.primaryHsl}), hsl(${t.accentHsl || t.primaryHsl}))` };
+  }
+  return THEME_PRESETS[t?.preset || 'masculino'] || THEME_PRESETS.masculino;
+}
+
 export default function SalonStorePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading } = useStoreBySlug(slug || '');
-  const { data: services = [] } = useSalonServices(store?.id);
+  const { data: products = [] } = useProducts(store?.id);
   const { data: professionals = [] } = useSalonProfessionals(store?.id);
   const { user } = useAuth();
   const { data: profile } = useCustomerProfile(user?.id, store?.id);
@@ -62,18 +77,20 @@ export default function SalonStorePage() {
     return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loja não encontrada</div>;
   }
 
-  const activeServices = services.filter(s => s.isActive).sort((a, b) => a.name.localeCompare(b.name));
+  const activeServices = products.filter(s => s.isActive).sort((a, b) => a.name.localeCompare(b.name));
   const activeProfessionals = professionals.filter(p => p.isActive);
+  const theme = getTheme(store);
+  const styleVars = { ['--salon-primary' as any]: theme.primary } as React.CSSProperties;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={styleVars}>
       <Helmet>
         <title>{store.name} — Agendamento</title>
         <meta name="description" content={`Agende seu horário em ${store.name}. ${store.address || ''}`.slice(0, 160)} />
       </Helmet>
 
       {/* Header */}
-      <header className="bg-gradient-to-br from-pink-500 to-rose-600 text-white">
+      <header className="text-white" style={{ background: theme.gradient }}>
         <div className="container py-6">
           <div className="flex items-center gap-4">
             {store.logo && <img src={store.logo} alt={store.name} className="h-16 w-16 rounded-full bg-white object-contain p-1" />}
@@ -95,16 +112,16 @@ export default function SalonStorePage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activeServices.map(s => (
                 <Card key={s.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  {s.imageUrl && <div className="aspect-video bg-white"><img src={s.imageUrl} alt={s.name} className="h-full w-full object-contain" /></div>}
+                  {s.image && <div className="aspect-video bg-white"><img src={s.image} alt={s.name} className="h-full w-full object-contain" /></div>}
                   <CardContent className="p-4 space-y-2">
                     <h3 className="font-semibold">{s.name}</h3>
                     {s.description && <p className="text-sm text-muted-foreground line-clamp-2">{s.description}</p>}
                     <div className="flex items-center justify-between pt-2">
                       <div>
-                        <div className="text-lg font-bold text-pink-600">{formatCurrency(s.price)}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {s.durationMinutes} min</div>
+                        <div className="text-lg font-bold" style={{ color: `hsl(${theme.primary})` }}>{formatCurrency(s.basePrice)}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> {s.durationMinutes ?? 30} min</div>
                       </div>
-                      <Button onClick={() => setBookingService(s)} className="bg-pink-600 hover:bg-pink-700">Agendar</Button>
+                      <Button onClick={() => setBookingService(s)} style={{ background: `hsl(${theme.primary})` }} className="text-white hover:opacity-90">Agendar</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -119,8 +136,9 @@ export default function SalonStorePage() {
           open={!!bookingService}
           onClose={() => setBookingService(null)}
           service={bookingService}
-          professionals={activeProfessionals.filter(p => bookingService.professionalIds.includes(p.id))}
+          professionals={activeProfessionals.filter(p => (bookingService.professionalIds || []).includes(p.id))}
           store={store}
+          themePrimary={theme.primary}
           defaultName={profile?.name || ''}
           defaultWhatsapp={profile?.whatsapp || ''}
         />
@@ -129,15 +147,17 @@ export default function SalonStorePage() {
   );
 }
 
-function BookingDialog({ open, onClose, service, professionals, store, defaultName, defaultWhatsapp }: {
+function BookingDialog({ open, onClose, service, professionals, store, defaultName, defaultWhatsapp, themePrimary }: {
   open: boolean;
   onClose: () => void;
-  service: SalonService;
+  service: Product;
   professionals: SalonProfessional[];
   store: any;
   defaultName: string;
   defaultWhatsapp: string;
+  themePrimary: string;
 }) {
+  const durationMin = service.durationMinutes ?? 30;
   const [professionalId, setProfessionalId] = useState<string>(professionals[0]?.id || '');
   const [date, setDate] = useState<Date | undefined>();
   const [slot, setSlot] = useState<Date | null>(null);
@@ -154,11 +174,11 @@ function BookingDialog({ open, onClose, service, professionals, store, defaultNa
 
   const slots = useMemo(() => {
     if (!date || !dayHours) return [];
-    return buildSlots(date, dayHours.open, dayHours.close, service.durationMinutes);
-  }, [date, dayHours, service.durationMinutes]);
+    return buildSlots(date, dayHours.open, dayHours.close, durationMin);
+  }, [date, dayHours, durationMin]);
 
   const isSlotTaken = (s: Date) => {
-    const slotEnd = addMinutes(s, service.durationMinutes);
+    const slotEnd = addMinutes(s, durationMin);
     return dayAppointments.some(a => {
       if (a.professionalId !== professionalId) return false;
       if (a.status === 'cancelado') return false;
@@ -178,7 +198,7 @@ function BookingDialog({ open, onClose, service, professionals, store, defaultNa
     setSubmitting(true);
     try {
       const startsAt = slot.toISOString();
-      const endsAt = addMinutes(slot, service.durationMinutes).toISOString();
+      const endsAt = addMinutes(slot, durationMin).toISOString();
       await createAppointment.mutateAsync({
         storeId: store.id,
         professionalId,
@@ -190,7 +210,7 @@ function BookingDialog({ open, onClose, service, professionals, store, defaultNa
       });
       const prof = professionals.find(p => p.id === professionalId);
       const dateStr = format(slot, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-      const msg = `*Novo agendamento*%0A%0A*Cliente:* ${encodeURIComponent(name)}%0A*WhatsApp:* ${encodeURIComponent(whatsapp)}%0A*Serviço:* ${encodeURIComponent(service.name)}%0A*Profissional:* ${encodeURIComponent(prof?.name || '')}%0A*Data:* ${encodeURIComponent(dateStr)}%0A*Duração:* ${service.durationMinutes} min%0A*Valor:* ${encodeURIComponent(formatCurrency(service.price))}`;
+      const msg = `*Novo agendamento*%0A%0A*Cliente:* ${encodeURIComponent(name)}%0A*WhatsApp:* ${encodeURIComponent(whatsapp)}%0A*Serviço:* ${encodeURIComponent(service.name)}%0A*Profissional:* ${encodeURIComponent(prof?.name || '')}%0A*Data:* ${encodeURIComponent(dateStr)}%0A*Duração:* ${durationMin} min%0A*Valor:* ${encodeURIComponent(formatCurrency(service.basePrice))}`;
       const wa = (store.whatsapp || '').replace(/\D/g, '');
       toast.success('Agendamento reservado!');
       onClose();
@@ -264,7 +284,8 @@ function BookingDialog({ open, onClose, service, professionals, store, defaultNa
                       variant={selected ? 'default' : 'outline'}
                       disabled={taken}
                       onClick={() => setSlot(s)}
-                      className={cn(selected && 'bg-pink-600 hover:bg-pink-700')}
+                      style={selected ? { background: `hsl(${themePrimary})` } : undefined}
+                      className={cn(selected && 'text-white hover:opacity-90')}
                     >
                       {format(s, 'HH:mm')}
                     </Button>
@@ -287,13 +308,13 @@ function BookingDialog({ open, onClose, service, professionals, store, defaultNa
 
           <div className="rounded-md bg-muted p-3 text-sm">
             <div className="flex justify-between"><span>Serviço:</span><span className="font-medium">{service.name}</span></div>
-            <div className="flex justify-between"><span>Duração:</span><span className="font-medium">{service.durationMinutes} min</span></div>
-            <div className="flex justify-between"><span>Valor:</span><span className="font-bold text-pink-600">{formatCurrency(service.price)}</span></div>
+            <div className="flex justify-between"><span>Duração:</span><span className="font-medium">{durationMin} min</span></div>
+            <div className="flex justify-between"><span>Valor:</span><span className="font-bold" style={{ color: `hsl(${themePrimary})` }}>{formatCurrency(service.basePrice)}</span></div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={submitting || !slot} className="bg-pink-600 hover:bg-pink-700">
+          <Button onClick={handleConfirm} disabled={submitting || !slot} style={{ background: `hsl(${themePrimary})` }} className="text-white hover:opacity-90">
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Confirmar agendamento
           </Button>
