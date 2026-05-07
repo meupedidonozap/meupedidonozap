@@ -567,13 +567,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "salon_appointments_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "salon_services"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "salon_appointments_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
@@ -645,13 +638,6 @@ export type Database = {
             columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "salon_professionals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "salon_service_professionals_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "salon_services"
             referencedColumns: ["id"]
           },
         ]
