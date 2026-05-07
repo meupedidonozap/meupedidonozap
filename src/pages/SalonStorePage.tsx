@@ -68,7 +68,7 @@ export default function SalonStorePage() {
   const { user } = useAuth();
   const { data: profile } = useCustomerProfile(user?.id, store?.id);
 
-  const [bookingService, setBookingService] = useState<SalonService | null>(null);
+  const [bookingService, setBookingService] = useState<Product | null>(null);
 
   if (isLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
