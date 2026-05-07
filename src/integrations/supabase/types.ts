@@ -640,6 +640,13 @@ export type Database = {
             referencedRelation: "salon_professionals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "salon_service_professionals_service_id_products_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
         ]
       }
       salon_services: {
