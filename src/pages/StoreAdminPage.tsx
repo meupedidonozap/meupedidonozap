@@ -1677,6 +1677,7 @@ export default function StoreAdminPage() {
         storeId={store.id}
         categories={categories}
         product={editingProduct}
+        storeType={store.type as StoreType}
       />
       <ImportProductsDialog
         open={importDialogOpen}
