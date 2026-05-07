@@ -33,14 +33,10 @@ export default function SalonAdminTab({ storeId }: { storeId: string }) {
     <Tabs defaultValue="agenda" className="w-full">
       <TabsList>
         <TabsTrigger value="agenda">Agenda</TabsTrigger>
-        <TabsTrigger value="services">Serviços</TabsTrigger>
         <TabsTrigger value="professionals">Profissionais</TabsTrigger>
       </TabsList>
       <TabsContent value="agenda" className="mt-4">
         <AgendaTab storeId={storeId} />
-      </TabsContent>
-      <TabsContent value="services" className="mt-4">
-        <ServicesTab storeId={storeId} />
       </TabsContent>
       <TabsContent value="professionals" className="mt-4">
         <ProfessionalsTab storeId={storeId} />
