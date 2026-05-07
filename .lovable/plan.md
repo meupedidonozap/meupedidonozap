@@ -1,64 +1,42 @@
-## Objetivo
+## Diagnóstico
 
-Para o ramo SALÃO DE BELEZA: usar a aba **Produtos** existente como catálogo de serviços (incluindo tempo de execução para a agenda) e permitir que cada salão configure sua própria paleta de cores no storefront.
+A consulta de produtos está falhando com erro 400:
 
----
+```
+Could not find a relationship between 'products' and 'salon_service_professionals' in the schema cache (PGRST200)
+```
 
-## 1. Produtos como Serviços (com duração)
+Isso acontece porque o `useProducts` faz embed `salon_service_professionals(professional_id)`, mas a tabela `salon_service_professionals` não possui foreign key apontando para `products(id)` — ela foi criada originalmente apontando para `salon_services`. Sem FK, o PostgREST não consegue embutir o relacionamento.
 
-### Banco de dados
-- Adicionar coluna `duration_minutes` (integer, default 30) na tabela `products`. Usada apenas quando a loja é SALAO; ignorada nas demais.
+Consequências visíveis:
+- Lista de produtos retorna erro (aparece "Nenhum produto cadastrado").
+- Após salvar um novo produto, o refetch falha → produto "some".
+- A aba **Salão > Profissionais** existe (no `SalonAdminTab`), mas como a página de admin está com erro de query, o usuário pode não estar vendo o conteúdo correto.
 
-### Cadastro/Edição de Produto (`ProductFormDialog`)
-- Quando `store.type === 'SALAO'`:
-  - Mostrar campo **"Tempo de execução (minutos)"** (obrigatório, mínimo 5).
-  - Mostrar campo **"Profissionais que realizam"** (multi-select dos `salon_professionals` ativos).
-  - Renomear rótulos visíveis: "Produto" → "Serviço", "Categoria" → "Tipo de serviço".
-  - Esconder campos não aplicáveis: variantes, código (manter automático), grupo.
-- Ao salvar: persistir `duration_minutes` no produto e sincronizar a tabela de vínculo `salon_service_professionals` usando `product.id` como `service_id` (a tabela já existe e funciona com qualquer UUID).
+## Correção (migração)
 
-### Storefront SALAO (`SalonStorePage`)
-- Trocar fonte de dados: ler de `useProducts(storeId)` em vez de `useSalonServices`.
-- Mapear cada produto ativo como serviço: `name`, `description`, `base_price` (preço), `image_url`, `duration_minutes`, e profissionais via `salon_service_professionals`.
-- Manter ordenação A-Z e fluxo de agendamento já implementado (Serviço → Profissional → Data → Horário).
+Adicionar foreign key faltante:
 
-### Admin
-- Na aba **Salão**: remover sub-aba "Serviços" (vai para Produtos). Manter sub-abas **Profissionais** e **Agenda**.
-- Manter `salon_services` no banco (não remover por compatibilidade), mas o app deixa de usá-la para SALAO.
+```sql
+ALTER TABLE public.salon_service_professionals
+  ADD CONSTRAINT salon_service_professionals_service_id_products_fkey
+  FOREIGN KEY (service_id) REFERENCES public.products(id) ON DELETE CASCADE
+  NOT VALID;
+```
 
----
+Observação: como `service_id` também pode apontar para `salon_services` (legado), uso `NOT VALID` para não falhar com dados existentes e crio a FK apenas para permitir o embed via PostgREST. Linhas órfãs (que não existem em `products`) continuam aceitas porque a constraint não é validada retroativamente — e o uso novo só insere com IDs reais de `products`.
 
-## 2. Tema visual configurável por loja
+Alternativa mais limpa (se preferir): limpar primeiro qualquer linha cujo `service_id` não exista em `products` E em `salon_services`, depois adicionar FK validada apenas para products. Vou seguir a abordagem `NOT VALID` por ser não-destrutiva.
 
-### Configuração
-- Adicionar em **Configurações da loja** (StoreAdminPage > Configurações) um seletor **"Tema do storefront"** com 4 presets:
-  - **Masculino** (azul-marinho + dourado) — para barbearias
-  - **Feminino** (rosa + rosé) — atual
-  - **Neutro/Premium** (preto + dourado)
-  - **Cor personalizada** (color picker para `--primary`)
-- Salvar em `stores.settings.theme = { preset, primaryHsl?, accentHsl? }`.
+Após a migração, recarregar o schema do PostgREST (automático no Supabase em alguns segundos).
 
-### Aplicação
-- `SalonStorePage` lê `store.settings.theme` e injeta variáveis CSS (`--salon-primary`, `--salon-primary-foreground`, gradiente do header) via `style={{...}}` no container raiz.
-- Substituir todas as classes hardcoded `bg-pink-600`, `from-pink-500 to-rose-600`, `text-pink-600` por classes que usam essas CSS vars (ex: `bg-[hsl(var(--salon-primary))]`).
-- Fallback: se não configurado, usar preset Masculino (mais neutro como default para um app de "salão" genérico).
+## Verificação
 
----
+1. Recarregar `/alphanobre/admin` → aba Produtos lista os produtos cadastrados.
+2. Aba **Salão** aparece (já existe no código quando `store.type === 'SALAO' && isAdmin`) → sub-aba **Profissionais** permite cadastrar.
+3. Criar/editar produto SALAO com profissionais vinculados → salva e aparece na lista.
 
-## 3. Fora de escopo
+## Fora de escopo
 
-- Não migrar dados antigos da tabela `salon_services` (vazia ou descartável — usuário só cadastrou pelo Produtos).
-- Não mexer em LOJA/COMIDA/SERVICOS/PIZZARIA/ACESSORIOS.
-- Notificações, pagamento online e bloqueio de feriados continuam fora.
-
----
-
-## Arquivos afetados
-
-- Migration: `ALTER TABLE products ADD COLUMN duration_minutes int NOT NULL DEFAULT 30;`
-- `src/types/index.ts` — adicionar `durationMinutes` em Product e `theme` em StoreSettings.
-- `src/hooks/useProducts.ts` — mapear novo campo.
-- `src/components/ProductFormDialog.tsx` — campos condicionais para SALAO (duração + profissionais).
-- `src/components/SalonAdminTab.tsx` — remover sub-aba Serviços.
-- `src/pages/SalonStorePage.tsx` — usar Products como fonte; aplicar tema.
-- `src/pages/StoreAdminPage.tsx` (aba Configurações) — seletor de tema.
+- Nenhuma mudança em UI ou lógica de cadastro: o formulário de produto SALAO já está pronto (campos duração + profissionais).
+- Nenhuma alteração em RLS (já está correta).
