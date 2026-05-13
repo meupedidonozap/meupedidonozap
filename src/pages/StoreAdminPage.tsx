@@ -1724,6 +1724,53 @@ export default function StoreAdminPage() {
         customerProfiles={customerProfiles}
         categories={categories}
       />
+      <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Baixar Pedido {downloadOrder ? `#${downloadOrder.orderNumber}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-1">
+              <Label className="text-sm">Formato</Label>
+              <Select value={downloadFormat} onValueChange={(v) => setDownloadFormat(v as 'xml' | 'txt')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="xml">XML (Tinturaria)</SelectItem>
+                  <SelectItem value="txt">TXT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label className="text-sm">Pedido Tele-Vendas</Label>
+                <p className="text-xs text-muted-foreground">Marque caso este pedido tenha sido digitado pelo televendas (comissão diferenciada).</p>
+              </div>
+              <Switch checked={downloadTelevendas} onCheckedChange={setDownloadTelevendas} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDownloadOrder(null)}>Cancelar</Button>
+            <Button onClick={() => {
+              if (!downloadOrder) return;
+              const order = downloadOrder;
+              const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+              const ouid = (order as any).userId;
+              const cp: any = customerProfiles.find((c: any) =>
+                (ouid && c.userId === ouid) ||
+                (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+              );
+              downloadOrderFile(order, store, downloadFormat, {
+                cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+                sellerCode: cp?.sellerCode || '',
+                isTelevendas: downloadTelevendas,
+              });
+              setDownloadOrder(null);
+            }} className="gap-2">
+              <Download className="h-4 w-4" /> Baixar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
