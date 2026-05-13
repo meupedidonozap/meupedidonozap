@@ -16,7 +16,6 @@ export interface CustomerProfile {
   number: string;
   complement?: string;
   sellerCode?: string;
-  isTelevendas?: boolean;
 }
 
 function mapProfile(row: any): CustomerProfile {
@@ -35,7 +34,6 @@ function mapProfile(row: any): CustomerProfile {
     number: row.number,
     complement: row.complement || undefined,
     sellerCode: row.seller_code || '',
-    isTelevendas: row.is_televendas ?? false,
   };
 }
 
