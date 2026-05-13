@@ -1,0 +1,1 @@
+ALTER TABLE public.customer_profiles DROP COLUMN IF EXISTS is_televendas;

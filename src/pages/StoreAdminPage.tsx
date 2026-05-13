@@ -161,7 +161,10 @@ export default function StoreAdminPage() {
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+  const [downloadOrder, setDownloadOrder] = useState<any>(null);
+  const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt'>('xml');
+  const [downloadTelevendas, setDownloadTelevendas] = useState(false);
   const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
   const [resetPwdLoading, setResetPwdLoading] = useState(false);
@@ -979,45 +982,13 @@ export default function StoreAdminPage() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Baixar pedido">
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
-                                  const ouid = (order as any).userId;
-                                  const cp: any = customerProfiles.find((c: any) =>
-                                    (ouid && c.userId === ouid) ||
-                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
-                                  );
-                                  downloadOrderFile(order, store, 'xml', {
-                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-                                    sellerCode: cp?.sellerCode || '',
-                                    isTelevendas: cp?.isTelevendas ?? false,
-                                  });
-                                }}>
-                                  Baixar XML (Tinturaria)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
-                                  const ouid = (order as any).userId;
-                                  const cp: any = customerProfiles.find((c: any) =>
-                                    (ouid && c.userId === ouid) ||
-                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
-                                  );
-                                  downloadOrderFile(order, store, 'txt', {
-                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-                                    sellerCode: cp?.sellerCode || '',
-                                    isTelevendas: cp?.isTelevendas ?? false,
-                                  });
-                                }}>
-                                  Baixar TXT
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button variant="ghost" size="icon" title="Baixar pedido" onClick={() => {
+                              setDownloadOrder(order);
+                              setDownloadFormat('xml');
+                              setDownloadTelevendas(false);
+                            }}>
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1485,7 +1456,7 @@ export default function StoreAdminPage() {
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
               <Button size="sm" onClick={() => {
                 setCreatingCustomer(true);
-                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
+                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
               }}>
                 <Plus className="mr-2 h-4 w-4" /> Novo Cliente
               </Button>
@@ -1520,7 +1491,6 @@ export default function StoreAdminPage() {
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
-                              isTelevendas: (cp as any).isTelevendas ?? false,
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -1601,13 +1571,6 @@ export default function StoreAdminPage() {
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                       <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
-                    </div>
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                      <div>
-                        <Label className="text-sm">Pedido Tele-Vendas</Label>
-                        <p className="text-xs text-muted-foreground">Marca os pedidos deste cliente como televendas no XML.</p>
-                      </div>
-                      <Switch checked={customerForm.isTelevendas} onCheckedChange={(v) => setCustomerForm(f => ({ ...f, isTelevendas: v }))} />
                     </div>
                   </div>
                   <div className="flex justify-end gap-2">
@@ -1761,6 +1724,53 @@ export default function StoreAdminPage() {
         customerProfiles={customerProfiles}
         categories={categories}
       />
+      <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Baixar Pedido {downloadOrder ? `#${downloadOrder.orderNumber}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-1">
+              <Label className="text-sm">Formato</Label>
+              <Select value={downloadFormat} onValueChange={(v) => setDownloadFormat(v as 'xml' | 'txt')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="xml">XML (Tinturaria)</SelectItem>
+                  <SelectItem value="txt">TXT</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label className="text-sm">Pedido Tele-Vendas</Label>
+                <p className="text-xs text-muted-foreground">Marque caso este pedido tenha sido digitado pelo televendas (comissão diferenciada).</p>
+              </div>
+              <Switch checked={downloadTelevendas} onCheckedChange={setDownloadTelevendas} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDownloadOrder(null)}>Cancelar</Button>
+            <Button onClick={() => {
+              if (!downloadOrder) return;
+              const order = downloadOrder;
+              const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+              const ouid = (order as any).userId;
+              const cp: any = customerProfiles.find((c: any) =>
+                (ouid && c.userId === ouid) ||
+                (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+              );
+              downloadOrderFile(order, store, downloadFormat, {
+                cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+                sellerCode: cp?.sellerCode || '',
+                isTelevendas: downloadTelevendas,
+              });
+              setDownloadOrder(null);
+            }} className="gap-2">
+              <Download className="h-4 w-4" /> Baixar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
