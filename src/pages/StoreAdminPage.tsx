@@ -982,45 +982,13 @@ export default function StoreAdminPage() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" title="Baixar pedido">
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
-                                  const ouid = (order as any).userId;
-                                  const cp: any = customerProfiles.find((c: any) =>
-                                    (ouid && c.userId === ouid) ||
-                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
-                                  );
-                                  downloadOrderFile(order, store, 'xml', {
-                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-                                    sellerCode: cp?.sellerCode || '',
-                                    isTelevendas: cp?.isTelevendas ?? false,
-                                  });
-                                }}>
-                                  Baixar XML (Tinturaria)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
-                                  const ouid = (order as any).userId;
-                                  const cp: any = customerProfiles.find((c: any) =>
-                                    (ouid && c.userId === ouid) ||
-                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
-                                  );
-                                  downloadOrderFile(order, store, 'txt', {
-                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-                                    sellerCode: cp?.sellerCode || '',
-                                    isTelevendas: cp?.isTelevendas ?? false,
-                                  });
-                                }}>
-                                  Baixar TXT
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button variant="ghost" size="icon" title="Baixar pedido" onClick={() => {
+                              setDownloadOrder(order);
+                              setDownloadFormat('xml');
+                              setDownloadTelevendas(false);
+                            }}>
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
