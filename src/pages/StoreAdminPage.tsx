@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
-  ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, CheckCircle, Clock,
+  ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
   Scissors,
@@ -50,6 +50,7 @@ import {
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { printOrder } from '@/lib/printOrder';
+import { downloadOrderFile } from '@/lib/exportOrder';
 import { uploadProductImage, recompressExistingImage } from '@/lib/storage';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
