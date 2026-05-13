@@ -1456,7 +1456,7 @@ export default function StoreAdminPage() {
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
               <Button size="sm" onClick={() => {
                 setCreatingCustomer(true);
-                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
+                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
               }}>
                 <Plus className="mr-2 h-4 w-4" /> Novo Cliente
               </Button>
@@ -1491,7 +1491,6 @@ export default function StoreAdminPage() {
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
-                              isTelevendas: (cp as any).isTelevendas ?? false,
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -1572,13 +1571,6 @@ export default function StoreAdminPage() {
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                       <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
-                    </div>
-                    <div className="flex items-center justify-between rounded-md border p-3">
-                      <div>
-                        <Label className="text-sm">Pedido Tele-Vendas</Label>
-                        <p className="text-xs text-muted-foreground">Marca os pedidos deste cliente como televendas no XML.</p>
-                      </div>
-                      <Switch checked={customerForm.isTelevendas} onCheckedChange={(v) => setCustomerForm(f => ({ ...f, isTelevendas: v }))} />
                     </div>
                   </div>
                   <div className="flex justify-end gap-2">
