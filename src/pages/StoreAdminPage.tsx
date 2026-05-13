@@ -978,6 +978,21 @@ export default function StoreAdminPage() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" title="Baixar pedido">
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => downloadOrderFile(order, store, 'xml')}>
+                                  Baixar XML (Tinturaria)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => downloadOrderFile(order, store, 'txt')}>
+                                  Baixar TXT
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
