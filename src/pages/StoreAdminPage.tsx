@@ -1573,6 +1573,17 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Complemento</Label><Input value={customerForm.complement} onChange={e => setCustomerForm(f => ({ ...f, complement: e.target.value }))} /></div>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                      <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
+                      <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                      <div>
+                        <Label className="text-sm">Pedido Tele-Vendas</Label>
+                        <p className="text-xs text-muted-foreground">Marca os pedidos deste cliente como televendas no XML.</p>
+                      </div>
+                      <Switch checked={customerForm.isTelevendas} onCheckedChange={(v) => setCustomerForm(f => ({ ...f, isTelevendas: v }))} />
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
