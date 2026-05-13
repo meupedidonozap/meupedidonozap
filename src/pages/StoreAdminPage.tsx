@@ -160,7 +160,7 @@ export default function StoreAdminPage() {
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
   const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
   const [resetPwdLoading, setResetPwdLoading] = useState(false);
