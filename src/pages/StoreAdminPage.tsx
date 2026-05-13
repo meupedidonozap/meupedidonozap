@@ -988,8 +988,9 @@ export default function StoreAdminPage() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => {
                                   const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+                                  const ouid = (order as any).userId;
                                   const cp: any = customerProfiles.find((c: any) =>
-                                    (order.userId && c.userId === order.userId) ||
+                                    (ouid && c.userId === ouid) ||
                                     (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
                                   );
                                   downloadOrderFile(order, store, 'xml', {
@@ -1002,8 +1003,9 @@ export default function StoreAdminPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                   const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+                                  const ouid = (order as any).userId;
                                   const cp: any = customerProfiles.find((c: any) =>
-                                    (order.userId && c.userId === order.userId) ||
+                                    (ouid && c.userId === ouid) ||
                                     (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
                                   );
                                   downloadOrderFile(order, store, 'txt', {
