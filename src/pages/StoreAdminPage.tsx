@@ -53,6 +53,7 @@ import { printOrder } from '@/lib/printOrder';
 import { downloadOrderFile } from '@/lib/exportOrder';
 import { uploadProductImage, recompressExistingImage } from '@/lib/storage';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
