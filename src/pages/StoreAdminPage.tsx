@@ -986,10 +986,32 @@ export default function StoreAdminPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => downloadOrderFile(order, store, 'xml')}>
+                                <DropdownMenuItem onClick={() => {
+                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+                                  const cp: any = customerProfiles.find((c: any) =>
+                                    (order.userId && c.userId === order.userId) ||
+                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+                                  );
+                                  downloadOrderFile(order, store, 'xml', {
+                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+                                    sellerCode: cp?.sellerCode || '',
+                                    isTelevendas: cp?.isTelevendas ?? false,
+                                  });
+                                }}>
                                   Baixar XML (Tinturaria)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => downloadOrderFile(order, store, 'txt')}>
+                                <DropdownMenuItem onClick={() => {
+                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+                                  const cp: any = customerProfiles.find((c: any) =>
+                                    (order.userId && c.userId === order.userId) ||
+                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+                                  );
+                                  downloadOrderFile(order, store, 'txt', {
+                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+                                    sellerCode: cp?.sellerCode || '',
+                                    isTelevendas: cp?.isTelevendas ?? false,
+                                  });
+                                }}>
                                   Baixar TXT
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
