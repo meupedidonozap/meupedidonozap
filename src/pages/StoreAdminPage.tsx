@@ -1460,7 +1460,7 @@ export default function StoreAdminPage() {
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
               <Button size="sm" onClick={() => {
                 setCreatingCustomer(true);
-                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
               }}>
                 <Plus className="mr-2 h-4 w-4" /> Novo Cliente
               </Button>
@@ -1493,6 +1493,9 @@ export default function StoreAdminPage() {
                               name: cp.name, whatsapp: cp.whatsapp, address: cp.address,
                               number: cp.number, city: cp.city, uf: cp.uf, cep: cp.cep,
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
+                              cpfCnpj: cp.cpfCnpj || '',
+                              sellerCode: (cp as any).sellerCode || '',
+                              isTelevendas: (cp as any).isTelevendas ?? false,
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
