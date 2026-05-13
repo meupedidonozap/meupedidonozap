@@ -43,13 +43,22 @@ interface StoreLike {
   settings?: any;
 }
 
-export function exportOrderXml(order: Order, store: StoreLike): string {
+export interface CustomerExtra {
+  cpfCnpj?: string;
+  sellerCode?: string;
+  isTelevendas?: boolean;
+}
+
+export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
   const created = new Date(order.createdAt);
   const delivery = new Date(created);
   delivery.setDate(delivery.getDate() + 2);
 
   const s = store.settings || {};
   const rep = s.representante || {};
+  const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
+  const sellerCode = extra.sellerCode || rep.codigo || '';
+  const televendas = extra.isTelevendas ? 'Sim' : 'Nao';
 
   const itensXml = order.items
     .map((item: CartItem) => {
@@ -78,11 +87,12 @@ export function exportOrderXml(order: Order, store: StoreLike): string {
 <dadosGeraisPedido>
   <numero>${pad(order.orderNumber, 9)}</numero>
   <emissao>${formatDateBR(created)}</emissao>
-  <cgcCliente>${escapeXml(onlyDigits(order.customer.cpfCnpj))}</cgcCliente>
+  <cgcCliente>${escapeXml(onlyDigits(cpfCnpj))}</cgcCliente>
   <nomeCliente>${escapeXml(order.customer.name)}</nomeCliente>
   <cgcRepresentante>${escapeXml(onlyDigits(rep.cgc))}</cgcRepresentante>
   <nomeRepresentante>${escapeXml(rep.nome || '')}</nomeRepresentante>
-  <codigoRepresentante>${escapeXml(rep.codigo || '')}</codigoRepresentante>
+  <codigoRepresentante>${escapeXml(sellerCode)}</codigoRepresentante>
+  <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${PAYMENT_CODE[order.paymentMethod] || ''}</formaPagamento>
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
   <tabelaPrecos>${escapeXml(s.tabelaPrecos || '')}</tabelaPrecos>
@@ -92,15 +102,18 @@ ${itensXml}
 `;
 }
 
-export function exportOrderTxt(order: Order, store: StoreLike): string {
+export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
   const created = new Date(order.createdAt);
+  const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const header = [
     'PEDIDO',
     pad(order.orderNumber, 9),
     formatDateBR(created),
-    onlyDigits(order.customer.cpfCnpj),
+    onlyDigits(cpfCnpj),
     order.customer.name,
     order.total.toFixed(2),
+    extra.sellerCode || '',
+    extra.isTelevendas ? 'Sim' : 'Nao',
   ].join(';');
 
   const lines = order.items.map((item) => {
@@ -119,8 +132,8 @@ export function exportOrderTxt(order: Order, store: StoreLike): string {
   return [header, ...lines].join('\n') + '\n';
 }
 
-export function downloadOrderFile(order: Order, store: StoreLike, format: 'xml' | 'txt') {
-  const content = format === 'xml' ? exportOrderXml(order, store) : exportOrderTxt(order, store);
+export function downloadOrderFile(order: Order, store: StoreLike, format: 'xml' | 'txt', extra: CustomerExtra = {}) {
+  const content = format === 'xml' ? exportOrderXml(order, store, extra) : exportOrderTxt(order, store, extra);
   const mime = format === 'xml' ? 'application/xml' : 'text/plain';
   const created = new Date(order.createdAt);
   const dt = `${pad(created.getDate(), 2)}${pad(created.getMonth() + 1, 2)}${created.getFullYear()}`;

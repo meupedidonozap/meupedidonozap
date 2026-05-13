@@ -53,6 +53,7 @@ import { printOrder } from '@/lib/printOrder';
 import { downloadOrderFile } from '@/lib/exportOrder';
 import { uploadProductImage, recompressExistingImage } from '@/lib/storage';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -160,7 +161,7 @@ export default function StoreAdminPage() {
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
   const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
   const [resetPwdLoading, setResetPwdLoading] = useState(false);
@@ -985,10 +986,34 @@ export default function StoreAdminPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => downloadOrderFile(order, store, 'xml')}>
+                                <DropdownMenuItem onClick={() => {
+                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+                                  const ouid = (order as any).userId;
+                                  const cp: any = customerProfiles.find((c: any) =>
+                                    (ouid && c.userId === ouid) ||
+                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+                                  );
+                                  downloadOrderFile(order, store, 'xml', {
+                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+                                    sellerCode: cp?.sellerCode || '',
+                                    isTelevendas: cp?.isTelevendas ?? false,
+                                  });
+                                }}>
                                   Baixar XML (Tinturaria)
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => downloadOrderFile(order, store, 'txt')}>
+                                <DropdownMenuItem onClick={() => {
+                                  const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
+                                  const ouid = (order as any).userId;
+                                  const cp: any = customerProfiles.find((c: any) =>
+                                    (ouid && c.userId === ouid) ||
+                                    (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+                                  );
+                                  downloadOrderFile(order, store, 'txt', {
+                                    cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+                                    sellerCode: cp?.sellerCode || '',
+                                    isTelevendas: cp?.isTelevendas ?? false,
+                                  });
+                                }}>
                                   Baixar TXT
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -1460,7 +1485,7 @@ export default function StoreAdminPage() {
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
               <Button size="sm" onClick={() => {
                 setCreatingCustomer(true);
-                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '' });
+                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', isTelevendas: false });
               }}>
                 <Plus className="mr-2 h-4 w-4" /> Novo Cliente
               </Button>
@@ -1493,6 +1518,9 @@ export default function StoreAdminPage() {
                               name: cp.name, whatsapp: cp.whatsapp, address: cp.address,
                               number: cp.number, city: cp.city, uf: cp.uf, cep: cp.cep,
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
+                              cpfCnpj: cp.cpfCnpj || '',
+                              sellerCode: (cp as any).sellerCode || '',
+                              isTelevendas: (cp as any).isTelevendas ?? false,
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -1570,6 +1598,17 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Complemento</Label><Input value={customerForm.complement} onChange={e => setCustomerForm(f => ({ ...f, complement: e.target.value }))} /></div>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                      <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
+                      <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                      <div>
+                        <Label className="text-sm">Pedido Tele-Vendas</Label>
+                        <p className="text-xs text-muted-foreground">Marca os pedidos deste cliente como televendas no XML.</p>
+                      </div>
+                      <Switch checked={customerForm.isTelevendas} onCheckedChange={(v) => setCustomerForm(f => ({ ...f, isTelevendas: v }))} />
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>

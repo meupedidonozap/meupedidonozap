@@ -17,6 +17,8 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean } {
     address: row.address,
     number: row.number,
     complement: row.complement || undefined,
+    sellerCode: row.seller_code || '',
+    isTelevendas: row.is_televendas ?? false,
     isActive: row.is_active ?? true,
   };
 }
@@ -52,6 +54,9 @@ export function useCreateCustomerProfileAdmin() {
       address?: string;
       number?: string;
       complement?: string;
+      cpfCnpj?: string;
+      sellerCode?: string;
+      isTelevendas?: boolean;
     }) => {
       const { error } = await supabase
         .from('customer_profiles')
@@ -66,7 +71,10 @@ export function useCreateCustomerProfileAdmin() {
           address: params.address || '',
           number: params.number || '',
           complement: params.complement || null,
-        });
+          cpf_cnpj: params.cpfCnpj || '',
+          seller_code: params.sellerCode || '',
+          is_televendas: params.isTelevendas ?? false,
+        } as any);
       if (error) throw error;
     },
     onSuccess: (_, params) => {
@@ -90,6 +98,9 @@ export function useUpdateCustomerProfileAdmin() {
       address?: string;
       number?: string;
       complement?: string;
+      cpfCnpj?: string;
+      sellerCode?: string;
+      isTelevendas?: boolean;
     }) => {
       const update: any = {};
       if (params.name !== undefined) update.name = params.name;
@@ -101,6 +112,9 @@ export function useUpdateCustomerProfileAdmin() {
       if (params.address !== undefined) update.address = params.address;
       if (params.number !== undefined) update.number = params.number;
       if (params.complement !== undefined) update.complement = params.complement;
+      if (params.cpfCnpj !== undefined) update.cpf_cnpj = params.cpfCnpj;
+      if (params.sellerCode !== undefined) update.seller_code = params.sellerCode;
+      if (params.isTelevendas !== undefined) update.is_televendas = params.isTelevendas;
 
       const { error } = await supabase
         .from('customer_profiles')
