@@ -100,9 +100,11 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_televendas: boolean
           name: string
           neighborhood: string
           number: string
+          seller_code: string
           store_id: string
           uf: string
           updated_at: string
@@ -118,9 +120,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_televendas?: boolean
           name?: string
           neighborhood?: string
           number?: string
+          seller_code?: string
           store_id: string
           uf?: string
           updated_at?: string
@@ -136,9 +140,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_televendas?: boolean
           name?: string
           neighborhood?: string
           number?: string
+          seller_code?: string
           store_id?: string
           uf?: string
           updated_at?: string
