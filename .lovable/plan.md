@@ -1,83 +1,36 @@
 ## Objetivo
 
-Adicionar à loja **Dicolore** (e demais lojas tipo LOJA, opcionalmente) a possibilidade de **baixar o pedido** em formato **XML** (layout Tinturaria/Gestor) ou **TXT**, ao lado do botão Imprimir já existente na aba Pedidos do `/dicolore/admin`.
+1. Tabela **Clientes Cadastrados**: adicionar 2 colunas após "Nome" → **CPF/CNPJ** e **Representante** (nome do vendedor associado pelo código).
+2. Tabela **Vendedores (WhatsApp)** (Configurações Gerais): adicionar coluna **Código** após "Nome", editável.
 
-## Alterações de UI
+## Banco de dados
 
-Em `src/pages/StoreAdminPage.tsx`, na linha de ações de cada pedido (onde hoje há o `DropdownMenu` com ícone de impressora), adicionar um segundo `DropdownMenu` com ícone de download (`Download` do lucide-react) e duas opções:
+Adicionar coluna `code` (text, default '') na tabela `store_sellers`. O código é alfanumérico curto (ex.: "001", "A12") definido pelo admin da loja, usado para vincular ao `seller_code` do cliente e ao XML de exportação (`<codigoRepresentante>`).
 
-- **Baixar XML (Tinturaria)**
-- **Baixar TXT**
+## Frontend — `src/pages/StoreAdminPage.tsx`
 
-O botão aparece para todas as lojas tipo LOJA. (Se quiser restringir só ao Dicolore eu sigo essa orientação.)
+### Tabela Vendedores (linhas ~1342-1382)
+- Adicionar input "Código" no formulário de novo vendedor (entre Nome e WhatsApp).
+- Adicionar coluna "Código" no header e no body, com edição inline (Input pequeno + botão salvar, ou edição direta no blur que chama `updateSeller.mutate({ id, code })`).
 
-## Geração do XML
+### Tabela Clientes (linhas ~1466-1483)
+- Header: inserir `<TableHead>CPF/CNPJ</TableHead>` e `<TableHead>Representante</TableHead>` após "Nome".
+- Body: 
+  - `<TableCell>{cp.cpfCnpj || '—'}</TableCell>`
+  - `<TableCell>{sellerByCode.get(cp.sellerCode)?.name || '—'}</TableCell>`
+- Criar `const sellerByCode = useMemo(() => new Map(sellers.map(s => [s.code, s])), [sellers])` (usando `useAllStoreSellers` para incluir inativos).
+- Atualizar `colSpan` da linha vazia de 5 → 7.
 
-Criar `src/lib/exportOrder.ts` exportando:
+## Hooks — `src/hooks/useStoreSellers.ts`
 
-- `exportOrderXml(order, store): string` — retorna a string XML pronta.
-- `exportOrderTxt(order, store): string` — retorna texto plano (uma linha por item + cabeçalho).
-- `downloadOrderFile(order, store, format)` — gera o arquivo e dispara o download via `Blob` + `<a download>`.
+- Adicionar `code: string` à interface `StoreSeller`.
+- Permitir `code` em `useCreateStoreSeller` e `useUpdateStoreSeller`.
 
-### Mapeamento dos campos XML
+## Export XML — `src/lib/exportOrder.ts`
 
-Estrutura idêntica ao exemplo enviado:
-
-```text
-<dadosGeraisPedido>
-  <numero>            ← order.orderNumber (com zero-padding 9 dígitos como no nome do XML exemplo)
-  <emissao>           ← order.createdAt → DD/MM/AAAA
-  <cgcCliente>        ← order.customer.cpfCnpj (somente dígitos)
-  <nomeCliente>       ← order.customer.name
-  <cgcRepresentante>  ← store.settings.representante.cgc (vazio se não houver)
-  <nomeRepresentante> ← store.settings.representante.nome
-  <codigoRepresentante>← store.settings.representante.codigo
-  <formaPagamento>    ← código mapeado: pix=1, boleto=2, cartao=3, dinheiro=4 (configurável depois)
-  <prazoMedio>        ← store.settings.prazoMedio (default 0)
-  <tabelaPrecos>      ← store.settings.tabelaPrecos (default vazio)
-  <colunaTabelaPrecos>← 2 (duas casas decimais)
-  <itensPedido> (um bloco por CartItem)
-    <produto>         ← item.code
-    <descProduto>     ← item.name
-    <cor>             ← item.color (código se houver, senão vazio)
-    <descCor>         ← item.color (código se houver, senão vazio)
-    <gtam>            ← item.size (código se houver, senão vazio)
-    <descGtam>        ← item.size (código se houver, senão vazio)
-    <precoUnitario>   ← item.price (2 casas, ponto)
-    <valorTotal>      ← item.price * item.quantity
-    <dataEntrega>     ← createdAt + 2 dias DD/MM/AAAA (placeholder, configurável)
-    <anoEntrega>      ← ano dessa data
-    <periodoEntrega>  ← número da semana ISO
-    <listaTamanhos>
-      <tamanho>       ← item.size
-      <quantidade>    ← item.quantity
-```
-
-Campos sem origem nos dados atuais ficam **vazios** (mantendo a tag), preservando o layout do exemplo. Os mapeamentos default ficam concentrados no topo do `exportOrder.ts` para fácil ajuste posterior.
-
-### Formato TXT
-
-Layout simples, legível, com cabeçalho do pedido + uma linha por item separada por `;` (CSV-like):
-
-```
-PEDIDO;<numero>;<emissao>;<cgcCliente>;<nomeCliente>;<total>
-ITEM;<produto>;<descProduto>;<cor>;<gtam>;<qtd>;<precoUnit>;<valorTotal>
-...
-```
-
-### Nome do arquivo
-
-Padrão do exemplo: `pedido_<numero9digitos>_<DDMMYYYY>_<HHMMSS>.<xml|txt>`.
-
-## Detalhes técnicos
-
-- Encoding XML: gerar com header `<?xml version="1.0" encoding="UTF-8"?>` e escape de caracteres especiais (`&`, `<`, `>`, `"`).
-- Download via `URL.createObjectURL(new Blob([content], { type: 'application/xml' | 'text/plain' }))`.
-- Sem dependências novas — implementação pura em TS.
-- Sem mudanças de banco, RLS ou edge functions.
+Sem mudanças funcionais; o `sellerCode` já é usado como `<codigoRepresentante>`. O novo campo `code` em `store_sellers` é a fonte de verdade do código a ser cadastrado em cada cliente.
 
 ## Fora do escopo
 
-- Configuração via UI dos campos de representante / tabela de preços (ficam como constantes/defaults editáveis no código por agora).
-- Importação/upload de XML para outro sistema.
-- Exportação em massa de vários pedidos.
+- Não alterar fluxo de checkout / seleção de vendedor.
+- Não alterar exportação XML/TXT (já consome `seller_code` do cliente).
