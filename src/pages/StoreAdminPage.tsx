@@ -1738,6 +1738,11 @@ export default function StoreAdminPage() {
         categories={categories}
         storeType={store.type as StoreType}
       />
+      <ImportCustomersDialog
+        open={importCustomersOpen}
+        onOpenChange={setImportCustomersOpen}
+        storeId={store.id}
+      />
       <ServiceOrderDialog
         open={soDialogOpen}
         onOpenChange={setSODialogOpen}
