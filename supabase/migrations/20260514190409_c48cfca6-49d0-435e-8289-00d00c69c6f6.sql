@@ -1,0 +1,2 @@
+ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS customer_code TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS customer_profiles_store_customer_code_unique ON public.customer_profiles (store_id, customer_code) WHERE customer_code <> '';
