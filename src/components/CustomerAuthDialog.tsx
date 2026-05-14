@@ -33,7 +33,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<Step>('auth');
-  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
+  const [authTab, setAuthTab] = useState<'code' | 'login' | 'register'>('code');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [codeLoginData, setCodeLoginData] = useState({ codigo: '', password: '' });
   const [showCodePwd, setShowCodePwd] = useState(false);
@@ -225,7 +225,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         </DialogHeader>
 
         {step === 'auth' && (
-          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'login' | 'register')}>
+          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="code">Código</TabsTrigger>
               <TabsTrigger value="login">Entrar</TabsTrigger>
