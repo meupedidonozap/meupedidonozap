@@ -35,6 +35,8 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const [step, setStep] = useState<Step>('auth');
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [codeLoginData, setCodeLoginData] = useState({ codigo: '', password: '' });
+  const [showCodePwd, setShowCodePwd] = useState(false);
   const [registerData, setRegisterData] = useState({ email: '', password: '' });
   const [forgotEmail, setForgotEmail] = useState('');
   const [showLoginPwd, setShowLoginPwd] = useState(false);
@@ -62,6 +64,29 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     setLoading(false);
     if (error) {
       toast.error(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message);
+    } else {
+      toast.success('Login realizado!');
+      onOpenChange(false);
+    }
+  };
+
+  const handleCodeLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const codigo = codeLoginData.codigo.trim();
+    const password = codeLoginData.password;
+    if (!codigo || !password) {
+      toast.error('Preencha código e senha');
+      return;
+    }
+    const slug = (storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || 'loja')
+      .toLowerCase().replace(/[^a-z0-9]/g, '');
+    const safeCode = codigo.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const email = `${safeCode}@${slug}.cliente.local`;
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+    if (error) {
+      toast.error('Código ou senha incorretos. Confira com o seu representante.');
     } else {
       toast.success('Login realizado!');
       onOpenChange(false);
