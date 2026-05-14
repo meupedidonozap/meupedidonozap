@@ -1326,13 +1326,17 @@ export default function StoreAdminPage() {
                       <Label className="text-xs">Nome</Label>
                       <Input value={newSellerName} onChange={e => setNewSellerName(e.target.value)} placeholder="Nome do vendedor" />
                     </div>
+                    <div className="grid gap-1 w-24">
+                      <Label className="text-xs">Código</Label>
+                      <Input value={newSellerCode} onChange={e => setNewSellerCode(e.target.value)} placeholder="001" />
+                    </div>
                     <div className="grid gap-1 flex-1">
                       <Label className="text-xs">WhatsApp</Label>
                       <Input value={newSellerWhatsapp} onChange={e => setNewSellerWhatsapp(e.target.value)} placeholder="5547999999999" />
                     </div>
                     <Button size="sm" disabled={!newSellerName.trim() || !newSellerWhatsapp.trim() || createSeller.isPending} onClick={async () => {
-                      await createSeller.mutateAsync({ store_id: store.id, name: newSellerName.trim(), whatsapp: newSellerWhatsapp.trim() });
-                      setNewSellerName(''); setNewSellerWhatsapp('');
+                      await createSeller.mutateAsync({ store_id: store.id, name: newSellerName.trim(), whatsapp: newSellerWhatsapp.trim(), code: newSellerCode.trim() });
+                      setNewSellerName(''); setNewSellerWhatsapp(''); setNewSellerCode('');
                       toast.success('Vendedor cadastrado!');
                     }}>
                       <Plus className="h-4 w-4 mr-1" /> Adicionar
@@ -1345,6 +1349,7 @@ export default function StoreAdminPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Nome</TableHead>
+                          <TableHead>Código</TableHead>
                           <TableHead>WhatsApp</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Ações</TableHead>
@@ -1354,6 +1359,20 @@ export default function StoreAdminPage() {
                         {sellers.map(s => (
                           <TableRow key={s.id}>
                             <TableCell>{s.name}</TableCell>
+                            <TableCell>
+                              <Input
+                                defaultValue={s.code || ''}
+                                className="h-8 w-24"
+                                placeholder="—"
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v !== (s.code || '')) {
+                                    updateSeller.mutate({ id: s.id, code: v });
+                                    toast.success('Código atualizado');
+                                  }
+                                }}
+                              />
+                            </TableCell>
                             <TableCell>{s.whatsapp}</TableCell>
                             <TableCell>
                               <Badge className={s.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
