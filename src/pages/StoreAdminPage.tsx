@@ -26,6 +26,7 @@ import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
+import ImportCustomersDialog from '@/components/ImportCustomersDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
@@ -157,6 +158,7 @@ export default function StoreAdminPage() {
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importCustomersOpen, setImportCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -1479,12 +1481,17 @@ export default function StoreAdminPage() {
           <TabsContent value="customers" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
-              <Button size="sm" onClick={() => {
-                setCreatingCustomer(true);
-                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
-              }}>
-                <Plus className="mr-2 h-4 w-4" /> Novo Cliente
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setImportCustomersOpen(true)}>
+                  <Upload className="mr-2 h-4 w-4" /> Importar Clientes
+                </Button>
+                <Button size="sm" onClick={() => {
+                  setCreatingCustomer(true);
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+                }}>
+                  <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+                </Button>
+              </div>
             </div>
             <Card>
               <CardContent className="p-0">
@@ -1730,6 +1737,11 @@ export default function StoreAdminPage() {
         storeId={store.id}
         categories={categories}
         storeType={store.type as StoreType}
+      />
+      <ImportCustomersDialog
+        open={importCustomersOpen}
+        onOpenChange={setImportCustomersOpen}
+        storeId={store.id}
       />
       <ServiceOrderDialog
         open={soDialogOpen}

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerProfile } from './useCustomerProfile';
 
-function mapProfile(row: any): CustomerProfile & { isActive: boolean } {
+function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCode: string } {
   return {
     id: row.id,
     userId: row.user_id,
@@ -19,6 +19,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean } {
     complement: row.complement || undefined,
     sellerCode: row.seller_code || '',
     isActive: row.is_active ?? true,
+    customerCode: row.customer_code || '',
   };
 }
 

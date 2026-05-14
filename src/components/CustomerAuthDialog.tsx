@@ -33,8 +33,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<Step>('auth');
-  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
+  const [authTab, setAuthTab] = useState<'code' | 'login' | 'register'>('code');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [codeLoginData, setCodeLoginData] = useState({ codigo: '', password: '' });
+  const [showCodePwd, setShowCodePwd] = useState(false);
   const [registerData, setRegisterData] = useState({ email: '', password: '' });
   const [forgotEmail, setForgotEmail] = useState('');
   const [showLoginPwd, setShowLoginPwd] = useState(false);
@@ -62,6 +64,29 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     setLoading(false);
     if (error) {
       toast.error(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message);
+    } else {
+      toast.success('Login realizado!');
+      onOpenChange(false);
+    }
+  };
+
+  const handleCodeLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const codigo = codeLoginData.codigo.trim();
+    const password = codeLoginData.password;
+    if (!codigo || !password) {
+      toast.error('Preencha código e senha');
+      return;
+    }
+    const slug = (storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || 'loja')
+      .toLowerCase().replace(/[^a-z0-9]/g, '');
+    const safeCode = codigo.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const email = `${safeCode}@${slug}.cliente.local`;
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+    if (error) {
+      toast.error('Código ou senha incorretos. Confira com o seu representante.');
     } else {
       toast.success('Login realizado!');
       onOpenChange(false);
@@ -200,11 +225,36 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         </DialogHeader>
 
         {step === 'auth' && (
-          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'login' | 'register')}>
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="code">Código</TabsTrigger>
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
             </TabsList>
+            <TabsContent value="code">
+              <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
+                <p className="text-xs text-muted-foreground">
+                  Já é cliente? Entre com o <strong>código</strong> e <strong>senha</strong> que seu representante enviou.
+                </p>
+                <div className="grid gap-2">
+                  <Label htmlFor="code-login">Código de cliente</Label>
+                  <Input id="code-login" autoFocus value={codeLoginData.codigo} onChange={e => setCodeLoginData(p => ({ ...p, codigo: e.target.value }))} placeholder="Ex: 96133" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="code-pwd">Senha</Label>
+                  <div className="relative">
+                    <Input id="code-pwd" type={showCodePwd ? 'text' : 'password'} value={codeLoginData.password} onChange={e => setCodeLoginData(p => ({ ...p, password: e.target.value }))} placeholder="Senha enviada pelo representante" className="pr-10" />
+                    <button type="button" onClick={() => setShowCodePwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showCodePwd ? 'Ocultar senha' : 'Mostrar senha'}>
+                      {showCodePwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Entrar com código
+                </Button>
+              </form>
+            </TabsContent>
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 pt-4">
                 <div className="grid gap-2">

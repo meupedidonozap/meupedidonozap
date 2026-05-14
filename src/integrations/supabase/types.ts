@@ -98,6 +98,7 @@ export type Database = {
           complement: string | null
           cpf_cnpj: string
           created_at: string
+          customer_code: string
           id: string
           is_active: boolean
           name: string
@@ -117,6 +118,7 @@ export type Database = {
           complement?: string | null
           cpf_cnpj?: string
           created_at?: string
+          customer_code?: string
           id?: string
           is_active?: boolean
           name?: string
@@ -136,6 +138,7 @@ export type Database = {
           complement?: string | null
           cpf_cnpj?: string
           created_at?: string
+          customer_code?: string
           id?: string
           is_active?: boolean
           name?: string
