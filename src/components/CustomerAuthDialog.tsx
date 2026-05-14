@@ -226,10 +226,35 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
 
         {step === 'auth' && (
           <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'login' | 'register')}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="code">Código</TabsTrigger>
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
             </TabsList>
+            <TabsContent value="code">
+              <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
+                <p className="text-xs text-muted-foreground">
+                  Já é cliente? Entre com o <strong>código</strong> e <strong>senha</strong> que seu representante enviou.
+                </p>
+                <div className="grid gap-2">
+                  <Label htmlFor="code-login">Código de cliente</Label>
+                  <Input id="code-login" autoFocus value={codeLoginData.codigo} onChange={e => setCodeLoginData(p => ({ ...p, codigo: e.target.value }))} placeholder="Ex: 96133" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="code-pwd">Senha</Label>
+                  <div className="relative">
+                    <Input id="code-pwd" type={showCodePwd ? 'text' : 'password'} value={codeLoginData.password} onChange={e => setCodeLoginData(p => ({ ...p, password: e.target.value }))} placeholder="Senha enviada pelo representante" className="pr-10" />
+                    <button type="button" onClick={() => setShowCodePwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showCodePwd ? 'Ocultar senha' : 'Mostrar senha'}>
+                      {showCodePwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Entrar com código
+                </Button>
+              </form>
+            </TabsContent>
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 pt-4">
                 <div className="grid gap-2">
