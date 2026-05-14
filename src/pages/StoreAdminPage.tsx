@@ -1481,12 +1481,17 @@ export default function StoreAdminPage() {
           <TabsContent value="customers" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
-              <Button size="sm" onClick={() => {
-                setCreatingCustomer(true);
-                setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
-              }}>
-                <Plus className="mr-2 h-4 w-4" /> Novo Cliente
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setImportCustomersOpen(true)}>
+                  <Upload className="mr-2 h-4 w-4" /> Importar Clientes
+                </Button>
+                <Button size="sm" onClick={() => {
+                  setCreatingCustomer(true);
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+                }}>
+                  <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+                </Button>
+              </div>
             </div>
             <Card>
               <CardContent className="p-0">
