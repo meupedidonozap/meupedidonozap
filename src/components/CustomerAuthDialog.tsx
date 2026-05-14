@@ -33,6 +33,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<Step>('auth');
+  const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({ email: '', password: '' });
   const [forgotEmail, setForgotEmail] = useState('');
@@ -81,7 +82,20 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     const { hasSession, error } = await signUp(registerData.email, registerData.password);
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      const msg = (error.message || '').toLowerCase();
+      if (
+        msg.includes('already registered') ||
+        msg.includes('user already exists') ||
+        (error as any).code === 'user_already_exists'
+      ) {
+        toast.info('Você já tem cadastro. Faça login com sua senha.');
+        setLoginData({ email: registerData.email, password: '' });
+        setAuthTab('login');
+      } else if (msg.includes('password')) {
+        toast.error('Senha inválida. Use pelo menos 6 caracteres.');
+      } else {
+        toast.error(error.message);
+      }
     } else if (hasSession) {
       toast.success('Conta criada! Preencha seus dados.');
       setStep('profile');
@@ -186,7 +200,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         </DialogHeader>
 
         {step === 'auth' && (
-          <Tabs defaultValue="login">
+          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'login' | 'register')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
