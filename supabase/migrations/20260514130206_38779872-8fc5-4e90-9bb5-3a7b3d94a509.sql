@@ -1,0 +1,1 @@
+ALTER TABLE public.store_sellers ADD COLUMN IF NOT EXISTS code text NOT NULL DEFAULT '';

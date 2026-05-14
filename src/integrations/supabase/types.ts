@@ -805,6 +805,7 @@ export type Database = {
       }
       store_sellers: {
         Row: {
+          code: string
           created_at: string
           id: string
           is_active: boolean
@@ -813,6 +814,7 @@ export type Database = {
           whatsapp: string
         }
         Insert: {
+          code?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -821,6 +823,7 @@ export type Database = {
           whatsapp: string
         }
         Update: {
+          code?: string
           created_at?: string
           id?: string
           is_active?: boolean

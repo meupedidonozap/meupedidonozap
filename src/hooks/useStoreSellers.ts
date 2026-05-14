@@ -8,6 +8,7 @@ export interface StoreSeller {
   whatsapp: string;
   is_active: boolean;
   created_at: string;
+  code: string;
 }
 
 export function useStoreSellers(storeId: string | undefined) {
@@ -46,7 +47,7 @@ export function useAllStoreSellers(storeId: string | undefined) {
 export function useCreateStoreSeller() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (seller: { store_id: string; name: string; whatsapp: string }) => {
+    mutationFn: async (seller: { store_id: string; name: string; whatsapp: string; code?: string }) => {
       const { data, error } = await supabase
         .from('store_sellers')
         .insert(seller)
@@ -65,7 +66,7 @@ export function useCreateStoreSeller() {
 export function useUpdateStoreSeller() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; whatsapp?: string; is_active?: boolean }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; whatsapp?: string; is_active?: boolean; code?: string }) => {
       const { data, error } = await supabase
         .from('store_sellers')
         .update(updates)
