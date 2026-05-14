@@ -116,6 +116,11 @@ export default function StoreAdminPage() {
   const createSeller = useCreateStoreSeller();
   const updateSeller = useUpdateStoreSeller();
   const deleteSeller = useDeleteStoreSeller();
+  const sellerByCode = useMemo(() => {
+    const m = new Map<string, typeof sellers[number]>();
+    sellers.forEach(s => { if (s.code) m.set(s.code.trim(), s); });
+    return m;
+  }, [sellers]);
 
   // Visits analytics state
   const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
