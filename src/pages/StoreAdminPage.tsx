@@ -190,6 +190,7 @@ export default function StoreAdminPage() {
   // Sellers state (Dicolore)
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
+  const [newSellerCode, setNewSellerCode] = useState('');
 
   // Image optimization state
   const [optimizing, setOptimizing] = useState(false);
