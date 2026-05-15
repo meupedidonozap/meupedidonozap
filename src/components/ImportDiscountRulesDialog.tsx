@@ -8,7 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DiscountRule } from '@/types';
 
@@ -53,6 +53,24 @@ export default function ImportDiscountRulesDialog({ open, onOpenChange, existing
     setParsed(null);
     setSkipped(0);
     setFileName('');
+  };
+
+  const handleDownloadTemplate = () => {
+    const data = [
+      ['Grupo do Produto', 'Produto', 'Qtde. Inicial', 'Percentual'],
+      ['32 - FLASH COLOR', 'Todos', 6, 5],
+      ['32 - FLASH COLOR', 'Todos', 12, 10],
+      ['32 - FLASH COLOR', 'Todos', 24, 15],
+      ['2 - LINHA DICCO', 'Todos', 6, 5],
+      ['2 - LINHA DICCO', 'Todos', 12, 10],
+      ['148 - MATERIAL DE APOIO', 'Todos', 6, 5],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{ wch: 32 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Descontos');
+    XLSX.writeFile(wb, 'modelo-descontos.xlsx');
+    toast.success('Modelo baixado');
   };
 
   const handleFile = useCallback(async (file: File) => {
@@ -181,14 +199,23 @@ export default function ImportDiscountRulesDialog({ open, onOpenChange, existing
                 e.target.value = '';
               }}
             />
-            <label htmlFor="discount-file">
-              <Button asChild disabled={parsing} className="gap-2 cursor-pointer">
-                <span>
-                  {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  {parsing ? 'Lendo...' : 'Selecionar planilha (.xlsx)'}
-                </span>
+            <div className="flex flex-col items-center gap-3">
+              <label htmlFor="discount-file">
+                <Button asChild disabled={parsing} className="gap-2 cursor-pointer">
+                  <span>
+                    {parsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {parsing ? 'Lendo...' : 'Selecionar planilha (.xlsx)'}
+                  </span>
+                </Button>
+              </label>
+              <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-2">
+                <Download className="h-4 w-4" />
+                Baixar modelo de planilha
               </Button>
-            </label>
+              <p className="text-xs text-muted-foreground">
+                Colunas: Grupo do Produto, Qtde. Inicial, Percentual
+              </p>
+            </div>
           </div>
         )}
 
