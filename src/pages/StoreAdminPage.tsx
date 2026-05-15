@@ -27,6 +27,7 @@ import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType,
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import ImportCustomersDialog from '@/components/ImportCustomersDialog';
+import ImportDiscountRulesDialog from '@/components/ImportDiscountRulesDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
