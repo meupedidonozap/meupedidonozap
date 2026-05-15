@@ -1463,6 +1463,23 @@ export default function StoreAdminPage() {
                               <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedSOId(so.id); setSODialogOpen(true); }} title={(isAdmin || permissions.can_manage_service_orders) ? 'Editar OS' : 'Ver / Imprimir OS'}>
                                 {(isAdmin || permissions.can_manage_service_orders) ? <Edit2 className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                               </Button>
+                              {so.status === 'cancelada' && (isAdmin || permissions.can_manage_service_orders) && (
+                                <Button variant="ghost" size="sm" className="text-destructive" title="Excluir OS" onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm('Excluir permanentemente esta OS cancelada?')) return;
+                                  try {
+                                    await deleteServiceOrder.mutateAsync({ id: so.id, storeId: store.id });
+                                    if (so.orderId) {
+                                      await deleteOrder.mutateAsync({ id: so.orderId, storeId: store.id });
+                                    }
+                                    toast.success('OS excluída!');
+                                  } catch (err: any) {
+                                    toast.error(err.message || 'Erro ao excluir OS');
+                                  }
+                                }}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
