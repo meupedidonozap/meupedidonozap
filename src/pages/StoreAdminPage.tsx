@@ -184,6 +184,7 @@ export default function StoreAdminPage() {
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
   const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
   const [savingRules, setSavingRules] = useState(false);
+  const [importRulesOpen, setImportRulesOpen] = useState(false);
 
   // Settings state
   const [settingsName, setSettingsName] = useState('');
