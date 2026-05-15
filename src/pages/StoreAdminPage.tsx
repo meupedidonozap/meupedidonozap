@@ -27,6 +27,7 @@ import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType,
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import ImportCustomersDialog from '@/components/ImportCustomersDialog';
+import ImportDiscountRulesDialog from '@/components/ImportDiscountRulesDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
@@ -183,6 +184,7 @@ export default function StoreAdminPage() {
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
   const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
   const [savingRules, setSavingRules] = useState(false);
+  const [importRulesOpen, setImportRulesOpen] = useState(false);
 
   // Settings state
   const [settingsName, setSettingsName] = useState('');
@@ -1083,10 +1085,15 @@ export default function StoreAdminPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0">
                   <CardTitle>Regras Cadastradas</CardTitle>
-                  <Button onClick={handleSaveDiscountRules} disabled={savingRules} size="sm" className="gap-2">
-                    {savingRules ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Salvar Regras
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportRulesOpen(true)}>
+                      <Upload className="h-4 w-4" /> Importar Planilha
+                    </Button>
+                    <Button onClick={handleSaveDiscountRules} disabled={savingRules} size="sm" className="gap-2">
+                      {savingRules ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Salvar Regras
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {discountRules.length === 0 ? (
@@ -1742,6 +1749,22 @@ export default function StoreAdminPage() {
         open={importCustomersOpen}
         onOpenChange={setImportCustomersOpen}
         storeId={store.id}
+      />
+      <ImportDiscountRulesDialog
+        open={importRulesOpen}
+        onOpenChange={setImportRulesOpen}
+        existingRules={discountRules}
+        onImport={async (newRules) => {
+          const allRules = [
+            ...(store.settings.discountRules || []).filter((r: DiscountRule) => r.type !== 'group'),
+            ...newRules,
+          ];
+          await updateStore.mutateAsync({
+            id: store.id,
+            settings: { ...store.settings, discountRules: allRules },
+          });
+          setDiscountRulesLocal(newRules);
+        }}
       />
       <ServiceOrderDialog
         open={soDialogOpen}
