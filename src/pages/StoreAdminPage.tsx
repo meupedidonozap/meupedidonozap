@@ -1750,6 +1750,22 @@ export default function StoreAdminPage() {
         onOpenChange={setImportCustomersOpen}
         storeId={store.id}
       />
+      <ImportDiscountRulesDialog
+        open={importRulesOpen}
+        onOpenChange={setImportRulesOpen}
+        existingRules={discountRules}
+        onImport={async (newRules) => {
+          const allRules = [
+            ...(store.settings.discountRules || []).filter((r: DiscountRule) => r.type !== 'group'),
+            ...newRules,
+          ];
+          await updateStore.mutateAsync({
+            id: store.id,
+            settings: { ...store.settings, discountRules: allRules },
+          });
+          setDiscountRulesLocal(newRules);
+        }}
+      />
       <ServiceOrderDialog
         open={soDialogOpen}
         onOpenChange={setSODialogOpen}
