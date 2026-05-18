@@ -1,0 +1,191 @@
+import { useState, useMemo, useEffect } from 'react';
+import { Plus, Minus, Trash2, Search } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/formatters';
+import { toast } from 'sonner';
+import { useUpdateOrder } from '@/hooks/useOrders';
+import type { Order, Product, CartItem } from '@/types';
+
+interface EditOrderDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  order: Order | null;
+  products: Product[];
+}
+
+export default function EditOrderDialog({ open, onOpenChange, order, products }: EditOrderDialogProps) {
+  const updateOrder = useUpdateOrder();
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (order) setItems(order.items.map(i => ({ ...i })));
+  }, [order]);
+
+  const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
+  const deliveryFee = order?.deliveryFee || 0;
+  const discount = order?.discount || 0;
+  const total = subtotal + deliveryFee - discount;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = products.filter((p: any) => p.isActive !== false);
+    if (!q) return list.slice(0, 30);
+    return list.filter((p: any) =>
+      p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q)
+    ).slice(0, 50);
+  }, [products, search]);
+
+  const addProduct = (p: any) => {
+    setItems(prev => {
+      const existing = prev.find(i => i.productId === p.id);
+      if (existing) {
+        return prev.map(i => i.productId === p.id ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, {
+        productId: p.id,
+        name: p.name,
+        code: p.code || '',
+        price: p.basePrice,
+        quantity: 1,
+        image: p.image,
+      }];
+    });
+  };
+
+  const updateQty = (idx: number, delta: number) => {
+    setItems(prev => prev.map((i, k) => {
+      if (k !== idx) return i;
+      const q = i.quantity + delta;
+      return q <= 0 ? i : { ...i, quantity: q };
+    }));
+  };
+
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, k) => k !== idx));
+
+  const handleSave = async () => {
+    if (!order) return;
+    if (items.length === 0) { toast.error('O pedido precisa ter pelo menos um item'); return; }
+    setSaving(true);
+    try {
+      await updateOrder.mutateAsync({
+        id: order.id,
+        items,
+        subtotal,
+        total,
+      });
+      toast.success('Pedido atualizado!');
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar pedido');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!order) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Editar Pedido #{order.orderNumber}</DialogTitle>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {/* Current items */}
+          <div className="border rounded-md">
+            <div className="px-3 py-2 border-b bg-muted/30 text-sm font-semibold">
+              Itens do pedido ({items.length})
+            </div>
+            {items.length === 0 ? (
+              <p className="p-4 text-sm text-center text-muted-foreground">Nenhum item</p>
+            ) : (
+              <div className="divide-y max-h-[280px] overflow-y-auto">
+                {items.map((item, idx) => (
+                  <div key={`${item.productId}-${idx}`} className="flex items-center justify-between p-3 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(item.price)} {item.code ? `• ${item.code}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, -1)}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, 1)}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <span className="text-sm font-medium w-24 text-right">{formatCurrency(item.price * item.quantity)}</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add product */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto para adicionar..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="border rounded-md max-h-[220px] overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="p-4 text-sm text-center text-muted-foreground">Nenhum produto encontrado</p>
+              ) : (
+                <div className="divide-y">
+                  {filtered.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between p-2 hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(p.basePrice)} {p.code ? `• ${p.code}` : ''}
+                        </p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => addProduct(p)}>
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Totals */}
+          <div className="border rounded-md p-3 space-y-1 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+            {discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Desconto</span><span>-{formatCurrency(discount)}</span></div>}
+            {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Entrega</span><span>{formatCurrency(deliveryFee)}</span></div>}
+            <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{formatCurrency(total)}</span></div>
+          </div>
+
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Badge variant="outline" className="text-[10px]">Atenção</Badge>
+            Apenas pedidos com status <strong>Pendente</strong> podem ser editados.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar alterações'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

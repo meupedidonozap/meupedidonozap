@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
-  Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut,
+  Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
   Scissors,
 } from 'lucide-react';
@@ -31,6 +31,7 @@ import ImportDiscountRulesDialog from '@/components/ImportDiscountRulesDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
+import EditOrderDialog from '@/components/EditOrderDialog';
 import StoreUsersTab from '@/components/StoreUsersTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -65,6 +66,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
+  liberado_transmissao: { label: 'Liberado p/ Transmissão', color: 'bg-cyan-100 text-cyan-700', icon: <Send className="h-4 w-4" /> },
   confirmado: { label: 'Confirmado', color: 'bg-blue-100 text-blue-700', icon: <CheckCircle className="h-4 w-4" /> },
   preparando: { label: 'Preparando', color: 'bg-orange-100 text-orange-700', icon: <Package className="h-4 w-4" /> },
   enviado: { label: 'Enviado', color: 'bg-purple-100 text-purple-700', icon: <Truck className="h-4 w-4" /> },
@@ -167,6 +169,7 @@ export default function StoreAdminPage() {
   const [soDialogOpen, setSODialogOpen] = useState(false);
   const selectedSO = useMemo(() => selectedSOId ? serviceOrders.find(s => s.id === selectedSOId) || null : null, [selectedSOId, serviceOrders]);
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
@@ -999,6 +1002,16 @@ export default function StoreAdminPage() {
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
+                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Editar pedido"
+                                onClick={() => setEditingOrder(order)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1802,6 +1815,12 @@ export default function StoreAdminPage() {
         foodItems={foodItems}
         customerProfiles={customerProfiles}
         categories={categories}
+      />
+      <EditOrderDialog
+        open={!!editingOrder}
+        onOpenChange={(v) => { if (!v) setEditingOrder(null); }}
+        order={editingOrder}
+        products={products}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">

@@ -94,11 +94,15 @@ export function useDeleteOrder() {
 export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status, total, subtotal }: { id: string; status?: OrderStatus; total?: number; subtotal?: number }) => {
+    mutationFn: async ({ id, status, total, subtotal, items, discount, observations, customer }: { id: string; status?: OrderStatus; total?: number; subtotal?: number; items?: CartItem[]; discount?: number; observations?: string | null; customer?: CustomerInfo }) => {
       const update: any = {};
       if (status) update.status = status;
       if (total !== undefined) update.total = total;
       if (subtotal !== undefined) update.subtotal = subtotal;
+      if (items !== undefined) update.items = items as any;
+      if (discount !== undefined) update.discount = discount;
+      if (observations !== undefined) update.observations = observations;
+      if (customer !== undefined) update.customer = customer as any;
       const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
       if (error) throw error;
       return mapOrder(data);
