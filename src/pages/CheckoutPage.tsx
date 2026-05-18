@@ -234,6 +234,11 @@ export default function CheckoutPage() {
 
   const handleSendWhatsApp = async () => {
     if (!validateForm()) return;
+    const minOrder = store?.settings?.minOrderValue || 0;
+    if (minOrder > 0 && cart.subtotal < minOrder) {
+      toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - cart.subtotal)} em produtos.`);
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Save/update customer profile
