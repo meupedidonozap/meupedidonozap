@@ -1816,6 +1816,12 @@ export default function StoreAdminPage() {
         customerProfiles={customerProfiles}
         categories={categories}
       />
+      <EditOrderDialog
+        open={!!editingOrder}
+        onOpenChange={(v) => { if (!v) setEditingOrder(null); }}
+        order={editingOrder}
+        products={products}
+      />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
