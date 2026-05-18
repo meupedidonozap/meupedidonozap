@@ -418,7 +418,11 @@ export default function StoreAdminPage() {
         phone: settingsPhone,
         whatsapp: settingsWhatsapp,
         logo: settingsLogo,
-        settings: { ...store.settings, shipping: shippingData },
+        settings: {
+          ...store.settings,
+          shipping: shippingData,
+          minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
+        },
       });
       toast.success('Configurações salvas!');
     } catch {
