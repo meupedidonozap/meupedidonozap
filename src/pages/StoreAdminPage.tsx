@@ -195,6 +195,7 @@ export default function StoreAdminPage() {
   const [settingsPhone, setSettingsPhone] = useState('');
   const [settingsWhatsapp, setSettingsWhatsapp] = useState('');
   const [settingsLogo, setSettingsLogo] = useState('');
+  const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
