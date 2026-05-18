@@ -227,6 +227,7 @@ export default function StoreAdminPage() {
     setSettingsPhone(store.phone);
     setSettingsWhatsapp(store.whatsapp);
     setSettingsLogo(store.logo);
+    setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
     setSettingsInitialized(true);
   }
 
