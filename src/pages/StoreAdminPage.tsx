@@ -1002,6 +1002,16 @@ export default function StoreAdminPage() {
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
+                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Editar pedido"
+                                onClick={() => setEditingOrder(order)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
