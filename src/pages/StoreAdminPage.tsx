@@ -195,6 +195,7 @@ export default function StoreAdminPage() {
   const [settingsPhone, setSettingsPhone] = useState('');
   const [settingsWhatsapp, setSettingsWhatsapp] = useState('');
   const [settingsLogo, setSettingsLogo] = useState('');
+  const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -226,6 +227,7 @@ export default function StoreAdminPage() {
     setSettingsPhone(store.phone);
     setSettingsWhatsapp(store.whatsapp);
     setSettingsLogo(store.logo);
+    setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
     setSettingsInitialized(true);
   }
 
@@ -416,7 +418,11 @@ export default function StoreAdminPage() {
         phone: settingsPhone,
         whatsapp: settingsWhatsapp,
         logo: settingsLogo,
-        settings: { ...store.settings, shipping: shippingData },
+        settings: {
+          ...store.settings,
+          shipping: shippingData,
+          minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
+        },
       });
       toast.success('Configurações salvas!');
     } catch {
@@ -1248,6 +1254,20 @@ export default function StoreAdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2"><Label>Telefone</Label><Input value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} placeholder="(11) 3456-7890" /></div>
                   <div className="grid gap-2"><Label>WhatsApp (receber pedidos)</Label><Input value={settingsWhatsapp} onChange={e => setSettingsWhatsapp(e.target.value)} placeholder="5511999999999" /></div>
+                </div>
+                <div className="grid gap-2 sm:max-w-xs">
+                  <Label>Pedido mínimo (R$)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={settingsMinOrder}
+                    onChange={e => setSettingsMinOrder(e.target.value)}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe 0 para desativar. Pedidos abaixo deste valor não poderão ser finalizados.
+                  </p>
                 </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
                   {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

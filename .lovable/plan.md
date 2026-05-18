@@ -1,63 +1,44 @@
+# Pedido mínimo de R$ 400 (Dicolore)
+
 ## Objetivo
+Impedir que pedidos abaixo de R$ 400,00 sejam finalizados na Dicolore, exibindo alerta claro com o valor que falta para atingir o mínimo.
 
-Adicionar um botão **"Importar Planilha"** na aba de Regras de Desconto do painel da loja, permitindo atualizar todas as faixas de desconto de uma vez a partir de uma planilha Excel exportada do ERP.
+## Abordagem
+O campo `settings.minOrderValue` já existe na configuração da loja, mas hoje só é usado para cupons. Vou:
+1. Reaproveitá-lo como **pedido mínimo geral da loja** (0 = sem mínimo).
+2. Tornar editável no painel admin (aba Configurações).
+3. Aplicar a validação no carrinho lateral e no checkout.
+4. Definir `minOrderValue = 400` para a loja Dicolore.
 
-## Estrutura esperada da planilha
+Solução genérica/configurável (não hardcoded), assim qualquer outra loja pode usar a mesma regra no futuro.
 
-Baseado na imagem enviada:
+## Mudanças
 
-| Coluna | Conteúdo | Uso |
-|---|---|---|
-| Grupo do Produto | Ex: `148 - MATERIAL DE APOIO`, `2 - LINHA DICCO`, `32 - FLASH COLOR` | Nome do grupo (extraído após o `" - "`) |
-| Produto | Sempre `Todos` | Ignorado |
-| Qtde. Inicial | Ex: `6`, `12`, `24` | Vira `minQuantity` |
-| Percentual | Ex: `5`, `10`, `15` | Vira `discountPercent` |
+### 1. Painel Admin — aba Configurações (`StoreAdminPage.tsx`)
+- Novo campo numérico **"Pedido mínimo (R$)"** junto da Taxa de entrega.
+- Texto auxiliar: *"Deixe 0 para desativar. Pedidos abaixo deste valor não poderão ser finalizados."*
+- Salva em `settings.minOrderValue`.
 
-Linhas com `Grupo = Todos`, `Qtde. Inicial = 0` ou `Percentual = 0` serão ignoradas.
+### 2. Carrinho lateral (`ProductStorePage.tsx`)
+- Quando `subtotal < minOrderValue` (e `minOrderValue > 0`):
+  - Bloco de alerta amarelo acima do botão Finalizar mostrando:
+    > Pedido mínimo: R$ 400,00
+    > Faltam **R$ X,XX** para finalizar.
+  - Botão **"Finalizar Pedido"** fica desabilitado (mantém visual mas sem ação).
 
-## Como o cruzamento vai funcionar
+### 3. Página de Checkout (`CheckoutPage.tsx`)
+- Mesmo alerta no resumo do pedido.
+- Botão **"Enviar pelo WhatsApp"** desabilitado quando abaixo do mínimo.
+- `handleSendWhatsApp` retorna early com `toast.error` se subtotal < mínimo (proteção extra).
 
-O sistema atual guarda cada regra com `groupId = nome do grupo` (ex: `ALISAMENTO`, `FLASH COLOR`). Na planilha, o nome vem prefixado pelo código do ERP (`32 - FLASH COLOR`).
-
-Lógica de match:
-1. Para cada linha da planilha, extrair o nome puro: tudo após o primeiro `" - "` → `FLASH COLOR`.
-2. Procurar match **case-insensitive** entre as regras existentes (`store.settings.discountRules` filtradas por `type = 'group'`).
-3. Se grupo já existe → atualiza/recria a faixa daquele grupo + qtd mínima.
-4. Se grupo é **novo** → cria nova regra usando o nome puro como `groupId` e descrição automática `{percentual}% off` (mesmo padrão das demais).
-
-## Estratégia de substituição
-
-Para evitar duplicatas e regras órfãs, a importação faz **substituição completa das regras de tipo `group`**:
-
-- Mantém intactas regras de outros tipos (`quantity`, `value` se houver).
-- Substitui o conjunto de regras `group` pelo que veio da planilha.
-- Antes de salvar, mostra um **diálogo de pré-visualização** com:
-  - Quantas regras serão criadas/atualizadas
-  - Quantos grupos novos
-  - Quantas linhas ignoradas
-  - Botões **Confirmar** / **Cancelar**
-
-## Arquivos a alterar/criar
-
-### 1. `src/components/ImportDiscountRulesDialog.tsx` (novo)
-Diálogo com:
-- Input de upload `.xlsx`
-- Parse usando `xlsx` (já no projeto via `ImportProductsDialog`/`ImportCustomersDialog`)
-- Tabela de pré-visualização das regras detectadas
-- Botão "Confirmar Importação"
-
-### 2. `src/pages/StoreAdminPage.tsx`
-Adicionar botão **"Importar Planilha"** ao lado do "Salvar Regras" no card "Regras Cadastradas". Ao confirmar, chama `updateStore` salvando o novo array em `settings.discountRules`.
+### 4. Configuração da Dicolore
+- Após o deploy, ajustar `minOrderValue = 400` em `stores.settings` da Dicolore (uma migration de update ou eu defino direto pelo painel novo).
 
 ## Detalhes técnicos
-
-- Reaproveita o padrão de leitura de Excel já usado em `ImportProductsDialog.tsx` (lib `xlsx` no client).
-- Detecta colunas pelos nomes do cabeçalho (case-insensitive, normalizando acentos): `grupo do produto`, `qtde. inicial` (ou `qtd inicial`), `percentual`.
-- Descrição é sempre regenerada como `{percent}% off`.
-- Não toca em produtos, categorias nem cupons.
-- Não exige migração de banco — tudo continua em `stores.settings` (JSONB).
+- Comparação contra `cart.subtotal` (antes de frete) — frete não conta para atingir o mínimo, evitando que o cliente seja "empurrado" por uma taxa.
+- Helper local `const minOrder = store.settings?.minOrderValue || 0;` e `const missing = Math.max(0, minOrder - cart.subtotal);`.
+- Alerta usa tokens do design system (sem cores hardcoded).
 
 ## Fora do escopo
-
-- Não cria/atualiza categorias ou produtos a partir desta planilha.
-- Não importa a coluna `Produto` (assumida como sempre `Todos`).
+- Aplicar mínimo em pedidos criados manualmente pelo admin (Novo Pedido) — pode ser adicionado depois se desejado.
+- Aplicar mínimo via API externa (`criar-pedido` edge function).

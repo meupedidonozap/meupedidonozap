@@ -1,0 +1,1 @@
+UPDATE public.stores SET settings = jsonb_set(settings, '{minOrderValue}', '400'::jsonb) WHERE slug = 'dicolore';

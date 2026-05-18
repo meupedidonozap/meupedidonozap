@@ -353,11 +353,34 @@ export default function ProductStorePage() {
                     {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom ({cart.couponCode})</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
                     <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(cart.total)}</span></div>
                   </div>
+                  {(() => {
+                    const minOrder = store.settings?.minOrderValue || 0;
+                    const missing = Math.max(0, minOrder - cart.subtotal);
+                    if (minOrder > 0 && missing > 0) {
+                      return (
+                        <div className="mt-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200">
+                          <p className="font-semibold">Pedido mínimo: {formatCurrency(minOrder)}</p>
+                          <p>Faltam <strong>{formatCurrency(missing)}</strong> em produtos para finalizar.</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <SheetFooter className="mt-4 flex-col gap-2 sm:flex-col">
                     <Button onClick={() => setIsCartOpen(false)} variant="outline" className="w-full">Continuar Comprando</Button>
-                    <Button asChild className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
-                      <Link to={`/${store.slug}/checkout`}>Finalizar Pedido <ArrowRight className="h-4 w-4" /></Link>
-                    </Button>
+                    {(() => {
+                      const minOrder = store.settings?.minOrderValue || 0;
+                      const belowMin = minOrder > 0 && cart.subtotal < minOrder;
+                      return belowMin ? (
+                        <Button disabled className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                          Finalizar Pedido <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button asChild className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                          <Link to={`/${store.slug}/checkout`}>Finalizar Pedido <ArrowRight className="h-4 w-4" /></Link>
+                        </Button>
+                      );
+                    })()}
                   </SheetFooter>
                 </div>
               )}
