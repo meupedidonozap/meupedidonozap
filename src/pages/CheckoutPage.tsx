@@ -472,11 +472,28 @@ export default function CheckoutPage() {
                   {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{selectedShippingOption ? `Frete (${selectedShippingOption.name})` : 'Taxa de entrega'}</span><span>{formatCurrency(deliveryFee)}</span></div>}
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
                 </div>
+                {(() => {
+                  const minOrder = store.settings?.minOrderValue || 0;
+                  const missing = Math.max(0, minOrder - cart.subtotal);
+                  if (minOrder > 0 && missing > 0) {
+                    return (
+                      <div className="mt-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200">
+                        <p className="font-semibold">Pedido mínimo: {formatCurrency(minOrder)}</p>
+                        <p>Faltam <strong>{formatCurrency(missing)}</strong> em produtos para finalizar.</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 <div className="grid gap-2 pt-4">
                   {store.slug !== 'dicolore' && (
                     <Button variant="outline" onClick={handleDownloadTxt} className="w-full gap-2"><Download className="h-4 w-4" /> Baixar TXT</Button>
                   )}
-                  <Button onClick={handleSendWhatsApp} disabled={isSubmitting} className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Button
+                    onClick={handleSendWhatsApp}
+                    disabled={isSubmitting || ((store.settings?.minOrderValue || 0) > 0 && cart.subtotal < (store.settings?.minOrderValue || 0))}
+                    className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+                  >
                     <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
                   </Button>
                 </div>
