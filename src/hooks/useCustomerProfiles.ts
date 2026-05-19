@@ -27,13 +27,23 @@ export function useStoreCustomerProfiles(storeId: string | undefined) {
   return useQuery({
     queryKey: ['store-customer-profiles', storeId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('customer_profiles')
-        .select('*')
-        .eq('store_id', storeId!)
-        .order('name');
-      if (error) throw error;
-      return (data || []).map(mapProfile);
+      const PAGE = 1000;
+      const all: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('customer_profiles')
+          .select('*')
+          .eq('store_id', storeId!)
+          .order('name')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = data || [];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+        from += PAGE;
+      }
+      return all.map(mapProfile);
     },
     enabled: !!storeId,
     staleTime: 30_000,
