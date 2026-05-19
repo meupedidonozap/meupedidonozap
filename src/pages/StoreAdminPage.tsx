@@ -1588,15 +1588,16 @@ export default function StoreAdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Representante</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
+                      <TableHead>Nome</TableHead><TableHead>Código</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Representante</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customerProfiles.map(cp => (
+                    {scopedCustomerProfiles.map(cp => (
                       <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
                         <TableCell className="font-medium">{cp.name || '—'}</TableCell>
+                        <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
                         <TableCell>{cp.cpfCnpj || '—'}</TableCell>
                         <TableCell>{(cp as any).sellerCode ? (sellerByCode.get(((cp as any).sellerCode || '').trim())?.name || (cp as any).sellerCode) : '—'}</TableCell>
                         <TableCell>{cp.whatsapp || '—'}</TableCell>
@@ -1665,8 +1666,8 @@ export default function StoreAdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {customerProfiles.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
+                    {scopedCustomerProfiles.length === 0 && (
+                      <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
