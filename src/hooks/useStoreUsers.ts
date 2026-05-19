@@ -17,6 +17,7 @@ export interface StoreUser {
   can_manage_orders: boolean;
   can_manage_products: boolean;
   can_view_customers: boolean;
+  seller_codes: string[];
 }
 
 export function useStoreUsers(storeId: string | undefined) {
@@ -64,6 +65,7 @@ export function useCreateStoreUser() {
       password: string;
       name: string;
       permissions: Partial<StorePermissions>;
+      sellerCodes?: string[];
     }) => {
       return callManage({
         action: 'create',
@@ -72,6 +74,7 @@ export function useCreateStoreUser() {
         password: input.password,
         name: input.name,
         permissions: input.permissions,
+        sellerCodes: input.sellerCodes ?? [],
       });
     },
     onSuccess: (_d, vars) => {
@@ -89,6 +92,7 @@ export function useUpdateStoreUser() {
       name?: string;
       isActive?: boolean;
       permissions?: Partial<StorePermissions>;
+      sellerCodes?: string[];
     }) => {
       return callManage({
         action: 'update',
@@ -97,6 +101,7 @@ export function useUpdateStoreUser() {
         name: input.name,
         isActive: input.isActive,
         permissions: input.permissions,
+        sellerCodes: input.sellerCodes,
       });
     },
     onSuccess: (_d, vars) => {
