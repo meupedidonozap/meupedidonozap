@@ -1,58 +1,41 @@
-## Objetivo
+## Problemas e correções
 
-1. Mostrar o **Código do Cliente** na tabela de Clientes do painel.
-2. Vincular **códigos de vendedor** ao usuário da loja (store_user) para que ele só veja e gerencie clientes/pedidos cujo `seller_code` esteja entre seus códigos atribuídos.
+### 1) Usuários não-admin não conseguem alterar o status do pedido
 
----
+**Causa:** A política RLS atual da tabela `orders` (UPDATE) só permite `is_store_admin` (admin principal da loja). Usuários secundários como `morgana@dicolore.com.br`, mesmo com permissão `can_manage_orders = true`, são bloqueados pelo banco.
 
-## 1) Coluna "Código" na aba Clientes
+**Correção (migração):**
+- Substituir a policy `"Store admins can update orders"` por uma versão que também aceite `has_store_permission(auth.uid(), store_id, 'can_manage_orders')`.
+- Manter a regra de DELETE só para admin principal (não mexer).
 
-`src/pages/StoreAdminPage.tsx` (aba Customers, ~linha 1558):
+### 2) Tela de Clientes só mostra parte dos 3.060 registros
 
-- Adicionar `<TableHead>Código</TableHead>` após "Nome".
-- Renderizar `<TableCell>{cp.customerCode || '—'}</TableCell>`.
-- O campo já existe em `customer_profiles.customer_code` e já é mapeado em `useStoreCustomerProfiles`.
+**Causa:** O hook `useStoreCustomerProfiles` faz `select('*').eq('store_id', ...).order('name')` sem paginação. O Supabase aplica limite default de 1.000 linhas por requisição, então só chegam ~1.000 dos 3.047 registros da Dicolore.
 
-(Sem alteração de schema; sem alteração no modal de cadastro — o código permanece sendo gerado automaticamente como hoje.)
+**Correção (frontend, sem mudar UI muito):**
+- Em `src/hooks/useCustomerProfiles.ts`, alterar `useStoreCustomerProfiles` para buscar em páginas de 1.000 em laço até esgotar (`.range(from, from+999)`) e concatenar tudo antes de retornar.
+- Isso mantém a tela atual (busca + lista) funcionando com todos os clientes carregados. Sem mudança na UI.
 
----
+### 3) Importação de planilha de clientes duplica em vez de atualizar
 
-## 2) Vincular códigos de vendedor ao usuário da loja
+**Causa atual:** A edge function `import-customers` procura o cliente existente apenas por `customer_code`. Se a planilha trouxer códigos novos para um cliente que já existe (cadastrado por CPF/CNPJ), ou se o `customer_code` do banco estiver vazio (35 registros assim hoje), ele cria duplicado.
 
-### 2.1 Banco
-Migration:
-```sql
-ALTER TABLE public.store_users
-  ADD COLUMN seller_codes text[] NOT NULL DEFAULT '{}';
-```
-- Vazio = sem restrição (admins/superadmin continuam vendo tudo).
-- Lista preenchida = usuário só enxerga clientes/pedidos daqueles códigos.
+**Correção (edge function `import-customers`):**
+- Para cada linha da planilha, antes de criar, procurar registro existente em `customer_profiles` (escopo `store_id`) com esta prioridade:
+  1. Por `customer_code` (igual à planilha) — chave primária funcional Dicolore.
+  2. Se não achou e `cpf_cnpj` da linha não estiver vazio: buscar por `cpf_cnpj` (normalizado, só dígitos).
+- Se encontrar por qualquer uma das chaves, fazer **UPDATE somente dos campos enviados na planilha** (não sobrescrever com vazio campos opcionais ausentes), incluindo gravar/atualizar `customer_code` quando vier preenchido.
+- Apenas quando nenhuma das chaves casar, criar novo registro + usuário auth.
+- Marcar no retorno `status: 'updated' | 'created'` para o relatório do dialog.
 
-### 2.2 Edge function `manage-store-user`
-Aceitar `sellerCodes: string[]` nas ações `create` e `update`, persistindo no novo campo.
+Observação: o login auth é gerado a partir do `customer_code` (`{codigo}@{slug}.cliente.local`). Para registros antigos sem `customer_code` que forem casados por CPF/CNPJ, vamos preencher o `customer_code` no update e atualizar/gerar o usuário auth correspondente (sem quebrar o login existente do cliente).
 
-### 2.3 UI — aba Usuários (`StoreUsersTab.tsx`)
-- Nova coluna **"Vendedores"** na tabela, mostrando os códigos como badges (`21, 4, 128`), como no print enviado.
-- No diálogo de criar/editar usuário: novo campo **"Códigos de Vendedor"**, popover de múltipla seleção listando todos os `store_sellers` ativos (usar `useAllStoreSellers`) com checkbox por `code+name`. Texto auxiliar: *"Deixe vazio para acessar todos os clientes da loja."*
-- `useStoreUsers` / `useCreateStoreUser` / `useUpdateStoreUser`: incluir `seller_codes` no tipo `StoreUser` e nos payloads.
+## Arquivos a alterar
 
-### 2.4 Filtragem na aba Clientes
-- Hook `useCurrentStoreUser(storeId)` (novo, simples): busca o registro do usuário logado em `store_users` para obter `seller_codes`.
-- Em `StoreAdminPage` (aba Customers), se o usuário **não é** `isAdmin`/superadmin e `seller_codes.length > 0`, filtrar `customerProfiles` por `seller_code ∈ seller_codes` antes de renderizar a tabela.
-- Mesmo filtro aplicado aos pedidos (aba Pedidos): mostrar apenas pedidos cujo `customer.sellerCode` ∈ codes do usuário.
+- `supabase/migrations/<novo>.sql` — recriar policy UPDATE de `orders`.
+- `src/hooks/useCustomerProfiles.ts` — paginação interna no fetch.
+- `supabase/functions/import-customers/index.ts` — lookup duplo (code + cpf_cnpj) e update incremental.
 
-### 2.5 Edição de pedido restrita ao código
-- No botão de editar pedido (Dicolore, status `pendente`): além das condições atuais, exibir somente se `seller_codes` estiver vazio **ou** se `order.customer.sellerCode` estiver na lista do usuário.
-- `EditOrderDialog` continua igual; a proteção é só de visibilidade no front + RLS já existente em `orders`.
-
----
-
-## Detalhes técnicos
-
-- Filtro é client-side (o RLS atual de `orders`/`customer_profiles` continua permitindo leitura via `has_store_permission`). Para reforço server-side futuro seria necessário policy adicional comparando `customer->>sellerCode` com `store_users.seller_codes` — fica fora desse escopo para não regredir o que já funciona.
-- O array de códigos é apenas string (mesmo formato já gravado em `customer_profiles.seller_code` e `store_sellers.code`).
-- Admin da loja (`store_admins`) e superadmin (`platform_admins`) **ignoram** o filtro — continuam vendo tudo.
-
-## Fora do escopo
-- Mudanças em OS (`service_orders`).
-- Tela mobile da Dicolore (a aba Clientes só é usada no admin desktop).
+## Fora de escopo
+- Nenhuma mudança visual na tela de Clientes ou de Pedidos.
+- Permissões de edição de pedido continuam restritas ao filtro já existente por `seller_codes` no frontend.

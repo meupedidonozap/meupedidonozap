@@ -90,6 +90,8 @@ Deno.serve(async (req) => {
       erro?: string;
     }> = [];
 
+    const onlyDigits = (s: string) => (s || '').replace(/\D/g, '');
+
     for (const row of rows) {
       const codigo = String(row.codigo || '').trim();
       const nome = String(row.nome || '').trim();
@@ -108,13 +110,27 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
       let action: 'created' | 'updated' = 'created';
 
-      // try to find existing profile by customer_code first
-      const { data: existingProfile } = await admin
+      // 1) try by customer_code
+      let { data: existingProfile } = await admin
         .from('customer_profiles')
-        .select('id, user_id')
+        .select('id, user_id, customer_code, cpf_cnpj')
         .eq('store_id', storeId)
         .eq('customer_code', codigo)
         .maybeSingle();
+
+      // 2) fallback: by cpf_cnpj (digits) when not found
+      const rowCpfDigits = onlyDigits(String(row.cpf_cnpj || ''));
+      if (!existingProfile && rowCpfDigits) {
+        const { data: byCpf } = await admin
+          .from('customer_profiles')
+          .select('id, user_id, customer_code, cpf_cnpj')
+          .eq('store_id', storeId)
+          .neq('cpf_cnpj', '')
+          .ilike('cpf_cnpj', `%${rowCpfDigits}%`)
+          .limit(50);
+        const match = (byCpf || []).find((r: any) => onlyDigits(r.cpf_cnpj || '') === rowCpfDigits);
+        if (match) existingProfile = match as any;
+      }
 
       if (existingProfile?.user_id) {
         userId = existingProfile.user_id;
@@ -155,35 +171,59 @@ Deno.serve(async (req) => {
         }
       }
 
-      // upsert profile
-      const profilePayload = {
-        store_id: storeId,
-        user_id: userId,
-        customer_code: codigo,
-        name: nome,
-        cpf_cnpj: row.cpf_cnpj?.toString() || '',
-        whatsapp: row.whatsapp?.toString() || '',
-        cep: row.cep?.toString() || '',
-        uf: (row.uf?.toString() || '').toUpperCase().slice(0, 2),
-        city: row.cidade?.toString() || '',
-        neighborhood: row.bairro?.toString() || '',
-        address: row.endereco?.toString() || '',
-        number: row.numero?.toString() || '',
-        complement: row.complemento?.toString() || null,
-        seller_code: row.codigo_vendedor?.toString() || '',
-        is_active: true,
-      };
-
       if (existingProfile?.id) {
+        // UPDATE: only set fields that came in the row (don't blank out optional missing fields)
+        action = 'updated';
+        const updatePayload: Record<string, any> = {
+          user_id: userId,
+          customer_code: codigo,
+          name: nome,
+          is_active: true,
+        };
+        const setIf = (key: string, val: any) => {
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            updatePayload[key] = String(val);
+          }
+        };
+        setIf('cpf_cnpj', row.cpf_cnpj);
+        setIf('whatsapp', row.whatsapp);
+        setIf('cep', row.cep);
+        if (row.uf) updatePayload.uf = String(row.uf).toUpperCase().slice(0, 2);
+        setIf('city', row.cidade);
+        setIf('neighborhood', row.bairro);
+        setIf('address', row.endereco);
+        setIf('number', row.numero);
+        if (row.complemento !== undefined && String(row.complemento).trim() !== '') {
+          updatePayload.complement = String(row.complemento);
+        }
+        setIf('seller_code', row.codigo_vendedor);
+
         const { error: upErr } = await admin
           .from('customer_profiles')
-          .update(profilePayload)
+          .update(updatePayload)
           .eq('id', existingProfile.id);
         if (upErr) {
           results.push({ codigo, nome, status: 'error', erro: upErr.message });
           continue;
         }
       } else {
+        const profilePayload = {
+          store_id: storeId,
+          user_id: userId,
+          customer_code: codigo,
+          name: nome,
+          cpf_cnpj: row.cpf_cnpj?.toString() || '',
+          whatsapp: row.whatsapp?.toString() || '',
+          cep: row.cep?.toString() || '',
+          uf: (row.uf?.toString() || '').toUpperCase().slice(0, 2),
+          city: row.cidade?.toString() || '',
+          neighborhood: row.bairro?.toString() || '',
+          address: row.endereco?.toString() || '',
+          number: row.numero?.toString() || '',
+          complement: row.complemento?.toString() || null,
+          seller_code: row.codigo_vendedor?.toString() || '',
+          is_active: true,
+        };
         const { error: insErr } = await admin
           .from('customer_profiles')
           .insert(profilePayload);
