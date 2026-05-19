@@ -849,6 +849,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          role: string
           seller_codes: string[]
           store_id: string
           updated_at: string
@@ -866,6 +867,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          role?: string
           seller_codes?: string[]
           store_id: string
           updated_at?: string
@@ -883,6 +885,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          role?: string
           seller_codes?: string[]
           store_id?: string
           updated_at?: string

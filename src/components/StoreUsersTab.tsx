@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllStoreSellers } from '@/hooks/useStoreSellers';
 
 interface PermissionItem {
@@ -77,6 +78,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [perms, setPerms] = useState<StorePermissions>(emptyPerms);
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   const [sellerFilter, setSellerFilter] = useState('');
+  const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas'>('auxiliar');
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [pwTargetUser, setPwTargetUser] = useState<StoreUser | null>(null);
@@ -92,6 +94,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setPerms(emptyPerms);
     setSellerCodes([]);
     setSellerFilter('');
+    setRole('auxiliar');
     setDialogOpen(true);
   };
 
@@ -110,6 +113,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     });
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
+    setRole((u.role as any) || 'auxiliar');
     setDialogOpen(true);
   };
 
@@ -125,7 +129,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           storeUserId: editing.id,
           name,
           permissions: perms,
-          sellerCodes,
+          sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
+          role,
         });
         toast.success('Usuário atualizado!');
       } else {
@@ -139,7 +144,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           password,
           name: name.trim(),
           permissions: perms,
-          sellerCodes,
+          sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
+          role,
         });
         toast.success('Usuário criado!');
       }
@@ -210,12 +216,23 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
 
   const summarizeSellers = (u: StoreUser) => {
     const codes = Array.isArray(u.seller_codes) ? u.seller_codes : [];
-    if (codes.length === 0) return <span className="text-muted-foreground italic text-xs">Todos</span>;
+    const r = (u.role || 'auxiliar') as string;
+    if (r === 'auxiliar' || codes.length === 0) {
+      return <span className="text-muted-foreground italic text-xs">Todos (Auxiliar)</span>;
+    }
+    const byCode = new Map(allSellers.map(s => [(s.code || '').trim(), s.name]));
     return (
-      <div className="flex flex-wrap gap-1">
-        {codes.map(c => (
-          <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
-        ))}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {r === 'televendas' ? 'Televendas' : 'Vendedor'}
+        </span>
+        <div className="flex flex-wrap gap-1">
+          {codes.map(c => (
+            <Badge key={c} variant="outline" className="text-xs">
+              {c}{byCode.get(c) ? ` · ${byCode.get(c)}` : ''}
+            </Badge>
+          ))}
+        </div>
       </div>
     );
   };
@@ -335,10 +352,33 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
               ))}
             </div>
 
-            <div className="border rounded-lg p-3 space-y-2">
-              <div className="font-semibold text-sm">Códigos de Vendedor</div>
+            <div className="border rounded-lg p-3 space-y-3">
+              <div className="grid gap-2">
+                <Label className="text-sm font-semibold">Tipo de Usuário</Label>
+                <Select value={role} onValueChange={(v) => {
+                  const r = v as 'auxiliar' | 'vendedor' | 'televendas';
+                  setRole(r);
+                  if (r === 'auxiliar') setSellerCodes([]);
+                  if (r === 'vendedor' && sellerCodes.length > 1) setSellerCodes([sellerCodes[0]]);
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auxiliar">Auxiliar — vê todos os clientes</SelectItem>
+                    <SelectItem value="vendedor">Vendedor — vê apenas os seus clientes</SelectItem>
+                    <SelectItem value="televendas">Televendas — vê os clientes de vários vendedores</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {role !== 'auxiliar' && (
+                <>
+              <div className="font-semibold text-sm pt-1">
+                {role === 'vendedor' ? 'Vendedor vinculado' : 'Vendedores vinculados'}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Restringe o acesso a clientes e pedidos cujo código de vendedor esteja na lista. Deixe vazio para acessar todos.
+                {role === 'vendedor'
+                  ? 'Selecione o vendedor cujos clientes este usuário poderá ver e editar.'
+                  : 'Selecione um ou mais vendedores. O usuário verá os clientes de todos eles.'}
               </p>
               {sellerCodes.length > 0 && (
                 <div className="flex flex-wrap gap-1">
@@ -367,22 +407,35 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                   <p className="text-xs text-muted-foreground italic">Nenhum vendedor encontrado.</p>
                 ) : filteredSellers.map(s => {
                   const code = (s.code || '').trim();
-                  if (!code) return null;
-                  const checked = sellerCodes.includes(code);
+                  const hasCode = !!code;
+                  const checked = hasCode && sellerCodes.includes(code);
                   return (
-                    <label key={s.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/40 px-2 py-1 rounded text-sm">
+                    <label
+                      key={s.id}
+                      className={`flex items-center gap-2 px-2 py-1 rounded text-sm ${hasCode ? 'cursor-pointer hover:bg-muted/40' : 'opacity-50 cursor-not-allowed'}`}
+                      title={hasCode ? '' : 'Cadastre um código para este representante na aba Vendedores'}
+                    >
                       <Checkbox
+                        disabled={!hasCode}
                         checked={checked}
                         onCheckedChange={(v) => {
-                          setSellerCodes(prev => v ? Array.from(new Set([...prev, code])) : prev.filter(x => x !== code));
+                          if (!hasCode) return;
+                          if (role === 'vendedor') {
+                            setSellerCodes(v ? [code] : []);
+                          } else {
+                            setSellerCodes(prev => v ? Array.from(new Set([...prev, code])) : prev.filter(x => x !== code));
+                          }
                         }}
                       />
-                      <span className="font-mono text-xs w-12">{code}</span>
+                      <span className="font-mono text-xs w-12">{hasCode ? code : '—'}</span>
                       <span className="flex-1 truncate">{s.name}</span>
+                      {!hasCode && <span className="text-[10px] text-muted-foreground italic">sem código</span>}
                     </label>
                   );
                 })}
               </div>
+                </>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2">

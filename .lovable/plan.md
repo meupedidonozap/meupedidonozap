@@ -1,41 +1,69 @@
-## Problemas e correções
+## Diagnóstico
 
-### 1) Usuários não-admin não conseguem alterar o status do pedido
+A infraestrutura já existe:
 
-**Causa:** A política RLS atual da tabela `orders` (UPDATE) só permite `is_store_admin` (admin principal da loja). Usuários secundários como `morgana@dicolore.com.br`, mesmo com permissão `can_manage_orders = true`, são bloqueados pelo banco.
+- Tabela `store_sellers` (código, nome, WhatsApp) com CRUD na aba de configurações da Dicolore (Vendedores WhatsApp).
+- Diálogo "Editar Usuário" já tem o seletor "Códigos de Vendedor" que lê de `store_sellers`.
+- Tabela de Clientes já mostra o nome do representante quando o `seller_code` bate com algum cadastro.
 
-**Correção (migração):**
-- Substituir a policy `"Store admins can update orders"` por uma versão que também aceite `has_store_permission(auth.uid(), store_id, 'can_manage_orders')`.
-- Manter a regra de DELETE só para admin principal (não mexer).
+**Por que o seletor aparece vazio na tela do morgana:** os 14 representantes cadastrados estão todos com `code` em branco, e os clientes usam códigos numéricos (4, 21, 32, 45, 46, 53, 62, 68, 128, 179, 293, 306, 308). Sem código preenchido, o seletor filtra tudo e o vínculo com cliente/pedido não funciona.
 
-### 2) Tela de Clientes só mostra parte dos 3.060 registros
+## O que será feito
 
-**Causa:** O hook `useStoreCustomerProfiles` faz `select('*').eq('store_id', ...).order('name')` sem paginação. O Supabase aplica limite default de 1.000 linhas por requisição, então só chegam ~1.000 dos 3.047 registros da Dicolore.
+### 1) Preencher os códigos dos representantes existentes (Dicolore)
 
-**Correção (frontend, sem mudar UI muito):**
-- Em `src/hooks/useCustomerProfiles.ts`, alterar `useStoreCustomerProfiles` para buscar em páginas de 1.000 em laço até esgotar (`.range(from, from+999)`) e concatenar tudo antes de retornar.
-- Isso mantém a tela atual (busca + lista) funcionando com todos os clientes carregados. Sem mudança na UI.
+Atualizar `store_sellers` casando pelo nome (conforme imagem enviada):
 
-### 3) Importação de planilha de clientes duplica em vez de atualizar
+```
+Suelen → 179      Luciana → 4       Priscila → 53
+Morgana → 68      Silvana → 308     Mari → 128
+Rita → 46         Vanessa → 306     José Carlos → 45
+Adriana → 293     Bety → 32         Ronaldo → 21
+```
 
-**Causa atual:** A edge function `import-customers` procura o cliente existente apenas por `customer_code`. Se a planilha trouxer códigos novos para um cliente que já existe (cadastrado por CPF/CNPJ), ou se o `customer_code` do banco estiver vazio (35 registros assim hoje), ele cria duplicado.
+Criar o que falta:
 
-**Correção (edge function `import-customers`):**
-- Para cada linha da planilha, antes de criar, procurar registro existente em `customer_profiles` (escopo `store_id`) com esta prioridade:
-  1. Por `customer_code` (igual à planilha) — chave primária funcional Dicolore.
-  2. Se não achou e `cpf_cnpj` da linha não estiver vazio: buscar por `cpf_cnpj` (normalizado, só dígitos).
-- Se encontrar por qualquer uma das chaves, fazer **UPDATE somente dos campos enviados na planilha** (não sobrescrever com vazio campos opcionais ausentes), incluindo gravar/atualizar `customer_code` quando vier preenchido.
-- Apenas quando nenhuma das chaves casar, criar novo registro + usuário auth.
-- Marcar no retorno `status: 'updated' | 'created'` para o relatório do dialog.
+- `Tatiana` (código 62) — está nos clientes mas não em `store_sellers`.
 
-Observação: o login auth é gerado a partir do `customer_code` (`{codigo}@{slug}.cliente.local`). Para registros antigos sem `customer_code` que forem casados por CPF/CNPJ, vamos preencher o `customer_code` no update e atualizar/gerar o usuário auth correspondente (sem quebrar o login existente do cliente).
+Os demais (Televendas Denise, Televendas Grazi) ficam sem código até o admin definir — aparecerão na lista do diálogo como "sem código".   
+O TELEVENDAS Denis e TELEVENDAS Grazi, tem a possibilidade de ver os clientes dos vendedores que a ele estão vinculados.   
+1 vendedor pode ver somente os seus clientes  
+mas o Televendas pode ver todos os clientes dos vendedores que estão vinculadas a ela  
+  
+O perfil de usuario quando criado na plataforma, deve ter: Auxiliar / Vendedor / Televendas  
+ *Auxiliar pode ver TODOS os clientes sem restrição*  
+ *vendedor - poderá ver apenas os seus clientes*  
+ * Televendas - poderá ver mais de um vendedor  
+Desta forma, permitir na criação do usuario, colocar mais de um vendedor.
 
-## Arquivos a alterar
+### 2) Melhorar o seletor "Códigos de Vendedor" do diálogo Editar Usuário
 
-- `supabase/migrations/<novo>.sql` — recriar policy UPDATE de `orders`.
-- `src/hooks/useCustomerProfiles.ts` — paginação interna no fetch.
-- `supabase/functions/import-customers/index.ts` — lookup duplo (code + cpf_cnpj) e update incremental.
+Hoje, vendedores sem código são silenciosamente ocultados. Vamos:
 
-## Fora de escopo
-- Nenhuma mudança visual na tela de Clientes ou de Pedidos.
-- Permissões de edição de pedido continuam restritas ao filtro já existente por `seller_codes` no frontend.
+- Listar **todos** os representantes ativos, mostrando nome + código (ou aviso "sem código" desabilitado).
+- Ordenar por nome.
+- Manter o filtro por código/nome.
+
+Assim o admin enxerga claramente quem ainda precisa receber um código.
+
+### 3) Reforçar o CRUD de Representantes (aba já existente)
+
+A aba "Vendedores (WhatsApp)" na configuração da Dicolore já permite criar, editar (código inline), ativar/desativar e remover. Vamos:
+
+- Permitir editar também o **Nome** e o **WhatsApp** inline (hoje só o código é editável após criar).
+- Garantir validação de código único por loja (avisar se duplicar).
+
+### 4) Sem mudanças em RLS
+
+As policies de `store_sellers` já permitem que o admin da loja gerencie tudo, e leitura pública dos ativos (necessário para o checkout).
+
+## Arquivos afetados
+
+- `src/components/StoreUsersTab.tsx` — listar todos os sellers (com indicação visual quando sem código).
+- `src/pages/StoreAdminPage.tsx` — campos editáveis (nome/WhatsApp) na tabela de Vendedores + checagem de código duplicado.
+- Migração de dados (via insert tool) para preencher os códigos dos 12 sellers e criar Tatiana.
+
+## Fora do escopo
+
+- Não vou alterar a estrutura de `customer_profiles` nem mexer na importação Excel.
+- Não vou refazer a aba de Clientes, só a coluna Representante já resolve a exibição quando o código bate.
