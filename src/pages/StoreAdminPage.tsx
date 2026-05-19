@@ -128,6 +128,31 @@ export default function StoreAdminPage() {
     return m;
   }, [sellers]);
 
+  // Seller-code based access restriction for non-admin store users
+  const restrictBySeller = !isAdmin && (userSellerCodes?.length || 0) > 0;
+  const sellerCodeSet = useMemo(() => new Set((userSellerCodes || []).map(c => String(c).trim()).filter(Boolean)), [userSellerCodes]);
+  const last8 = (s: string) => (s || '').replace(/\D/g, '').slice(-8);
+  const whatsappToSellerCode = useMemo(() => {
+    const m = new Map<string, string>();
+    (customerProfiles as any[]).forEach((cp: any) => {
+      const k = last8(cp.whatsapp);
+      const code = String(cp.sellerCode || '').trim();
+      if (k && code) m.set(k, code);
+    });
+    return m;
+  }, [customerProfiles]);
+  const filteredCustomerProfiles = useMemo(() => {
+    if (!restrictBySeller) return customerProfiles as any[];
+    return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
+  }, [customerProfiles, restrictBySeller, sellerCodeSet]);
+  const filteredOrders = useMemo(() => {
+    if (!restrictBySeller) return orders;
+    return orders.filter((o: any) => {
+      const code = whatsappToSellerCode.get(last8(o?.customer?.whatsapp || ''));
+      return code ? sellerCodeSet.has(code) : false;
+    });
+  }, [orders, restrictBySeller, sellerCodeSet, whatsappToSellerCode]);
+
   // Visits analytics state
   const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
     const d = new Date(); d.setDate(d.getDate() - 30); return d;
