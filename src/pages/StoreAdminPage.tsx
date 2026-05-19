@@ -141,11 +141,11 @@ export default function StoreAdminPage() {
     });
     return m;
   }, [customerProfiles]);
-  const filteredCustomerProfiles = useMemo(() => {
+  const scopedCustomerProfiles = useMemo(() => {
     if (!restrictBySeller) return customerProfiles as any[];
     return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
   }, [customerProfiles, restrictBySeller, sellerCodeSet]);
-  const filteredOrders = useMemo(() => {
+  const scopedOrders = useMemo(() => {
     if (!restrictBySeller) return orders;
     return orders.filter((o: any) => {
       const code = whatsappToSellerCode.get(last8(o?.customer?.whatsapp || ''));
