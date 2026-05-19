@@ -36,7 +36,7 @@ export function useStoreAdmin(storeId: string | undefined) {
     queryKey: ['store-access', storeId, user?.id],
     queryFn: async () => {
       if (!user || !storeId) {
-        return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS };
+        return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
       }
       // Check primary admin
       const { data: adminRow } = await supabase
@@ -46,12 +46,12 @@ export function useStoreAdmin(storeId: string | undefined) {
         .eq('user_id', user.id)
         .maybeSingle();
       if (adminRow) {
-        return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS };
+        return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS, sellerCodes: [] as string[] };
       }
       // Check secondary store user
       const { data: storeUser } = await supabase
         .from('store_users')
-        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, is_active')
+        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, is_active, seller_codes')
         .eq('store_id', storeId)
         .eq('user_id', user.id)
         .eq('is_active', true)
@@ -68,15 +68,16 @@ export function useStoreAdmin(storeId: string | undefined) {
             can_manage_products: !!storeUser.can_manage_products,
             can_view_customers: !!storeUser.can_view_customers,
           },
+          sellerCodes: (((storeUser as any).seller_codes) ?? []) as string[],
         };
       }
-      return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS };
+      return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
     },
     enabled: !!user && !!storeId,
     staleTime: 5 * 60 * 1000,
   });
 
-  const access = data ?? { isAdmin: false, isStoreUser: false, permissions: NO_PERMS };
+  const access = data ?? { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
   // hasAccess = is admin OR is active store user with at least one permission
   const hasAnyPermission = Object.values(access.permissions).some(Boolean);
   const hasAccess = access.isAdmin || (access.isStoreUser && hasAnyPermission);
@@ -87,6 +88,7 @@ export function useStoreAdmin(storeId: string | undefined) {
     isStoreUser: access.isStoreUser,
     hasAccess,
     permissions: access.permissions,
+    sellerCodes: access.sellerCodes,
     loading: authLoading || accessLoading,
   };
 }
