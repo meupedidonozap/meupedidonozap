@@ -216,12 +216,23 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
 
   const summarizeSellers = (u: StoreUser) => {
     const codes = Array.isArray(u.seller_codes) ? u.seller_codes : [];
-    if (codes.length === 0) return <span className="text-muted-foreground italic text-xs">Todos</span>;
+    const r = (u.role || 'auxiliar') as string;
+    if (r === 'auxiliar' || codes.length === 0) {
+      return <span className="text-muted-foreground italic text-xs">Todos (Auxiliar)</span>;
+    }
+    const byCode = new Map(allSellers.map(s => [(s.code || '').trim(), s.name]));
     return (
-      <div className="flex flex-wrap gap-1">
-        {codes.map(c => (
-          <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
-        ))}
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {r === 'televendas' ? 'Televendas' : 'Vendedor'}
+        </span>
+        <div className="flex flex-wrap gap-1">
+          {codes.map(c => (
+            <Badge key={c} variant="outline" className="text-xs">
+              {c}{byCode.get(c) ? ` · ${byCode.get(c)}` : ''}
+            </Badge>
+          ))}
+        </div>
       </div>
     );
   };
