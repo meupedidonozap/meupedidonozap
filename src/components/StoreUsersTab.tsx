@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllStoreSellers } from '@/hooks/useStoreSellers';
 
 interface PermissionItem {
@@ -77,6 +78,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [perms, setPerms] = useState<StorePermissions>(emptyPerms);
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   const [sellerFilter, setSellerFilter] = useState('');
+  const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas'>('auxiliar');
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [pwTargetUser, setPwTargetUser] = useState<StoreUser | null>(null);
@@ -92,6 +94,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setPerms(emptyPerms);
     setSellerCodes([]);
     setSellerFilter('');
+    setRole('auxiliar');
     setDialogOpen(true);
   };
 
@@ -110,6 +113,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     });
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
+    setRole((u.role as any) || 'auxiliar');
     setDialogOpen(true);
   };
 
@@ -125,7 +129,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           storeUserId: editing.id,
           name,
           permissions: perms,
-          sellerCodes,
+          sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
+          role,
         });
         toast.success('Usuário atualizado!');
       } else {
@@ -139,7 +144,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           password,
           name: name.trim(),
           permissions: perms,
-          sellerCodes,
+          sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
+          role,
         });
         toast.success('Usuário criado!');
       }
