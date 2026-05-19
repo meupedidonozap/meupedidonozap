@@ -1,44 +1,58 @@
-# Pedido mínimo de R$ 400 (Dicolore)
-
 ## Objetivo
-Impedir que pedidos abaixo de R$ 400,00 sejam finalizados na Dicolore, exibindo alerta claro com o valor que falta para atingir o mínimo.
 
-## Abordagem
-O campo `settings.minOrderValue` já existe na configuração da loja, mas hoje só é usado para cupons. Vou:
-1. Reaproveitá-lo como **pedido mínimo geral da loja** (0 = sem mínimo).
-2. Tornar editável no painel admin (aba Configurações).
-3. Aplicar a validação no carrinho lateral e no checkout.
-4. Definir `minOrderValue = 400` para a loja Dicolore.
+1. Mostrar o **Código do Cliente** na tabela de Clientes do painel.
+2. Vincular **códigos de vendedor** ao usuário da loja (store_user) para que ele só veja e gerencie clientes/pedidos cujo `seller_code` esteja entre seus códigos atribuídos.
 
-Solução genérica/configurável (não hardcoded), assim qualquer outra loja pode usar a mesma regra no futuro.
+---
 
-## Mudanças
+## 1) Coluna "Código" na aba Clientes
 
-### 1. Painel Admin — aba Configurações (`StoreAdminPage.tsx`)
-- Novo campo numérico **"Pedido mínimo (R$)"** junto da Taxa de entrega.
-- Texto auxiliar: *"Deixe 0 para desativar. Pedidos abaixo deste valor não poderão ser finalizados."*
-- Salva em `settings.minOrderValue`.
+`src/pages/StoreAdminPage.tsx` (aba Customers, ~linha 1558):
 
-### 2. Carrinho lateral (`ProductStorePage.tsx`)
-- Quando `subtotal < minOrderValue` (e `minOrderValue > 0`):
-  - Bloco de alerta amarelo acima do botão Finalizar mostrando:
-    > Pedido mínimo: R$ 400,00
-    > Faltam **R$ X,XX** para finalizar.
-  - Botão **"Finalizar Pedido"** fica desabilitado (mantém visual mas sem ação).
+- Adicionar `<TableHead>Código</TableHead>` após "Nome".
+- Renderizar `<TableCell>{cp.customerCode || '—'}</TableCell>`.
+- O campo já existe em `customer_profiles.customer_code` e já é mapeado em `useStoreCustomerProfiles`.
 
-### 3. Página de Checkout (`CheckoutPage.tsx`)
-- Mesmo alerta no resumo do pedido.
-- Botão **"Enviar pelo WhatsApp"** desabilitado quando abaixo do mínimo.
-- `handleSendWhatsApp` retorna early com `toast.error` se subtotal < mínimo (proteção extra).
+(Sem alteração de schema; sem alteração no modal de cadastro — o código permanece sendo gerado automaticamente como hoje.)
 
-### 4. Configuração da Dicolore
-- Após o deploy, ajustar `minOrderValue = 400` em `stores.settings` da Dicolore (uma migration de update ou eu defino direto pelo painel novo).
+---
+
+## 2) Vincular códigos de vendedor ao usuário da loja
+
+### 2.1 Banco
+Migration:
+```sql
+ALTER TABLE public.store_users
+  ADD COLUMN seller_codes text[] NOT NULL DEFAULT '{}';
+```
+- Vazio = sem restrição (admins/superadmin continuam vendo tudo).
+- Lista preenchida = usuário só enxerga clientes/pedidos daqueles códigos.
+
+### 2.2 Edge function `manage-store-user`
+Aceitar `sellerCodes: string[]` nas ações `create` e `update`, persistindo no novo campo.
+
+### 2.3 UI — aba Usuários (`StoreUsersTab.tsx`)
+- Nova coluna **"Vendedores"** na tabela, mostrando os códigos como badges (`21, 4, 128`), como no print enviado.
+- No diálogo de criar/editar usuário: novo campo **"Códigos de Vendedor"**, popover de múltipla seleção listando todos os `store_sellers` ativos (usar `useAllStoreSellers`) com checkbox por `code+name`. Texto auxiliar: *"Deixe vazio para acessar todos os clientes da loja."*
+- `useStoreUsers` / `useCreateStoreUser` / `useUpdateStoreUser`: incluir `seller_codes` no tipo `StoreUser` e nos payloads.
+
+### 2.4 Filtragem na aba Clientes
+- Hook `useCurrentStoreUser(storeId)` (novo, simples): busca o registro do usuário logado em `store_users` para obter `seller_codes`.
+- Em `StoreAdminPage` (aba Customers), se o usuário **não é** `isAdmin`/superadmin e `seller_codes.length > 0`, filtrar `customerProfiles` por `seller_code ∈ seller_codes` antes de renderizar a tabela.
+- Mesmo filtro aplicado aos pedidos (aba Pedidos): mostrar apenas pedidos cujo `customer.sellerCode` ∈ codes do usuário.
+
+### 2.5 Edição de pedido restrita ao código
+- No botão de editar pedido (Dicolore, status `pendente`): além das condições atuais, exibir somente se `seller_codes` estiver vazio **ou** se `order.customer.sellerCode` estiver na lista do usuário.
+- `EditOrderDialog` continua igual; a proteção é só de visibilidade no front + RLS já existente em `orders`.
+
+---
 
 ## Detalhes técnicos
-- Comparação contra `cart.subtotal` (antes de frete) — frete não conta para atingir o mínimo, evitando que o cliente seja "empurrado" por uma taxa.
-- Helper local `const minOrder = store.settings?.minOrderValue || 0;` e `const missing = Math.max(0, minOrder - cart.subtotal);`.
-- Alerta usa tokens do design system (sem cores hardcoded).
+
+- Filtro é client-side (o RLS atual de `orders`/`customer_profiles` continua permitindo leitura via `has_store_permission`). Para reforço server-side futuro seria necessário policy adicional comparando `customer->>sellerCode` com `store_users.seller_codes` — fica fora desse escopo para não regredir o que já funciona.
+- O array de códigos é apenas string (mesmo formato já gravado em `customer_profiles.seller_code` e `store_sellers.code`).
+- Admin da loja (`store_admins`) e superadmin (`platform_admins`) **ignoram** o filtro — continuam vendo tudo.
 
 ## Fora do escopo
-- Aplicar mínimo em pedidos criados manualmente pelo admin (Novo Pedido) — pode ser adicionado depois se desejado.
-- Aplicar mínimo via API externa (`criar-pedido` edge function).
+- Mudanças em OS (`service_orders`).
+- Tela mobile da Dicolore (a aba Clientes só é usada no admin desktop).

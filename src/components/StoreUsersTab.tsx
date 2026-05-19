@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useAllStoreSellers } from '@/hooks/useStoreSellers';
 
 interface PermissionItem {
   key: keyof StorePermissions;
@@ -62,6 +63,7 @@ interface Props {
 
 export default function StoreUsersTab({ storeId, storeType }: Props) {
   const { data: users = [], isLoading } = useStoreUsers(storeId);
+  const { data: allSellers = [] } = useAllStoreSellers(storeId);
   const createMut = useCreateStoreUser();
   const updateMut = useUpdateStoreUser();
   const deleteMut = useDeleteStoreUser();
@@ -73,6 +75,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [perms, setPerms] = useState<StorePermissions>(emptyPerms);
+  const [sellerCodes, setSellerCodes] = useState<string[]>([]);
+  const [sellerFilter, setSellerFilter] = useState('');
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [pwTargetUser, setPwTargetUser] = useState<StoreUser | null>(null);
@@ -86,6 +90,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setEmail('');
     setPassword('');
     setPerms(emptyPerms);
+    setSellerCodes([]);
+    setSellerFilter('');
     setDialogOpen(true);
   };
 
@@ -102,6 +108,8 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
       can_manage_products: u.can_manage_products,
       can_view_customers: u.can_view_customers,
     });
+    setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
+    setSellerFilter('');
     setDialogOpen(true);
   };
 
@@ -117,6 +125,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           storeUserId: editing.id,
           name,
           permissions: perms,
+          sellerCodes,
         });
         toast.success('Usuário atualizado!');
       } else {
@@ -130,6 +139,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           password,
           name: name.trim(),
           permissions: perms,
+          sellerCodes,
         });
         toast.success('Usuário criado!');
       }
@@ -198,6 +208,24 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     );
   };
 
+  const summarizeSellers = (u: StoreUser) => {
+    const codes = Array.isArray(u.seller_codes) ? u.seller_codes : [];
+    if (codes.length === 0) return <span className="text-muted-foreground italic text-xs">Todos</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {codes.map(c => (
+          <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
+        ))}
+      </div>
+    );
+  };
+
+  const filteredSellers = allSellers.filter(s => {
+    if (!sellerFilter.trim()) return true;
+    const q = sellerFilter.toLowerCase();
+    return (s.code || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-4">
       <Card>
@@ -228,6 +256,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                 <TableRow>
                   <TableHead>Nome / Email</TableHead>
                   <TableHead>Permissões</TableHead>
+                  <TableHead>Vendedores</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -240,6 +269,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                       <div className="text-xs text-muted-foreground">{u.email}</div>
                     </TableCell>
                     <TableCell>{summarizePerms(u)}</TableCell>
+                    <TableCell>{summarizeSellers(u)}</TableCell>
                     <TableCell>
                       <button onClick={() => handleToggleActive(u)} className="text-muted-foreground hover:text-foreground">
                         {u.is_active
@@ -303,6 +333,56 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                   </div>
                 </label>
               ))}
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-2">
+              <div className="font-semibold text-sm">Códigos de Vendedor</div>
+              <p className="text-xs text-muted-foreground">
+                Restringe o acesso a clientes e pedidos cujo código de vendedor esteja na lista. Deixe vazio para acessar todos.
+              </p>
+              {sellerCodes.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {sellerCodes.map(c => (
+                    <Badge key={c} variant="secondary" className="text-xs gap-1">
+                      {c}
+                      <button
+                        type="button"
+                        className="ml-1 text-muted-foreground hover:text-foreground"
+                        onClick={() => setSellerCodes(prev => prev.filter(x => x !== c))}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <Input
+                placeholder="Filtrar por código ou nome…"
+                value={sellerFilter}
+                onChange={e => setSellerFilter(e.target.value)}
+                className="h-8"
+              />
+              <div className="max-h-44 overflow-y-auto border rounded p-2 space-y-1">
+                {filteredSellers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">Nenhum vendedor encontrado.</p>
+                ) : filteredSellers.map(s => {
+                  const code = (s.code || '').trim();
+                  if (!code) return null;
+                  const checked = sellerCodes.includes(code);
+                  return (
+                    <label key={s.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/40 px-2 py-1 rounded text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setSellerCodes(prev => v ? Array.from(new Set([...prev, code])) : prev.filter(x => x !== code));
+                        }}
+                      />
+                      <span className="font-mono text-xs w-12">{code}</span>
+                      <span className="flex-1 truncate">{s.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">

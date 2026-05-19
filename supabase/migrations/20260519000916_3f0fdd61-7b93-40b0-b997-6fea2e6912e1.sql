@@ -1,0 +1,1 @@
+ALTER TABLE public.store_users ADD COLUMN IF NOT EXISTS seller_codes text[] NOT NULL DEFAULT '{}';

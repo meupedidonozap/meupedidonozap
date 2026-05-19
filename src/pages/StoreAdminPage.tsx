@@ -98,7 +98,7 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
-  const { user, isAdmin, hasAccess, permissions, loading: adminLoading } = useStoreAdmin(store?.id);
+  const { user, isAdmin, hasAccess, permissions, sellerCodes: userSellerCodes = [], loading: adminLoading } = useStoreAdmin(store?.id);
   const qc = useQueryClient();
   const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
@@ -107,7 +107,9 @@ export default function StoreAdminPage() {
   const { data: orders = [] } = useOrders(hasAccess && (isAdmin || permissions.can_view_orders) ? store?.id : undefined);
   const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
   const { data: serviceOrders = [] } = useServiceOrders(hasAccess && store?.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders) ? store?.id : undefined);
-  const { data: customerProfiles = [] } = useStoreCustomerProfiles(hasAccess && (isAdmin || permissions.can_view_customers) ? store?.id : undefined);
+  const { data: customerProfiles = [] } = useStoreCustomerProfiles(
+    hasAccess && (isAdmin || permissions.can_view_customers || (userSellerCodes && userSellerCodes.length > 0)) ? store?.id : undefined
+  );
   const createServiceOrder = useCreateServiceOrder();
   const deleteServiceOrder = useDeleteServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
@@ -125,6 +127,31 @@ export default function StoreAdminPage() {
     sellers.forEach(s => { if (s.code) m.set(s.code.trim(), s); });
     return m;
   }, [sellers]);
+
+  // Seller-code based access restriction for non-admin store users
+  const restrictBySeller = !isAdmin && (userSellerCodes?.length || 0) > 0;
+  const sellerCodeSet = useMemo(() => new Set((userSellerCodes || []).map(c => String(c).trim()).filter(Boolean)), [userSellerCodes]);
+  const last8 = (s: string) => (s || '').replace(/\D/g, '').slice(-8);
+  const whatsappToSellerCode = useMemo(() => {
+    const m = new Map<string, string>();
+    (customerProfiles as any[]).forEach((cp: any) => {
+      const k = last8(cp.whatsapp);
+      const code = String(cp.sellerCode || '').trim();
+      if (k && code) m.set(k, code);
+    });
+    return m;
+  }, [customerProfiles]);
+  const scopedCustomerProfiles = useMemo(() => {
+    if (!restrictBySeller) return customerProfiles as any[];
+    return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
+  }, [customerProfiles, restrictBySeller, sellerCodeSet]);
+  const scopedOrders = useMemo(() => {
+    if (!restrictBySeller) return orders;
+    return orders.filter((o: any) => {
+      const code = whatsappToSellerCode.get(last8(o?.customer?.whatsapp || ''));
+      return code ? sellerCodeSet.has(code) : false;
+    });
+  }, [orders, restrictBySeller, sellerCodeSet, whatsappToSellerCode]);
 
   // Visits analytics state
   const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
@@ -827,8 +854,8 @@ export default function StoreAdminPage() {
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {orders.map(order => (
+                   <TableBody>
+                     {scopedOrders.map(order => (
                       <TableRow key={order.id}>
                         <TableCell>
                           <p className="font-medium">#{order.orderNumber}</p>
@@ -1008,7 +1035,13 @@ export default function StoreAdminPage() {
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
-                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (
+                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (() => {
+                              if (restrictBySeller) {
+                                const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
+                                if (!code || !sellerCodeSet.has(code)) return false;
+                              }
+                              return true;
+                            })() && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1555,15 +1588,16 @@ export default function StoreAdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Representante</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
+                      <TableHead>Nome</TableHead><TableHead>Código</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Representante</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customerProfiles.map(cp => (
+                    {scopedCustomerProfiles.map(cp => (
                       <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
                         <TableCell className="font-medium">{cp.name || '—'}</TableCell>
+                        <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
                         <TableCell>{cp.cpfCnpj || '—'}</TableCell>
                         <TableCell>{(cp as any).sellerCode ? (sellerByCode.get(((cp as any).sellerCode || '').trim())?.name || (cp as any).sellerCode) : '—'}</TableCell>
                         <TableCell>{cp.whatsapp || '—'}</TableCell>
@@ -1632,8 +1666,8 @@ export default function StoreAdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {customerProfiles.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
+                    {scopedCustomerProfiles.length === 0 && (
+                      <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
