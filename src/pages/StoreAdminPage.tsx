@@ -854,8 +854,8 @@ export default function StoreAdminPage() {
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {orders.map(order => (
+                   <TableBody>
+                     {scopedOrders.map(order => (
                       <TableRow key={order.id}>
                         <TableCell>
                           <p className="font-medium">#{order.orderNumber}</p>
@@ -1035,7 +1035,13 @@ export default function StoreAdminPage() {
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
-                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (
+                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (() => {
+                              if (restrictBySeller) {
+                                const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
+                                if (!code || !sellerCodeSet.has(code)) return false;
+                              }
+                              return true;
+                            })() && (
                               <Button
                                 variant="ghost"
                                 size="icon"
