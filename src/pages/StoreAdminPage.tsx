@@ -1438,7 +1438,19 @@ export default function StoreAdminPage() {
                       <TableBody>
                         {sellers.map(s => (
                           <TableRow key={s.id}>
-                            <TableCell>{s.name}</TableCell>
+                            <TableCell>
+                              <Input
+                                defaultValue={s.name}
+                                className="h-8"
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v && v !== s.name) {
+                                    updateSeller.mutate({ id: s.id, name: v });
+                                    toast.success('Nome atualizado');
+                                  }
+                                }}
+                              />
+                            </TableCell>
                             <TableCell>
                               <Input
                                 defaultValue={s.code || ''}
@@ -1447,13 +1459,31 @@ export default function StoreAdminPage() {
                                 onBlur={(e) => {
                                   const v = e.target.value.trim();
                                   if (v !== (s.code || '')) {
+                                    if (v && sellers.some(x => x.id !== s.id && (x.code || '').trim() === v)) {
+                                      toast.error('Código já usado por outro vendedor');
+                                      e.target.value = s.code || '';
+                                      return;
+                                    }
                                     updateSeller.mutate({ id: s.id, code: v });
                                     toast.success('Código atualizado');
                                   }
                                 }}
                               />
                             </TableCell>
-                            <TableCell>{s.whatsapp}</TableCell>
+                            <TableCell>
+                              <Input
+                                defaultValue={s.whatsapp}
+                                className="h-8 w-40"
+                                placeholder="—"
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v !== (s.whatsapp || '')) {
+                                    updateSeller.mutate({ id: s.id, whatsapp: v });
+                                    toast.success('WhatsApp atualizado');
+                                  }
+                                }}
+                              />
+                            </TableCell>
                             <TableCell>
                               <Badge className={s.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
                                 {s.is_active ? 'Ativo' : 'Inativo'}
