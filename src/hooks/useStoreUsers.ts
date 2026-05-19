@@ -18,6 +18,7 @@ export interface StoreUser {
   can_manage_products: boolean;
   can_view_customers: boolean;
   seller_codes: string[];
+  role: 'auxiliar' | 'vendedor' | 'televendas';
 }
 
 export function useStoreUsers(storeId: string | undefined) {
@@ -66,6 +67,7 @@ export function useCreateStoreUser() {
       name: string;
       permissions: Partial<StorePermissions>;
       sellerCodes?: string[];
+      role?: 'auxiliar' | 'vendedor' | 'televendas';
     }) => {
       return callManage({
         action: 'create',
@@ -75,6 +77,7 @@ export function useCreateStoreUser() {
         name: input.name,
         permissions: input.permissions,
         sellerCodes: input.sellerCodes ?? [],
+        role: input.role ?? 'auxiliar',
       });
     },
     onSuccess: (_d, vars) => {
@@ -93,6 +96,7 @@ export function useUpdateStoreUser() {
       isActive?: boolean;
       permissions?: Partial<StorePermissions>;
       sellerCodes?: string[];
+      role?: 'auxiliar' | 'vendedor' | 'televendas';
     }) => {
       return callManage({
         action: 'update',
@@ -102,6 +106,7 @@ export function useUpdateStoreUser() {
         isActive: input.isActive,
         permissions: input.permissions,
         sellerCodes: input.sellerCodes,
+        role: input.role,
       });
     },
     onSuccess: (_d, vars) => {
