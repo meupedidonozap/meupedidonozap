@@ -141,6 +141,26 @@ export default function StoreAdminPage() {
     });
     return m;
   }, [customerProfiles]);
+  const customerCodeLookup = useMemo(() => {
+    const byDoc = new Map<string, string>();
+    const byWa = new Map<string, string>();
+    (customerProfiles as any[]).forEach((cp: any) => {
+      const code = String(cp.customerCode || '').trim();
+      if (!code) return;
+      const doc = String(cp.cpfCnpj || '').replace(/\D/g, '');
+      if (doc) byDoc.set(doc, code);
+      const wa = last8(cp.whatsapp);
+      if (wa) byWa.set(wa, code);
+    });
+    return { byDoc, byWa };
+  }, [customerProfiles]);
+  const resolveCustomerCode = (c: any): string => {
+    const doc = String(c?.cpfCnpj || '').replace(/\D/g, '');
+    if (doc && customerCodeLookup.byDoc.has(doc)) return customerCodeLookup.byDoc.get(doc)!;
+    const wa = last8(c?.whatsapp || '');
+    if (wa && customerCodeLookup.byWa.has(wa)) return customerCodeLookup.byWa.get(wa)!;
+    return '';
+  };
   const scopedCustomerProfiles = useMemo(() => {
     if (!restrictBySeller) return customerProfiles as any[];
     return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
