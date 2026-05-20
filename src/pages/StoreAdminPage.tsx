@@ -884,6 +884,10 @@ export default function StoreAdminPage() {
                         <TableCell>
                           <p className="font-medium">{order.customer.name}</p>
                           <p className="text-xs text-muted-foreground">{order.customer.whatsapp}</p>
+                          {(() => {
+                            const code = resolveCustomerCode(order.customer);
+                            return code ? <p className="text-xs text-muted-foreground">Código: {code}</p> : null;
+                          })()}
                         </TableCell>
                          <TableCell>
                             <div className="space-y-0.5 min-w-[180px]">
