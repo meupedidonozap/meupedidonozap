@@ -30,6 +30,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
+import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -77,6 +78,18 @@ export default function ProductStorePage() {
     // Resolve groupId: usa group_id do produto, senão usa o nome da categoria
     const category = categories.find(c => c.id === product.categoryId);
     const resolvedGroupId = product.groupId || category?.name || undefined;
+    const unitPrice = variantData?.price || product.basePrice;
+    const check = wouldExceedMaterialApoio(
+      cart.items,
+      product.id,
+      unitPrice,
+      allProducts,
+      store?.settings.materialApoio,
+    );
+    if (check.exceeds) {
+      toast.error(MATERIAL_APOIO_MSG);
+      return;
+    }
     addItem({
       productId: product.id,
       variantId: variantData?.id,
