@@ -1929,6 +1929,8 @@ export default function StoreAdminPage() {
         onOpenChange={(v) => { if (!v) setEditingOrder(null); }}
         order={editingOrder}
         products={products}
+        discountRules={store?.settings.discountRules || []}
+        categories={categories}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">
