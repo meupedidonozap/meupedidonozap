@@ -24,6 +24,7 @@ import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDele
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
+import type { MaterialApoioSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import ImportCustomersDialog from '@/components/ImportCustomersDialog';
@@ -265,6 +266,12 @@ export default function StoreAdminPage() {
   const [shippingHeight, setShippingHeight] = useState('10');
   const [shippingInitialized, setShippingInitialized] = useState(false);
 
+  // Material de Apoio rule
+  const [maEnabled, setMaEnabled] = useState(false);
+  const [maPercent, setMaPercent] = useState('4');
+  const [maCategoryIds, setMaCategoryIds] = useState<string[]>([]);
+  const [maInitialized, setMaInitialized] = useState(false);
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
@@ -294,6 +301,16 @@ export default function StoreAdminPage() {
       setShippingHeight(String(s.defaultHeight || 10));
     }
     setShippingInitialized(true);
+  }
+
+  if (store && !maInitialized) {
+    const m = store.settings.materialApoio;
+    if (m) {
+      setMaEnabled(!!m.enabled);
+      setMaPercent(String(m.maxPercent ?? 4));
+      setMaCategoryIds(m.categoryIds || []);
+    }
+    setMaInitialized(true);
   }
 
   // Filter orders by date range
@@ -469,6 +486,11 @@ export default function StoreAdminPage() {
           ...store.settings,
           shipping: shippingData,
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
+          materialApoio: {
+            enabled: maEnabled,
+            maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
+            categoryIds: maCategoryIds,
+          } as MaterialApoioSettings,
         },
       });
       toast.success('Configurações salvas!');
@@ -1397,6 +1419,58 @@ export default function StoreAdminPage() {
 
             {/* Otimizar Imagens */}
             <Card className="mt-6">
+              <CardHeader><CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5" /> Regra de Material de Apoio</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Limita o valor de produtos das categorias selecionadas a um % do valor das demais categorias do pedido.
+                  Exemplo: 4% — em um pedido com R$ 1.000 de outros produtos, o cliente pode incluir até R$ 40,00 em produtos das categorias de apoio.
+                </p>
+                <div className="flex items-center gap-3">
+                  <Label>Ativar regra</Label>
+                  <Switch checked={maEnabled} onCheckedChange={setMaEnabled} />
+                </div>
+                {maEnabled && (
+                  <>
+                    <div className="grid gap-2 sm:max-w-xs">
+                      <Label>% máximo sobre o pedido</Label>
+                      <Input type="number" min="0" step="0.1" value={maPercent} onChange={e => setMaPercent(e.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Categorias consideradas "material de apoio"</Label>
+                      {categories.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhuma categoria cadastrada.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {categories.map(cat => {
+                            const checked = maCategoryIds.includes(cat.id);
+                            return (
+                              <label key={cat.id} className="flex items-center gap-2 rounded-md border p-2 cursor-pointer hover:bg-muted/40">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={e => {
+                                    setMaCategoryIds(prev =>
+                                      e.target.checked ? [...prev, cat.id] : prev.filter(id => id !== cat.id)
+                                    );
+                                  }}
+                                />
+                                <span className="text-sm">{cat.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                <Button onClick={handleSaveSettings} disabled={updateStore.isPending} size="sm">
+                  {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Salvar Regra
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6">
               <CardHeader><CardTitle>Otimizar Imagens</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
@@ -1931,6 +2005,7 @@ export default function StoreAdminPage() {
         products={products}
         discountRules={store?.settings.discountRules || []}
         categories={categories}
+        materialApoio={store?.settings.materialApoio}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">
