@@ -266,6 +266,12 @@ export default function StoreAdminPage() {
   const [shippingHeight, setShippingHeight] = useState('10');
   const [shippingInitialized, setShippingInitialized] = useState(false);
 
+  // Material de Apoio rule
+  const [maEnabled, setMaEnabled] = useState(false);
+  const [maPercent, setMaPercent] = useState('4');
+  const [maCategoryIds, setMaCategoryIds] = useState<string[]>([]);
+  const [maInitialized, setMaInitialized] = useState(false);
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
@@ -295,6 +301,16 @@ export default function StoreAdminPage() {
       setShippingHeight(String(s.defaultHeight || 10));
     }
     setShippingInitialized(true);
+  }
+
+  if (store && !maInitialized) {
+    const m = store.settings.materialApoio;
+    if (m) {
+      setMaEnabled(!!m.enabled);
+      setMaPercent(String(m.maxPercent ?? 4));
+      setMaCategoryIds(m.categoryIds || []);
+    }
+    setMaInitialized(true);
   }
 
   // Filter orders by date range
