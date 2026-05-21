@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useUpdateOrder } from '@/hooks/useOrders';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG, type MaterialApoioConfig } from '@/lib/materialApoio';
 import type { Order, Product, CartItem, DiscountRule, Category } from '@/types';
 
 interface EditOrderDialogProps {
@@ -17,9 +18,10 @@ interface EditOrderDialogProps {
   products: Product[];
   discountRules?: DiscountRule[];
   categories?: Category[];
+  materialApoio?: MaterialApoioConfig;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [] }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio }: EditOrderDialogProps) {
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -61,6 +63,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   const addProduct = (p: any) => {
     const category = categories.find((c: any) => c.id === p.categoryId);
     const resolvedGroupId = p.groupId || category?.name || undefined;
+    const check = wouldExceedMaterialApoio(items, p.id, p.basePrice, products, materialApoio);
+    if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     setItems(prev => {
       const existing = prev.find(i => i.productId === p.id);
       if (existing) {
@@ -79,6 +83,13 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   };
 
   const updateQty = (idx: number, delta: number) => {
+    if (delta > 0) {
+      const it = items[idx];
+      if (it) {
+        const check = wouldExceedMaterialApoio(items, it.productId, it.price * delta, products, materialApoio);
+        if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+      }
+    }
     setItems(prev => prev.map((i, k) => {
       if (k !== idx) return i;
       const q = i.quantity + delta;
