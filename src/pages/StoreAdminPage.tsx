@@ -24,6 +24,7 @@ import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDele
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
+import type { MaterialApoioSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
 import ImportProductsDialog from '@/components/ImportProductsDialog';
 import ImportCustomersDialog from '@/components/ImportCustomersDialog';
@@ -1931,6 +1932,7 @@ export default function StoreAdminPage() {
         products={products}
         discountRules={store?.settings.discountRules || []}
         categories={categories}
+        materialApoio={store?.settings.materialApoio}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">
