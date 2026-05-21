@@ -129,6 +129,13 @@ export interface StoreSettings {
   discountRules: DiscountRule[];
   shipping?: ShippingSettings;
   theme?: SalonTheme;
+  materialApoio?: MaterialApoioSettings;
+}
+
+export interface MaterialApoioSettings {
+  enabled: boolean;
+  maxPercent: number;
+  categoryIds: string[];
 }
 
 export type SalonThemePreset = 'masculino' | 'feminino' | 'neutro' | 'custom';
