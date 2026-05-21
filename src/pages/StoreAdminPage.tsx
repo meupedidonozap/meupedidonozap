@@ -486,6 +486,11 @@ export default function StoreAdminPage() {
           ...store.settings,
           shipping: shippingData,
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
+          materialApoio: {
+            enabled: maEnabled,
+            maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
+            categoryIds: maCategoryIds,
+          } as MaterialApoioSettings,
         },
       });
       toast.success('Configurações salvas!');
