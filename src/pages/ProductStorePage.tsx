@@ -328,7 +328,11 @@ export default function ProductStorePage() {
                                       <Minus className="h-3 w-3" />
                                     </Button>
                                     <span className="w-8 text-center font-medium">{item.quantity}</span>
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {
+                                      const check = wouldExceedMaterialApoio(cart.items, item.productId, item.price, allProducts, store?.settings.materialApoio);
+                                      if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+                                      updateQuantity(item.productId, item.quantity + 1, item.variantId);
+                                    }}>
                                       <Plus className="h-3 w-3" />
                                     </Button>
                                   </div>
