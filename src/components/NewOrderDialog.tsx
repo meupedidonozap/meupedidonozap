@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useCreateOrder } from '@/hooks/useOrders';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
+import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 
 interface CustomerProfile {
   id: string;
@@ -111,6 +112,9 @@ export default function NewOrderDialog({
   };
 
   const addProduct = (product: any) => {
+    const unitPrice = isFood ? product.price : product.basePrice;
+    const check = wouldExceedMaterialApoio(orderItems, product.id, unitPrice, catalogItems as any, store.settings.materialApoio);
+    if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     const existing = orderItems.find(i => i.productId === product.id);
     if (existing) {
       setOrderItems(items => items.map(i =>
@@ -129,6 +133,13 @@ export default function NewOrderDialog({
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    if (delta > 0) {
+      const it = orderItems.find(i => i.productId === productId);
+      if (it) {
+        const check = wouldExceedMaterialApoio(orderItems, productId, it.price * delta, catalogItems as any, store.settings.materialApoio);
+        if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+      }
+    }
     setOrderItems(items => items.map(i => {
       if (i.productId !== productId) return i;
       const newQty = i.quantity + delta;
