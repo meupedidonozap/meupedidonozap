@@ -7,16 +7,19 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useUpdateOrder } from '@/hooks/useOrders';
-import type { Order, Product, CartItem } from '@/types';
+import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import type { Order, Product, CartItem, DiscountRule, Category } from '@/types';
 
 interface EditOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order | null;
   products: Product[];
+  discountRules?: DiscountRule[];
+  categories?: Category[];
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [] }: EditOrderDialogProps) {
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -28,8 +31,23 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
   const deliveryFee = order?.deliveryFee || 0;
-  const discount = order?.discount || 0;
-  const total = subtotal + deliveryFee - discount;
+
+  // Original coupon discount = total order.discount minus original quantityDiscount.
+  // We don't store these separately on the order, so we recompute the original
+  // quantityDiscount with current rules to back out the coupon portion.
+  const originalCouponDiscount = useMemo(() => {
+    if (!order) return 0;
+    const { quantityDiscount: origQty } = computeGroupDiscounts(order.items, discountRules);
+    return Math.max(0, (order.discount || 0) - origQty);
+  }, [order, discountRules]);
+
+  const { quantityDiscount, itemDiscounts } = useMemo(
+    () => computeGroupDiscounts(items, discountRules),
+    [items, discountRules]
+  );
+
+  const discount = quantityDiscount + originalCouponDiscount;
+  const total = Math.max(0, subtotal + deliveryFee - discount);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -41,6 +59,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
   }, [products, search]);
 
   const addProduct = (p: any) => {
+    const category = categories.find((c: any) => c.id === p.categoryId);
+    const resolvedGroupId = p.groupId || category?.name || undefined;
     setItems(prev => {
       const existing = prev.find(i => i.productId === p.id);
       if (existing) {
@@ -53,6 +73,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
         price: p.basePrice,
         quantity: 1,
         image: p.image,
+        groupId: resolvedGroupId,
       }];
     });
   };
@@ -77,6 +98,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
         items,
         subtotal,
         total,
+        discount,
       });
       toast.success('Pedido atualizado!');
       onOpenChange(false);
