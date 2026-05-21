@@ -7,16 +7,19 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useUpdateOrder } from '@/hooks/useOrders';
-import type { Order, Product, CartItem } from '@/types';
+import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import type { Order, Product, CartItem, DiscountRule, Category } from '@/types';
 
 interface EditOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: Order | null;
   products: Product[];
+  discountRules?: DiscountRule[];
+  categories?: Category[];
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [] }: EditOrderDialogProps) {
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -28,8 +31,23 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
   const deliveryFee = order?.deliveryFee || 0;
-  const discount = order?.discount || 0;
-  const total = subtotal + deliveryFee - discount;
+
+  // Original coupon discount = total order.discount minus original quantityDiscount.
+  // We don't store these separately on the order, so we recompute the original
+  // quantityDiscount with current rules to back out the coupon portion.
+  const originalCouponDiscount = useMemo(() => {
+    if (!order) return 0;
+    const { quantityDiscount: origQty } = computeGroupDiscounts(order.items, discountRules);
+    return Math.max(0, (order.discount || 0) - origQty);
+  }, [order, discountRules]);
+
+  const { quantityDiscount, itemDiscounts } = useMemo(
+    () => computeGroupDiscounts(items, discountRules),
+    [items, discountRules]
+  );
+
+  const discount = quantityDiscount + originalCouponDiscount;
+  const total = Math.max(0, subtotal + deliveryFee - discount);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -41,6 +59,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
   }, [products, search]);
 
   const addProduct = (p: any) => {
+    const category = categories.find((c: any) => c.id === p.categoryId);
+    const resolvedGroupId = p.groupId || category?.name || undefined;
     setItems(prev => {
       const existing = prev.find(i => i.productId === p.id);
       if (existing) {
@@ -53,6 +73,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
         price: p.basePrice,
         quantity: 1,
         image: p.image,
+        groupId: resolvedGroupId,
       }];
     });
   };
@@ -77,6 +98,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
         items,
         subtotal,
         total,
+        discount,
       });
       toast.success('Pedido atualizado!');
       onOpenChange(false);
@@ -106,12 +128,16 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
               <p className="p-4 text-sm text-center text-muted-foreground">Nenhum item</p>
             ) : (
               <div className="divide-y max-h-[280px] overflow-y-auto">
-                {items.map((item, idx) => (
+                {items.map((item, idx) => {
+                  const dKey = `${item.productId}-${item.variantId || ''}`;
+                  const pct = itemDiscounts[dKey] || 0;
+                  return (
                   <div key={`${item.productId}-${idx}`} className="flex items-center justify-between p-3 gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatCurrency(item.price)} {item.code ? `• ${item.code}` : ''}
+                        {pct > 0 && <span className="ml-1 text-green-700 font-semibold">• -{pct}%</span>}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -128,7 +154,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -170,7 +197,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products }:
           {/* Totals */}
           <div className="border rounded-md p-3 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-            {discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Desconto</span><span>-{formatCurrency(discount)}</span></div>}
+            {quantityDiscount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Desconto por quantidade</span><span className="text-green-700">-{formatCurrency(quantityDiscount)}</span></div>}
+            {originalCouponDiscount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Cupom</span><span>-{formatCurrency(originalCouponDiscount)}</span></div>}
             {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Entrega</span><span>{formatCurrency(deliveryFee)}</span></div>}
             <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{formatCurrency(total)}</span></div>
           </div>
