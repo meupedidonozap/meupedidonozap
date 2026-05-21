@@ -128,12 +128,16 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
               <p className="p-4 text-sm text-center text-muted-foreground">Nenhum item</p>
             ) : (
               <div className="divide-y max-h-[280px] overflow-y-auto">
-                {items.map((item, idx) => (
+                {items.map((item, idx) => {
+                  const dKey = `${item.productId}-${item.variantId || ''}`;
+                  const pct = itemDiscounts[dKey] || 0;
+                  return (
                   <div key={`${item.productId}-${idx}`} className="flex items-center justify-between p-3 gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatCurrency(item.price)} {item.code ? `• ${item.code}` : ''}
+                        {pct > 0 && <span className="ml-1 text-green-700 font-semibold">• -{pct}%</span>}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -150,7 +154,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -192,7 +197,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
           {/* Totals */}
           <div className="border rounded-md p-3 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-            {discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Desconto</span><span>-{formatCurrency(discount)}</span></div>}
+            {quantityDiscount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Desconto por quantidade</span><span className="text-green-700">-{formatCurrency(quantityDiscount)}</span></div>}
+            {originalCouponDiscount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Cupom</span><span>-{formatCurrency(originalCouponDiscount)}</span></div>}
             {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Entrega</span><span>{formatCurrency(deliveryFee)}</span></div>}
             <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{formatCurrency(total)}</span></div>
           </div>
