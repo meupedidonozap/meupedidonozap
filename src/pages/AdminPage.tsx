@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { usePlatformAdmin } from '@/hooks/usePlatformAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
+import RefreshButton from '@/components/RefreshButton';
 
 const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
