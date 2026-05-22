@@ -613,6 +613,10 @@ export default function StoreAdminPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <RefreshButton
+                variant="outline"
+                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent"
+              />
               <Button variant="outline" asChild className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                 <Link to={`/${store.slug}`}><Eye className="mr-2 h-4 w-4" /> Ver Loja</Link>
               </Button>
