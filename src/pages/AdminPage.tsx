@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { usePlatformAdmin } from '@/hooks/usePlatformAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
+import RefreshButton from '@/components/RefreshButton';
 
 const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
@@ -238,6 +239,10 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
               <p className="text-primary-foreground/80">Painel Administrativo</p>
             </div>
             <div className="flex items-center gap-4">
+              <RefreshButton
+                variant="outline"
+                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent"
+              />
               <div className="flex items-center gap-2">
                 <Settings className="h-5 w-5" />
                 <span className="text-sm">Admin</span>

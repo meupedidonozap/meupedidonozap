@@ -1,99 +1,26 @@
-## Objetivo
+## Botão "Atualizar" nos painéis administrativos
 
-Criar regra "Material de Apoio": uma ou mais categorias podem ter, somadas, no máximo X% do valor das **demais categorias** do pedido. Ao tentar ultrapassar, bloquear a adição/aumento de quantidade com a mensagem **"MATERIAL DE APOIO PASSA DA REGRA DE BONIFICAÇÃO"**. Desta forma, volta para o produto que estava sendo adicionado para DIMINUIR ou EXCLUIR do carrinho e poder recalcular e seguir com o processo de compra.
+Adicionar um botão **Atualizar** visível em todos os painéis admin para forçar refresh dos dados (sem precisar recarregar a página inteira).
 
-## Cálculo (validado pelos exemplos)
+### Comportamento
+- Botão com ícone de refresh (`RefreshCw` do lucide-react) + texto "Atualizar".
+- Ao clicar: invalida as queries do React Query da aba atual → recarrega dados do backend.
+- Durante o refresh: ícone gira (animate-spin) e botão fica desabilitado.
+- Toast de sucesso ("Dados atualizados") ao concluir.
 
-`maxMaterial = (subtotal de itens fora das categorias de apoio) × (percent / 100)`
+### Onde adicionar
+1. **`src/pages/StoreAdminPage.tsx`** — painel admin da loja (Pedidos, Produtos, Clientes, Categorias, Cupons, Vendedores, Configurações, etc.). Botão fixo no header do painel, ao lado do título/abas. Invalida as queries relevantes da aba ativa.
+2. **`src/pages/AdminPage.tsx`** — painel super-admin (lojas, usuários da plataforma). Mesmo padrão.
+3. **`src/components/SalonAdminTab.tsx`** — aba do salão (SERVICOS) com ordens de serviço. Botão dedicado para invalidar `serviceOrders` e dados relacionados.
+4. **`src/components/StoreUsersTab.tsx`** — aba de usuários da loja. Botão para invalidar `storeUsers`.
 
-Exemplo (percent = 4%, outras = R$ 1.000):
+### Detalhe técnico
+- Usar `useQueryClient().invalidateQueries(...)` direcionado à aba ativa (chaves: `orders`, `products`, `customerProfiles`, `categories`, `coupons`, `sellers`, `serviceOrders`, `storeUsers`, `storeVisits`, `stores`, etc.).
+- Criar componente reutilizável `src/components/RefreshButton.tsx` que recebe `queryKeys: string[]` e renderiza o botão padrão (variant `outline`, ícone à esquerda).
+- Em `StoreAdminPage`, mapear a aba ativa → lista de query keys a invalidar; assim um clique atualiza só o que importa (mais rápido).
 
-- limite = 40,00
-- 20,00 → ok (acumulado 20)
-- +11,90 → ok (acumulado 31,90)
-- +9,20 → bloqueia (acumulado 41,10 > 40,00) → mostra toast.
+### Fora do escopo
+- Não muda layout nem outras funcionalidades. Não altera storefront (somente painéis admin).
+- Não implementa auto-refresh por timer (apenas manual via botão).
 
-Se o usuário alterar o % na configuração, o cálculo respeita o novo valor automaticamente em todos os pontos.
-
-## Mudanças
-
-### 1. Tipo e configuração (`src/types/index.ts`)
-
-Adicionar em `StoreSettings`:
-
-```ts
-materialApoio?: {
-  enabled: boolean;
-  maxPercent: number;       // ex: 4
-  categoryIds: string[];    // categorias consideradas "material de apoio"
-};
-```
-
-### 2. UI de configuração (`StoreAdminPage.tsx`, aba **Configurações**)
-
-Novo bloco "Regra de Material de Apoio":
-
-- Switch **Ativar**
-- Input numérico **% máximo do pedido** (default 4)
-- Multi-seleção de **categorias** (lista de `categories` da loja)
-- Salvar em `store.settings.materialApoio` via `useUpdateStore`.
-
-### 3. Função utilitária reutilizável
-
-Novo `src/lib/materialApoio.ts`:
-
-```ts
-checkMaterialApoio(items, products, settings):
-  { allowed: boolean; max: number; current: number; message?: string }
-```
-
-Resolve `categoryId` por `productId` (consultando `products`) e devolve se o estado atual do carrinho está dentro do limite. Função auxiliar `wouldExceed(items, candidateAdditionValue, ...)` para checar antes de adicionar.
-
-### 4. Bloqueio no storefront
-
-`src/pages/ProductStorePage.tsx` → `handleAddToCart`:
-
-- Antes de `addItem`, chamar `wouldExceed` simulando o novo subtotal do item. Se exceder, `toast.error('MATERIAL DE APOIO PASSA DA REGRA DE BONIFICAÇÃO')` e abortar.
-
-`src/contexts/CartContext.tsx` → `updateQuantity` / `addItem`:
-
-- Receber via novo método `setMaterialApoioConfig(...)` (ou ler do `discountRules`-style state) e validar antes de aplicar aumento de quantidade. Em caso de bloqueio, não atualiza e dispara callback/toast (manter toast no chamador para evitar acoplamento — expor `canAddOrIncrease(item, deltaValue)` no contexto e o chamador exibe mensagem).
-- Alternativa mais simples: validar nos pontos de chamada (`ProductStorePage` botões + / quantity input), sem mudar a API do contexto. **Adotar esta para reduzir blast radius.**
-
-### 5. Bloqueio no admin
-
-`src/components/EditOrderDialog.tsx`:
-
-- Receber prop `materialApoio` e `products`.
-- Em `addProduct` e `updateQty(+1)` validar via `wouldExceed`. Se exceder, `toast.error` com a mensagem e não aplica.
-
-`src/components/NewOrderDialog.tsx` (criação manual de pedido):
-
-- Mesma validação ao adicionar/aumentar item.
-
-`src/pages/StoreAdminPage.tsx`:
-
-- Passar `materialApoio={store?.settings.materialApoio}` e `products` para `EditOrderDialog` e `NewOrderDialog`.
-
-### 6. Mensagem padrão
-
-Centralizar em `materialApoio.ts`:
-
-```ts
-export const MATERIAL_APOIO_MSG = 'MATERIAL DE APOIO PASSA DA REGRA DE BONIFICAÇÃO';
-```
-
-## Fora do escopo
-
-- Não recalcula nem afeta cupons ou descontos por grupo.
-- Não bloqueia pedido já existente que esteja acima do limite (apenas novas adições/incrementos).
-- Não cria coluna no banco — fica todo dentro do JSONB `stores.settings`.
-
-## Arquivos afetados
-
-- `src/types/index.ts` (novo campo em `StoreSettings`)
-- `src/lib/materialApoio.ts` (novo)
-- `src/pages/StoreAdminPage.tsx` (UI config + passar props)
-- `src/pages/ProductStorePage.tsx` (validação no add/qty)
-- `src/components/EditOrderDialog.tsx` (validação no add/qty)
-- `src/components/NewOrderDialog.tsx` (validação no add/qty)
+**Arquivos a alterar:** `src/components/RefreshButton.tsx` (novo), `src/pages/StoreAdminPage.tsx`, `src/pages/AdminPage.tsx`, `src/components/SalonAdminTab.tsx`, `src/components/StoreUsersTab.tsx`.
