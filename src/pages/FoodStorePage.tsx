@@ -13,8 +13,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCategories } from '@/hooks/useCategories';
-import { useFoodItems } from '@/hooks/useFoodItems';
-import type { FoodItem } from '@/types';
+import { useProducts } from '@/hooks/useProducts';
+import { useIngredients } from '@/hooks/useIngredients';
+import { usePizzaBorders } from '@/hooks/usePizzaBorders';
+import { useProductAssemblies } from '@/hooks/useProductAssembly';
+import AssemblyDialog from '@/components/AssemblyDialog';
+import type { Product, ProductAssembly } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
@@ -28,7 +32,10 @@ export default function FoodStorePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { data: categories = [] } = useCategories(store?.id);
-  const { data: allFoodItems = [] } = useFoodItems(store?.id);
+  const { data: allProducts = [] } = useProducts(store?.id);
+  const { data: ingredients = [] } = useIngredients(store?.id);
+  const { data: borders = [] } = usePizzaBorders(store?.id);
+  const { data: assemblies = [] } = useProductAssemblies(store?.id);
   const { cart, setStoreId, addItem, removeItem, updateQuantity, clearCart } = useCart();
   const { user, signOut } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
@@ -37,6 +44,7 @@ export default function FoodStorePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [assemblyProduct, setAssemblyProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     if (store) {
@@ -45,16 +53,18 @@ export default function FoodStorePage() {
     }
   }, [store, setStoreId, categories.length]);
 
+  const activeProducts = useMemo(() => allProducts.filter(p => p.isActive), [allProducts]);
+
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return allFoodItems;
-    return allFoodItems.filter(item =>
+    if (!searchTerm) return activeProducts;
+    return activeProducts.filter(item =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [allFoodItems, searchTerm]);
+  }, [activeProducts, searchTerm]);
 
   const itemsByCategory = useMemo(() => {
-    const grouped: Record<string, FoodItem[]> = {};
+    const grouped: Record<string, Product[]> = {};
     categories.forEach(cat => {
       grouped[cat.id] = filteredItems.filter(item => item.categoryId === cat.id);
     });
@@ -69,12 +79,34 @@ export default function FoodStorePage() {
     );
   };
 
-  const handleAddItem = (item: FoodItem) => {
-    addItem({ productId: item.id, name: item.name, code: item.id, price: item.price, quantity: 1, image: item.image });
+  const getAssembly = (productId: string): ProductAssembly | undefined =>
+    assemblies.find(a => a.productId === productId);
+
+  const needsAssembly = (p: Product): boolean => {
+    const a = getAssembly(p.id);
+    if (a && (a.mode !== 'fixed' || a.allowBorder || a.allowObservation)) return true;
+    if (p.hasVariants && (p.variants?.length || 0) > 1) return true;
+    return false;
+  };
+
+  const handleAddItem = (item: Product) => {
+    if (needsAssembly(item)) {
+      setAssemblyProduct(item);
+      return;
+    }
+    addItem({
+      productId: item.id,
+      name: item.name,
+      code: item.code || item.id,
+      price: item.basePrice,
+      quantity: 1,
+      image: item.image,
+    });
     toast.success('Item adicionado!');
   };
 
-  const getItemQuantity = (itemId: string) => cart.items.find(i => i.productId === itemId)?.quantity || 0;
+  const getItemQuantity = (itemId: string) =>
+    cart.items.filter(i => i.productId === itemId).reduce((s, i) => s + i.quantity, 0);
 
   if (storeLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -171,11 +203,15 @@ export default function FoodStorePage() {
                             <div className="mt-2">
                               {quantity > 0 ? (
                                 <div className="flex items-center gap-2">
-                                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, quantity - 1)}>
+                                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => {
+                                    // remove most recent matching line
+                                    const line = [...cart.items].reverse().find(i => i.productId === item.id);
+                                    if (line) updateQuantity(item.id, line.quantity - 1, line.variantId);
+                                  }}>
                                     <Minus className="h-4 w-4" />
                                   </Button>
                                   <span className="w-6 text-center font-medium">{quantity}</span>
-                                  <Button size="icon" className="h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => updateQuantity(item.id, quantity + 1)}>
+                                  <Button size="icon" className="h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
                                     <Plus className="h-4 w-4" />
                                   </Button>
                                 </div>
@@ -234,6 +270,31 @@ export default function FoodStorePage() {
         storeId={store.id}
         storeSlug={store.slug}
       />
+      {assemblyProduct && (() => {
+        const a = getAssembly(assemblyProduct.id) || {
+          productId: assemblyProduct.id,
+          mode: 'fixed' as const,
+          allowObservation: false,
+          allowBorder: false,
+          limitsByVariant: {},
+          defaultIngredientIds: [],
+        };
+        const catFilter = assemblyProduct.categoryId;
+        const ingForProduct = ingredients.filter(i =>
+          i.categoryIds.length === 0 || (catFilter && i.categoryIds.includes(catFilter))
+        );
+        return (
+          <AssemblyDialog
+            open={!!assemblyProduct}
+            onOpenChange={(o) => { if (!o) setAssemblyProduct(null); }}
+            product={assemblyProduct}
+            assembly={a}
+            ingredients={ingForProduct}
+            borders={borders}
+            onConfirm={(item) => { addItem(item); toast.success('Item adicionado!'); }}
+          />
+        );
+      })()}
     </div>
   );
 }
