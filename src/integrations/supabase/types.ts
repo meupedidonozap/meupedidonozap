@@ -212,6 +212,62 @@ export type Database = {
           },
         ]
       }
+      ingredient_categories: {
+        Row: {
+          category_id: string
+          ingredient_id: string
+        }
+        Insert: {
+          category_id: string
+          ingredient_id: string
+        }
+        Update: {
+          category_id?: string
+          ingredient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_categories_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ingredients: {
+        Row: {
+          created_at: string
+          extra_price: number
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          extra_price?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          extra_price?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -276,6 +332,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pizza_borders: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          sort_order: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number
+          sort_order?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          sort_order?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       pizza_flavors: {
         Row: {
@@ -377,6 +466,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      product_assembly: {
+        Row: {
+          allow_border: boolean
+          allow_observation: boolean
+          created_at: string
+          default_ingredient_ids: string[]
+          limits_by_variant: Json
+          mode: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          allow_border?: boolean
+          allow_observation?: boolean
+          created_at?: string
+          default_ingredient_ids?: string[]
+          limits_by_variant?: Json
+          mode?: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          allow_border?: boolean
+          allow_observation?: boolean
+          created_at?: string
+          default_ingredient_ids?: string[]
+          limits_by_variant?: Json
+          mode?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_assembly_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_images: {
         Row: {

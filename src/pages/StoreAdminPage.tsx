@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
-  Scissors,
+  Scissors, Salad, Pizza,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +35,8 @@ import NewOrderDialog from '@/components/NewOrderDialog';
 import EditOrderDialog from '@/components/EditOrderDialog';
 import StoreUsersTab from '@/components/StoreUsersTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
+import IngredientsTab from '@/components/IngredientsTab';
+import PizzaBordersTab from '@/components/PizzaBordersTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -658,6 +660,12 @@ export default function StoreAdminPage() {
             )}
             {store.type === 'SALAO' && isAdmin && (
               <TabsTrigger value="salon" className="gap-2"><Scissors className="h-4 w-4" /> Salão</TabsTrigger>
+            )}
+            {store.type === 'COMIDA' && isAdmin && (
+              <TabsTrigger value="ingredients" className="gap-2"><Salad className="h-4 w-4" /> Ingredientes</TabsTrigger>
+            )}
+            {store.type === 'COMIDA' && isAdmin && (
+              <TabsTrigger value="borders" className="gap-2"><Pizza className="h-4 w-4" /> Bordas</TabsTrigger>
             )}
             {(isAdmin || permissions.can_view_customers) && (
               <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
@@ -1697,6 +1705,17 @@ export default function StoreAdminPage() {
           {store.type === 'SALAO' && (
             <TabsContent value="salon" className="animate-fade-in">
               <SalonAdminTab storeId={store.id} />
+            </TabsContent>
+          )}
+
+          {store.type === 'COMIDA' && (
+            <TabsContent value="ingredients" className="animate-fade-in">
+              <IngredientsTab storeId={store.id} />
+            </TabsContent>
+          )}
+          {store.type === 'COMIDA' && (
+            <TabsContent value="borders" className="animate-fade-in">
+              <PizzaBordersTab storeId={store.id} />
             </TabsContent>
           )}
 

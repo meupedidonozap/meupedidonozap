@@ -138,6 +138,38 @@ export interface MaterialApoioSettings {
   categoryIds: string[];
 }
 
+// Food assembly types
+export interface Ingredient {
+  id: string;
+  storeId: string;
+  name: string;
+  extraPrice: number;
+  isActive: boolean;
+  sortOrder: number;
+  categoryIds: string[];
+}
+
+export interface PizzaBorder {
+  id: string;
+  storeId: string;
+  name: string;
+  price: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export type AssemblyMode = 'fixed' | 'remove' | 'choose';
+
+export interface ProductAssembly {
+  productId: string;
+  mode: AssemblyMode;
+  allowObservation: boolean;
+  allowBorder: boolean;
+  // map of variantId (or 'default') -> max ingredients for that variant/size
+  limitsByVariant: Record<string, number>;
+  defaultIngredientIds: string[];
+}
+
 export type SalonThemePreset = 'masculino' | 'feminino' | 'neutro' | 'custom';
 
 export interface SalonTheme {
@@ -250,6 +282,10 @@ export interface CartItem {
   image?: string;
   additions?: { name: string; price: number }[];
   discountPercent?: number;
+  ingredients?: { id: string; name: string; extraPrice: number }[];
+  removedIngredients?: { id: string; name: string }[];
+  border?: { id: string; name: string; price: number };
+  observation?: string;
 }
 
 export interface Cart {
