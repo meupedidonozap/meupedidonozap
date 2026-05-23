@@ -130,6 +130,13 @@ export interface StoreSettings {
   shipping?: ShippingSettings;
   theme?: SalonTheme;
   materialApoio?: MaterialApoioSettings;
+  deliveryNeighborhoods?: DeliveryNeighborhood[];
+}
+
+export interface DeliveryNeighborhood {
+  id: string;
+  name: string;
+  fee: number;
 }
 
 export interface MaterialApoioSettings {
