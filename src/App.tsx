@@ -14,6 +14,7 @@ import OrderHistoryPage from "./pages/OrderHistoryPage";
 import NotFound from "./pages/NotFound";
 import KitchenPage from "./pages/KitchenPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import WaiterPage from "./pages/WaiterPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/:slug/checkout" element={<CheckoutPage />} />
             <Route path="/:slug/pedidos" element={<OrderHistoryPage />} />
             <Route path="/:slug/cozinha" element={<KitchenPage />} />
+            <Route path="/:slug/garcom" element={<WaiterPage />} />
             <Route path="/:slug/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
