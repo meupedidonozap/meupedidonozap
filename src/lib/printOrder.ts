@@ -38,11 +38,27 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
         ? `<div style="padding-left:16px;text-decoration:line-through;color:#999">${formatCurrency(item.price)} un.</div>
            <div style="padding-left:16px;font-weight:bold">-${discPct}% → ${formatCurrency(discountedPrice)} un.</div>`
         : '';
+      const ingLine = item.ingredients?.length
+        ? `<div style="padding-left:16px">+ ${item.ingredients.map(x => x.name).join(', ')}</div>`
+        : '';
+      const remLine = item.removedIngredients?.length
+        ? `<div style="padding-left:16px">SEM ${item.removedIngredients.map(x => x.name).join(', ')}</div>`
+        : '';
+      const borderLine = item.border
+        ? `<div style="padding-left:16px">Borda: ${item.border.name}</div>`
+        : '';
+      const obsLine = item.observation
+        ? `<div style="padding-left:16px;font-style:italic">Obs: ${item.observation}</div>`
+        : '';
       return `
         <div style="margin-bottom:6px">
           <div><strong>${i + 1})</strong> ${item.name}</div>
           ${codeLine}
           ${variantLine}
+          ${ingLine}
+          ${remLine}
+          ${borderLine}
+          ${obsLine}
           ${discountLine}
           <div style="padding-left:16px">${item.quantity} x ${formatCurrency(discountedPrice)} = ${formatCurrency(itemTotal)}</div>
         </div>`;
@@ -139,9 +155,17 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
       const priceCell = discPct > 0
         ? `<span style="text-decoration:line-through;color:#999;font-size:10px">${formatCurrency(item.price)}</span><br/><strong style="color:#e67e22">${formatCurrency(discountedPrice)} (-${discPct}%)</strong>`
         : formatCurrency(item.price);
+      const extras: string[] = [];
+      if (item.ingredients?.length) extras.push('+ ' + item.ingredients.map(x => x.name).join(', '));
+      if (item.removedIngredients?.length) extras.push('SEM ' + item.removedIngredients.map(x => x.name).join(', '));
+      if (item.border) extras.push('Borda: ' + item.border.name);
+      if (item.observation) extras.push('Obs: ' + item.observation);
+      const extrasHtml = extras.length
+        ? `<div style="font-size:11px;color:#555;margin-top:2px">${extras.join('<br/>')}</div>`
+        : '';
       return `<tr>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${i + 1}</td>
-        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}</td>
+        <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.name}${extrasHtml}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd">${item.code || '-'}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:center">${item.quantity}</td>
         <td style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:right">${priceCell}</td>

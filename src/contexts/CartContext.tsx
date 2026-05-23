@@ -2,6 +2,18 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import type { CartItem, Cart, DiscountRule } from '@/types';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 
+/**
+ * Composite key for grouping cart items. Two items only stack if their
+ * assembly (ingredients/removed/border/observation) is identical too.
+ */
+function cartItemKey(i: CartItem): string {
+  const ing = (i.ingredients || []).map(x => x.id).sort().join(',');
+  const rem = (i.removedIngredients || []).map(x => x.id).sort().join(',');
+  const border = i.border?.id || '';
+  const obs = (i.observation || '').trim();
+  return `${i.productId}|${i.variantId || ''}|${ing}|${rem}|${border}|${obs}`;
+}
+
 interface CartContextType {
   cart: Cart;
   discountRules: DiscountRule[];
@@ -115,9 +127,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback((item: CartItem) => {
     setCart(prev => {
-      const existingIndex = prev.items.findIndex(
-        i => i.productId === item.productId && i.variantId === item.variantId
-      );
+      const key = cartItemKey(item);
+      const existingIndex = prev.items.findIndex(i => cartItemKey(i) === key);
 
       let newItems: CartItem[];
       if (existingIndex >= 0) {
