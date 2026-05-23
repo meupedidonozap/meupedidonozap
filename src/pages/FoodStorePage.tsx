@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Home, Search, ShoppingCart, FileText, Plus, Minus, X,
   ChevronDown, ChevronUp, MapPin, Share2, Loader2, User, LogIn, LogOut, ShoppingBag,
+  List, LayoutGrid,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,6 +46,7 @@ export default function FoodStorePage() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [assemblyProduct, setAssemblyProduct] = useState<Product | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   useEffect(() => {
     if (store) {
@@ -142,6 +144,14 @@ export default function FoodStorePage() {
             <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(!isSearchOpen)}>
               <Search className="h-5 w-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+              title={viewMode === 'list' ? 'Ver em grade' : 'Ver em lista'}
+            >
+              {viewMode === 'list' ? <LayoutGrid className="h-5 w-5" /> : <List className="h-5 w-5" />}
+            </Button>
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -187,50 +197,96 @@ export default function FoodStorePage() {
                 {expandedCategories.includes(category.id) ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {categoryItems.map(item => {
-                    const quantity = getItemQuantity(item.id);
-                    return (
-                      <Card key={item.id} className="overflow-hidden transition-shadow hover:shadow-md">
-                        <CardContent className="flex gap-4 p-4">
-                          <div className="flex-1">
-                            <h3 className="font-semibold">{item.name}</h3>
-                            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                            <p className="mt-2 font-bold text-accent">
+                {viewMode === 'list' ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {categoryItems.map(item => {
+                      const quantity = getItemQuantity(item.id);
+                      return (
+                        <Card key={item.id} className="overflow-hidden transition-shadow hover:shadow-md">
+                          <CardContent className="flex gap-4 p-4">
+                            <div className="flex-1">
+                              <h3 className="font-semibold">{item.name}</h3>
+                              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+                              <p className="mt-2 font-bold text-accent">
+                                {item.hasVariants && (item.variants?.length || 0) > 0
+                                  ? `A partir de ${formatCurrency(Math.min(...item.variants!.map(v => v.price)))}`
+                                  : formatCurrency(item.basePrice)}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end justify-between">
+                              {item.image && <img src={item.image} alt={item.name} className="h-20 w-20 rounded-lg object-contain bg-white" />}
+                              <div className="mt-2">
+                                {quantity > 0 ? (
+                                  <div className="flex items-center gap-2">
+                                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => {
+                                      const line = [...cart.items].reverse().find(i => i.productId === item.id);
+                                      if (line) updateQuantity(item.id, line.quantity - 1, line.variantId);
+                                    }}>
+                                      <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <span className="w-6 text-center font-medium">{quantity}</span>
+                                    <Button size="icon" className="h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
+                                    <Plus className="mr-1 h-4 w-4" /> Adicionar
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {categoryItems.map(item => {
+                      const quantity = getItemQuantity(item.id);
+                      return (
+                        <Card key={item.id} className="overflow-hidden transition-shadow hover:shadow-md">
+                          <div className="aspect-square overflow-hidden bg-white">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-contain p-1" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">Sem foto</div>
+                            )}
+                          </div>
+                          <CardContent className="p-3">
+                            <h3 className="text-sm font-semibold line-clamp-2">{item.name}</h3>
+                            <p className="mt-1 font-bold text-accent">
                               {item.hasVariants && (item.variants?.length || 0) > 0
                                 ? `A partir de ${formatCurrency(Math.min(...item.variants!.map(v => v.price)))}`
                                 : formatCurrency(item.basePrice)}
                             </p>
-                          </div>
-                          <div className="flex flex-col items-end justify-between">
-                            {item.image && <img src={item.image} alt={item.name} className="h-20 w-20 rounded-lg object-contain bg-white" />}
-                            <div className="mt-2">
+                            <div className="mt-2 flex justify-end">
                               {quantity > 0 ? (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                   <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => {
-                                    // remove most recent matching line
                                     const line = [...cart.items].reverse().find(i => i.productId === item.id);
                                     if (line) updateQuantity(item.id, line.quantity - 1, line.variantId);
                                   }}>
                                     <Minus className="h-4 w-4" />
                                   </Button>
-                                  <span className="w-6 text-center font-medium">{quantity}</span>
+                                  <span className="w-6 text-center text-sm font-medium">{quantity}</span>
                                   <Button size="icon" className="h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
                                     <Plus className="h-4 w-4" />
                                   </Button>
                                 </div>
                               ) : (
-                                <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
-                                  <Plus className="mr-1 h-4 w-4" /> Adicionar
+                                <Button size="icon" className="h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
+                                  <Plus className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </CollapsibleContent>
             </Collapsible>
           );
