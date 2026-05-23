@@ -196,7 +196,11 @@ export default function FoodStorePage() {
                           <div className="flex-1">
                             <h3 className="font-semibold">{item.name}</h3>
                             <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                            <p className="mt-2 font-bold text-accent">{formatCurrency(item.price)}</p>
+                            <p className="mt-2 font-bold text-accent">
+                              {item.hasVariants && (item.variants?.length || 0) > 0
+                                ? `A partir de ${formatCurrency(Math.min(...item.variants!.map(v => v.price)))}`
+                                : formatCurrency(item.basePrice)}
+                            </p>
                           </div>
                           <div className="flex flex-col items-end justify-between">
                             {item.image && <img src={item.image} alt={item.name} className="h-20 w-20 rounded-lg object-contain bg-white" />}
