@@ -755,6 +755,18 @@ export default function StoreAdminPage() {
                                   {(item.size || item.color) && (
                                     <span className="ml-1 opacity-70">— {[item.size, item.color].filter(Boolean).join(' / ')}</span>
                                   )}
+                                  {item.ingredients?.length > 0 && (
+                                    <div className="pl-3 opacity-80">+ {item.ingredients.map((x: any) => x.name).join(', ')}</div>
+                                  )}
+                                  {item.removedIngredients?.length > 0 && (
+                                    <div className="pl-3 opacity-80">− {item.removedIngredients.map((x: any) => x.name).join(', ')}</div>
+                                  )}
+                                  {item.border && (
+                                    <div className="pl-3 opacity-80">Borda: {item.border.name}</div>
+                                  )}
+                                  {item.observation && (
+                                    <div className="pl-3 italic opacity-80">Obs: {item.observation}</div>
+                                  )}
                                 </div>
                               ))}
                             </div>
