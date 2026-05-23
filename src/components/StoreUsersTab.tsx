@@ -214,6 +214,9 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   };
 
   const summarizePerms = (u: StoreUser) => {
+    if (isGarcomPreset(u as any)) {
+      return <Badge className="bg-orange-100 text-orange-700">🍽 Garçom</Badge>;
+    }
     const items = visiblePerms.filter(p => u[p.key]).map(p => p.label);
     if (items.length === 0) return <span className="text-muted-foreground italic">Sem permissões</span>;
     return (
