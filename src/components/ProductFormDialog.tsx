@@ -551,6 +551,95 @@ export default function ProductFormDialog({
               )}
             </div>
           )}
+
+          {isFood && (
+            <div className="space-y-3 rounded-lg border p-4 bg-muted/20">
+              <Label className="text-base font-semibold">Montagem (Comida)</Label>
+
+              <div className="grid gap-2">
+                <Label className="text-xs">Modo de montagem</Label>
+                <Select value={assemblyMode} onValueChange={(v) => setAssemblyMode(v as AssemblyMode)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixo (sem montagem — ex.: bebidas)</SelectItem>
+                    <SelectItem value="remove">Remover (vem com tudo, cliente desmarca — ex.: lanche)</SelectItem>
+                    <SelectItem value="choose">Escolher (cliente seleciona — ex.: pastel/pizza)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(assemblyMode === 'remove' || assemblyMode === 'choose') && (
+                <div className="grid gap-2">
+                  <Label className="text-xs">
+                    {assemblyMode === 'remove' ? 'Ingredientes que já vêm (cliente pode remover)' : 'Ingredientes pré-marcados (opcional)'}
+                  </Label>
+                  <div className="max-h-40 overflow-y-auto rounded border p-2 bg-background space-y-1">
+                    {ingredients.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Cadastre ingredientes na aba Ingredientes.</p>
+                    )}
+                    {ingredients
+                      .filter(i => !categoryId || i.categoryIds.length === 0 || i.categoryIds.includes(categoryId))
+                      .map(ing => (
+                        <label key={ing.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={defaultIngredientIds.includes(ing.id)}
+                            onCheckedChange={() => setDefaultIngredientIds(prev =>
+                              prev.includes(ing.id) ? prev.filter(x => x !== ing.id) : [...prev, ing.id]
+                            )}
+                          />
+                          <span>{ing.name}</span>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {assemblyMode === 'choose' && (
+                <div className="grid gap-2">
+                  <Label className="text-xs">Limites de ingredientes</Label>
+                  {hasVariants && variants.length > 0 ? (
+                    <div className="space-y-2">
+                      {variants.map((v, i) => {
+                        const key = `var_${i}`; // fallback key by index (variants don't have id yet on create)
+                        const realKey = (product?.variants?.[i]?.id) || 'default';
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-sm w-24">{v.size || v.color || `Variante ${i + 1}`}</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              className="w-24"
+                              value={limitsByVariant[realKey] ?? ''}
+                              onChange={e => setLimitsByVariant(prev => ({ ...prev, [realKey]: Number(e.target.value) || 0 }))}
+                              placeholder="máx."
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      min={1}
+                      value={limitsByVariant['default'] ?? ''}
+                      onChange={e => setLimitsByVariant({ default: Number(e.target.value) || 0 })}
+                      placeholder="Máx. de ingredientes"
+                    />
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded border p-2 bg-background">
+                <Label className="text-sm">Permitir borda recheada (pizza)</Label>
+                <Switch checked={allowBorder} onCheckedChange={setAllowBorder} />
+              </div>
+
+              <div className="flex items-center justify-between rounded border p-2 bg-background">
+                <Label className="text-sm">Permitir observação do cliente</Label>
+                <Switch checked={allowObservation} onCheckedChange={setAllowObservation} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2">
