@@ -147,12 +147,17 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
-    const required = ['name', 'whatsapp', 'uf', 'city', 'address'];
+    const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+    const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
         toast.error(`Preencha o campo obrigatório: ${field}`);
         return false;
       }
+    }
+    if (hasNeighborhoods && deliveryType === 'entrega' && !selectedNeighborhoodId) {
+      toast.error('Selecione o bairro de entrega');
+      return false;
     }
     if (sellers.length > 0 && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
