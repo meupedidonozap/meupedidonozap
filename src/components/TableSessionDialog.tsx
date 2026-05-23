@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Printer, X, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/formatters';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useTabs, useAddTab, useTabItems, useAddTabItem, useUpdateTabItem,
   useDeleteTabItem, useCloseSession,
