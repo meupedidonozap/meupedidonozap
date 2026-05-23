@@ -435,6 +435,8 @@ export default function CheckoutPage() {
                   <div className="grid gap-2"><Label htmlFor="number">Número</Label><Input id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
                 </div>
                 <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
+                </>
+                )}
               </CardContent>
             </Card>
 
