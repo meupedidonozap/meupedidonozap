@@ -506,6 +506,7 @@ export default function StoreAdminPage() {
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
             categoryIds: maCategoryIds,
           } as MaterialApoioSettings,
+          deliveryNeighborhoods: neighborhoods,
         },
       });
       toast.success('Configurações salvas!');
