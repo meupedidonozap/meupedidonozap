@@ -323,6 +323,11 @@ export default function StoreAdminPage() {
     setMaInitialized(true);
   }
 
+  if (store && !neighborhoodsInit) {
+    setNeighborhoods((store.settings as any)?.deliveryNeighborhoods || []);
+    setNeighborhoodsInit(true);
+  }
+
   // Filter orders by date range
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
