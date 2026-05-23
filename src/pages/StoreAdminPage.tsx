@@ -945,9 +945,14 @@ export default function StoreAdminPage() {
                           <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</p>
                         </TableCell>
                         <TableCell>
+                          {order.origem === 'mesa' && (
+                            <Badge className="bg-orange-100 text-orange-700 mb-1">🍽 MESA</Badge>
+                          )}
                           <p className="font-medium">{order.customer.name}</p>
-                          <p className="text-xs text-muted-foreground">{order.customer.whatsapp}</p>
-                          {(() => {
+                          {order.origem !== 'mesa' && (
+                            <p className="text-xs text-muted-foreground">{order.customer.whatsapp}</p>
+                          )}
+                          {order.origem !== 'mesa' && (() => {
                             const code = resolveCustomerCode(order.customer);
                             return code ? <p className="text-xs text-muted-foreground">Código: {code}</p> : null;
                           })()}
