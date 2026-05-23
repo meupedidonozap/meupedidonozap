@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
-  Scissors, Salad, Pizza,
+  Scissors, Salad, Pizza, Grid3x3,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +37,7 @@ import StoreUsersTab from '@/components/StoreUsersTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
 import IngredientsTab from '@/components/IngredientsTab';
 import PizzaBordersTab from '@/components/PizzaBordersTab';
+import TablesTab from '@/components/TablesTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -666,6 +667,9 @@ export default function StoreAdminPage() {
             )}
             {store.type === 'COMIDA' && isAdmin && (
               <TabsTrigger value="borders" className="gap-2"><Pizza className="h-4 w-4" /> Bordas</TabsTrigger>
+            )}
+            {store.type === 'COMIDA' && isAdmin && (
+              <TabsTrigger value="tables" className="gap-2"><Grid3x3 className="h-4 w-4" /> Mesas</TabsTrigger>
             )}
             {(isAdmin || permissions.can_view_customers) && (
               <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
@@ -1716,6 +1720,11 @@ export default function StoreAdminPage() {
           {store.type === 'COMIDA' && (
             <TabsContent value="borders" className="animate-fade-in">
               <PizzaBordersTab storeId={store.id} />
+            </TabsContent>
+          )}
+          {store.type === 'COMIDA' && (
+            <TabsContent value="tables" className="animate-fade-in">
+              <TablesTab storeId={store.id} />
             </TabsContent>
           )}
 

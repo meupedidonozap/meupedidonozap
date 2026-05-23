@@ -641,6 +641,39 @@ export type Database = {
           },
         ]
       }
+      restaurant_tables: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string | null
+          number: number
+          seats: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          number: number
+          seats?: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          number?: number
+          seats?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       salon_appointments: {
         Row: {
           created_at: string
@@ -1111,6 +1144,126 @@ export type Database = {
           slug?: string
           type?: string
           whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      tab_items: {
+        Row: {
+          border: Json | null
+          code: string
+          created_at: string
+          id: string
+          image: string | null
+          ingredients: Json
+          name: string
+          observation: string | null
+          paid_order_id: string | null
+          product_id: string | null
+          quantity: number
+          removed_ingredients: Json
+          status: string
+          tab_id: string
+          unit_price: number
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          border?: Json | null
+          code?: string
+          created_at?: string
+          id?: string
+          image?: string | null
+          ingredients?: Json
+          name: string
+          observation?: string | null
+          paid_order_id?: string | null
+          product_id?: string | null
+          quantity?: number
+          removed_ingredients?: Json
+          status?: string
+          tab_id: string
+          unit_price?: number
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          border?: Json | null
+          code?: string
+          created_at?: string
+          id?: string
+          image?: string | null
+          ingredients?: Json
+          name?: string
+          observation?: string | null
+          paid_order_id?: string | null
+          product_id?: string | null
+          quantity?: number
+          removed_ingredients?: Json
+          status?: string
+          tab_id?: string
+          unit_price?: number
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: []
+      }
+      table_sessions: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          opened_by: string | null
+          status: string
+          store_id: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          store_id: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          store_id?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      table_tabs: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          number: number
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          number: number
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          number?: number
+          session_id?: string
         }
         Relationships: []
       }
