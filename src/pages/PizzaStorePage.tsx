@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Search, ShoppingCart, Plus, Minus, X, ChevronDown, ChevronUp,
   Share2, Loader2, User, LogIn, LogOut, ShoppingBag, Pizza, UtensilsCrossed, Wine,
+  List, LayoutGrid,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
@@ -210,6 +211,45 @@ function MenuItemCard({ item, quantity, onAdd, onUpdate }: {
   );
 }
 
+/* ─── Menu Item Grid Card ─── */
+function MenuItemGridCard({ item, quantity, onAdd, onUpdate }: {
+  item: FoodItem; quantity: number;
+  onAdd: () => void; onUpdate: (q: number) => void;
+}) {
+  return (
+    <Card className="overflow-hidden bg-white/5 border-white/10 text-white hover:border-orange-500/30 transition-colors">
+      <div className="aspect-square overflow-hidden bg-white">
+        {item.image ? (
+          <img src={item.image} alt={item.name} loading="lazy" className="h-full w-full object-contain p-1" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">Sem foto</div>
+        )}
+      </div>
+      <CardContent className="p-3">
+        <h3 className="text-sm font-semibold line-clamp-2">{item.name}</h3>
+        <p className="text-orange-400 font-bold mt-1">{formatCurrency(item.price)}</p>
+        <div className="mt-2 flex justify-end">
+          {quantity > 0 ? (
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="outline" className="h-7 w-7 border-orange-500/50 text-orange-400 hover:bg-orange-500/20" onClick={() => onUpdate(quantity - 1)}>
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="w-5 text-center text-sm font-bold">{quantity}</span>
+              <Button size="icon" className="h-7 w-7 bg-orange-500 hover:bg-orange-600 text-white" onClick={() => onUpdate(quantity + 1)}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <Button size="icon" className="h-8 w-8 bg-orange-500 hover:bg-orange-600 text-white" onClick={onAdd}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ─── Main Page ─── */
 export default function PizzaStorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -227,6 +267,7 @@ export default function PizzaStorePage() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [pizzaDialogOpen, setPizzaDialogOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('pizzas');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   useEffect(() => { if (store) setStoreId(store.id); }, [store, setStoreId]);
 
@@ -302,6 +343,15 @@ export default function PizzaStorePage() {
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(!isSearchOpen)} className="text-gray-300 hover:text-orange-400 hover:bg-white/10">
               <Search className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+              className="text-gray-300 hover:text-orange-400 hover:bg-white/10"
+              title={viewMode === 'list' ? 'Ver em grade' : 'Ver em lista'}
+            >
+              {viewMode === 'list' ? <LayoutGrid className="h-5 w-5" /> : <List className="h-5 w-5" />}
             </Button>
             {user ? (
               <DropdownMenu>
@@ -427,15 +477,31 @@ export default function PizzaStorePage() {
           return (
             <div key={section.id} className="space-y-3">
               <h2 className="text-xl font-bold text-orange-400 mb-4">{section.name}</h2>
-              {section.items.map(item => (
-                <MenuItemCard
-                  key={item.id}
-                  item={item}
-                  quantity={getItemQuantity(item.id)}
-                  onAdd={() => handleAddFoodItem(item)}
-                  onUpdate={(q) => updateQuantity(item.id, q)}
-                />
-              ))}
+              {viewMode === 'list' ? (
+                <div className="space-y-3">
+                  {section.items.map(item => (
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      quantity={getItemQuantity(item.id)}
+                      onAdd={() => handleAddFoodItem(item)}
+                      onUpdate={(q) => updateQuantity(item.id, q)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {section.items.map(item => (
+                    <MenuItemGridCard
+                      key={item.id}
+                      item={item}
+                      quantity={getItemQuantity(item.id)}
+                      onAdd={() => handleAddFoodItem(item)}
+                      onUpdate={(q) => updateQuantity(item.id, q)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
