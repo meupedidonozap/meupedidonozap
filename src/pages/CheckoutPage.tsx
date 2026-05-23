@@ -66,6 +66,10 @@ export default function CheckoutPage() {
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingQuoted, setShippingQuoted] = useState(false);
 
+  // Delivery type (COMIDA/PIZZARIA)
+  const [deliveryType, setDeliveryType] = useState<'entrega' | 'retirada'>('entrega');
+  const [selectedNeighborhoodId, setSelectedNeighborhoodId] = useState<string>('');
+
   // Auto-fill from customer profile
   useEffect(() => {
     if (customerProfile && !profileLoaded) {
