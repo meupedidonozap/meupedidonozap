@@ -11,7 +11,7 @@ export default function WaiterPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user, loading: authLoading } = useAuth();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
-  const { isAdmin, permissions, isLoading: accessLoading } = useStoreAdmin(store?.id);
+  const { isAdmin, permissions, loading: accessLoading } = useStoreAdmin(store?.id);
 
   if (authLoading || storeLoading || (user && accessLoading)) {
     return (
