@@ -1,51 +1,24 @@
-## Objetivo
-Criar o perfil **Garçom** e fazer com que cada item lançado para a mesa apareça imediatamente como **Pedido** no painel admin (com etiqueta "MESA X / Comanda Y") para que o garçom/admin altere o status (recebido → produção → entregue) pela aba Pedidos.
+## Toggle Lista/Grade com fotos grandes em COMIDA e PIZZARIA
 
-## 1. Perfil "Garçom" (`StoreUsersTab.tsx`)
-- Adicionar botão/preset **"Garçom"** no diálogo de criação/edição de usuário que aplica automaticamente:
-  - `can_view_orders: true`
-  - `can_manage_orders: true`
-  - demais permissões `false`
-- Mostrar **badge "Garçom"** na listagem quando as permissões batem com esse preset.
-- Sem mudança de schema — usa `store_users` existente (a coluna `role` já existe).
+Adiciona o mesmo padrão da loja LOJA (Dicolore) nas lojas COMIDA e PIZZARIA: botão no header para alternar entre Lista (atual) e Grade, mantendo categorias e fluxos existentes intactos.
 
-## 2. Acesso à tela do Garçom
-- No `StoreAdminPage.tsx`, quando o usuário logado tiver apenas permissões de Garçom, redirecionar (ou destacar um botão grande) para `/:slug/garcom`.
-- Em `WaiterPage.tsx`, validar permissão `can_manage_orders` (além de admin) para permitir acesso — hoje só permite admin de loja.
+### `src/pages/FoodStorePage.tsx`
+- Importar ícones `List` e `LayoutGrid` do `lucide-react`.
+- Adicionar `useState<'list' | 'grid'>('list')`.
+- No header, ao lado do botão de busca, botão único que alterna o modo (mostra `LayoutGrid` quando está em lista e `List` quando está em grade).
+- Dentro de cada `CollapsibleContent` de categoria, renderizar condicionalmente:
+  - **Lista (atual):** mantém o card horizontal exatamente como está.
+  - **Grade:** `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3`, com foto grande em cima (`aspect-square object-contain bg-white`), nome (`line-clamp-2`), preço, e o mesmo botão `+` / contador `−/+` reaproveitando `handleAddItem`, `getItemQuantity` e `needsAssembly`.
 
-## 3. Lançar item da mesa = criar Pedido imediatamente
-Em `TableSessionDialog.tsx`, alterar `launchSimple` e `launchAssembled`:
-- Continuam gravando em `tab_items` (para o controle da comanda/fechamento).
-- **Adicionalmente**, criam um pedido em `orders` com:
-  - `origem: 'mesa'`
-  - `status: 'pendente'` (entra como "recebido" no painel)
-  - `customer.name: "MESA {n} · C{comanda}"` (sem WhatsApp/endereço)
-  - `observations: "Mesa {n} - Comanda {c}{label}"`
-  - `items: [<o item lançado>]` (1 pedido por item lançado, para o garçom marcar status individualmente)
-  - `payment_method: ''`, `delivery_fee: 0`, `total = unitPrice*qty`
-- Guardar o `order_id` retornado em `tab_items.paid_order_id` já no lançamento (renomeio conceitual: passa a ser o "pedido vinculado") — assim o pagamento futuro só atualiza o status do pedido para `entregue`/`pago`, sem duplicar.
+### `src/pages/PizzaStorePage.tsx`
+- Importar `LayoutGrid` e `List`.
+- Adicionar `useState<'list' | 'grid'>('list')`.
+- Botão de alternância no header ao lado do botão de busca (estilo escuro como os demais).
+- A aba "Pizzas" e o `PizzaBuilderDialog` ficam intactos.
+- Nas seções de `FoodItem` (linhas 425-441), quando `viewMode === 'grid'`, trocar a lista vertical de `MenuItemCard` por um grid `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` de cards quadrados com foto grande em cima e nome/preço/`+` abaixo (novo componente local `MenuItemGridCard`, mesmo tema dark/laranja).
 
-### Ajuste no fluxo de Pagamento
-- Em vez de criar 1 pedido novo na hora de pagar, apenas atualiza os pedidos já vinculados:
-  - `status: 'entregue'`
-  - `payment_method` escolhido
-- Mantém `tab_items.status = 'pago'`.
-- Fechar a mesa quando todos itens pagos (já existe).
-
-## 4. Painel Admin — Aba Pedidos (`StoreAdminPage.tsx`)
-- Na coluna **Cliente**, quando `order.origem === 'mesa'`, exibir badge laranja **"🍽 MESA"** acima do nome (que já será "MESA X · C1") e ocultar linha de WhatsApp/código.
-- Status segue editável pelo Select existente (recebido/produção/entregue/cancelado) — nada a mudar na lógica.
-- Pedidos de mesa não-pagos contam normalmente em "Pendentes".
-
-## 5. Tela Garçom — visão dos pedidos da mesa
-- Em `TableSessionDialog.tsx`, ao listar os itens da comanda, mostrar o **status atual do pedido vinculado** (badge colorido) e permitir trocar status inline (mesmo Select do admin) quando o usuário tem `can_manage_orders`.
-- Assim o garçom faz tudo na tela da mesa sem precisar abrir a aba Pedidos.
-
-## Arquivos afetados
-- `src/components/StoreUsersTab.tsx` — preset Garçom + badge
-- `src/pages/WaiterPage.tsx` — liberar acesso para usuários com `can_manage_orders`
-- `src/pages/StoreAdminPage.tsx` — badge "MESA" na coluna Cliente; redirect opcional p/ Garçom
-- `src/components/TableSessionDialog.tsx` — criar pedido ao lançar item; atualizar status no pagamento; mostrar/editar status do pedido por item
-
-## Sem mudança de banco
-Reutiliza `orders.origem='mesa'`, `tab_items.paid_order_id`, `store_users` + permissões existentes.
+### Notas técnicas
+- Sem mudanças em backend, hooks, tipos, banco ou no fluxo de carrinho.
+- Imagens seguem `object-contain bg-white` (regra do projeto).
+- Default permanece `list` para não impactar quem já usa.
+- Nenhuma alteração no que foi feito anteriormente (bairros/entrega, garçom, mesa).
