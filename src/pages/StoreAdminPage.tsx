@@ -6,7 +6,7 @@ import {
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
-  Scissors, Salad, Pizza,
+  Scissors, Salad, Pizza, Grid3x3,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
