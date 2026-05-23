@@ -57,6 +57,17 @@ const emptyPerms: StorePermissions = {
   can_view_customers: false,
 };
 
+const GARCOM_PERMS: StorePermissions = {
+  ...emptyPerms,
+  can_view_orders: true,
+  can_manage_orders: true,
+};
+
+const isGarcomPreset = (p: { [k in keyof StorePermissions]?: boolean }) =>
+  !!p.can_view_orders && !!p.can_manage_orders &&
+  !p.can_manage_products && !p.can_view_customers &&
+  !p.can_view_service_orders && !p.can_manage_service_orders;
+
 interface Props {
   storeId: string;
   storeType: StoreType;
@@ -203,6 +214,9 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   };
 
   const summarizePerms = (u: StoreUser) => {
+    if (isGarcomPreset(u as any)) {
+      return <Badge className="bg-orange-100 text-orange-700">🍽 Garçom</Badge>;
+    }
     const items = visiblePerms.filter(p => u[p.key]).map(p => p.label);
     if (items.length === 0) return <span className="text-muted-foreground italic">Sem permissões</span>;
     return (
@@ -337,7 +351,22 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
             )}
 
             <div className="border rounded-lg p-3 space-y-2">
-              <div className="font-semibold text-sm">Permissões</div>
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-sm">Permissões</div>
+                <div className="flex gap-1">
+                  <Button type="button" size="sm" variant="outline"
+                    onClick={() => setPerms(GARCOM_PERMS)}
+                    title="Aplicar permissões de Garçom (ver e gerenciar pedidos)">
+                    🍽 Garçom
+                  </Button>
+                </div>
+              </div>
+              {isGarcomPreset(perms) && (
+                <div className="rounded bg-orange-50 px-2 py-1 text-xs text-orange-700">
+                  Perfil Garçom selecionado — usuário poderá acessar <strong>/{ '' }
+                  {`{slug}/garcom`}</strong> para abrir mesas e lançar pedidos.
+                </div>
+              )}
               {visiblePerms.map(p => (
                 <label key={p.key} className="flex items-start gap-2 cursor-pointer hover:bg-muted/40 p-2 rounded">
                   <Checkbox

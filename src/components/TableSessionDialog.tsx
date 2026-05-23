@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Printer, X, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/formatters';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useTabs, useAddTab, useTabItems, useAddTabItem, useUpdateTabItem,
   useDeleteTabItem, useCloseSession,
@@ -20,9 +21,10 @@ import { useCategories } from '@/hooks/useCategories';
 import { useIngredients } from '@/hooks/useIngredients';
 import { usePizzaBorders } from '@/hooks/usePizzaBorders';
 import { useProductAssemblies } from '@/hooks/useProductAssembly';
-import { useCreateOrder } from '@/hooks/useOrders';
+import { useCreateOrder, useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
 import AssemblyDialog from './AssemblyDialog';
-import type { Product, TabItem, CartItem } from '@/types';
+import type { Product, TabItem, CartItem, OrderStatus } from '@/types';
+import { Select as StatusSelect, SelectContent as StatusSelectContent, SelectItem as StatusSelectItem, SelectTrigger as StatusSelectTrigger, SelectValue as StatusSelectValue } from '@/components/ui/select';
 
 interface Props {
   sessionId: string;
@@ -39,12 +41,15 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const { data: ingredients = [] } = useIngredients(storeId);
   const { data: borders = [] } = usePizzaBorders(storeId);
   const { data: assemblies = [] } = useProductAssemblies(storeId);
+  const { data: storeOrders = [] } = useOrders(storeId);
   const addTab = useAddTab();
   const addItem = useAddTabItem();
   const updateItem = useUpdateTabItem();
   const deleteItem = useDeleteTabItem();
   const closeSession = useCloseSession();
   const createOrder = useCreateOrder();
+  const updateOrderStatus = useUpdateOrderStatus();
+  const updateOrder = useUpdateOrder();
 
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -52,6 +57,13 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const [showPayment, setShowPayment] = useState(false);
 
   const currentTabId = activeTabId || tabs[0]?.id;
+
+  // Find linked order for a tab item (paidOrderId is reused as "linked order id")
+  const orderById = useMemo(() => {
+    const m: Record<string, any> = {};
+    storeOrders.forEach(o => { m[o.id] = o; });
+    return m;
+  }, [storeOrders]);
 
   const itemsByTab = useMemo(() => {
     const m: Record<string, TabItem[]> = {};
@@ -84,9 +96,44 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
     return false;
   };
 
+  const buildCustomerForTab = (tabNumber: number, tabLabel?: string) => ({
+    name: `MESA ${tableNumber ?? ''} · C${tabNumber}${tabLabel ? ` ${tabLabel}` : ''}`.trim(),
+    cpfCnpj: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '',
+  });
+
+  const buildObservationsForTab = (tabNumber: number, tabLabel?: string, extra?: string) =>
+    `Mesa ${tableNumber ?? ''} - Comanda ${tabNumber}${tabLabel ? ` (${tabLabel})` : ''}${extra ? ` | ${extra}` : ''}`.trim();
+
+  const createLinkedOrder = async (tabId: string, cartItem: CartItem) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return null;
+    const subtotal = cartItem.price * cartItem.quantity;
+    const order = await createOrder.mutateAsync({
+      storeId,
+      customer: buildCustomerForTab(tab.number, tab.label),
+      items: [cartItem],
+      subtotal,
+      discount: 0,
+      deliveryFee: 0,
+      total: subtotal,
+      paymentMethod: '' as any,
+      deliveryShift: 'tarde' as any,
+      observations: buildObservationsForTab(tab.number, tab.label, cartItem.observation),
+      status: 'pendente' as any,
+      origem: 'mesa',
+    } as any);
+    return order;
+  };
+
   const launchSimple = async (p: Product) => {
     if (!currentTabId) { toast.error('Crie uma comanda primeiro'); return; }
-    await addItem.mutateAsync({
+    const cartItem: CartItem = {
+      productId: p.id, name: p.name, code: p.code || '',
+      price: p.basePrice, quantity: 1, image: p.image,
+      ingredients: [], removedIngredients: [],
+    } as any;
+    const order = await createLinkedOrder(currentTabId, cartItem);
+    const item = await addItem.mutateAsync({
       tabId: currentTabId,
       productId: p.id,
       name: p.name,
@@ -97,12 +144,16 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
       removedIngredients: [],
       image: p.image,
     } as any);
+    if (order && item) {
+      await updateItem.mutateAsync({ id: item.id, paidOrderId: order.id });
+    }
     toast.success(`${p.name} lançado`);
   };
 
   const launchAssembled = async (item: CartItem) => {
     if (!currentTabId) return;
-    await addItem.mutateAsync({
+    const order = await createLinkedOrder(currentTabId, item);
+    const created = await addItem.mutateAsync({
       tabId: currentTabId,
       productId: item.productId,
       variantId: item.variantId,
@@ -116,6 +167,9 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
       observation: item.observation,
       image: item.image,
     } as any);
+    if (order && created) {
+      await updateItem.mutateAsync({ id: created.id, paidOrderId: order.id });
+    }
     toast.success('Item lançado');
   };
 
@@ -180,11 +234,38 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                               )}
                               {i.border && <div className="text-xs">Borda: {i.border.name}</div>}
                               {i.observation && <div className="text-xs italic">Obs: {i.observation}</div>}
+                              {i.paidOrderId && orderById[i.paidOrderId] && (
+                                <div className="mt-1">
+                                  <StatusSelect
+                                    value={orderById[i.paidOrderId].status}
+                                    onValueChange={async (v) => {
+                                      await updateOrderStatus.mutateAsync({ id: i.paidOrderId!, status: v as OrderStatus });
+                                      toast.success('Status atualizado');
+                                    }}
+                                  >
+                                    <StatusSelectTrigger className="h-7 w-44 text-xs">
+                                      <StatusSelectValue />
+                                    </StatusSelectTrigger>
+                                    <StatusSelectContent>
+                                      <StatusSelectItem value="pendente">Recebido</StatusSelectItem>
+                                      <StatusSelectItem value="preparando">Em preparo</StatusSelectItem>
+                                      <StatusSelectItem value="entregue">Entregue</StatusSelectItem>
+                                      <StatusSelectItem value="cancelado">Cancelado</StatusSelectItem>
+                                    </StatusSelectContent>
+                                  </StatusSelect>
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold">{formatCurrency(i.unitPrice * i.quantity)}</span>
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                                onClick={async () => { if (confirm('Remover item?')) { await deleteItem.mutateAsync(i.id); }}}>
+                                onClick={async () => {
+                                  if (!confirm('Remover item?')) return;
+                                  if (i.paidOrderId) {
+                                    try { await updateOrderStatus.mutateAsync({ id: i.paidOrderId, status: 'cancelado' as OrderStatus }); } catch {}
+                                  }
+                                  await deleteItem.mutateAsync(i.id);
+                                }}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -262,31 +343,21 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
           onPay={async (selectedIds, paymentMethod) => {
             const selected = items.filter(i => selectedIds.includes(i.id));
             if (!selected.length) { toast.error('Selecione itens'); return; }
-            const subtotal = selected.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-            const cartItems: CartItem[] = selected.map(i => ({
-              productId: i.productId || '', name: i.name, code: i.code,
-              price: i.unitPrice, quantity: i.quantity, image: i.image,
-              ingredients: i.ingredients, removedIngredients: i.removedIngredients,
-              border: i.border, observation: i.observation,
-            }));
             try {
-              const order = await createOrder.mutateAsync({
-                storeId,
-                customer: { name: `Mesa ${tableNumber ?? ''}`.trim(), cpfCnpj: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '' },
-                items: cartItems,
-                subtotal,
-                discount: 0,
-                deliveryFee: 0,
-                total: subtotal,
-                paymentMethod: paymentMethod as any,
-                deliveryShift: 'tarde' as any,
-                observations: `Mesa ${tableNumber ?? ''}`,
-                status: 'entregue' as any,
-                origem: 'mesa',
-              });
-              await Promise.all(selected.map(i =>
-                updateItem.mutateAsync({ id: i.id, status: 'pago', paidOrderId: order.id })
-              ));
+              // Update each linked order: mark paid + set payment method + entregue
+              await Promise.all(selected.map(async (i) => {
+                if (i.paidOrderId) {
+                  await updateOrder.mutateAsync({
+                    id: i.paidOrderId,
+                    status: 'entregue' as any,
+                  });
+                  // also persist payment method
+                  await (supabase as any).from('orders')
+                    .update({ payment_method: paymentMethod })
+                    .eq('id', i.paidOrderId).select().single();
+                }
+                await updateItem.mutateAsync({ id: i.id, status: 'pago' });
+              }));
               toast.success('Pagamento registrado');
               setShowPayment(false);
               // Auto-close session when nothing remains

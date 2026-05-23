@@ -3,6 +3,7 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreBySlug } from '@/hooks/useStores';
+import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import TablesTab from '@/components/TablesTab';
 
@@ -10,8 +11,9 @@ export default function WaiterPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user, loading: authLoading } = useAuth();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
+  const { isAdmin, permissions, loading: accessLoading } = useStoreAdmin(store?.id);
 
-  if (authLoading || storeLoading) {
+  if (authLoading || storeLoading || (user && accessLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -29,6 +31,19 @@ export default function WaiterPage() {
 
   if (!user) {
     return <StoreAdminLogin storeName={`${store.name} — Garçom`} />;
+  }
+
+  const canAccess = isAdmin || permissions?.can_manage_orders;
+  if (!canAccess) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="text-center space-y-2">
+          <p className="font-semibold">Sem permissão</p>
+          <p className="text-sm text-muted-foreground">Este usuário não tem permissão de Garçom.</p>
+          <Button asChild variant="outline"><Link to={`/${slug}`}>Voltar</Link></Button>
+        </div>
+      </div>
+    );
   }
 
   return (

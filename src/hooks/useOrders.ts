@@ -60,6 +60,7 @@ export function useCreateOrder() {
         observations: order.observations || null,
         status: order.status,
         user_id: userId,
+        origem: (order as any).origem || 'web',
       }).select().single();
       if (error) throw error;
       return mapOrder(data);
