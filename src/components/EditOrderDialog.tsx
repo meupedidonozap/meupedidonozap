@@ -150,6 +150,18 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
                         {formatCurrency(item.price)} {item.code ? `• ${item.code}` : ''}
                         {pct > 0 && <span className="ml-1 text-green-700 font-semibold">• -{pct}%</span>}
                       </p>
+                      {item.ingredients?.length ? (
+                        <p className="text-xs text-muted-foreground">+ {item.ingredients.map((x: any) => x.name).join(', ')}</p>
+                      ) : null}
+                      {item.removedIngredients?.length ? (
+                        <p className="text-xs text-muted-foreground">− {item.removedIngredients.map((x: any) => x.name).join(', ')}</p>
+                      ) : null}
+                      {item.border ? (
+                        <p className="text-xs text-muted-foreground">Borda: {item.border.name}</p>
+                      ) : null}
+                      {item.observation ? (
+                        <p className="text-xs italic text-muted-foreground">Obs: {item.observation}</p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-1">
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, -1)}>
