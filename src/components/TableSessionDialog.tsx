@@ -342,31 +342,21 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
           onPay={async (selectedIds, paymentMethod) => {
             const selected = items.filter(i => selectedIds.includes(i.id));
             if (!selected.length) { toast.error('Selecione itens'); return; }
-            const subtotal = selected.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-            const cartItems: CartItem[] = selected.map(i => ({
-              productId: i.productId || '', name: i.name, code: i.code,
-              price: i.unitPrice, quantity: i.quantity, image: i.image,
-              ingredients: i.ingredients, removedIngredients: i.removedIngredients,
-              border: i.border, observation: i.observation,
-            }));
             try {
-              const order = await createOrder.mutateAsync({
-                storeId,
-                customer: { name: `Mesa ${tableNumber ?? ''}`.trim(), cpfCnpj: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '' },
-                items: cartItems,
-                subtotal,
-                discount: 0,
-                deliveryFee: 0,
-                total: subtotal,
-                paymentMethod: paymentMethod as any,
-                deliveryShift: 'tarde' as any,
-                observations: `Mesa ${tableNumber ?? ''}`,
-                status: 'entregue' as any,
-                origem: 'mesa',
-              });
-              await Promise.all(selected.map(i =>
-                updateItem.mutateAsync({ id: i.id, status: 'pago', paidOrderId: order.id })
-              ));
+              // Update each linked order: mark paid + set payment method + entregue
+              await Promise.all(selected.map(async (i) => {
+                if (i.paidOrderId) {
+                  await updateOrder.mutateAsync({
+                    id: i.paidOrderId,
+                    status: 'entregue' as any,
+                  });
+                  // also persist payment method
+                  await (supabase as any).from('orders')
+                    .update({ payment_method: paymentMethod })
+                    .eq('id', i.paidOrderId).select().single();
+                }
+                await updateItem.mutateAsync({ id: i.id, status: 'pago' });
+              }));
               toast.success('Pagamento registrado');
               setShowPayment(false);
               // Auto-close session when nothing remains
