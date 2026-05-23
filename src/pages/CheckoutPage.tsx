@@ -265,8 +265,14 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+      const observationsFinal = [
+        isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : ''),
+        formData.observations || '',
+      ].filter(Boolean).join(' ').trim();
+
       // Save/update customer profile
-      await upsertProfile.mutateAsync({
+      if (!isPickup) await upsertProfile.mutateAsync({
         userId: user.id,
         storeId: store.id,
         name: formData.name,
@@ -285,9 +291,11 @@ export default function CheckoutPage() {
         storeId: store.id,
         customer: {
           name: formData.name, cpfCnpj: formData.cpfCnpj, whatsapp: formData.whatsapp,
-          cep: formData.cep, uf: formData.uf, city: formData.city,
-          neighborhood: formData.neighborhood, address: formData.address,
-          number: formData.number, complement: formData.complement,
+          cep: isPickup ? '' : formData.cep, uf: isPickup ? '' : formData.uf, city: isPickup ? '' : formData.city,
+          neighborhood: isPickup ? 'RETIRAR NA LOJA' : formData.neighborhood,
+          address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
+          number: isPickup ? '' : formData.number,
+          complement: isPickup ? '' : formData.complement,
         },
         items: cart.items.map(item => ({
           ...item,
@@ -299,7 +307,7 @@ export default function CheckoutPage() {
         total: totalWithDelivery,
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
-        observations: formData.observations || undefined,
+        observations: observationsFinal || undefined,
         status: 'pendente',
       });
 
