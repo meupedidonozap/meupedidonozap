@@ -233,11 +233,38 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                               )}
                               {i.border && <div className="text-xs">Borda: {i.border.name}</div>}
                               {i.observation && <div className="text-xs italic">Obs: {i.observation}</div>}
+                              {i.paidOrderId && orderById[i.paidOrderId] && (
+                                <div className="mt-1">
+                                  <StatusSelect
+                                    value={orderById[i.paidOrderId].status}
+                                    onValueChange={async (v) => {
+                                      await updateOrderStatus.mutateAsync({ id: i.paidOrderId!, status: v as OrderStatus });
+                                      toast.success('Status atualizado');
+                                    }}
+                                  >
+                                    <StatusSelectTrigger className="h-7 w-44 text-xs">
+                                      <StatusSelectValue />
+                                    </StatusSelectTrigger>
+                                    <StatusSelectContent>
+                                      <StatusSelectItem value="pendente">Recebido</StatusSelectItem>
+                                      <StatusSelectItem value="preparando">Em preparo</StatusSelectItem>
+                                      <StatusSelectItem value="entregue">Entregue</StatusSelectItem>
+                                      <StatusSelectItem value="cancelado">Cancelado</StatusSelectItem>
+                                    </StatusSelectContent>
+                                  </StatusSelect>
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="font-semibold">{formatCurrency(i.unitPrice * i.quantity)}</span>
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                                onClick={async () => { if (confirm('Remover item?')) { await deleteItem.mutateAsync(i.id); }}}>
+                                onClick={async () => {
+                                  if (!confirm('Remover item?')) return;
+                                  if (i.paidOrderId) {
+                                    try { await updateOrderStatus.mutateAsync({ id: i.paidOrderId, status: 'cancelado' as OrderStatus }); } catch {}
+                                  }
+                                  await deleteItem.mutateAsync(i.id);
+                                }}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
