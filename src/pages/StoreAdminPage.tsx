@@ -661,6 +661,12 @@ export default function StoreAdminPage() {
             {store.type === 'SALAO' && isAdmin && (
               <TabsTrigger value="salon" className="gap-2"><Scissors className="h-4 w-4" /> Salão</TabsTrigger>
             )}
+            {store.type === 'COMIDA' && isAdmin && (
+              <TabsTrigger value="ingredients" className="gap-2"><Salad className="h-4 w-4" /> Ingredientes</TabsTrigger>
+            )}
+            {store.type === 'COMIDA' && isAdmin && (
+              <TabsTrigger value="borders" className="gap-2"><Pizza className="h-4 w-4" /> Bordas</TabsTrigger>
+            )}
             {(isAdmin || permissions.can_view_customers) && (
               <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
             )}
