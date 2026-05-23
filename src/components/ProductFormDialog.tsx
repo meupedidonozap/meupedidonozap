@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical, Clock } from 'lucide-react';
-import type { Product, ProductVariant, Category, StoreType } from '@/types';
+import type { Product, ProductVariant, Category, StoreType, AssemblyMode } from '@/types';
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
 import { useSalonProfessionals } from '@/hooks/useSalon';
+import { useIngredients } from '@/hooks/useIngredients';
+import { useProductAssemblies, useUpsertProductAssembly } from '@/hooks/useProductAssembly';
 import { Checkbox } from '@/components/ui/checkbox';
 import { uploadProductImage } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
@@ -61,7 +63,11 @@ export default function ProductFormDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
   const isSalon = storeType === 'SALAO';
+  const isFood = storeType === 'COMIDA';
   const { data: professionals = [] } = useSalonProfessionals(isSalon ? storeId : undefined);
+  const { data: ingredients = [] } = useIngredients(isFood ? storeId : undefined);
+  const { data: assemblies = [] } = useProductAssemblies(isFood ? storeId : undefined);
+  const upsertAssembly = useUpsertProductAssembly();
 
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -77,6 +83,13 @@ export default function ProductFormDialog({
   const [saving, setSaving] = useState(false);
   const [durationMinutes, setDurationMinutes] = useState('30');
   const [professionalIds, setProfessionalIds] = useState<string[]>([]);
+
+  // Food assembly state
+  const [assemblyMode, setAssemblyMode] = useState<AssemblyMode>('fixed');
+  const [allowObservation, setAllowObservation] = useState(false);
+  const [allowBorder, setAllowBorder] = useState(false);
+  const [defaultIngredientIds, setDefaultIngredientIds] = useState<string[]>([]);
+  const [limitsByVariant, setLimitsByVariant] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (product) {
@@ -106,6 +119,21 @@ export default function ProductFormDialog({
           label: img.label || '',
         })) || []
       );
+      // Load existing assembly config if any
+      const a = assemblies.find(x => x.productId === product.id);
+      if (a) {
+        setAssemblyMode(a.mode);
+        setAllowObservation(a.allowObservation);
+        setAllowBorder(a.allowBorder);
+        setDefaultIngredientIds(a.defaultIngredientIds);
+        setLimitsByVariant(a.limitsByVariant);
+      } else {
+        setAssemblyMode('fixed');
+        setAllowObservation(false);
+        setAllowBorder(false);
+        setDefaultIngredientIds([]);
+        setLimitsByVariant({});
+      }
     } else {
       setCode('');
       setName('');
@@ -120,8 +148,13 @@ export default function ProductFormDialog({
       setProductImages([]);
       setDurationMinutes('30');
       setProfessionalIds([]);
+      setAssemblyMode('fixed');
+      setAllowObservation(false);
+      setAllowBorder(false);
+      setDefaultIngredientIds([]);
+      setLimitsByVariant({});
     }
-  }, [product, open]);
+  }, [product, open, assemblies]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -228,9 +261,19 @@ export default function ProductFormDialog({
           durationMinutes: isSalon ? Number(durationMinutes) || 30 : undefined,
           professionalIds: isSalon ? professionalIds : undefined,
         });
+        if (isFood) {
+          await upsertAssembly.mutateAsync({
+            productId: product.id,
+            mode: assemblyMode,
+            allowObservation,
+            allowBorder,
+            defaultIngredientIds,
+            limitsByVariant,
+          });
+        }
         toast.success('Produto atualizado!');
       } else {
-        await createProduct.mutateAsync({
+        const created = await createProduct.mutateAsync({
           storeId,
           code,
           name,
@@ -245,6 +288,16 @@ export default function ProductFormDialog({
           durationMinutes: isSalon ? Number(durationMinutes) || 30 : undefined,
           professionalIds: isSalon ? professionalIds : undefined,
         });
+        if (isFood && created?.id) {
+          await upsertAssembly.mutateAsync({
+            productId: created.id,
+            mode: assemblyMode,
+            allowObservation,
+            allowBorder,
+            defaultIngredientIds,
+            limitsByVariant,
+          });
+        }
         toast.success('Produto criado!');
       }
 
