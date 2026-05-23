@@ -276,6 +276,12 @@ export default function StoreAdminPage() {
   const [maCategoryIds, setMaCategoryIds] = useState<string[]>([]);
   const [maInitialized, setMaInitialized] = useState(false);
 
+  // Delivery neighborhoods (COMIDA / PIZZARIA)
+  const [neighborhoods, setNeighborhoods] = useState<{ id: string; name: string; fee: number }[]>([]);
+  const [neighborhoodsInit, setNeighborhoodsInit] = useState(false);
+  const [newNbName, setNewNbName] = useState('');
+  const [newNbFee, setNewNbFee] = useState('');
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
@@ -315,6 +321,11 @@ export default function StoreAdminPage() {
       setMaCategoryIds(m.categoryIds || []);
     }
     setMaInitialized(true);
+  }
+
+  if (store && !neighborhoodsInit) {
+    setNeighborhoods((store.settings as any)?.deliveryNeighborhoods || []);
+    setNeighborhoodsInit(true);
   }
 
   // Filter orders by date range
@@ -495,6 +506,7 @@ export default function StoreAdminPage() {
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
             categoryIds: maCategoryIds,
           } as MaterialApoioSettings,
+          deliveryNeighborhoods: neighborhoods,
         },
       });
       toast.success('Configurações salvas!');
@@ -1454,6 +1466,75 @@ export default function StoreAdminPage() {
                       </Button>
                     </>
                   )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Bairros de entrega — COMIDA / PIZZARIA */}
+            {(store.type === 'COMIDA' || store.type === 'PIZZARIA') && (
+              <Card className="mt-6">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> Bairros atendidos e taxa de entrega</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Cadastre os bairros que sua empresa atende e a respectiva taxa de entrega. No checkout, o cliente
+                    escolherá entre <strong>Entregar</strong> (com taxa do bairro) ou <strong>Retirar na loja</strong> (sem taxa).
+                  </p>
+
+                  <div className="rounded-md border divide-y">
+                    {neighborhoods.length === 0 && (
+                      <div className="p-4 text-center text-sm text-muted-foreground">Nenhum bairro cadastrado.</div>
+                    )}
+                    {neighborhoods.map((nb, idx) => (
+                      <div key={nb.id} className="flex items-center gap-2 p-2">
+                        <Input
+                          className="flex-1"
+                          value={nb.name}
+                          onChange={e => setNeighborhoods(list => list.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                        />
+                        <div className="relative w-32">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                          <Input
+                            className="pl-8"
+                            type="number"
+                            step="0.01"
+                            value={nb.fee}
+                            onChange={e => setNeighborhoods(list => list.map((x, i) => i === idx ? { ...x, fee: parseFloat(e.target.value) || 0 } : x))}
+                          />
+                        </div>
+                        <Button variant="ghost" size="icon" className="text-destructive"
+                          onClick={() => setNeighborhoods(list => list.filter((_, i) => i !== idx))}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 grid gap-1">
+                      <Label className="text-xs">Novo bairro</Label>
+                      <Input value={newNbName} onChange={e => setNewNbName(e.target.value)} placeholder="Ex.: Centro" />
+                    </div>
+                    <div className="grid gap-1 w-32">
+                      <Label className="text-xs">Taxa (R$)</Label>
+                      <Input type="number" step="0.01" value={newNbFee} onChange={e => setNewNbFee(e.target.value)} placeholder="0,00" />
+                    </div>
+                    <Button
+                      onClick={() => {
+                        const name = newNbName.trim();
+                        if (!name) { toast.error('Informe o nome do bairro'); return; }
+                        const fee = parseFloat(String(newNbFee).replace(',', '.')) || 0;
+                        setNeighborhoods(list => [...list, { id: crypto.randomUUID(), name, fee }]);
+                        setNewNbName(''); setNewNbFee('');
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending} size="sm">
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar Bairros
+                  </Button>
                 </CardContent>
               </Card>
             )}

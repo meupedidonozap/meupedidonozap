@@ -66,6 +66,10 @@ export default function CheckoutPage() {
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingQuoted, setShippingQuoted] = useState(false);
 
+  // Delivery type (COMIDA/PIZZARIA)
+  const [deliveryType, setDeliveryType] = useState<'entrega' | 'retirada'>('entrega');
+  const [selectedNeighborhoodId, setSelectedNeighborhoodId] = useState<string>('');
+
   // Auto-fill from customer profile
   useEffect(() => {
     if (customerProfile && !profileLoaded) {
@@ -143,12 +147,17 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
-    const required = ['name', 'whatsapp', 'uf', 'city', 'address'];
+    const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+    const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
         toast.error(`Preencha o campo obrigatório: ${field}`);
         return false;
       }
+    }
+    if (hasNeighborhoods && deliveryType === 'entrega' && !selectedNeighborhoodId) {
+      toast.error('Selecione o bairro de entrega');
+      return false;
     }
     if (sellers.length > 0 && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
@@ -164,7 +173,22 @@ export default function CheckoutPage() {
   const shippingEnabled = store && (store.type === 'LOJA' || store.type === 'ACESSORIOS') && store.settings.shipping?.enabled;
   const selectedShippingOption = shippingOptions.find(o => o.code === selectedShipping);
   const shippingFee = selectedShippingOption?.price || 0;
-  const deliveryFee = shippingEnabled ? shippingFee : (store?.settings.deliveryFee || 0);
+
+  const neighborhoods = (store?.settings as any)?.deliveryNeighborhoods as { id: string; name: string; fee: number }[] | undefined;
+  const hasNeighborhoods = !!neighborhoods && neighborhoods.length > 0
+    && (store?.type === 'COMIDA' || store?.type === 'PIZZARIA');
+  const selectedNeighborhood = hasNeighborhoods
+    ? neighborhoods!.find(n => n.id === selectedNeighborhoodId)
+    : undefined;
+
+  let deliveryFee = 0;
+  if (shippingEnabled) {
+    deliveryFee = shippingFee;
+  } else if (hasNeighborhoods) {
+    deliveryFee = deliveryType === 'entrega' ? (selectedNeighborhood?.fee || 0) : 0;
+  } else {
+    deliveryFee = store?.settings.deliveryFee || 0;
+  }
 
   const totalDiscount = cart.couponDiscount + cart.quantityDiscount;
   const totalWithDelivery = cart.total + deliveryFee;
@@ -241,8 +265,14 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+      const observationsFinal = [
+        isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : ''),
+        formData.observations || '',
+      ].filter(Boolean).join(' ').trim();
+
       // Save/update customer profile
-      await upsertProfile.mutateAsync({
+      if (!isPickup) await upsertProfile.mutateAsync({
         userId: user.id,
         storeId: store.id,
         name: formData.name,
@@ -261,9 +291,11 @@ export default function CheckoutPage() {
         storeId: store.id,
         customer: {
           name: formData.name, cpfCnpj: formData.cpfCnpj, whatsapp: formData.whatsapp,
-          cep: formData.cep, uf: formData.uf, city: formData.city,
-          neighborhood: formData.neighborhood, address: formData.address,
-          number: formData.number, complement: formData.complement,
+          cep: isPickup ? '' : formData.cep, uf: isPickup ? '' : formData.uf, city: isPickup ? '' : formData.city,
+          neighborhood: isPickup ? 'RETIRAR NA LOJA' : formData.neighborhood,
+          address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
+          number: isPickup ? '' : formData.number,
+          complement: isPickup ? '' : formData.complement,
         },
         items: cart.items.map(item => ({
           ...item,
@@ -275,7 +307,7 @@ export default function CheckoutPage() {
         total: totalWithDelivery,
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
-        observations: formData.observations || undefined,
+        observations: observationsFinal || undefined,
         status: 'pendente',
       });
 
@@ -326,6 +358,58 @@ export default function CheckoutPage() {
             <Card>
               <CardHeader><CardTitle>Endereço de Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+                {hasNeighborhoods && (
+                  <div className="space-y-2">
+                    <Label>Modalidade *</Label>
+                    <RadioGroup
+                      value={deliveryType}
+                      onValueChange={v => {
+                        setDeliveryType(v as 'entrega' | 'retirada');
+                        if (v === 'retirada') setSelectedNeighborhoodId('');
+                      }}
+                      className="grid grid-cols-2 gap-2"
+                    >
+                      <label htmlFor="dt-entrega" className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer ${deliveryType === 'entrega' ? 'border-primary bg-primary/5' : ''}`}>
+                        <RadioGroupItem value="entrega" id="dt-entrega" />
+                        <span className="font-medium">🛵 Entregar</span>
+                      </label>
+                      <label htmlFor="dt-retirada" className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer ${deliveryType === 'retirada' ? 'border-primary bg-primary/5' : ''}`}>
+                        <RadioGroupItem value="retirada" id="dt-retirada" />
+                        <span className="font-medium">🏪 Retirar na loja</span>
+                      </label>
+                    </RadioGroup>
+                  </div>
+                )}
+
+                {hasNeighborhoods && deliveryType === 'entrega' && (
+                  <div className="grid gap-2">
+                    <Label>Bairro de entrega *</Label>
+                    <Select
+                      value={selectedNeighborhoodId}
+                      onValueChange={id => {
+                        setSelectedNeighborhoodId(id);
+                        const nb = neighborhoods!.find(n => n.id === id);
+                        if (nb) handleInputChange('neighborhood', nb.name);
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Selecione o bairro" /></SelectTrigger>
+                      <SelectContent>
+                        {neighborhoods!.map(n => (
+                          <SelectItem key={n.id} value={n.id}>
+                            {n.name} — {formatCurrency(n.fee)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {hasNeighborhoods && deliveryType === 'retirada' ? (
+                  <div className="rounded-md border border-dashed bg-muted/40 p-4 text-sm">
+                    O pedido será retirado no endereço da loja. Não há taxa de entrega.
+                  </div>
+                ) : (
+                <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cep">CEP</Label>
@@ -359,6 +443,8 @@ export default function CheckoutPage() {
                   <div className="grid gap-2"><Label htmlFor="number">Número</Label><Input id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
                 </div>
                 <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
+                </>
+                )}
               </CardContent>
             </Card>
 
@@ -469,8 +555,28 @@ export default function CheckoutPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
                   {cart.quantityDiscount > 0 && <div className="flex justify-between text-accent"><span>Desc. quantidade</span><span>-{formatCurrency(cart.quantityDiscount)}</span></div>}
                   {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
-                  {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{selectedShippingOption ? `Frete (${selectedShippingOption.name})` : 'Taxa de entrega'}</span><span>{formatCurrency(deliveryFee)}</span></div>}
+                  {deliveryFee > 0 && (
+                    <div className="flex items-center justify-between rounded-md border border-accent/40 bg-accent/10 px-2 py-1.5">
+                      <span className="flex items-center gap-1 text-sm font-medium">
+                        <Truck className="h-4 w-4" />
+                        {selectedShippingOption
+                          ? `Frete (${selectedShippingOption.name})`
+                          : selectedNeighborhood
+                            ? `Taxa de entrega — ${selectedNeighborhood.name}`
+                            : 'Taxa de entrega'}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(deliveryFee)}</span>
+                    </div>
+                  )}
+                  {hasNeighborhoods && deliveryType === 'retirada' && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Retirar na loja</span><span>Sem taxa</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
+                  {deliveryFee > 0 && (
+                    <p className="text-xs text-muted-foreground">Inclui taxa de entrega de {formatCurrency(deliveryFee)}.</p>
+                  )}
                 </div>
                 {(() => {
                   const minOrder = store.settings?.minOrderValue || 0;
