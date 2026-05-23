@@ -1722,6 +1722,11 @@ export default function StoreAdminPage() {
               <PizzaBordersTab storeId={store.id} />
             </TabsContent>
           )}
+          {store.type === 'COMIDA' && (
+            <TabsContent value="tables" className="animate-fade-in">
+              <TablesTab storeId={store.id} />
+            </TabsContent>
+          )}
 
           {/* Customers */}
           <TabsContent value="customers" className="animate-fade-in">
