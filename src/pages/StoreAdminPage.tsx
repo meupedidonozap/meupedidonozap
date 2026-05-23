@@ -276,6 +276,12 @@ export default function StoreAdminPage() {
   const [maCategoryIds, setMaCategoryIds] = useState<string[]>([]);
   const [maInitialized, setMaInitialized] = useState(false);
 
+  // Delivery neighborhoods (COMIDA / PIZZARIA)
+  const [neighborhoods, setNeighborhoods] = useState<{ id: string; name: string; fee: number }[]>([]);
+  const [neighborhoodsInit, setNeighborhoodsInit] = useState(false);
+  const [newNbName, setNewNbName] = useState('');
+  const [newNbFee, setNewNbFee] = useState('');
+
   const allProducts = store?.type === 'COMIDA' ? foodItems : products;
 
   // Initialize settings from store
