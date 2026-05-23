@@ -57,6 +57,17 @@ const emptyPerms: StorePermissions = {
   can_view_customers: false,
 };
 
+const GARCOM_PERMS: StorePermissions = {
+  ...emptyPerms,
+  can_view_orders: true,
+  can_manage_orders: true,
+};
+
+const isGarcomPreset = (p: { [k in keyof StorePermissions]?: boolean }) =>
+  !!p.can_view_orders && !!p.can_manage_orders &&
+  !p.can_manage_products && !p.can_view_customers &&
+  !p.can_view_service_orders && !p.can_manage_service_orders;
+
 interface Props {
   storeId: string;
   storeType: StoreType;
