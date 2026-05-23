@@ -1708,6 +1708,17 @@ export default function StoreAdminPage() {
             </TabsContent>
           )}
 
+          {store.type === 'COMIDA' && (
+            <TabsContent value="ingredients" className="animate-fade-in">
+              <IngredientsTab storeId={store.id} />
+            </TabsContent>
+          )}
+          {store.type === 'COMIDA' && (
+            <TabsContent value="borders" className="animate-fade-in">
+              <PizzaBordersTab storeId={store.id} />
+            </TabsContent>
+          )}
+
           {/* Customers */}
           <TabsContent value="customers" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
