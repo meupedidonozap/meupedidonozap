@@ -347,3 +347,54 @@ export interface Coupon {
   expiresAt: string;
   isActive: boolean;
 }
+
+// Restaurant tables / tabs
+export interface RestaurantTable {
+  id: string;
+  storeId: string;
+  number: number;
+  label?: string;
+  seats: number;
+  isActive: boolean;
+}
+
+export type TableSessionStatus = 'aberta' | 'fechada';
+
+export interface TableSession {
+  id: string;
+  storeId: string;
+  tableId: string;
+  status: TableSessionStatus;
+  openedAt: string;
+  closedAt?: string;
+  openedBy?: string;
+}
+
+export interface TableTab {
+  id: string;
+  sessionId: string;
+  number: number;
+  label?: string;
+  createdAt: string;
+}
+
+export type TabItemStatus = 'pendente' | 'preparo' | 'pronto' | 'entregue' | 'pago' | 'cancelado';
+
+export interface TabItem {
+  id: string;
+  tabId: string;
+  productId?: string;
+  variantId?: string;
+  name: string;
+  code: string;
+  unitPrice: number;
+  quantity: number;
+  ingredients: { id: string; name: string; extraPrice: number }[];
+  removedIngredients: { id: string; name: string }[];
+  border?: { id: string; name: string; price: number };
+  observation?: string;
+  status: TabItemStatus;
+  paidOrderId?: string;
+  image?: string;
+  createdAt: string;
+}
