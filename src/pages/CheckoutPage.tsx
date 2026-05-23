@@ -168,7 +168,22 @@ export default function CheckoutPage() {
   const shippingEnabled = store && (store.type === 'LOJA' || store.type === 'ACESSORIOS') && store.settings.shipping?.enabled;
   const selectedShippingOption = shippingOptions.find(o => o.code === selectedShipping);
   const shippingFee = selectedShippingOption?.price || 0;
-  const deliveryFee = shippingEnabled ? shippingFee : (store?.settings.deliveryFee || 0);
+
+  const neighborhoods = (store?.settings as any)?.deliveryNeighborhoods as { id: string; name: string; fee: number }[] | undefined;
+  const hasNeighborhoods = !!neighborhoods && neighborhoods.length > 0
+    && (store?.type === 'COMIDA' || store?.type === 'PIZZARIA');
+  const selectedNeighborhood = hasNeighborhoods
+    ? neighborhoods!.find(n => n.id === selectedNeighborhoodId)
+    : undefined;
+
+  let deliveryFee = 0;
+  if (shippingEnabled) {
+    deliveryFee = shippingFee;
+  } else if (hasNeighborhoods) {
+    deliveryFee = deliveryType === 'entrega' ? (selectedNeighborhood?.fee || 0) : 0;
+  } else {
+    deliveryFee = store?.settings.deliveryFee || 0;
+  }
 
   const totalDiscount = cart.couponDiscount + cart.quantityDiscount;
   const totalWithDelivery = cart.total + deliveryFee;
