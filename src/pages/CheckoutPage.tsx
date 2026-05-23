@@ -547,8 +547,28 @@ export default function CheckoutPage() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(cart.subtotal)}</span></div>
                   {cart.quantityDiscount > 0 && <div className="flex justify-between text-accent"><span>Desc. quantidade</span><span>-{formatCurrency(cart.quantityDiscount)}</span></div>}
                   {cart.couponDiscount > 0 && <div className="flex justify-between text-accent"><span>Cupom</span><span>-{formatCurrency(cart.couponDiscount)}</span></div>}
-                  {deliveryFee > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{selectedShippingOption ? `Frete (${selectedShippingOption.name})` : 'Taxa de entrega'}</span><span>{formatCurrency(deliveryFee)}</span></div>}
+                  {deliveryFee > 0 && (
+                    <div className="flex items-center justify-between rounded-md border border-accent/40 bg-accent/10 px-2 py-1.5">
+                      <span className="flex items-center gap-1 text-sm font-medium">
+                        <Truck className="h-4 w-4" />
+                        {selectedShippingOption
+                          ? `Frete (${selectedShippingOption.name})`
+                          : selectedNeighborhood
+                            ? `Taxa de entrega — ${selectedNeighborhood.name}`
+                            : 'Taxa de entrega'}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(deliveryFee)}</span>
+                    </div>
+                  )}
+                  {hasNeighborhoods && deliveryType === 'retirada' && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Retirar na loja</span><span>Sem taxa</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(totalWithDelivery)}</span></div>
+                  {deliveryFee > 0 && (
+                    <p className="text-xs text-muted-foreground">Inclui taxa de entrega de {formatCurrency(deliveryFee)}.</p>
+                  )}
                 </div>
                 {(() => {
                   const minOrder = store.settings?.minOrderValue || 0;
