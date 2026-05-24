@@ -46,6 +46,7 @@ const PERMISSIONS: PermissionItem[] = [
   { key: 'can_manage_orders', label: 'Gerenciar Pedidos', description: 'Mudar status, editar pedidos' },
   { key: 'can_manage_products', label: 'Gerenciar Produtos', description: 'Criar/editar produtos e categorias' },
   { key: 'can_view_customers', label: 'Ver Clientes', description: 'Acessar a aba de clientes' },
+  { key: 'can_manage_tables', label: 'Garçom (Mesas)', description: 'Abrir mesas, lançar pedidos via cardápio e cobrar' },
 ];
 
 const emptyPerms: StorePermissions = {
@@ -55,16 +56,16 @@ const emptyPerms: StorePermissions = {
   can_manage_orders: false,
   can_manage_products: false,
   can_view_customers: false,
+  can_manage_tables: false,
 };
 
 const GARCOM_PERMS: StorePermissions = {
   ...emptyPerms,
-  can_view_orders: true,
-  can_manage_orders: true,
+  can_manage_tables: true,
 };
 
 const isGarcomPreset = (p: { [k in keyof StorePermissions]?: boolean }) =>
-  !!p.can_view_orders && !!p.can_manage_orders &&
+  !!p.can_manage_tables &&
   !p.can_manage_products && !p.can_view_customers &&
   !p.can_view_service_orders && !p.can_manage_service_orders;
 
@@ -121,6 +122,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
       can_manage_orders: u.can_manage_orders,
       can_manage_products: u.can_manage_products,
       can_view_customers: u.can_view_customers,
+      can_manage_tables: u.can_manage_tables,
     });
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
