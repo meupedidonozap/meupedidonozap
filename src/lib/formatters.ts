@@ -77,6 +77,8 @@ export function generateWhatsAppMessage(order: {
     quantity: number;
     price: number;
     discountPercent?: number;
+    size?: string;
+    color?: string;
   }>;
   subtotal: number;
   discount: number;
@@ -127,7 +129,9 @@ export function generateWhatsAppMessage(order: {
       ? `${formatCurrency(item.price)} → *${formatCurrency(discountedPrice)}* (-${discPct}%)`
       : formatCurrency(item.price);
 
-    msg += `• ${item.name} | ${item.quantity}un | ${priceStr} | *${formatCurrency(totalItem)}*\n`;
+    const variantParts = [item.color, item.size].filter(Boolean).join(' · ');
+    const nameStr = variantParts ? `${item.name} (${variantParts})` : item.name;
+    msg += `• ${nameStr} | ${item.quantity}un | ${priceStr} | *${formatCurrency(totalItem)}*\n`;
   }
 
   msg += `${sep}\n\n`;

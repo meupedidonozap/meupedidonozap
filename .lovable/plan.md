@@ -1,24 +1,40 @@
-## Toggle Lista/Grade com fotos grandes em COMIDA e PIZZARIA
+## Objetivo
 
-Adiciona o mesmo padrão da loja LOJA (Dicolore) nas lojas COMIDA e PIZZARIA: botão no header para alternar entre Lista (atual) e Grade, mantendo categorias e fluxos existentes intactos.
+Ajustar duas falhas no fluxo de pedido das lojas tipo delivery (COMIDA/PIZZARIA):
 
-### `src/pages/FoodStorePage.tsx`
-- Importar ícones `List` e `LayoutGrid` do `lucide-react`.
-- Adicionar `useState<'list' | 'grid'>('list')`.
-- No header, ao lado do botão de busca, botão único que alterna o modo (mostra `LayoutGrid` quando está em lista e `List` quando está em grade).
-- Dentro de cada `CollapsibleContent` de categoria, renderizar condicionalmente:
-  - **Lista (atual):** mantém o card horizontal exatamente como está.
-  - **Grade:** `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3`, com foto grande em cima (`aspect-square object-contain bg-white`), nome (`line-clamp-2`), preço, e o mesmo botão `+` / contador `−/+` reaproveitando `handleAddItem`, `getItemQuantity` e `needsAssembly`.
+1. No **Resumo do Pedido** (Checkout) o cliente não consegue alterar quantidades nem remover itens.
+2. Quando o item tem **variante de tamanho/preço** (ex.: "PASTEL CARNE MOIDA - Grande"), a variante não aparece no resumo, na mensagem do WhatsApp, no TXT, nem na impressão. Aparece só o nome do produto.
 
-### `src/pages/PizzaStorePage.tsx`
-- Importar `LayoutGrid` e `List`.
-- Adicionar `useState<'list' | 'grid'>('list')`.
-- Botão de alternância no header ao lado do botão de busca (estilo escuro como os demais).
-- A aba "Pizzas" e o `PizzaBuilderDialog` ficam intactos.
-- Nas seções de `FoodItem` (linhas 425-441), quando `viewMode === 'grid'`, trocar a lista vertical de `MenuItemCard` por um grid `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` de cards quadrados com foto grande em cima e nome/preço/`+` abaixo (novo componente local `MenuItemGridCard`, mesmo tema dark/laranja).
+## Mudanças
 
-### Notas técnicas
-- Sem mudanças em backend, hooks, tipos, banco ou no fluxo de carrinho.
-- Imagens seguem `object-contain bg-white` (regra do projeto).
-- Default permanece `list` para não impactar quem já usa.
-- Nenhuma alteração no que foi feito anteriormente (bairros/entrega, garçom, mesa).
+### 1) `src/pages/CheckoutPage.tsx` — Resumo com +/- e variante visível
+
+No bloco "Resumo do Pedido" (atualmente uma linha read-only por item), trocar por linha com:
+- Nome + (se houver `item.size` ou `item.color`) sublinha com a variante, ex.: `Tamanho: Grande` / `Cor: Azul`.
+- Botões `−` / `+` e botão remover (X), reaproveitando `updateQuantity(productId, qty, variantId)` e `removeItem(productId, variantId)` do `useCart`.
+- Manter exibição do `-X%` quando há desconto progressivo.
+- Manter limite de altura com scroll (a lista de itens pode crescer).
+
+Sem mudar lógica de totais/cupom/frete.
+
+### 2) `src/lib/formatters.ts` — WhatsApp/TXT com variante
+
+Na assinatura de `generateWhatsAppMessage`, adicionar campos opcionais `size?: string` e `color?: string` ao tipo de cada `item`.
+
+Na montagem da linha do item, quando houver `size` ou `color`, concatenar ao nome:
+- Ex.: `• PASTEL CARNE MOIDA (Grande) | 1un | R$ 10,00 | *R$ 10,00*`
+- Se houver cor + tamanho: `(Azul · M)`.
+
+No `CheckoutPage.tsx`, no `items.map(...)` que monta `generateWhatsAppMessage`, passar `size: item.size, color: item.color`.
+
+### 3) `src/lib/printOrder.ts` — Impressão térmica e A4 com variante
+
+- **Térmica** (`buildThermalHTML`): hoje existe `const variantLine = ''` placeholder. Preencher com `<div style="padding-left:16px">Tam: ${size} ${color ? '· Cor: '+color : ''}</div>` quando houver `item.size`/`item.color`.
+- **A4** (`buildA4HTML`): no array `extras`, incluir `Tamanho: X` / `Cor: Y` quando houver, antes dos demais (ingredientes/borda/obs).
+
+## Detalhes técnicos
+
+- O `CartItem` já possui `size` e `color` (preenchidos pelo `AssemblyDialog` quando o usuário escolhe variante). Logo, basta propagar esses campos da UI até os formatadores.
+- Não há mudança em backend, hooks, banco ou tipos.
+- Não tocar em `ProductStorePage` nem na lógica da Dicolore — o resumo é o mesmo arquivo (`CheckoutPage.tsx`) e a melhoria beneficia todas as lojas.
+- Imagens, regras A-Z, modos lista/grade e demais comportamentos permanecem intactos.
