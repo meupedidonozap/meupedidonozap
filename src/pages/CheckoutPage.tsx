@@ -42,8 +42,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const createOrder = useCreateOrder();
-  const { cart, clearCart, itemDiscounts } = useCart();
-  const { updateQuantity, removeItem } = useCart();
+  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
