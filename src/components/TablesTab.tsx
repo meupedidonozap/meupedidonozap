@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Loader2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   useTables, useCreateTable, useUpdateTable, useDeleteTable,
-  useOpenSessions, useOpenTable,
+  useOpenSessions, useOpenTable, useTabs,
 } from '@/hooks/useTables';
 import type { RestaurantTable } from '@/types';
 import TableSessionDialog from './TableSessionDialog';
