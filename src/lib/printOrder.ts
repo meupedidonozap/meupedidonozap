@@ -161,6 +161,8 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
         ? `<span style="text-decoration:line-through;color:#999;font-size:10px">${formatCurrency(item.price)}</span><br/><strong style="color:#e67e22">${formatCurrency(discountedPrice)} (-${discPct}%)</strong>`
         : formatCurrency(item.price);
       const extras: string[] = [];
+      if (item.size) extras.push('Tamanho: ' + item.size);
+      if (item.color) extras.push('Cor: ' + item.color);
       if (item.ingredients?.length) extras.push('+ ' + item.ingredients.map(x => x.name).join(', '));
       if (item.removedIngredients?.length) extras.push('SEM ' + item.removedIngredients.map(x => x.name).join(', '));
       if (item.border) extras.push('Borda: ' + item.border.name);
