@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
@@ -638,6 +638,9 @@ export default function CheckoutPage() {
                   return null;
                 })()}
                 <div className="grid gap-2 pt-4">
+                  <Button variant="secondary" asChild className="w-full gap-2">
+                    <Link to={`/${store.slug}`}><ShoppingBag className="h-4 w-4" /> Continuar Comprando</Link>
+                  </Button>
                   {store.slug !== 'dicolore' && (
                     <Button variant="outline" onClick={handleDownloadTxt} className="w-full gap-2"><Download className="h-4 w-4" /> Baixar TXT</Button>
                   )}
