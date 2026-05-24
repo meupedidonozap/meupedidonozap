@@ -33,7 +33,12 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
       const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
       const itemTotal = discountedPrice * item.quantity;
       const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
-      const variantLine = '';
+      const variantParts: string[] = [];
+      if (item.size) variantParts.push(`Tam: ${item.size}`);
+      if (item.color) variantParts.push(`Cor: ${item.color}`);
+      const variantLine = variantParts.length
+        ? `<div style="padding-left:16px;font-weight:bold">${variantParts.join(' · ')}</div>`
+        : '';
       const discountLine = discPct > 0
         ? `<div style="padding-left:16px;text-decoration:line-through;color:#999">${formatCurrency(item.price)} un.</div>
            <div style="padding-left:16px;font-weight:bold">-${discPct}% → ${formatCurrency(discountedPrice)} un.</div>`
@@ -156,6 +161,8 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
         ? `<span style="text-decoration:line-through;color:#999;font-size:10px">${formatCurrency(item.price)}</span><br/><strong style="color:#e67e22">${formatCurrency(discountedPrice)} (-${discPct}%)</strong>`
         : formatCurrency(item.price);
       const extras: string[] = [];
+      if (item.size) extras.push('Tamanho: ' + item.size);
+      if (item.color) extras.push('Cor: ' + item.color);
       if (item.ingredients?.length) extras.push('+ ' + item.ingredients.map(x => x.name).join(', '));
       if (item.removedIngredients?.length) extras.push('SEM ' + item.removedIngredients.map(x => x.name).join(', '));
       if (item.border) extras.push('Borda: ' + item.border.name);
