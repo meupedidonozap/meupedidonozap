@@ -33,7 +33,12 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
       const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
       const itemTotal = discountedPrice * item.quantity;
       const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
-      const variantLine = '';
+      const variantParts: string[] = [];
+      if (item.size) variantParts.push(`Tam: ${item.size}`);
+      if (item.color) variantParts.push(`Cor: ${item.color}`);
+      const variantLine = variantParts.length
+        ? `<div style="padding-left:16px;font-weight:bold">${variantParts.join(' · ')}</div>`
+        : '';
       const discountLine = discPct > 0
         ? `<div style="padding-left:16px;text-decoration:line-through;color:#999">${formatCurrency(item.price)} un.</div>
            <div style="padding-left:16px;font-weight:bold">-${discPct}% → ${formatCurrency(discountedPrice)} un.</div>`
