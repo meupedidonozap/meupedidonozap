@@ -542,21 +542,59 @@ export default function CheckoutPage() {
             <Card className="sticky top-20">
               <CardHeader><CardTitle>Resumo do Pedido</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <div className="max-h-48 space-y-2 overflow-auto">
+                <div className="max-h-64 space-y-2 overflow-auto">
                   {cart.items.map(item => {
                     const itemKey = `${item.productId}-${item.variantId || ''}`;
                     const discPct = itemDiscounts[itemKey] || 0;
                     const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+                    const variantParts = [item.color, item.size].filter(Boolean).join(' · ');
                     return (
-                    <div key={`${item.productId}-${item.variantId}`} className="flex justify-between text-sm gap-2">
-                      <div className="text-muted-foreground min-w-0">
-                        <div>{item.quantity}x {item.name}</div>
-                        {discPct > 0 && (
-                          <div className="text-xs text-accent mt-0.5">-{discPct}%</div>
-                        )}
+                      <div key={`${item.productId}-${item.variantId}`} className="rounded-md border p-2 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{item.name}</div>
+                            {variantParts && (
+                              <div className="text-xs text-muted-foreground mt-0.5">{variantParts}</div>
+                            )}
+                            {discPct > 0 && (
+                              <div className="text-xs text-accent mt-0.5">-{discPct}%</div>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.productId, item.variantId)}
+                              className="text-muted-foreground hover:text-destructive"
+                              aria-label="Remover item"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                            <span className="font-semibold">{formatCurrency(discountedPrice * item.quantity)}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{formatCurrency(discountedPrice)} un.</span>
+                        </div>
                       </div>
-                      <span className="shrink-0">{formatCurrency(discountedPrice * item.quantity)}</span>
-                    </div>
                     );
                   })}
                 </div>
