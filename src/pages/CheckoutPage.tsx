@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +43,7 @@ export default function CheckoutPage() {
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const createOrder = useCreateOrder();
   const { cart, clearCart, itemDiscounts } = useCart();
+  const { updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
@@ -241,7 +242,15 @@ export default function CheckoutPage() {
         address: `${formData.address}, ${formData.number}`,
         neighborhood: formData.neighborhood, city: formData.city, uf: formData.uf, cep: formData.cep,
       },
-      items: cart.items.map(item => ({ code: item.code, name: item.name, quantity: item.quantity, price: item.price, discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || 0 })),
+      items: cart.items.map(item => ({
+        code: item.code,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        size: item.size,
+        color: item.color,
+        discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || 0,
+      })),
       subtotal: cart.subtotal,
       discount: cart.couponDiscount,
       total: totalWithDelivery,
