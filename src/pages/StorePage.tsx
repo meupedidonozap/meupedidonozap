@@ -7,6 +7,7 @@ import FoodStorePage from './FoodStorePage';
 import PizzaStorePage from './PizzaStorePage';
 import SalonStorePage from './SalonStorePage';
 import { Loader2 } from 'lucide-react';
+import WaiterModeFAB from '@/components/WaiterModeFAB';
 
 export default function StorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -27,18 +28,10 @@ export default function StorePage() {
   const storeName = store?.name || '';
   const storeDesc = store ? `Faça seu pedido em ${storeName}. ${store.address || 'Peça online via WhatsApp.'}` : 'MeuPedidoNoZap';
 
-  if (store?.type === 'COMIDA') {
-    return <FoodStorePage />;
-  }
-
-  if (store?.type === 'PIZZARIA') {
-    return <PizzaStorePage />;
-  }
-
-  if (store?.type === 'SALAO') {
-    return <SalonStorePage />;
-  }
-
-  // SERVICOS and LOJA/ACESSORIOS all use ProductStorePage
-  return <ProductStorePage />;
+  const inner =
+    store?.type === 'COMIDA' ? <FoodStorePage /> :
+    store?.type === 'PIZZARIA' ? <PizzaStorePage /> :
+    store?.type === 'SALAO' ? <SalonStorePage /> :
+    <ProductStorePage />;
+  return <>{inner}<WaiterModeFAB /></>;
 }

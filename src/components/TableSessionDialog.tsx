@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import { usePizzaBorders } from '@/hooks/usePizzaBorders';
 import { useProductAssemblies } from '@/hooks/useProductAssembly';
 import { useCreateOrder, useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
 import AssemblyDialog from './AssemblyDialog';
+import { setWaiterSession } from './WaiterModeFAB';
 import type { Product, TabItem, CartItem, OrderStatus } from '@/types';
 import { Select as StatusSelect, SelectContent as StatusSelectContent, SelectItem as StatusSelectItem, SelectTrigger as StatusSelectTrigger, SelectValue as StatusSelectValue } from '@/components/ui/select';
 
@@ -34,6 +36,8 @@ interface Props {
 }
 
 export default function TableSessionDialog({ sessionId, storeId, tableNumber, onClose }: Props) {
+  const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
   const { data: tabs = [] } = useTabs(sessionId);
   const { data: items = [] } = useTabItems(sessionId);
   const { data: categories = [] } = useCategories(storeId);
@@ -57,6 +61,25 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const [showPayment, setShowPayment] = useState(false);
 
   const currentTabId = activeTabId || tabs[0]?.id;
+  const currentTab = tabs.find(t => t.id === currentTabId);
+
+  const goCardapio = () => {
+    if (!currentTab || !slug || tableNumber == null) {
+      toast.error('Selecione/crie uma comanda primeiro');
+      return;
+    }
+    setWaiterSession({
+      sessionId,
+      tabId: currentTab.id,
+      storeId,
+      storeSlug: slug,
+      tableNumber,
+      tabNumber: currentTab.number,
+      tabLabel: currentTab.label,
+    });
+    onClose();
+    navigate(`/${slug}`);
+  };
 
   // Find linked order for a tab item (paidOrderId is reused as "linked order id")
   const orderById = useMemo(() => {
@@ -191,8 +214,11 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={handleAddTab}><Plus className="mr-1 h-4 w-4" /> Comanda</Button>
-            <Button size="sm" variant="default" onClick={() => setCatalogOpen(true)}>
-              <ShoppingCart className="mr-1 h-4 w-4" /> Lançar item
+            <Button size="sm" variant="default" onClick={goCardapio} disabled={!currentTab}>
+              <ShoppingCart className="mr-1 h-4 w-4" /> Novo pedido (cardápio)
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setCatalogOpen(true)} title="Lançar item avulso (sem catálogo completo)">
+              <Plus className="mr-1 h-4 w-4" /> Avulso
             </Button>
             <Button size="sm" variant="secondary" onClick={() => window.print()}>
               <Printer className="mr-1 h-4 w-4" /> Conferência

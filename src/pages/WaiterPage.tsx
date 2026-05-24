@@ -33,7 +33,7 @@ export default function WaiterPage() {
     return <StoreAdminLogin storeName={`${store.name} — Garçom`} />;
   }
 
-  const canAccess = isAdmin || permissions?.can_manage_orders;
+  const canAccess = isAdmin || permissions?.can_manage_tables || permissions?.can_manage_orders;
   if (!canAccess) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">

@@ -1004,6 +1004,7 @@ export type Database = {
           can_manage_orders: boolean
           can_manage_products: boolean
           can_manage_service_orders: boolean
+          can_manage_tables: boolean
           can_view_customers: boolean
           can_view_orders: boolean
           can_view_service_orders: boolean
@@ -1022,6 +1023,7 @@ export type Database = {
           can_manage_orders?: boolean
           can_manage_products?: boolean
           can_manage_service_orders?: boolean
+          can_manage_tables?: boolean
           can_view_customers?: boolean
           can_view_orders?: boolean
           can_view_service_orders?: boolean
@@ -1040,6 +1042,7 @@ export type Database = {
           can_manage_orders?: boolean
           can_manage_products?: boolean
           can_manage_service_orders?: boolean
+          can_manage_tables?: boolean
           can_view_customers?: boolean
           can_view_orders?: boolean
           can_view_service_orders?: boolean
