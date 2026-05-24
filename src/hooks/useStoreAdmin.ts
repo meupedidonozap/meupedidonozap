@@ -9,6 +9,7 @@ export interface StorePermissions {
   can_manage_orders: boolean;
   can_manage_products: boolean;
   can_view_customers: boolean;
+  can_manage_tables: boolean;
 }
 
 const FULL_PERMS: StorePermissions = {
@@ -18,6 +19,7 @@ const FULL_PERMS: StorePermissions = {
   can_manage_orders: true,
   can_manage_products: true,
   can_view_customers: true,
+  can_manage_tables: true,
 };
 
 const NO_PERMS: StorePermissions = {
@@ -27,6 +29,7 @@ const NO_PERMS: StorePermissions = {
   can_manage_orders: false,
   can_manage_products: false,
   can_view_customers: false,
+  can_manage_tables: false,
 };
 
 export function useStoreAdmin(storeId: string | undefined) {
@@ -51,7 +54,7 @@ export function useStoreAdmin(storeId: string | undefined) {
       // Check secondary store user
       const { data: storeUser } = await supabase
         .from('store_users')
-        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, is_active, seller_codes')
+        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, can_manage_tables, is_active, seller_codes')
         .eq('store_id', storeId)
         .eq('user_id', user.id)
         .eq('is_active', true)
@@ -67,6 +70,7 @@ export function useStoreAdmin(storeId: string | undefined) {
             can_manage_orders: !!storeUser.can_manage_orders,
             can_manage_products: !!storeUser.can_manage_products,
             can_view_customers: !!storeUser.can_view_customers,
+            can_manage_tables: !!(storeUser as any).can_manage_tables,
           },
           sellerCodes: (((storeUser as any).seller_codes) ?? []) as string[],
         };

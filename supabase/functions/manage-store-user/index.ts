@@ -15,6 +15,7 @@ interface Permissions {
   can_manage_orders?: boolean;
   can_manage_products?: boolean;
   can_view_customers?: boolean;
+  can_manage_tables?: boolean;
 }
 
 interface Body {
@@ -27,7 +28,7 @@ interface Body {
   permissions?: Permissions;
   isActive?: boolean;
   sellerCodes?: string[];
-  role?: 'auxiliar' | 'vendedor' | 'televendas';
+  role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
 }
 
 function json(b: unknown, status = 200) {
@@ -89,6 +90,7 @@ Deno.serve(async (req) => {
       can_manage_orders: !!perms.can_manage_orders,
       can_manage_products: !!perms.can_manage_products,
       can_view_customers: !!perms.can_view_customers,
+      can_manage_tables: !!perms.can_manage_tables,
     };
 
     const sellerCodes: string[] | undefined = Array.isArray(body.sellerCodes)
@@ -96,7 +98,7 @@ Deno.serve(async (req) => {
       : undefined;
 
     const role: Body['role'] | undefined =
-      body.role && ['auxiliar', 'vendedor', 'televendas'].includes(body.role)
+      body.role && ['auxiliar', 'vendedor', 'televendas', 'garcom'].includes(body.role)
         ? body.role
         : undefined;
 
