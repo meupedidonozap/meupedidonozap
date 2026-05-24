@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X } from 'lucide-react';
+import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
