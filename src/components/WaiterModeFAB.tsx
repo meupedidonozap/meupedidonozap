@@ -55,6 +55,18 @@ export default function WaiterModeFAB() {
     return () => window.removeEventListener('storage', handler);
   }, [location.pathname]);
 
+  // Add top/bottom padding to body so sticky headers and bottom navs don't collide with our bars
+  useEffect(() => {
+    if (ws) {
+      document.body.style.paddingTop = '48px';
+      document.body.style.paddingBottom = '88px';
+      return () => {
+        document.body.style.paddingTop = '';
+        document.body.style.paddingBottom = '';
+      };
+    }
+  }, [ws]);
+
   const cancel = useCallback(() => {
     clearWaiterSession();
     clearCart();
@@ -137,8 +149,6 @@ export default function WaiterModeFAB() {
           </Button>
         </div>
       </div>
-      {/* Spacer so storefront header isn't hidden by banner */}
-      <div className="h-12" />
       {/* Bottom CTA — covers existing "Ver Carrinho"/checkout buttons */}
       <div className="fixed inset-x-0 bottom-0 z-[70] border-t bg-card p-3 shadow-2xl">
         <Button
