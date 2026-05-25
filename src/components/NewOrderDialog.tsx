@@ -45,6 +45,7 @@ export default function NewOrderDialog({
 }: NewOrderDialogProps) {
   const createOrder = useCreateOrder();
   const isFood = store.type === 'COMIDA';
+  const offersDelivery = store.settings?.offersDelivery !== false;
 
   // Step state
   const [step, setStep] = useState<'customer' | 'items' | 'review'>('customer');
@@ -94,7 +95,7 @@ export default function NewOrderDialog({
 
   // Totals
   const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const deliveryFee = store.settings.deliveryFee || 0;
+  const deliveryFee = offersDelivery ? (store.settings.deliveryFee || 0) : 0;
   const total = subtotal + deliveryFee;
 
   const getCustomerInfo = (): CustomerInfo => {
@@ -255,14 +256,18 @@ export default function NewOrderDialog({
                     <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
                     <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="grid gap-1"><Label className="text-sm">Cidade</Label><Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} /></div>
-                    <div className="grid gap-1"><Label className="text-sm">UF</Label><Input value={customerForm.uf} onChange={e => setCustomerForm(f => ({ ...f, uf: e.target.value }))} /></div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço</Label><Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} /></div>
-                    <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
-                  </div>
+                  {offersDelivery && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="grid gap-1"><Label className="text-sm">Cidade</Label><Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} /></div>
+                        <div className="grid gap-1"><Label className="text-sm">UF</Label><Input value={customerForm.uf} onChange={e => setCustomerForm(f => ({ ...f, uf: e.target.value }))} /></div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço</Label><Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} /></div>
+                        <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
+                      </div>
+                    </>
+                  )}
                 </TabsContent>
               </Tabs>
 
