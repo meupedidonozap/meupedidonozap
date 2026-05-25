@@ -131,6 +131,7 @@ export interface StoreSettings {
   theme?: SalonTheme;
   materialApoio?: MaterialApoioSettings;
   deliveryNeighborhoods?: DeliveryNeighborhood[];
+  offersDelivery?: boolean;
 }
 
 export interface DeliveryNeighborhood {
