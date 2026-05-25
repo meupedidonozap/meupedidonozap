@@ -249,6 +249,7 @@ export default function StoreAdminPage() {
   const [settingsLogo, setSettingsLogo] = useState('');
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsInitialized, setSettingsInitialized] = useState(false);
+  const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -292,6 +293,7 @@ export default function StoreAdminPage() {
     setSettingsWhatsapp(store.whatsapp);
     setSettingsLogo(store.logo);
     setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
+    setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsInitialized(true);
   }
 
@@ -501,6 +503,7 @@ export default function StoreAdminPage() {
           ...store.settings,
           shipping: shippingData,
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
+          offersDelivery,
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
@@ -1404,6 +1407,25 @@ export default function StoreAdminPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Deixe 0 para desativar. Pedidos abaixo deste valor não poderão ser finalizados.
+                  </p>
+                </div>
+                <div className="grid gap-2 rounded-md border p-3 sm:max-w-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="cursor-pointer" onClick={() => setOffersDelivery(!offersDelivery)}>
+                      Oferece entrega?
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setOffersDelivery(!offersDelivery)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Alternar entrega"
+                    >
+                      {offersDelivery ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Quando <strong>desligado</strong>, o checkout pede apenas <strong>nome e WhatsApp</strong> do cliente —
+                    sem endereço, bairro ou taxa de entrega.
                   </p>
                 </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>

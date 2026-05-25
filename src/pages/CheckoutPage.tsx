@@ -147,7 +147,7 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
-    const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+    const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
     const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
@@ -155,7 +155,7 @@ export default function CheckoutPage() {
         return false;
       }
     }
-    if (hasNeighborhoods && deliveryType === 'entrega' && !selectedNeighborhoodId) {
+    if (offersDelivery && hasNeighborhoods && deliveryType === 'entrega' && !selectedNeighborhoodId) {
       toast.error('Selecione o bairro de entrega');
       return false;
     }
@@ -163,26 +163,29 @@ export default function CheckoutPage() {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
-    if (shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
+    if (offersDelivery && shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
       toast.error('Selecione a modalidade de frete');
       return false;
     }
     return true;
   };
 
-  const shippingEnabled = store && (store.type === 'LOJA' || store.type === 'ACESSORIOS') && store.settings.shipping?.enabled;
+  const offersDelivery = store ? (store.settings?.offersDelivery !== false) : true;
+  const shippingEnabled = !!(offersDelivery && store && (store.type === 'LOJA' || store.type === 'ACESSORIOS') && store.settings.shipping?.enabled);
   const selectedShippingOption = shippingOptions.find(o => o.code === selectedShipping);
   const shippingFee = selectedShippingOption?.price || 0;
 
   const neighborhoods = (store?.settings as any)?.deliveryNeighborhoods as { id: string; name: string; fee: number }[] | undefined;
-  const hasNeighborhoods = !!neighborhoods && neighborhoods.length > 0
+  const hasNeighborhoods = !!offersDelivery && !!neighborhoods && neighborhoods.length > 0
     && (store?.type === 'COMIDA' || store?.type === 'PIZZARIA');
   const selectedNeighborhood = hasNeighborhoods
     ? neighborhoods!.find(n => n.id === selectedNeighborhoodId)
     : undefined;
 
   let deliveryFee = 0;
-  if (shippingEnabled) {
+  if (!offersDelivery) {
+    deliveryFee = 0;
+  } else if (shippingEnabled) {
     deliveryFee = shippingFee;
   } else if (hasNeighborhoods) {
     deliveryFee = deliveryType === 'entrega' ? (selectedNeighborhood?.fee || 0) : 0;
@@ -273,9 +276,9 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
-      const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+      const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
       const observationsFinal = [
-        isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : ''),
+        !offersDelivery ? '' : (isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : '')),
         formData.observations || '',
       ].filter(Boolean).join(' ').trim();
 
@@ -363,6 +366,7 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
+            {offersDelivery && (
             <Card>
               <CardHeader><CardTitle>Endereço de Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -455,6 +459,7 @@ export default function CheckoutPage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Shipping options */}
             {shippingEnabled && (
