@@ -103,22 +103,45 @@ export function useUpsertCustomerProfile() {
         }
       }
 
-      // Normal upsert (no orphan found)
+      // Look for an ERP "twin" profile in this store (same last-8 of phone,
+      // already has customer_code). We won't move user_id, but we'll mirror
+      // the ERP data into this user's profile so the XML exports get the
+      // correct CPF/CNPJ and seller code.
+      let erpTwin: any = null;
+      if (cleanWhatsapp) {
+        const { data: twins } = await supabase
+          .from('customer_profiles')
+          .select('id, customer_code, seller_code, cpf_cnpj, cep, uf, city, neighborhood, address, number, complement')
+          .eq('store_id', profile.storeId)
+          .neq('customer_code', '')
+          .ilike('whatsapp', `%${cleanWhatsapp.slice(-8)}%`)
+          .limit(5);
+        erpTwin = (twins || []).find((t: any) => (t.customer_code || '').trim() !== '') || null;
+      }
+
+      const prefer = (userVal: string | undefined | null, erpVal: string | undefined | null) => {
+        const u = String(userVal ?? '').trim();
+        if (u) return u;
+        return String(erpVal ?? '').trim();
+      };
+
+      // Normal upsert (no orphan found) — backfill from ERP twin when present
       const { data, error } = await supabase
         .from('customer_profiles')
         .upsert({
           user_id: authenticatedUserId,
           store_id: profile.storeId,
           name: profile.name,
-          cpf_cnpj: profile.cpfCnpj,
+          cpf_cnpj: prefer(profile.cpfCnpj, erpTwin?.cpf_cnpj),
           whatsapp: profile.whatsapp,
-          cep: profile.cep,
-          uf: profile.uf,
-          city: profile.city,
-          neighborhood: profile.neighborhood,
-          address: profile.address,
-          number: profile.number,
-          complement: profile.complement || null,
+          cep: prefer(profile.cep, erpTwin?.cep),
+          uf: prefer(profile.uf, erpTwin?.uf),
+          city: prefer(profile.city, erpTwin?.city),
+          neighborhood: prefer(profile.neighborhood, erpTwin?.neighborhood),
+          address: prefer(profile.address, erpTwin?.address),
+          number: prefer(profile.number, erpTwin?.number),
+          complement: prefer(profile.complement, erpTwin?.complement) || null,
+          seller_code: erpTwin?.seller_code || undefined,
         }, { onConflict: 'user_id,store_id' })
         .select()
         .single();
