@@ -1409,6 +1409,25 @@ export default function StoreAdminPage() {
                     Deixe 0 para desativar. Pedidos abaixo deste valor não poderão ser finalizados.
                   </p>
                 </div>
+                <div className="grid gap-2 rounded-md border p-3 sm:max-w-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="cursor-pointer" onClick={() => setOffersDelivery(!offersDelivery)}>
+                      Oferece entrega?
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setOffersDelivery(!offersDelivery)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Alternar entrega"
+                    >
+                      {offersDelivery ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Quando <strong>desligado</strong>, o checkout pede apenas <strong>nome e WhatsApp</strong> do cliente —
+                    sem endereço, bairro ou taxa de entrega.
+                  </p>
+                </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
                   {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Salvar Alterações
