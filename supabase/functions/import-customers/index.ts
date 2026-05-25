@@ -234,6 +234,54 @@ Deno.serve(async (req) => {
       }
 
       results.push({ codigo, nome, status: action, email, senha: password });
+
+      // Propagar dados do ERP para qualquer cadastro "irmão" no mesmo telefone
+      // (cliente que também entrou via email/senha cria um perfil separado).
+      // Nunca sobrescrevemos campos já preenchidos, e nunca tocamos customer_code
+      // (unique constraint store_id+customer_code).
+      try {
+        const waDigits = onlyDigits(String(row.whatsapp || ''));
+        if (waDigits.length >= 8 && existingProfile?.id) {
+          const last8 = waDigits.slice(-8);
+          const { data: twins } = await admin
+            .from('customer_profiles')
+            .select('id, customer_code, seller_code, cpf_cnpj, cep, uf, city, neighborhood, address, number, complement, name, whatsapp')
+            .eq('store_id', storeId)
+            .neq('id', existingProfile.id)
+            .ilike('whatsapp', `%${last8}%`)
+            .limit(20);
+          const matches = (twins || []).filter(
+            (t: any) => onlyDigits(t.whatsapp || '').slice(-8) === last8,
+          );
+          for (const t of matches) {
+            const patch: Record<string, any> = {};
+            const fillIf = (key: string, val: any) => {
+              if (!String(t[key] ?? '').trim() && String(val ?? '').trim()) {
+                patch[key] = String(val);
+              }
+            };
+            fillIf('seller_code', row.codigo_vendedor);
+            fillIf('cpf_cnpj', row.cpf_cnpj);
+            fillIf('cep', row.cep);
+            if (!String(t.uf ?? '').trim() && row.uf) {
+              patch.uf = String(row.uf).toUpperCase().slice(0, 2);
+            }
+            fillIf('city', row.cidade);
+            fillIf('neighborhood', row.bairro);
+            fillIf('address', row.endereco);
+            fillIf('number', row.numero);
+            if (!String(t.complement ?? '').trim() && row.complemento) {
+              patch.complement = String(row.complemento);
+            }
+            if (!String(t.name ?? '').trim() && nome) patch.name = nome;
+            if (Object.keys(patch).length) {
+              await admin.from('customer_profiles').update(patch).eq('id', t.id);
+            }
+          }
+        }
+      } catch (_propErr) {
+        // não falha a linha por erro de propagação
+      }
     }
 
     return new Response(JSON.stringify({ results }), {
