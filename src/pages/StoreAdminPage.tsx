@@ -693,7 +693,7 @@ export default function StoreAdminPage() {
             {store.type === 'COMIDA' && isAdmin && (
               <TabsTrigger value="borders" className="gap-2"><Pizza className="h-4 w-4" /> Bordas</TabsTrigger>
             )}
-            {store.type === 'COMIDA' && isAdmin && (
+            {store.type === 'COMIDA' && (isAdmin || permissions.can_manage_tables) && (
               <TabsTrigger value="tables" className="gap-2"><Grid3x3 className="h-4 w-4" /> Mesas</TabsTrigger>
             )}
             {(isAdmin || permissions.can_view_customers) && (
