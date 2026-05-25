@@ -227,12 +227,12 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
 
         {step === 'auth' && (
           <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="code">Código</TabsTrigger>
+            <TabsList className={`grid w-full ${showCodeTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              {showCodeTab && <TabsTrigger value="code">Código</TabsTrigger>}
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
             </TabsList>
-            <TabsContent value="code">
+            {showCodeTab && <TabsContent value="code">
               <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
                 <p className="text-xs text-muted-foreground">
                   Já é cliente? Entre com o <strong>código</strong> e <strong>senha</strong> que seu representante enviou.
@@ -255,7 +255,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
                   Entrar com código
                 </Button>
               </form>
-            </TabsContent>
+            </TabsContent>}
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 pt-4">
                 <div className="grid gap-2">
