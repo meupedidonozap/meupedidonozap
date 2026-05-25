@@ -30,10 +30,11 @@ type Step = 'auth' | 'profile' | 'forgot';
 export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
+  const showCodeTab = storeSlug === 'dicolore';
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<Step>('auth');
-  const [authTab, setAuthTab] = useState<'code' | 'login' | 'register'>('code');
+  const [authTab, setAuthTab] = useState<'code' | 'login' | 'register'>(showCodeTab ? 'code' : 'login');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [codeLoginData, setCodeLoginData] = useState({ codigo: '', password: '' });
   const [showCodePwd, setShowCodePwd] = useState(false);
