@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
@@ -102,6 +102,7 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, isAdmin, hasAccess, permissions, sellerCodes: userSellerCodes = [], loading: adminLoading } = useStoreAdmin(store?.id);
   const qc = useQueryClient();
