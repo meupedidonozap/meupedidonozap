@@ -366,6 +366,7 @@ export default function CheckoutPage() {
               </CardContent>
             </Card>
 
+            {offersDelivery && (
             <Card>
               <CardHeader><CardTitle>Endereço de Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -458,6 +459,7 @@ export default function CheckoutPage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Shipping options */}
             {shippingEnabled && (
