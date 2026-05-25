@@ -2203,10 +2203,19 @@ export default function StoreAdminPage() {
               const order = downloadOrder;
               const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
               const ouid = (order as any).userId;
-              const cp: any = customerProfiles.find((c: any) =>
+              // Pode haver mais de um cadastro para o mesmo telefone (cliente
+              // com login por código + login por email). Preferimos sempre o
+              // que tem CPF/CNPJ e código do vendedor preenchidos para que o
+              // XML do ERP não saia com <cgcCliente></cgcCliente>.
+              const candidates = (customerProfiles as any[]).filter((c: any) =>
                 (ouid && c.userId === ouid) ||
                 (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
               );
+              const score = (c: any) =>
+                (String(c?.cpfCnpj || '').replace(/\D/g, '') ? 4 : 0) +
+                (String(c?.customerCode || '').trim() ? 2 : 0) +
+                (String(c?.sellerCode || '').trim() ? 1 : 0);
+              const cp: any = candidates.sort((a, b) => score(b) - score(a))[0];
               downloadOrderFile(order, store, downloadFormat, {
                 cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
                 sellerCode: cp?.sellerCode || '',
