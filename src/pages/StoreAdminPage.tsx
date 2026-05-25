@@ -199,6 +199,13 @@ export default function StoreAdminPage() {
 
   // Auto-select default tab for restricted users
   useEffect(() => {
+    if (!isAdmin && permissions.can_manage_tables &&
+        !permissions.can_view_orders && !permissions.can_manage_orders &&
+        !permissions.can_manage_products && !permissions.can_view_customers &&
+        !permissions.can_view_service_orders && !permissions.can_manage_service_orders) {
+      navigate(`/${slug}/garcom`, { replace: true });
+      return;
+    }
     if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
       setActiveTab('service-orders');
     } else if (!isAdmin && (permissions.can_view_orders || permissions.can_manage_orders)) {
@@ -207,6 +214,8 @@ export default function StoreAdminPage() {
       setActiveTab('products');
     } else if (!isAdmin && permissions.can_view_customers) {
       setActiveTab('customers');
+    } else if (!isAdmin && permissions.can_manage_tables) {
+      setActiveTab('tables');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
