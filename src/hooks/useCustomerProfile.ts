@@ -141,11 +141,23 @@ export function useUpsertCustomerProfile() {
           address: prefer(profile.address, erpTwin?.address),
           number: prefer(profile.number, erpTwin?.number),
           complement: prefer(profile.complement, erpTwin?.complement) || null,
-          seller_code: erpTwin?.seller_code || undefined,
         }, { onConflict: 'user_id,store_id' })
         .select()
         .single();
       if (error) throw error;
+
+      // Backfill seller_code from the ERP twin only when this profile has none.
+      // We never overwrite a seller_code already set on the user's profile.
+      const erpSeller = String(erpTwin?.seller_code || '').trim();
+      if (erpSeller && !String(data.seller_code || '').trim()) {
+        const { data: updated } = await supabase
+          .from('customer_profiles')
+          .update({ seller_code: erpSeller })
+          .eq('id', data.id)
+          .select()
+          .single();
+        if (updated) return mapProfile(updated);
+      }
       return mapProfile(data);
     },
     onSuccess: (data) => {
