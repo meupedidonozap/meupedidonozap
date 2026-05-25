@@ -276,9 +276,9 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
-      const isPickup = hasNeighborhoods && deliveryType === 'retirada';
+      const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
       const observationsFinal = [
-        isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : ''),
+        !offersDelivery ? '' : (isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : '')),
         formData.observations || '',
       ].filter(Boolean).join(' ').trim();
 
