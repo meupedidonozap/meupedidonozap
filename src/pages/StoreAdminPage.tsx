@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
   ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
@@ -102,6 +102,7 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, isAdmin, hasAccess, permissions, sellerCodes: userSellerCodes = [], loading: adminLoading } = useStoreAdmin(store?.id);
   const qc = useQueryClient();
@@ -198,6 +199,13 @@ export default function StoreAdminPage() {
 
   // Auto-select default tab for restricted users
   useEffect(() => {
+    if (!isAdmin && permissions.can_manage_tables &&
+        !permissions.can_view_orders && !permissions.can_manage_orders &&
+        !permissions.can_manage_products && !permissions.can_view_customers &&
+        !permissions.can_view_service_orders && !permissions.can_manage_service_orders) {
+      navigate(`/${slug}/garcom`, { replace: true });
+      return;
+    }
     if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
       setActiveTab('service-orders');
     } else if (!isAdmin && (permissions.can_view_orders || permissions.can_manage_orders)) {
@@ -206,6 +214,8 @@ export default function StoreAdminPage() {
       setActiveTab('products');
     } else if (!isAdmin && permissions.can_view_customers) {
       setActiveTab('customers');
+    } else if (!isAdmin && permissions.can_manage_tables) {
+      setActiveTab('tables');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
@@ -683,7 +693,7 @@ export default function StoreAdminPage() {
             {store.type === 'COMIDA' && isAdmin && (
               <TabsTrigger value="borders" className="gap-2"><Pizza className="h-4 w-4" /> Bordas</TabsTrigger>
             )}
-            {store.type === 'COMIDA' && isAdmin && (
+            {store.type === 'COMIDA' && (isAdmin || permissions.can_manage_tables) && (
               <TabsTrigger value="tables" className="gap-2"><Grid3x3 className="h-4 w-4" /> Mesas</TabsTrigger>
             )}
             {(isAdmin || permissions.can_view_customers) && (
