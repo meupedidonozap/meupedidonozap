@@ -1,64 +1,57 @@
-## Diagnóstico
+## Problema
 
-Encontrei o ponto do problema na DICOLORE:
+Ao logar com um usuário **GARÇOM** (perfil `can_manage_tables = true`) na loja Pastelaria RM (tipo COMIDA / delivery), ele é levado para `/:slug/admin`, mas a aba **Mesas** só aparece quando o usuário é admin principal. Resultado: o garçom não tem como abrir mesas nem lançar produtos nas comandas.
 
-- Existem **dois cadastros do mesmo cliente** com o mesmo telefone **(47) 99918-2612**.
-- Um cadastro está **incompleto**, sem `customer_code`, sem `seller_code` e sem `cpf_cnpj`, mas ligado a um usuário que já fez login.
-- O outro cadastro está **completo**, com:
-  - `customer_code = 97761`
-  - `seller_code = 179`
-  - `cpf_cnpj = 028.359.259-10`
-- O XML exportado usa o CPF/CNPJ vindo do pedido/perfil vinculado naquele momento. Quando o pedido fica associado ao cadastro incompleto, o XML sai com:
-  - `<cgcCliente></cgcCliente>`
-- Isso explica por que o sistema externo agora reclama de CPF/CNPJ, mesmo existindo um cadastro completo para a mesma cliente.
+A página `/:slug/garcom` (WaiterPage) já existe e mostra o `TablesTab` completo (abrir mesa → comandas → lançar produtos do cardápio → cobrar). O problema é só de visibilidade/roteamento.
 
-## O que vou implementar
+## Solução
 
-### 1. Criar uma regra de reconciliação por telefone
-- Normalizar o telefone para comparar só números.
-- Sempre que houver dois cadastros do mesmo cliente na mesma loja, usar como **cadastro base** o que tiver:
-  - `customer_code`
-  - `seller_code`
-  - `cpf_cnpj`
-- Completar o cadastro incompleto com os dados do cadastro base.
+Duas mudanças pequenas, sem mexer em lógica de negócio:
 
-### 2. Ajustar a importação/atualização de clientes
-- Na importação da planilha, além de procurar por `customer_code` e `cpf_cnpj`, procurar também por **telefone**.
-- Se encontrar um cadastro já existente pelo telefone:
-  - reaproveitar esse cadastro em vez de criar outro duplicado;
-  - copiar nele os dados do cadastro ERP (`customer_code`, `seller_code`, `cpf_cnpj` e demais campos faltantes);
-  - priorizar os dados do cadastro que veio da planilha quando ele tiver código/vendedor.
+### 1. Mostrar a aba "Mesas" no admin também para o garçom
 
-### 3. Ajustar o vínculo do cliente que se cadastrou “fora do código”
-- No fluxo em que o cliente entra com email/senha comum e preenche perfil, reconciliar com o cadastro ERP já existente pelo telefone.
-- Se existir cadastro completo com código/vendedor para aquele telefone, ele passa a ser o cadastro canônico daquele cliente.
-- O objetivo é evitar que o cliente continue com dois perfis paralelos.
+Em `src/pages/StoreAdminPage.tsx` (linha ~686), trocar:
 
-### 4. Garantir que o XML use o cadastro reconciliado
-- Na exportação do XML do pedido, buscar o CPF/CNPJ e código do vendedor a partir do **cadastro consolidado** do cliente.
-- Assim, mesmo que o pedido tenha sido iniciado a partir do login “fora do código”, o XML final sai com os dados corretos.
+```text
+store.type === 'COMIDA' && isAdmin
+```
 
-### 5. Corrigir os duplicados já existentes na DICOLORE
-- Aplicar um ajuste de dados para casos já criados, começando pelo cliente **97761 / ROSANI APARECIDA CANDIDO DE SOUZA ARNDT**.
-- Regra do acerto:
-  - manter como referência o cadastro que tiver `customer_code` / `seller_code`;
-  - preencher o outro com os dados faltantes;
-  - evitar que novos pedidos continuem usando o perfil incompleto.
+por:
 
-## Resultado esperado
+```text
+store.type === 'COMIDA' && (isAdmin || permissions.can_manage_tables)
+```
 
-Depois desse ajuste:
+Assim, quem tem permissão de Garçom vê a aba Mesas dentro do painel admin e consegue abrir mesa / lançar produtos da comanda igualmente.
 
-- o cliente poderá continuar usando o acesso dele;
-- o sistema deixará de separar o mesmo cliente em dois cadastros por causa do tipo de login;
-- o XML passará a levar o **CPF/CNPJ correto**;
-- o cadastro com **código/vendedor** será a fonte principal dos dados.
+### 2. Redirecionar o garçom direto para a tela de Mesas após login
 
-## Detalhes técnicos
+Quando o usuário logado **só** tem `can_manage_tables` (preset Garçom — sem ver pedidos, produtos, clientes, OS), redirecionar automaticamente de `/:slug/admin` para `/:slug/garcom`, que é a interface enxuta já existente focada em mesas.
 
-- **Sem mudança de schema** do banco: o problema é de regra de reconciliação e de dados duplicados.
-- Vou alterar a lógica em pontos já existentes, principalmente:
-  - `supabase/functions/import-customers/index.ts`
-  - `src/hooks/useCustomerProfile.ts`
-  - ponto de exportação do XML / preenchimento de dados do cliente no admin
-- Também vou aplicar um **ajuste nos dados existentes** da DICOLORE para não corrigir só os casos novos.
+Em `src/pages/StoreAdminPage.tsx`, adicionar um `useEffect` logo após o `useStoreAdmin`:
+
+```text
+if (!isAdmin && permissions.can_manage_tables &&
+    !permissions.can_view_orders && !permissions.can_manage_orders &&
+    !permissions.can_manage_products && !permissions.can_view_customers &&
+    !permissions.can_view_service_orders && !permissions.can_manage_service_orders) {
+  navigate(`/${slug}/garcom`, { replace: true });
+}
+```
+
+Garçom "puro" cai na tela `/garcom` (já implementada, mostra mesas em grade com botão Abrir). Garçom com permissões extras (ex.: também vê pedidos) continua no admin, agora com a aba Mesas visível.
+
+## Fluxo final do GARÇOM
+
+1. Login em `/:slug/admin` com email/senha do garçom.
+2. Redirecionamento automático para `/:slug/garcom`.
+3. Clica em **Abrir** numa mesa → diálogo de Comandas.
+4. Clica em **+ Comanda** e depois em **Novo pedido (cardápio)** ou **Avulso** para lançar produtos.
+5. Cada item lançado gera um pedido vinculado à mesa/comanda.
+6. Ao final, clica em **Pagar** → registra pagamento e fecha a sessão da mesa.
+
+## Arquivos a alterar
+
+- `src/pages/StoreAdminPage.tsx` — condição da aba Mesas + redirecionamento do garçom puro.
+
+Sem mudanças de schema, RLS ou edge functions.
