@@ -57,11 +57,15 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const createOrder = useCreateOrder();
   const updateOrderStatus = useUpdateOrderStatus();
   const updateOrder = useUpdateOrder();
+  const moveSession = useMoveSession();
+  const { data: allTables = [] } = useTables(storeId);
+  const { data: openSessions = [] } = useOpenSessions(storeId);
 
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [assemblyProd, setAssemblyProd] = useState<Product | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [showMove, setShowMove] = useState(false);
 
   const printReceiptFor = (
     receiptItems: { name: string; quantity: number; unitPrice: number }[],
