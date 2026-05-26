@@ -1,61 +1,36 @@
-## Diagnóstico
+## Problema
 
-Ao confirmar pagamento parcial (1 item de uma comanda) na Pastelaria RM aparece **"Cannot coerce the result to a single JSON object"** e nada é marcado como pago.
+No celular o diálogo "Mesa X — Comandas" (TableSessionDialog) aparece cortado: a barra de ações (Comanda, Novo pedido, Avulso, Conferência, Pagar) usa `flex` sem wrap e empurra o conteúdo para fora da tela, obrigando rolagem horizontal. O `PaymentDialog` tem o mesmo problema.
 
-**Causa:** ao lançar cada item da comanda, o sistema cria um `orders` "espelho" e grava o id em `tab_items.paid_order_id`. No banco há 4 itens cuja referência aponta para `orders` que **não existem mais** (orphan). No fluxo de pagamento:
+## Mudanças (somente UI/responsividade — sem alterar lógica)
 
-```ts
-await updateOrder.mutateAsync({ id: i.paidOrderId, status: 'entregue' });
-// e
-await supabase.from('orders').update({...}).eq('id', i.paidOrderId).select().single();
-```
+### `src/components/TableSessionDialog.tsx`
 
-`useUpdateOrder` e a chamada direta usam `.select().single()`. Como o registro não existe, o `update` afeta 0 linhas, o `.single()` quebra com o erro mostrado e o `Promise.all` aborta — nenhum `tab_items.status` é atualizado para `pago`.
+1. **DialogContent principal**
+   - De: `max-h-[90vh] max-w-4xl overflow-y-auto`
+   - Para: `max-w-[100vw] sm:max-w-4xl w-screen sm:w-full h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg`
+   - Em mobile ocupa a tela inteira; em desktop mantém o comportamento atual.
 
-A lógica do pagamento parcial em si já está correta:
-- Cada item paga individualmente seu `tab_items.status='pago'`.
-- A mesa só fecha quando `remaining = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado').length === 0`.
-- "Por Comanda" marca todos os itens daquela comanda; "Por Produto" permite escolher um a um.
+2. **Header de ações (linha com Total + botões)**
+   - Trocar `flex items-center justify-between gap-2` por `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2`
+   - Na div dos botões: `flex flex-wrap gap-2` para quebrar linha em telas pequenas
+   - Reduzir labels longos em mobile usando `hidden sm:inline` nos textos (manter ícone visível): ex. "Novo pedido (cardápio)" → ícone + "Cardápio" curto no mobile
 
-Ou seja: o requisito (item selecionado vira PAGO, comanda/mesa permanece aberta até todos serem pagos) já está implementado — só precisa parar de quebrar quando o `orders` espelho sumiu.
+3. **TabsList das comandas**
+   - Já tem `flex-wrap`, manter. Garantir `overflow-x-auto` como fallback.
 
-## Plano
+4. **Cards de itens**
+   - O `Card` interno: trocar `flex items-center justify-between p-2` por `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2` para que preço + lixeira fiquem abaixo do nome em telas estreitas.
 
-### 1. `src/components/TableSessionDialog.tsx` — `PaymentDialog` `onPay`
-- Trocar o `Promise.all` por um loop com **`try/catch` por item**: orphan de um item não pode abortar os demais.
-- Para cada item selecionado:
-  1. Se houver `paidOrderId`, tentar:
-     - `updateOrder.mutateAsync({ id, status: 'entregue' })` (tolerante a falha).
-     - `supabase.from('orders').update({ payment_method }).eq('id', paidOrderId)` **sem `.single()`** (apenas verificar `error`, ignorar se 0 linhas).
-     - Erros aqui são apenas logados via `console.warn`, não interrompem o fluxo.
-  2. Sempre executar `updateItem.mutateAsync({ id: item.id, status: 'pago' })` — esta é a fonte de verdade do item pago.
-- Após o loop, contar quantos falharam ao marcar como pago (apenas no passo do `tab_items`). Mostrar `toast.success('Pagamento registrado')` quando ao menos um item foi marcado; mostrar `toast.error` específico se nenhum item conseguiu.
-- Manter a regra: só fechar a sessão quando `remaining.length === 0` (todos itens da mesa estão `pago`/`cancelado`).
+5. **PaymentDialog**
+   - DialogContent: aplicar mesmo padrão responsivo (`max-w-[100vw] sm:max-w-2xl h-[100dvh] sm:h-auto`, padding reduzido).
+   - DialogFooter já é responsivo via componente base.
 
-### 2. `src/hooks/useOrders.ts` — `useUpdateOrder`
-- Trocar `.select().single()` por `.select().maybeSingle()`.
-- Se `data` vier `null` (linha removida ou bloqueada por RLS), retornar `null` sem atualizar o cache, em vez de jogar erro de "coerce".
-- Mantém o `setQueryData` apenas quando há dados.
+### Nenhuma outra alteração
 
-### 3. Limpeza pontual dos orfãos atuais (migration)
-Para os 4 `tab_items` da Pastelaria RM cujo `paid_order_id` aponta para `orders` inexistente, zerar a referência para o fluxo de pagamento não tentar atualizar nada:
+- Sem mudanças em hooks, lógica de pagamento, banco de dados ou outros componentes.
+- Sem mudar `dialog.tsx` base (afetaria todo o app).
 
-```sql
-UPDATE tab_items
-SET paid_order_id = NULL
-WHERE paid_order_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = tab_items.paid_order_id);
-```
+## Arquivos editados
 
-### Não muda
-- Schema/RLS de `orders`, `tab_items`, `table_sessions`, `table_tabs`.
-- Lógica de criação do `orders` espelho ao lançar item.
-- UI do `PaymentDialog` (abas Por Comanda / Por Produto, seleção, forma de pagamento).
-- Fluxo de fechamento automático da mesa.
-
-### Validação
-1. Abrir uma mesa da Pastelaria RM com 2+ itens.
-2. **Por Produto**: selecionar 1 item, "Confirmar Pagamento" → item vira `pago`, mesa permanece aberta com os demais.
-3. **Por Comanda**: selecionar uma comanda inteira → todos os itens dela viram `pago`; se for a única comanda com itens em aberto, a mesa fecha.
-4. Pagar o último item → mesa fecha automaticamente.
-5. Confirmar que não aparece mais "Cannot coerce..." mesmo nas comandas com referências antigas.
+- `src/components/TableSessionDialog.tsx`

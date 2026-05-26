@@ -203,25 +203,25 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="w-screen sm:w-full max-w-[100vw] sm:max-w-4xl h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
         <DialogHeader>
           <DialogTitle>Mesa {tableNumber ?? '-'} — Comandas</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm">
             Total da mesa: <strong className="text-lg">{formatCurrency(sessionTotal)}</strong>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={handleAddTab}><Plus className="mr-1 h-4 w-4" /> Comanda</Button>
             <Button size="sm" variant="default" onClick={goCardapio} disabled={!currentTab}>
-              <ShoppingCart className="mr-1 h-4 w-4" /> Novo pedido (cardápio)
+              <ShoppingCart className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Novo pedido (cardápio)</span><span className="sm:hidden">Cardápio</span>
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setCatalogOpen(true)} title="Lançar item avulso (sem catálogo completo)">
               <Plus className="mr-1 h-4 w-4" /> Avulso
             </Button>
             <Button size="sm" variant="secondary" onClick={() => window.print()}>
-              <Printer className="mr-1 h-4 w-4" /> Conferência
+              <Printer className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Conferência</span><span className="sm:hidden">Imprimir</span>
             </Button>
             <Button size="sm" onClick={() => setShowPayment(true)} disabled={sessionTotal === 0}>Pagar</Button>
           </div>
@@ -231,7 +231,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
           <p className="py-6 text-center text-muted-foreground">Nenhuma comanda. Adicione uma para começar.</p>
         ) : (
           <Tabs value={currentTabId || ''} onValueChange={setActiveTabId}>
-            <TabsList className="flex-wrap">
+            <TabsList className="flex-wrap h-auto">
               {tabs.map(t => (
                 <TabsTrigger key={t.id} value={t.id}>
                   C{t.number}{t.label ? ` · ${t.label}` : ''} ({(itemsByTab[t.id] || []).length})
@@ -249,8 +249,8 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                     <div className="space-y-2">
                       {tabItems.map(i => (
                         <Card key={i.id}>
-                          <CardContent className="flex items-center justify-between p-2">
-                            <div className="flex-1">
+                          <CardContent className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0 flex-1">
                               <div className="font-medium">{i.quantity}x {i.name}</div>
                               {i.ingredients.length > 0 && (
                                 <div className="text-xs text-muted-foreground">+ {i.ingredients.map(x => x.name).join(', ')}</div>
@@ -282,7 +282,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{formatCurrency(i.unitPrice * i.quantity)}</span>
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
                                 onClick={async () => {
@@ -315,7 +315,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
       {/* Catalog mini-dialog */}
       {catalogOpen && (
         <Dialog open onOpenChange={setCatalogOpen}>
-          <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+          <DialogContent className="w-screen sm:w-full max-w-[100vw] sm:max-w-2xl h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[80vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
             <DialogHeader><DialogTitle>Lançar item — escolha produto</DialogTitle></DialogHeader>
             {!currentTabId && <p className="text-sm text-destructive">Adicione/selecione uma comanda primeiro.</p>}
             {categories.map(c => {
