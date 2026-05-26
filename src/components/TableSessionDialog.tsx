@@ -369,31 +369,45 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
           onPay={async (selectedIds, paymentMethod) => {
             const selected = items.filter(i => selectedIds.includes(i.id));
             if (!selected.length) { toast.error('Selecione itens'); return; }
-            try {
-              // Update each linked order: mark paid + set payment method + entregue
-              await Promise.all(selected.map(async (i) => {
-                if (i.paidOrderId) {
-                  await updateOrder.mutateAsync({
-                    id: i.paidOrderId,
-                    status: 'entregue' as any,
-                  });
-                  // also persist payment method
-                  await (supabase as any).from('orders')
+            let paidCount = 0;
+            for (const i of selected) {
+              // Best-effort: atualiza o pedido espelho (pode não existir mais)
+              if (i.paidOrderId) {
+                try {
+                  await updateOrder.mutateAsync({ id: i.paidOrderId, status: 'entregue' as any });
+                } catch (err) { console.warn('Falha ao atualizar status do pedido espelho', err); }
+                try {
+                  const { error: pmErr } = await (supabase as any).from('orders')
                     .update({ payment_method: paymentMethod })
-                    .eq('id', i.paidOrderId).select().single();
-                }
+                    .eq('id', i.paidOrderId);
+                  if (pmErr) console.warn('Falha ao gravar forma de pagamento', pmErr);
+                } catch (err) { console.warn('Falha ao gravar forma de pagamento', err); }
+              }
+              // Fonte de verdade: marcar o item da comanda como pago
+              try {
                 await updateItem.mutateAsync({ id: i.id, status: 'pago' });
-              }));
-              toast.success('Pagamento registrado');
-              setShowPayment(false);
-              // Auto-close session when nothing remains
-              const remaining = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado' && !selectedIds.includes(i.id));
-              if (remaining.length === 0) {
+                paidCount++;
+              } catch (err: any) {
+                console.warn('Falha ao marcar item como pago', err);
+              }
+            }
+            if (paidCount === 0) {
+              toast.error('Não foi possível registrar o pagamento');
+              return;
+            }
+            toast.success(`Pagamento registrado (${paidCount} ${paidCount === 1 ? 'item' : 'itens'})`);
+            setShowPayment(false);
+            // Auto-close session apenas quando todos os itens estiverem pagos/cancelados
+            const remaining = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado' && !selectedIds.includes(i.id));
+            if (remaining.length === 0) {
+              try {
                 await closeSession.mutateAsync(sessionId);
                 toast.success('Mesa fechada');
                 onClose();
+              } catch (err: any) {
+                toast.error(err.message || 'Erro ao fechar mesa');
               }
-            } catch (e: any) { toast.error(e.message); }
+            }
           }}
         />
       )}
