@@ -51,6 +51,9 @@ export default function CheckoutPage() {
   const { data: sellers = [] } = useStoreSellers(store?.id);
   const upsertProfile = useUpsertCustomerProfile();
   const storeOpenStatus = useStoreOpen(store);
+  const dicolore = isDicoloreFlow(store?.slug, store?.settings);
+  const formas = getStoreFormas(store?.settings).filter(f => f.ativo);
+  const condicoes = getStoreCondicoes(store?.settings).filter(c => c.ativo);
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
