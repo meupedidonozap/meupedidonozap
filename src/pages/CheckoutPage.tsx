@@ -64,6 +64,10 @@ export default function CheckoutPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
 
+  // Dicolore ERP payment codes
+  const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
+  const [paymentCondicaoCodigo, setPaymentCondicaoCodigo] = useState<string>('');
+
   // Shipping state
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<string>('');
