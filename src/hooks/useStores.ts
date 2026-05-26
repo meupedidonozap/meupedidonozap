@@ -70,6 +70,7 @@ export function useCreateStore() {
         email: store.email,
         is_active: store.isActive,
         settings: store.settings as any,
+        license_expires_at: store.licenseExpiresAt || null,
       }).select().single();
       if (error) throw error;
       return mapStore(data);
