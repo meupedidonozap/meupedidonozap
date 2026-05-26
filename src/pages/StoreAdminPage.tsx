@@ -73,6 +73,7 @@ import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
 import { AlertTriangle } from 'lucide-react';
+import ChangePasswordCard from '@/components/ChangePasswordCard';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
