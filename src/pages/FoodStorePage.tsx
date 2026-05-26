@@ -207,6 +207,8 @@ export default function FoodStorePage() {
         )}
       </header>
 
+      <ClosedBanner store={store} />
+
       <main className="container py-4">
         {viewMode === 'list' ? (
           <div className="grid gap-3 sm:grid-cols-2">
