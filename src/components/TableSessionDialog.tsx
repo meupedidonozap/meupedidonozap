@@ -9,13 +9,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Printer, X, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, Printer, X, ShoppingCart, DoorOpen, ArrowRightLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useTabs, useAddTab, useTabItems, useAddTabItem, useUpdateTabItem,
-  useDeleteTabItem, useCloseSession,
+  useDeleteTabItem, useCloseSession, useMoveSession, useTables, useOpenSessions,
 } from '@/hooks/useTables';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
