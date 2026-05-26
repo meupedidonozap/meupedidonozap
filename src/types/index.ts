@@ -132,6 +132,7 @@ export interface StoreSettings {
   materialApoio?: MaterialApoioSettings;
   deliveryNeighborhoods?: DeliveryNeighborhood[];
   offersDelivery?: boolean;
+  cnpj?: string;
 }
 
 export interface DeliveryNeighborhood {
