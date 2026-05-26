@@ -23,6 +23,8 @@ import { useIngredients } from '@/hooks/useIngredients';
 import { usePizzaBorders } from '@/hooks/usePizzaBorders';
 import { useProductAssemblies } from '@/hooks/useProductAssembly';
 import { useCreateOrder, useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
+import { useStoreBySlug } from '@/hooks/useStores';
+import { printReceipt } from '@/lib/printReceipt';
 import AssemblyDialog from './AssemblyDialog';
 import { setWaiterSession } from './WaiterModeFAB';
 import type { Product, TabItem, CartItem, OrderStatus } from '@/types';
