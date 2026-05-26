@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import KitchenPage from "./pages/KitchenPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WaiterPage from "./pages/WaiterPage";
+import NoIndex from "./components/NoIndex";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,15 +36,15 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+            <Route path="/admin" element={<><NoIndex /><AdminPage /></>} />
+            <Route path="/redefinir-senha" element={<><NoIndex /><ResetPasswordPage /></>} />
             <Route path="/:slug" element={<StorePage />} />
-            <Route path="/:slug/admin" element={<StoreAdminPage />} />
-            <Route path="/:slug/checkout" element={<CheckoutPage />} />
-            <Route path="/:slug/pedidos" element={<OrderHistoryPage />} />
-            <Route path="/:slug/cozinha" element={<KitchenPage />} />
-            <Route path="/:slug/garcom" element={<WaiterPage />} />
-            <Route path="/:slug/redefinir-senha" element={<ResetPasswordPage />} />
+            <Route path="/:slug/admin" element={<><NoIndex /><StoreAdminPage /></>} />
+            <Route path="/:slug/checkout" element={<><NoIndex /><CheckoutPage /></>} />
+            <Route path="/:slug/pedidos" element={<><NoIndex /><OrderHistoryPage /></>} />
+            <Route path="/:slug/cozinha" element={<><NoIndex /><KitchenPage /></>} />
+            <Route path="/:slug/garcom" element={<><NoIndex /><WaiterPage /></>} />
+            <Route path="/:slug/redefinir-senha" element={<><NoIndex /><ResetPasswordPage /></>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
