@@ -1,68 +1,49 @@
-## Objetivo
+## Comprovante de Compra (Não Fiscal)
 
-Permitir configurar **horário de funcionamento** por loja (vários turnos por dia + dias fechados). Cliente continua vendo o catálogo, mas:
-- Ao abrir a loja, vê um **aviso de "Fechado agora"** com próximo horário.
-- No **checkout**, o botão de envio é **bloqueado** quando fora do horário (toast/banner explicando).
+Sim, é totalmente possível — o CNPJ é do **estabelecimento (loja)**, não seu. Cada loja terá o próprio CNPJ cadastrado nas configurações e impresso no comprovante.
 
-## Modelo de dados (sem migração)
+### 1. Cadastro do CNPJ por loja
+- Adicionar campo **CNPJ** em `stores.settings.cnpj` (JSONB já existente, sem migration).
+- Adicionar input "CNPJ" na aba **Geral** da `StoreAdminPage` (formatação automática `00.000.000/0000-00`).
+- Pré-preencher para a Pastelaria RM26: `65.950.355/0001-97`.
 
-Aproveitar o JSONB `stores.settings` já existente, adicionando a chave:
+### 2. Função de impressão do comprovante
+- Criar `src/lib/printReceipt.ts` com função `printReceipt({ storeName, cnpj, address, items, total, paymentMethod, receiptNumber, dateTime })`.
+- Layout térmico 80mm (mesmo padrão de `printOrder.ts`):
+  ```
+  ================================
+        NOME DA LOJA
+       CNPJ: 65.950.355/0001-97
+       Endereço da loja
+  ================================
+  COMPROVANTE DE PAGAMENTO
+  Nº 000123  |  26/05/2026 14:32
+  Mesa 5 - Comanda 2
+  --------------------------------
+  ITENS PAGOS
+  1) X-Burger              R$ 25,00
+  2) Refrigerante 350ml    R$  6,00
+  --------------------------------
+  Forma de pagamento: PIX
+  TOTAL PAGO:           R$ 31,00
+  ================================
+  *** ESTE DOCUMENTO NÃO É ***
+  ***    CUPOM FISCAL     ***
+  Apenas comprovante interno
+  ================================
+  ```
 
-```json
-"businessHours": {
-  "timezone": "America/Sao_Paulo",
-  "days": {
-    "0": { "closed": true,  "shifts": [] },                // domingo
-    "1": { "closed": false, "shifts": [{"from":"08:00","to":"13:30"},{"from":"17:00","to":"22:00"}] },
-    "2": { ... }, "3": {...}, "4": {...}, "5": {...}, "6": {...}
-  },
-  "closedDates": ["2026-12-25", "2026-01-01"]   // datas específicas fechadas
-}
-```
+### 3. Onde aparece o botão "Imprimir Comprovante"
+No `TableSessionDialog` → `PaymentDialog` (fluxo de pagamento parcial/total já existente):
+- Após confirmar pagamento dos itens selecionados, mostrar botão **"🖨️ Imprimir Comprovante"**.
+- Também adicionar botão de impressão ao lado de cada item já marcado como **PAGO** (status `paid`) na lista da comanda, para reimpressão.
+- E um botão **"Imprimir comprovante da comanda"** quando a comanda inteira estiver paga.
 
-Default quando ausente: **sempre aberto** (preserva comportamento atual de todas as outras lojas).
+### 4. Numeração do comprovante
+Usar o `order_number` do pedido de pagamento gerado (já existe quando o pagamento parcial cria a `order` com `origem='mesa'`). Sem nova sequência no banco.
 
-## Mudanças de código
-
-### 1) Admin — nova aba "Horários" em `src/pages/StoreAdminPage.tsx`
-- Componente novo `src/components/BusinessHoursTab.tsx`:
-  - Grade dos 7 dias com checkbox "Fechado" + lista de turnos (botão "Adicionar turno"; cada turno = inputs `time` from/to + remover).
-  - Lista de "Dias fechados" (datas específicas) com botão adicionar/remover.
-  - Botão **Salvar** → `supabase.from('stores').update({ settings: { ...settings, businessHours } }).eq('id', store.id)`.
-- Adicionar `<TabsTrigger value="hours">Horários</TabsTrigger>` e o `<TabsContent>` correspondente.
-
-### 2) Lógica reaproveitável — `src/lib/businessHours.ts`
-- `isStoreOpen(settings, now = new Date()): { open: boolean; reason?: string; nextOpenLabel?: string }`
-- Considera dia da semana, turnos, lista de `closedDates` (formato `YYYY-MM-DD` na timezone configurada).
-- Quando `businessHours` não estiver definido → retorna `{ open: true }`.
-- Calcula próximo horário de abertura (mesmo dia turno seguinte ou próximo dia útil) para exibir mensagem do tipo "Abre hoje às 17:00" / "Abre amanhã às 08:00".
-
-### 3) Hook `src/hooks/useStoreOpen.ts`
-- `useStoreOpen(store)` retorna `{ open, message }`, recalcula a cada 60s via `setInterval`.
-
-### 4) Aviso na storefront
-- Em `src/pages/FoodStorePage.tsx`, `src/pages/ProductStorePage.tsx`, `src/pages/PizzaStorePage.tsx`, `src/pages/SalonStorePage.tsx`, `src/pages/StorePage.tsx`:
-  - Logo abaixo do header, se `!open`, renderizar um banner destacado (vermelho/aviso) com a mensagem e o próximo horário.
-- Catálogo continua visível e navegável (sem bloqueio).
-
-### 5) Bloqueio no checkout — `src/pages/CheckoutPage.tsx`
-- Importar `useStoreOpen`.
-- Se `!open`: mostrar banner fixo no topo do formulário + desabilitar o botão "Enviar pedido / WhatsApp" e exibir tooltip/toast "Loja fechada — pedidos só dentro do horário de funcionamento".
-- Validação adicional na função submit (defesa em profundidade): se `!open`, `toast.error(...)` e `return`.
-
-### 6) Sem mudanças em
-- Banco de dados (schema/migrations) — apenas grava em `stores.settings`.
-- Pedidos via mesa/garçom/admin manual (operação interna não é bloqueada).
-- RLS, hooks de pedidos, edge functions.
-
-## Arquivos a criar/editar
-
-**Novos**
-- `src/lib/businessHours.ts`
-- `src/hooks/useStoreOpen.ts`
-- `src/components/BusinessHoursTab.tsx`
-
-**Editar**
-- `src/pages/StoreAdminPage.tsx` (adicionar aba)
-- `src/pages/FoodStorePage.tsx`, `ProductStorePage.tsx`, `PizzaStorePage.tsx`, `SalonStorePage.tsx`, `StorePage.tsx` (banner fechado)
-- `src/pages/CheckoutPage.tsx` (bloqueio de envio)
+### Resumo técnico
+- **Sem migrations** — CNPJ vai no `settings` JSONB.
+- **Arquivos novos:** `src/lib/printReceipt.ts`.
+- **Arquivos editados:** `src/pages/StoreAdminPage.tsx` (campo CNPJ), `src/components/TableSessionDialog.tsx` (botões de impressão no PaymentDialog e na lista de itens pagos).
+- Nenhuma mudança em RLS, edge functions ou tipos.
