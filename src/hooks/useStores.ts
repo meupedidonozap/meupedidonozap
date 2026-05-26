@@ -18,6 +18,7 @@ function mapStore(row: any): Store {
     isActive: row.is_active,
     createdAt: row.created_at,
     settings: (row.settings || {}) as StoreSettings,
+    licenseExpiresAt: row.license_expires_at ?? null,
   };
 }
 
@@ -93,6 +94,7 @@ export function useUpdateStore() {
       if (updates.settings !== undefined) dbUpdates.settings = updates.settings as any;
       if (updates.logo !== undefined) dbUpdates.logo = updates.logo;
       if (updates.banner !== undefined) dbUpdates.banner = updates.banner;
+      if (updates.licenseExpiresAt !== undefined) dbUpdates.license_expires_at = updates.licenseExpiresAt || null;
 
       const { data, error } = await supabase.from('stores').update(dbUpdates).eq('id', id).select('id').single();
       if (error) throw error;
