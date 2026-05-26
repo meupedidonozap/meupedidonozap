@@ -238,6 +238,37 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
             </div>
           </div>
 
+          {/* Dicolore — Forma e Condição de Pagamento (ERP) */}
+          {dicolore && (formas.length > 0 || condicoes.length > 0) && (
+            <div className="border rounded-md p-3 space-y-3">
+              <p className="text-sm font-semibold">Pagamento (ERP)</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label className="text-xs">Forma de Pagamento</Label>
+                  <Select value={formaCodigo} onValueChange={setFormaCodigo}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent className="max-h-[40vh]">
+                      {formas.map(f => (
+                        <SelectItem key={f.codigo} value={f.codigo}>{f.codigo} - {f.descricao}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1">
+                  <Label className="text-xs">Condição de Pagamento</Label>
+                  <Select value={condicaoCodigo} onValueChange={setCondicaoCodigo}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent className="max-h-[40vh]">
+                      {condicoes.map(c => (
+                        <SelectItem key={c.codigo} value={c.codigo}>{c.codigo} - {c.descricao}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Totals */}
           <div className="border rounded-md p-3 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
