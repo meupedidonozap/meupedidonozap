@@ -306,6 +306,7 @@ export default function StoreAdminPage() {
     setSettingsLogo(store.logo);
     setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
     setOffersDelivery(store.settings?.offersDelivery !== false);
+    setSettingsCnpj(store.settings?.cnpj || '');
     setSettingsInitialized(true);
   }
 
