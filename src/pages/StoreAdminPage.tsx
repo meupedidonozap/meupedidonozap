@@ -1820,6 +1820,7 @@ export default function StoreAdminPage() {
                 </CardContent>
               </Card>
             )}
+            </div>
           </TabsContent>
 
           {/* Service Orders - only for SERVICOS */}
