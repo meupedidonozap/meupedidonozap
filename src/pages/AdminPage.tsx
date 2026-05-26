@@ -216,6 +216,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
           ...formData,
           isActive: true,
           settings: mergedSettings,
+          licenseExpiresAt: formData.licenseExpiresAt || null,
         });
 
         // Aplicar dados estruturais do template (categorias + ingredientes)
@@ -411,6 +412,22 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                     <Badge className={storeTypeBadgeColors[store.type]}>{storeTypeLabels[store.type]}</Badge>
                     <Badge variant={store.isActive ? 'default' : 'secondary'}>{store.isActive ? 'Ativa' : 'Inativa'}</Badge>
                   </div>
+                  {(() => {
+                    const ls = getLicenseStatus(store.licenseExpiresAt);
+                    const cls = ls.level === 'expired'
+                      ? 'bg-red-100 text-red-700'
+                      : ls.level === 'warning'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : ls.level === 'ok'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-muted text-muted-foreground';
+                    const label = ls.level === 'none'
+                      ? 'Sem vencimento'
+                      : ls.level === 'expired'
+                      ? `Licença vencida em ${ls.formatted}`
+                      : `Licença até ${ls.formatted} (${ls.daysLeft}d)`;
+                    return <div className="mb-3"><Badge className={cls}>{label}</Badge></div>;
+                  })()}
                   <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{store.address}</p>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenDialog(store)}>
