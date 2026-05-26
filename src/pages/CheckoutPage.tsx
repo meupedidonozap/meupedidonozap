@@ -25,6 +25,7 @@ import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import ClosedBanner from '@/components/ClosedBanner';
 import { useStoreOpen } from '@/hooks/useStoreOpen';
 import type { PaymentMethod, DeliveryShift } from '@/types';
+import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
 
 interface ShippingOption {
   code: string;
