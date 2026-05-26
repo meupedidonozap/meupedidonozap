@@ -76,7 +76,6 @@ export default function DicolorePaymentCodesTab({ store }: Props) {
             <TableRow>
               <TableHead className="w-24">Código (ERP)</TableHead>
               <TableHead>Descrição</TableHead>
-              <TableHead className="w-24">Filial</TableHead>
               <TableHead className="w-20">Ativo</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
@@ -96,13 +95,6 @@ export default function DicolorePaymentCodesTab({ store }: Props) {
                     className="h-8"
                     value={row.descricao}
                     onChange={e => setItems(items.map((r, i) => i === idx ? { ...r, descricao: e.target.value } : r) as T[])}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    className="h-8"
-                    value={row.filial}
-                    onChange={e => setItems(items.map((r, i) => i === idx ? { ...r, filial: e.target.value } : r) as T[])}
                   />
                 </TableCell>
                 <TableCell>
