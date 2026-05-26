@@ -507,6 +507,31 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
           }}
         />
       )}
+
+      {showMove && (
+        <Dialog open onOpenChange={(o) => !o && setShowMove(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Trocar para outra mesa</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Todas as comandas e itens serão movidos para a mesa selecionada.</p>
+            {freeTables.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma mesa livre disponível.</p>
+            ) : (
+              <div className="grid max-h-[50vh] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                {freeTables.map(t => (
+                  <Button key={t.id} variant="outline" className="h-auto flex-col py-3"
+                    onClick={() => handleMoveTo(t.id)}>
+                    <span className="text-xl font-bold">{t.number}</span>
+                    {t.label && <span className="text-[10px] text-muted-foreground truncate max-w-full">{t.label}</span>}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowMove(false)}>Cancelar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
