@@ -323,6 +323,11 @@ export interface CustomerInfo {
   address: string;
   number: string;
   complement?: string;
+  // Dicolore ERP payment codes (optional, persisted in orders.customer jsonb)
+  paymentFormaCodigo?: string;
+  paymentFormaDescricao?: string;
+  paymentCondicaoCodigo?: string;
+  paymentCondicaoDescricao?: string;
 }
 
 export interface Order {
