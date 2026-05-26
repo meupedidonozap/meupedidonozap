@@ -307,6 +307,19 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                             </div>
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{formatCurrency(i.unitPrice * i.quantity)}</span>
+                              {i.status === 'pago' && (
+                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Reimprimir comprovante"
+                                  onClick={() => {
+                                    printReceiptFor(
+                                      [{ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice }],
+                                      undefined,
+                                      `M${tableNumber ?? '-'}-${i.id.slice(0, 6).toUpperCase()}`,
+                                      `Comanda ${t.number}${t.label ? ' · ' + t.label : ''}`,
+                                    );
+                                  }}>
+                                  <Printer className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
                                 onClick={async () => {
                                   if (!confirm('Remover item?')) return;
