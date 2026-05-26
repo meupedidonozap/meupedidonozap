@@ -9,7 +9,10 @@ import { toast } from 'sonner';
 import { useUpdateOrder } from '@/hooks/useOrders';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG, type MaterialApoioConfig } from '@/lib/materialApoio';
-import type { Order, Product, CartItem, DiscountRule, Category } from '@/types';
+import type { Order, Product, CartItem, DiscountRule, Category, CustomerInfo } from '@/types';
+import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 interface EditOrderDialogProps {
   open: boolean;
@@ -19,17 +22,28 @@ interface EditOrderDialogProps {
   discountRules?: DiscountRule[];
   categories?: Category[];
   materialApoio?: MaterialApoioConfig;
+  store?: { slug?: string; settings?: any } | null;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store }: EditOrderDialogProps) {
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [formaCodigo, setFormaCodigo] = useState<string>('');
+  const [condicaoCodigo, setCondicaoCodigo] = useState<string>('');
 
   useEffect(() => {
-    if (order) setItems(order.items.map(i => ({ ...i })));
+    if (order) {
+      setItems(order.items.map(i => ({ ...i })));
+      setFormaCodigo(order.customer?.paymentFormaCodigo || '');
+      setCondicaoCodigo(order.customer?.paymentCondicaoCodigo || '');
+    }
   }, [order]);
+
+  const dicolore = isDicoloreFlow(store?.slug, store?.settings);
+  const formas = getStoreFormas(store?.settings).filter(f => f.ativo);
+  const condicoes = getStoreCondicoes(store?.settings).filter(c => c.ativo);
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.quantity, 0), [items]);
   const deliveryFee = order?.deliveryFee || 0;
@@ -104,13 +118,20 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
     if (items.length === 0) { toast.error('O pedido precisa ter pelo menos um item'); return; }
     setSaving(true);
     try {
-      await updateOrder.mutateAsync({
-        id: order.id,
-        items,
-        subtotal,
-        total,
-        discount,
-      });
+      const updates: any = { id: order.id, items, subtotal, total, discount };
+      if (dicolore) {
+        const f = formas.find(x => x.codigo === formaCodigo);
+        const c = condicoes.find(x => x.codigo === condicaoCodigo);
+        const newCustomer: CustomerInfo = {
+          ...order.customer,
+          paymentFormaCodigo: formaCodigo || undefined,
+          paymentFormaDescricao: f?.descricao,
+          paymentCondicaoCodigo: condicaoCodigo || undefined,
+          paymentCondicaoDescricao: c?.descricao,
+        };
+        updates.customer = newCustomer;
+      }
+      await updateOrder.mutateAsync(updates);
       toast.success('Pedido atualizado!');
       onOpenChange(false);
     } catch (err: any) {
