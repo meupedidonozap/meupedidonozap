@@ -10,6 +10,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
+import ClosedBanner from '@/components/ClosedBanner';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
