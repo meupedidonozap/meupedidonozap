@@ -63,6 +63,26 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const [assemblyProd, setAssemblyProd] = useState<Product | null>(null);
   const [showPayment, setShowPayment] = useState(false);
 
+  const printReceiptFor = (
+    receiptItems: { name: string; quantity: number; unitPrice: number }[],
+    paymentMethod: string | undefined,
+    receiptNumber: string | number | undefined,
+    tabLabel?: string,
+  ) => {
+    if (!store || receiptItems.length === 0) return;
+    printReceipt({
+      storeName: store.name,
+      cnpj: store.settings?.cnpj,
+      address: store.address,
+      phone: store.phone,
+      receiptNumber,
+      tableNumber,
+      tabLabel,
+      items: receiptItems,
+      paymentMethod,
+    });
+  };
+
   const currentTabId = activeTabId || tabs[0]?.id;
   const currentTab = tabs.find(t => t.id === currentTabId);
 
