@@ -709,6 +709,9 @@ export default function StoreAdminPage() {
             {isAdmin && (
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="hours" className="gap-2"><Clock className="h-4 w-4" /> Horários</TabsTrigger>
+            )}
           </TabsList>
 
           {/* Dashboard */}
