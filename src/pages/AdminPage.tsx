@@ -29,6 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import RefreshButton from '@/components/RefreshButton';
 import { getTemplateForType } from '@/lib/storeTemplates';
+import { getLicenseStatus } from '@/lib/licenseStatus';
 
 const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
@@ -121,6 +122,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     phone: '',
     whatsapp: '',
     email: '',
+    licenseExpiresAt: '',
   });
 
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
@@ -187,10 +189,11 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
         phone: store.phone,
         whatsapp: store.whatsapp,
         email: store.email,
+        licenseExpiresAt: store.licenseExpiresAt || '',
       });
     } else {
       setEditingStore(null);
-      setFormData({ name: '', slug: '', type: 'LOJA', address: '', phone: '', whatsapp: '', email: '' });
+      setFormData({ name: '', slug: '', type: 'LOJA', address: '', phone: '', whatsapp: '', email: '', licenseExpiresAt: '' });
     }
     setIsDialogOpen(true);
   };
@@ -213,6 +216,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
           ...formData,
           isActive: true,
           settings: mergedSettings,
+          licenseExpiresAt: formData.licenseExpiresAt || null,
         });
 
         // Aplicar dados estruturais do template (categorias + ingredientes)
@@ -360,6 +364,11 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                   <Label htmlFor="email">E-mail</Label>
                   <Input id="email" type="email" value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} placeholder="contato@empresa.com.br" />
                 </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="license">Licença válida até</Label>
+                  <Input id="license" type="date" value={formData.licenseExpiresAt} onChange={e => setFormData(prev => ({ ...prev, licenseExpiresAt: e.target.value }))} />
+                  <p className="text-xs text-muted-foreground">Após esta data, a loja será inativada automaticamente. Deixe em branco para não controlar.</p>
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -403,6 +412,22 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                     <Badge className={storeTypeBadgeColors[store.type]}>{storeTypeLabels[store.type]}</Badge>
                     <Badge variant={store.isActive ? 'default' : 'secondary'}>{store.isActive ? 'Ativa' : 'Inativa'}</Badge>
                   </div>
+                  {(() => {
+                    const ls = getLicenseStatus(store.licenseExpiresAt);
+                    const cls = ls.level === 'expired'
+                      ? 'bg-red-100 text-red-700'
+                      : ls.level === 'warning'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : ls.level === 'ok'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-muted text-muted-foreground';
+                    const label = ls.level === 'none'
+                      ? 'Sem vencimento'
+                      : ls.level === 'expired'
+                      ? `Licença vencida em ${ls.formatted}`
+                      : `Licença até ${ls.formatted} (${ls.daysLeft}d)`;
+                    return <div className="mb-3"><Badge className={cls}>{label}</Badge></div>;
+                  })()}
                   <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{store.address}</p>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => handleOpenDialog(store)}>

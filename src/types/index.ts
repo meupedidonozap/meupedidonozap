@@ -106,6 +106,7 @@ export interface Store {
   isActive: boolean;
   createdAt: string;
   settings: StoreSettings;
+  licenseExpiresAt?: string | null;
 }
 
 export interface ShippingSettings {

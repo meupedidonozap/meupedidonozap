@@ -1110,6 +1110,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean
+          license_expires_at: string | null
           logo: string | null
           name: string
           phone: string | null
@@ -1125,6 +1126,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          license_expires_at?: string | null
           logo?: string | null
           name: string
           phone?: string | null
@@ -1140,6 +1142,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean
+          license_expires_at?: string | null
           logo?: string | null
           name?: string
           phone?: string | null
