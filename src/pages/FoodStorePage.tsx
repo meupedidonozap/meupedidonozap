@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Home, Search, ShoppingCart, FileText, Plus, Minus, X,
   ChevronDown, ChevronUp, MapPin, Share2, Loader2, User, LogIn, LogOut, ShoppingBag,
-  List, LayoutGrid,
+  List, LayoutGrid, Menu,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,7 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 
 export default function FoodStorePage() {
@@ -44,42 +45,33 @@ export default function FoodStorePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [assemblyProduct, setAssemblyProduct] = useState<Product | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
   useEffect(() => {
     if (store) {
       setStoreId(store.id);
-      setExpandedCategories(categories.map(c => c.id));
     }
-  }, [store, setStoreId, categories.length]);
+  }, [store, setStoreId]);
 
   const activeProducts = useMemo(() => allProducts.filter(p => p.isActive), [allProducts]);
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return activeProducts;
-    return activeProducts.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [activeProducts, searchTerm]);
-
-  const itemsByCategory = useMemo(() => {
-    const grouped: Record<string, Product[]> = {};
-    categories.forEach(cat => {
-      grouped[cat.id] = filteredItems.filter(item => item.categoryId === cat.id);
-    });
-    return grouped;
-  }, [categories, filteredItems]);
+    const term = searchTerm.toLowerCase();
+    return activeProducts
+      .filter(item => {
+        const matchesSearch = !term ||
+          item.name.toLowerCase().includes(term) ||
+          item.description.toLowerCase().includes(term);
+        const matchesCategory = selectedCategory === 'all' || item.categoryId === selectedCategory;
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [activeProducts, searchTerm, selectedCategory]);
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev =>
-      prev.includes(categoryId) ? prev.filter(id => id !== categoryId) : [...prev, categoryId]
-    );
-  };
 
   const getAssembly = (productId: string): ProductAssembly | undefined =>
     assemblies.find(a => a.productId === productId);
@@ -139,7 +131,36 @@ export default function FoodStorePage() {
       </Helmet>
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center justify-between">
-          <h1 className="text-lg font-bold">{store.name}</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <Sheet open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80 flex flex-col h-full">
+                <SheetHeader><SheetTitle>Categorias</SheetTitle></SheetHeader>
+                <ScrollArea className="flex-1 mt-6 -mr-4 pr-4">
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => { setSelectedCategory('all'); setIsCategoryOpen(false); }}
+                      className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    >
+                      Todos os Produtos
+                    </button>
+                    {categories.map(category => (
+                      <button
+                        key={category.id}
+                        onClick={() => { setSelectedCategory(category.id); setIsCategoryOpen(false); }}
+                        className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === category.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                      >
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+            <h1 className="text-lg font-bold truncate">{store.name}</h1>
+          </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(!isSearchOpen)}>
               <Search className="h-5 w-5" />
@@ -187,19 +208,9 @@ export default function FoodStorePage() {
       </header>
 
       <main className="container py-4">
-        {categories.map(category => {
-          const categoryItems = itemsByCategory[category.id] || [];
-          if (categoryItems.length === 0) return null;
-          return (
-            <Collapsible key={category.id} open={expandedCategories.includes(category.id)} onOpenChange={() => toggleCategory(category.id)} className="mb-6">
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-muted/50 px-4 py-3 font-semibold hover:bg-muted">
-                <span className="text-lg">{category.name}</span>
-                {expandedCategories.includes(category.id) ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                {viewMode === 'list' ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {categoryItems.map(item => {
+        {viewMode === 'list' ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {filteredItems.map(item => {
                       const quantity = getItemQuantity(item.id);
                       return (
                         <Card key={item.id} className="overflow-hidden transition-shadow hover:shadow-md">
@@ -230,8 +241,8 @@ export default function FoodStorePage() {
                                     </Button>
                                   </div>
                                 ) : (
-                                  <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
-                                    <Plus className="mr-1 h-4 w-4" /> Adicionar
+                                  <Button size="icon" className="h-8 w-8 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleAddItem(item)}>
+                                    <Plus className="h-4 w-4" />
                                   </Button>
                                 )}
                               </div>
@@ -240,10 +251,10 @@ export default function FoodStorePage() {
                         </Card>
                       );
                     })}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {categoryItems.map(item => {
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {filteredItems.map(item => {
                       const quantity = getItemQuantity(item.id);
                       return (
                         <Card key={item.id} className="overflow-hidden transition-shadow hover:shadow-md">
@@ -255,7 +266,7 @@ export default function FoodStorePage() {
                             )}
                           </div>
                           <CardContent className="p-3">
-                            <h3 className="text-sm font-semibold line-clamp-2">{item.name}</h3>
+                            <h3 className="text-sm font-semibold line-clamp-3">{item.name}</h3>
                             <p className="mt-1 font-bold text-accent">
                               {item.hasVariants && (item.variants?.length || 0) > 0
                                 ? `A partir de ${formatCurrency(Math.min(...item.variants!.map(v => v.price)))}`
@@ -285,12 +296,8 @@ export default function FoodStorePage() {
                         </Card>
                       );
                     })}
-                  </div>
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          );
-        })}
+          </div>
+        )}
         {filteredItems.length === 0 && (
           <div className="py-16 text-center">
             <Search className="mx-auto h-12 w-12 text-muted-foreground/30" />

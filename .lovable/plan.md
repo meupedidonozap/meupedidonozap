@@ -1,57 +1,46 @@
 ## Problema
 
-Ao logar com um usuário **GARÇOM** (perfil `can_manage_tables = true`) na loja Pastelaria RM (tipo COMIDA / delivery), ele é levado para `/:slug/admin`, mas a aba **Mesas** só aparece quando o usuário é admin principal. Resultado: o garçom não tem como abrir mesas nem lançar produtos nas comandas.
+Hoje a Pastelaria RM (loja tipo COMIDA) usa `FoodStorePage`, que mostra os itens agrupados em categorias collapsibles e em modo lista por padrão. O cliente quer o mesmo comportamento da DICOLORE (`ProductStorePage`):
 
-A página `/:slug/garcom` (WaiterPage) já existe e mostra o `TablesTab` completo (abrir mesa → comandas → lançar produtos do cardápio → cobrar). O problema é só de visibilidade/roteamento.
+- Abrir mostrando **todos os produtos** em **modo grade**, ordenados de **A–Z**, sem separação por categoria.
+- Botão de **menu** (ícone hambúrguer no header) abre uma **gaveta lateral** com a lista de categorias ("Todos os Produtos" + cada categoria), permitindo filtrar.
 
 ## Solução
 
-Duas mudanças pequenas, sem mexer em lógica de negócio:
+Refatorar `src/pages/FoodStorePage.tsx` para usar o mesmo modelo de navegação da `ProductStorePage`, mantendo a lógica específica de comida (assembly dialog, ingredientes, bordas, material de apoio não se aplica aqui).
 
-### 1. Mostrar a aba "Mesas" no admin também para o garçom
+### Mudanças em `src/pages/FoodStorePage.tsx`
 
-Em `src/pages/StoreAdminPage.tsx` (linha ~686), trocar:
+1. **Estado**
+   - Remover `expandedCategories` e `itemsByCategory` agrupado.
+   - Adicionar `selectedCategory: string` (default `'all'`) e `isCategoryOpen: boolean`.
+   - Trocar default do `viewMode` de `'list'` para `'grid'`.
 
-```text
-store.type === 'COMIDA' && isAdmin
-```
+2. **Header**
+   - Adicionar botão `Menu` (ícone hambúrguer) à esquerda do nome da loja, abrindo `Sheet` lateral com:
+     - Item "Todos os Produtos"
+     - Lista das categorias da loja
+     - Ao clicar, atualiza `selectedCategory` e fecha a gaveta.
+   - Manter os botões de busca, alternância grade/lista, perfil/login e compartilhar.
 
-por:
+3. **Listagem**
+   - Substituir o loop `categories.map(...Collapsible...)` por uma única grade/lista:
+     - Filtrar `activeProducts` por `searchTerm` **e** `selectedCategory` (`all` = todos).
+     - Ordenar **A–Z** por `name` (`localeCompare('pt-BR')`).
+   - Renderizar:
+     - Em `viewMode === 'grid'`: grid responsiva (2/3/4 colunas) com card já existente.
+     - Em `viewMode === 'list'`: grid 1/2 colunas com o card de linha já existente.
+   - Manter card, preço, botão `+` e contador de quantidade exatamente como já estão (`handleAddItem`, `AssemblyDialog`, `getItemQuantity`).
 
-```text
-store.type === 'COMIDA' && (isAdmin || permissions.can_manage_tables)
-```
+4. **Mantém intacto**
+   - Bottom nav (Início / Pedidos / Carrinho), FAB do carrinho, `CustomerAuthDialog`, `AssemblyDialog`, Helmet/SEO.
+   - Comportamento de variantes e montagem (clicar `+` segue chamando `handleAddItem` que decide se abre `AssemblyDialog`).
 
-Assim, quem tem permissão de Garçom vê a aba Mesas dentro do painel admin e consegue abrir mesa / lançar produtos da comanda igualmente.
+### Fora de escopo
 
-### 2. Redirecionar o garçom direto para a tela de Mesas após login
+- Nenhuma mudança em `ProductStorePage`, schema, RLS ou Edge Functions.
+- Nenhuma alteração em outras lojas COMIDA — todas passam a usar o novo layout (consistente com a memória do projeto: "A-Z catalog sorting" em todo o catálogo).
 
-Quando o usuário logado **só** tem `can_manage_tables` (preset Garçom — sem ver pedidos, produtos, clientes, OS), redirecionar automaticamente de `/:slug/admin` para `/:slug/garcom`, que é a interface enxuta já existente focada em mesas.
+## Arquivo a alterar
 
-Em `src/pages/StoreAdminPage.tsx`, adicionar um `useEffect` logo após o `useStoreAdmin`:
-
-```text
-if (!isAdmin && permissions.can_manage_tables &&
-    !permissions.can_view_orders && !permissions.can_manage_orders &&
-    !permissions.can_manage_products && !permissions.can_view_customers &&
-    !permissions.can_view_service_orders && !permissions.can_manage_service_orders) {
-  navigate(`/${slug}/garcom`, { replace: true });
-}
-```
-
-Garçom "puro" cai na tela `/garcom` (já implementada, mostra mesas em grade com botão Abrir). Garçom com permissões extras (ex.: também vê pedidos) continua no admin, agora com a aba Mesas visível.
-
-## Fluxo final do GARÇOM
-
-1. Login em `/:slug/admin` com email/senha do garçom.
-2. Redirecionamento automático para `/:slug/garcom`.
-3. Clica em **Abrir** numa mesa → diálogo de Comandas.
-4. Clica em **+ Comanda** e depois em **Novo pedido (cardápio)** ou **Avulso** para lançar produtos.
-5. Cada item lançado gera um pedido vinculado à mesa/comanda.
-6. Ao final, clica em **Pagar** → registra pagamento e fecha a sessão da mesa.
-
-## Arquivos a alterar
-
-- `src/pages/StoreAdminPage.tsx` — condição da aba Mesas + redirecionamento do garçom puro.
-
-Sem mudanças de schema, RLS ou edge functions.
+- `src/pages/FoodStorePage.tsx` — refatoração do header + listagem conforme acima.
