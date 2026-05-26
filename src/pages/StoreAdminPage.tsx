@@ -70,6 +70,9 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import RefreshButton from '@/components/RefreshButton';
+import { getLicenseStatus } from '@/lib/licenseStatus';
+import { buildRenewalLink } from '@/lib/supportContact';
+import { AlertTriangle } from 'lucide-react';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
@@ -663,6 +666,32 @@ export default function StoreAdminPage() {
       </header>
 
       <main className="container py-6">
+        {(() => {
+          const ls = getLicenseStatus(store.licenseExpiresAt);
+          if (ls.level !== 'warning' && ls.level !== 'expired') return null;
+          const expired = ls.level === 'expired';
+          return (
+            <div className={cn(
+              'mb-6 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between',
+              expired ? 'border-red-300 bg-red-50 text-red-900' : 'border-yellow-300 bg-yellow-50 text-yellow-900'
+            )}>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold">
+                    {expired
+                      ? `Sua licença venceu em ${ls.formatted}`
+                      : `Sua licença vence em ${ls.daysLeft} dia${ls.daysLeft === 1 ? '' : 's'} (${ls.formatted})`}
+                  </p>
+                  <p className="opacity-90">Entre em contato com o suporte para renovar e evitar a inativação da loja.</p>
+                </div>
+              </div>
+              <Button asChild size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                <a href={buildRenewalLink(store)} target="_blank" rel="noopener noreferrer">Falar com Suporte</a>
+              </Button>
+            </div>
+          );
+        })()}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 flex flex-wrap h-auto gap-1">
             {isAdmin && (
