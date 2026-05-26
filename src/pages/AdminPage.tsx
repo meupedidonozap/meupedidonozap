@@ -29,6 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import RefreshButton from '@/components/RefreshButton';
 import { getTemplateForType } from '@/lib/storeTemplates';
+import { getLicenseStatus } from '@/lib/licenseStatus';
 
 const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
@@ -121,6 +122,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     phone: '',
     whatsapp: '',
     email: '',
+    licenseExpiresAt: '',
   });
 
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
@@ -187,10 +189,11 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
         phone: store.phone,
         whatsapp: store.whatsapp,
         email: store.email,
+        licenseExpiresAt: store.licenseExpiresAt || '',
       });
     } else {
       setEditingStore(null);
-      setFormData({ name: '', slug: '', type: 'LOJA', address: '', phone: '', whatsapp: '', email: '' });
+      setFormData({ name: '', slug: '', type: 'LOJA', address: '', phone: '', whatsapp: '', email: '', licenseExpiresAt: '' });
     }
     setIsDialogOpen(true);
   };
@@ -359,6 +362,11 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                 <div className="grid gap-2">
                   <Label htmlFor="email">E-mail</Label>
                   <Input id="email" type="email" value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} placeholder="contato@empresa.com.br" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="license">Licença válida até</Label>
+                  <Input id="license" type="date" value={formData.licenseExpiresAt} onChange={e => setFormData(prev => ({ ...prev, licenseExpiresAt: e.target.value }))} />
+                  <p className="text-xs text-muted-foreground">Após esta data, a loja será inativada automaticamente. Deixe em branco para não controlar.</p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
