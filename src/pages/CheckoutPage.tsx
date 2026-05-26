@@ -319,6 +319,12 @@ export default function CheckoutPage() {
           address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
+          ...(dicolore ? {
+            paymentFormaCodigo: paymentFormaCodigo || undefined,
+            paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
+            paymentCondicaoCodigo: paymentCondicaoCodigo || undefined,
+            paymentCondicaoDescricao: condicoes.find(c => c.codigo === paymentCondicaoCodigo)?.descricao,
+          } : {}),
         },
         items: cart.items.map(item => ({
           ...item,
