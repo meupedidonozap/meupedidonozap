@@ -259,6 +259,7 @@ export default function StoreAdminPage() {
   const [settingsWhatsapp, setSettingsWhatsapp] = useState('');
   const [settingsLogo, setSettingsLogo] = useState('');
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
+  const [settingsCnpj, setSettingsCnpj] = useState('');
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -305,6 +306,7 @@ export default function StoreAdminPage() {
     setSettingsLogo(store.logo);
     setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
     setOffersDelivery(store.settings?.offersDelivery !== false);
+    setSettingsCnpj(store.settings?.cnpj || '');
     setSettingsInitialized(true);
   }
 
@@ -515,6 +517,7 @@ export default function StoreAdminPage() {
           shipping: shippingData,
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
           offersDelivery,
+          cnpj: settingsCnpj.replace(/\D/g, ''),
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
@@ -1408,6 +1411,11 @@ export default function StoreAdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2"><Label>Telefone</Label><Input value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} placeholder="(11) 3456-7890" /></div>
                   <div className="grid gap-2"><Label>WhatsApp (receber pedidos)</Label><Input value={settingsWhatsapp} onChange={e => setSettingsWhatsapp(e.target.value)} placeholder="5511999999999" /></div>
+                </div>
+                <div className="grid gap-2 sm:max-w-md">
+                  <Label>CNPJ (impresso nos comprovantes)</Label>
+                  <Input value={settingsCnpj} onChange={e => setSettingsCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+                  <p className="text-xs text-muted-foreground">Usado no comprovante de pagamento (não fiscal).</p>
                 </div>
                 <div className="grid gap-2 sm:max-w-xs">
                   <Label>Pedido mínimo (R$)</Label>

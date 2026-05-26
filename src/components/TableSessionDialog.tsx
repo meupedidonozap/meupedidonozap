@@ -23,6 +23,8 @@ import { useIngredients } from '@/hooks/useIngredients';
 import { usePizzaBorders } from '@/hooks/usePizzaBorders';
 import { useProductAssemblies } from '@/hooks/useProductAssembly';
 import { useCreateOrder, useOrders, useUpdateOrderStatus, useUpdateOrder } from '@/hooks/useOrders';
+import { useStoreBySlug } from '@/hooks/useStores';
+import { printReceipt } from '@/lib/printReceipt';
 import AssemblyDialog from './AssemblyDialog';
 import { setWaiterSession } from './WaiterModeFAB';
 import type { Product, TabItem, CartItem, OrderStatus } from '@/types';
@@ -46,6 +48,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const { data: borders = [] } = usePizzaBorders(storeId);
   const { data: assemblies = [] } = useProductAssemblies(storeId);
   const { data: storeOrders = [] } = useOrders(storeId);
+  const { data: store } = useStoreBySlug(slug || '');
   const addTab = useAddTab();
   const addItem = useAddTabItem();
   const updateItem = useUpdateTabItem();
@@ -59,6 +62,26 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [assemblyProd, setAssemblyProd] = useState<Product | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+
+  const printReceiptFor = (
+    receiptItems: { name: string; quantity: number; unitPrice: number }[],
+    paymentMethod: string | undefined,
+    receiptNumber: string | number | undefined,
+    tabLabel?: string,
+  ) => {
+    if (!store || receiptItems.length === 0) return;
+    printReceipt({
+      storeName: store.name,
+      cnpj: store.settings?.cnpj,
+      address: store.address,
+      phone: store.phone,
+      receiptNumber,
+      tableNumber,
+      tabLabel,
+      items: receiptItems,
+      paymentMethod,
+    });
+  };
 
   const currentTabId = activeTabId || tabs[0]?.id;
   const currentTab = tabs.find(t => t.id === currentTabId);
@@ -284,6 +307,19 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                             </div>
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{formatCurrency(i.unitPrice * i.quantity)}</span>
+                              {i.status === 'pago' && (
+                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Reimprimir comprovante"
+                                  onClick={() => {
+                                    printReceiptFor(
+                                      [{ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice }],
+                                      undefined,
+                                      `M${tableNumber ?? '-'}-${i.id.slice(0, 6).toUpperCase()}`,
+                                      `Comanda ${t.number}${t.label ? ' · ' + t.label : ''}`,
+                                    );
+                                  }}>
+                                  <Printer className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
                                 onClick={async () => {
                                   if (!confirm('Remover item?')) return;
@@ -396,6 +432,18 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
               return;
             }
             toast.success(`Pagamento registrado (${paidCount} ${paidCount === 1 ? 'item' : 'itens'})`);
+            // Print non-fiscal receipt
+            const paidReceiptItems = selected.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice }));
+            const firstTabId = selected[0]?.tabId;
+            const tabInfo = tabs.find(t => t.id === firstTabId);
+            const allFromSameTab = selected.every(i => i.tabId === firstTabId);
+            const receiptNumber = `M${tableNumber ?? '-'}-${Date.now().toString().slice(-6)}`;
+            printReceiptFor(
+              paidReceiptItems,
+              paymentMethod,
+              receiptNumber,
+              allFromSameTab && tabInfo ? `Comanda ${tabInfo.number}${tabInfo.label ? ' · ' + tabInfo.label : ''}` : undefined,
+            );
             setShowPayment(false);
             // Auto-close session apenas quando todos os itens estiverem pagos/cancelados
             const remaining = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado' && !selectedIds.includes(i.id));
