@@ -9,13 +9,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Printer, X, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, Printer, X, ShoppingCart, DoorOpen, ArrowRightLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/formatters';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useTabs, useAddTab, useTabItems, useAddTabItem, useUpdateTabItem,
-  useDeleteTabItem, useCloseSession,
+  useDeleteTabItem, useCloseSession, useMoveSession, useTables, useOpenSessions,
 } from '@/hooks/useTables';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
@@ -57,11 +57,15 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const createOrder = useCreateOrder();
   const updateOrderStatus = useUpdateOrderStatus();
   const updateOrder = useUpdateOrder();
+  const moveSession = useMoveSession();
+  const { data: allTables = [] } = useTables(storeId);
+  const { data: openSessions = [] } = useOpenSessions(storeId);
 
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [assemblyProd, setAssemblyProd] = useState<Product | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [showMove, setShowMove] = useState(false);
 
   const printReceiptFor = (
     receiptItems: { name: string; quantity: number; unitPrice: number }[],
@@ -123,6 +127,39 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
     items.filter(i => i.status !== 'pago' && i.status !== 'cancelado')
       .reduce((s, i) => s + i.unitPrice * i.quantity, 0)
   , [items]);
+
+  const activeItems = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado');
+  const isEmpty = activeItems.length === 0;
+
+  const handleReleaseTable = async () => {
+    if (!isEmpty) { toast.error('Remova/finalize os itens antes de liberar'); return; }
+    if (!confirm(`Liberar mesa ${tableNumber ?? ''}? A sessão será encerrada.`)) return;
+    for (const i of items) {
+      if (i.paidOrderId) {
+        const o = orderById[i.paidOrderId];
+        if (o && o.status !== 'cancelado' && o.status !== 'entregue') {
+          try { await updateOrderStatus.mutateAsync({ id: i.paidOrderId, status: 'cancelado' as OrderStatus }); } catch {}
+        }
+      }
+    }
+    try {
+      await closeSession.mutateAsync(sessionId);
+      toast.success('Mesa liberada');
+      onClose();
+    } catch (e: any) { toast.error(e.message || 'Erro ao liberar mesa'); }
+  };
+
+  const occupiedTableIds = new Set(openSessions.filter(s => s.id !== sessionId).map(s => s.tableId));
+  const freeTables = allTables.filter(t => t.isActive && !occupiedTableIds.has(t.id) && t.id !== allTables.find(at => at.number === tableNumber)?.id);
+
+  const handleMoveTo = async (newTableId: string) => {
+    try {
+      await moveSession.mutateAsync({ sessionId, newTableId });
+      toast.success('Mesa trocada');
+      setShowMove(false);
+      onClose();
+    } catch (e: any) { toast.error(e.message || 'Erro ao trocar de mesa'); }
+  };
 
   const handleAddTab = async () => {
     const next = (tabs.length ? Math.max(...tabs.map(t => t.number)) : 0) + 1;
@@ -247,6 +284,12 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
               <Printer className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Conferência</span><span className="sm:hidden">Imprimir</span>
             </Button>
             <Button size="sm" onClick={() => setShowPayment(true)} disabled={sessionTotal === 0}>Pagar</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowMove(true)} title="Trocar de mesa">
+              <ArrowRightLeft className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Trocar mesa</span><span className="sm:hidden">Trocar</span>
+            </Button>
+            <Button size="sm" variant="destructive" onClick={handleReleaseTable} disabled={!isEmpty} title={isEmpty ? 'Liberar mesa' : 'Remova os itens primeiro'}>
+              <DoorOpen className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Liberar mesa</span><span className="sm:hidden">Liberar</span>
+            </Button>
           </div>
         </div>
 
@@ -327,6 +370,11 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                                     try { await updateOrderStatus.mutateAsync({ id: i.paidOrderId, status: 'cancelado' as OrderStatus }); } catch {}
                                   }
                                   await deleteItem.mutateAsync(i.id);
+                                  if (activeItems.length === 1) {
+                                    toast('Mesa vazia. Liberar?', {
+                                      action: { label: 'Liberar', onClick: () => handleReleaseTable() },
+                                    });
+                                  }
                                 }}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -458,6 +506,31 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
             }
           }}
         />
+      )}
+
+      {showMove && (
+        <Dialog open onOpenChange={(o) => !o && setShowMove(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Trocar para outra mesa</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Todas as comandas e itens serão movidos para a mesa selecionada.</p>
+            {freeTables.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma mesa livre disponível.</p>
+            ) : (
+              <div className="grid max-h-[50vh] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                {freeTables.map(t => (
+                  <Button key={t.id} variant="outline" className="h-auto flex-col py-3"
+                    onClick={() => handleMoveTo(t.id)}>
+                    <span className="text-xl font-bold">{t.number}</span>
+                    {t.label && <span className="text-[10px] text-muted-foreground truncate max-w-full">{t.label}</span>}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowMove(false)}>Cancelar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </Dialog>
   );

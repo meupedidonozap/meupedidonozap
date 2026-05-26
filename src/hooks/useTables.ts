@@ -123,6 +123,21 @@ export function useCloseSession() {
   });
 }
 
+export function useMoveSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { sessionId: string; newTableId: string }) => {
+      const { error } = await (supabase as any).from('table_sessions')
+        .update({ table_id: input.newTableId })
+        .eq('id', input.sessionId).select().single();
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['table_sessions'] });
+    },
+  });
+}
+
 // Tabs
 export function useTabs(sessionId?: string) {
   return useQuery({
