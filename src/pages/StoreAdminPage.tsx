@@ -1414,6 +1414,8 @@ export default function StoreAdminPage() {
 
           {/* Settings */}
           <TabsContent value="settings" className="animate-fade-in">
+            <div className="space-y-6">
+            <ChangePasswordCard />
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
               <CardContent className="space-y-6">
