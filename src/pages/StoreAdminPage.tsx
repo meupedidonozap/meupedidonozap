@@ -73,6 +73,7 @@ import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
 import { AlertTriangle } from 'lucide-react';
+import ChangePasswordCard from '@/components/ChangePasswordCard';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
@@ -1414,6 +1415,8 @@ export default function StoreAdminPage() {
 
           {/* Settings */}
           <TabsContent value="settings" className="animate-fade-in">
+            <div className="space-y-6">
+            <ChangePasswordCard />
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
               <CardContent className="space-y-6">
@@ -1818,6 +1821,7 @@ export default function StoreAdminPage() {
                 </CardContent>
               </Card>
             )}
+            </div>
           </TabsContent>
 
           {/* Service Orders - only for SERVICOS */}
