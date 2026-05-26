@@ -49,6 +49,7 @@ export default function CheckoutPage() {
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
   const upsertProfile = useUpsertCustomerProfile();
+  const storeOpenStatus = useStoreOpen(store);
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
