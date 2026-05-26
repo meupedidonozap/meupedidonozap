@@ -1412,6 +1412,11 @@ export default function StoreAdminPage() {
                   <div className="grid gap-2"><Label>Telefone</Label><Input value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} placeholder="(11) 3456-7890" /></div>
                   <div className="grid gap-2"><Label>WhatsApp (receber pedidos)</Label><Input value={settingsWhatsapp} onChange={e => setSettingsWhatsapp(e.target.value)} placeholder="5511999999999" /></div>
                 </div>
+                <div className="grid gap-2 sm:max-w-md">
+                  <Label>CNPJ (impresso nos comprovantes)</Label>
+                  <Input value={settingsCnpj} onChange={e => setSettingsCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+                  <p className="text-xs text-muted-foreground">Usado no comprovante de pagamento (não fiscal).</p>
+                </div>
                 <div className="grid gap-2 sm:max-w-xs">
                   <Label>Pedido mínimo (R$)</Label>
                   <Input
