@@ -284,6 +284,12 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
               <Printer className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Conferência</span><span className="sm:hidden">Imprimir</span>
             </Button>
             <Button size="sm" onClick={() => setShowPayment(true)} disabled={sessionTotal === 0}>Pagar</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowMove(true)} title="Trocar de mesa">
+              <ArrowRightLeft className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Trocar mesa</span><span className="sm:hidden">Trocar</span>
+            </Button>
+            <Button size="sm" variant="destructive" onClick={handleReleaseTable} disabled={!isEmpty} title={isEmpty ? 'Liberar mesa' : 'Remova os itens primeiro'}>
+              <DoorOpen className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Liberar mesa</span><span className="sm:hidden">Liberar</span>
+            </Button>
           </div>
         </div>
 
