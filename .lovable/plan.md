@@ -1,66 +1,56 @@
 ## Objetivo
+Permitir que a loja **Dicolore** configure as **Formas de Pagamento** e as **Condições de Pagamento** com os códigos do ERP, para que:
+- O cliente possa **escolher** essas opções no checkout.
+- O **vendedor** possa **editar** essas escolhas ao alterar o status do pedido.
+- O **XML de integração** use os códigos cadastrados.
 
-Trocar o domínio canônico do projeto de `meupedidonozap.lovable.app` para **`https://meupedidonozap.online`** (Netlify) e executar a verificação + indexação no Google Search Console de forma programática via conector.
+## 1. Configurações (aba Configurações do admin da loja)
 
-A recomendação é **NÃO registrar o domínio Lovable** no Search Console — concorda com sua escolha. Dois domínios indexados com o mesmo conteúdo geram conteúdo duplicado, prejudicam ranqueamento e diluem autoridade. O canônico fica só no `.online`. O Lovable continua acessível pra preview interno mas com `noindex` implícito por não estar no sitemap nem ter backlinks.
+Adicionar dois novos blocos no painel admin da Dicolore (condicionados ao slug `dicolore` ou a uma flag em `settings`):
 
----
+**Bloco "Formas de Pagamento (ERP)"**
+- Lista editável (adicionar / remover / editar / ativar).
+- Campos por item: `codigo` (texto/numérico, ex: 1, 3, 4, 5, 42), `descricao` (ex: CHEQUE, A VISTA, BOLETO BANCARIO, DEPÓSITO, CARTÃO DE CRÉDITO), `filial` (texto livre, default "*"), `ativo`.
+- Pré-popular com os 5 itens da imagem 1.
 
-## Parte 1 — Corrigir domínio no código
+**Bloco "Condições de Pagamento (ERP)"**
+- Mesma estrutura: `codigo` (ex: 63, 47, 87, 310, 122, 71, 400, 84, 21, 3, 61, 30, 1...), `descricao` (ex: "1/30 S/J", "7 DIAS S/J", "30/45/60/75/90 S/J", "VENDA A VISTA"…), `filial` ("*"), `ativo`.
+- Pré-popular com os 14 itens da imagem 2.
 
-Trocar todas as referências de `meupedidonozap.lovable.app` por `meupedidonozap.online`:
+Armazenamento: dentro de `stores.settings` em dois arrays JSON: `formasPagamento[]` e `condicoesPagamento[]`. Sem migração de schema.
 
-1. **`index.html`** — atualizar JSON-LD Organization/WebSite com novo `url`. Adicionar `<link rel="canonical" href="https://meupedidonozap.online/" />` e `og:url`.
-2. **`public/robots.txt`** — atualizar linha `Sitemap:` para `https://meupedidonozap.online/sitemap.xml`.
-3. **`scripts/generate-sitemap.cjs`** — alterar constante `BASE_URL`.
-4. **`src/lib/seoSchemas.ts`** — alterar constante `BASE_URL`.
-5. **`netlify/edge-functions/og-redirect.ts`** — verificar se há URL hardcoded (não há, é dinâmico via slug — ok).
-6. **`supabase/functions/og-meta/index.ts`** — verificar URLs absolutas geradas no HTML retornado e ajustar se necessário.
+## 2. Checkout (cliente Dicolore)
 
-## Parte 2 — Verificação no Google Search Console (programática)
+Na página de checkout, quando a loja for Dicolore (ou tiver as listas configuradas):
+- Substituir o seletor genérico de pagamento por **dois selects**:
+  - **Forma de Pagamento** — lista as opções ativas (mostra "código - descrição").
+  - **Condição de Pagamento** — lista as condições ativas.
+- Persistir nos pedidos: `payment_method` recebe o código da forma; novo campo `payment_condition_code` (e descrições espelho para exibição) salvo em `orders.customer` ou em uma chave dedicada dentro de `items`/`observations`. Para evitar migração, salvar em `orders.customer.paymentFormaCodigo`, `paymentFormaDescricao`, `paymentCondicaoCodigo`, `paymentCondicaoDescricao` (jsonb já existente).
 
-Usando o conector Google Search Console já disponível, executar via `code--exec` + `curl`:
+## 3. Edição pelo vendedor / admin
 
-1. **Solicitar token META** para `https://meupedidonozap.online/`
-2. **Inserir meta tag de verificação no `index.html`** (substituir as 2 existentes do Lovable por uma nova específica do `.online`)
-3. **Você publica/sobe no Netlify** (precisa ser ação sua porque Netlify build é fora do Lovable). Confirmo quando estiver no ar.
-4. **Chamar endpoint verify** para o Google confirmar
-5. **Adicionar site como propriedade** no Search Console (PUT em `/sites/{url-encoded}`)
-6. **Submeter sitemap** `https://meupedidonozap.online/sitemap.xml` via API (PUT em `/sites/.../sitemaps/{sitemap-url-encoded}`)
-7. **(opcional)** Listar lojas ativas e solicitar inspeção/indexação das principais via URL Inspection API
+No diálogo de edição do pedido (`EditOrderDialog`) e/ou na tela de gestão de pedidos:
+- Mostrar os mesmos dois selects (forma + condição), pré-preenchidos com o que veio do cliente.
+- Permitir alterar e salvar; atualiza os mesmos campos em `orders.customer`.
+- Disponível ao admin e a usuários com `can_manage_orders`.
 
-## Parte 3 — Orientação operacional pós-execução
+## 4. XML de integração (`src/lib/exportOrder.ts`)
 
-Depois da execução automática vou te entregar:
-- Status de cada step (verificado / sitemap aceito / quantas URLs enviadas)
-- Como acompanhar cobertura no painel do Search Console (link direto)
-- Como conectar Search Console ao Google Ads pra campanhas
-- Bing Webmaster Tools (importar da GSC em 1 clique — opcional)
+- Trocar o mapa fixo `PAYMENT_CODE` por:
+  - `formaPagamento` = código salvo no pedido (vindo da config). Fallback: mapa atual.
+  - Novo elemento `<condicaoPagamento>` no XML usando o código salvo.
+- TXT export: incluir colunas extras com os dois códigos.
 
----
+## 5. Escopo / fora de escopo
 
-## Fluxo de execução
+- Aplicar apenas ao fluxo da **Dicolore** (detecção por slug + presença das listas em settings). Demais lojas continuam com o fluxo atual (pix/boleto/cartão/dinheiro).
+- Sem mudanças de RLS, sem migrações de banco.
+- Sem alterações no fluxo de WhatsApp das outras lojas.
 
-```text
-1. Edit code (BASE_URL → .online)  ──┐
-2. Request META token                 │  programático
-3. Inject token meta into index.html  ┘
-   ↓
-4. VOCÊ: publica no Netlify
-   ↓
-5. POST verify                        ──┐
-6. PUT site                            │  programático
-7. PUT sitemap                          ┘
-   ↓
-8. Resumo de status + próximos passos
-```
-
-## Sobre o "página não encontrada" ao compartilhar
-
-Você confirmou que é em outro projeto — ignorando.
-
----
-
-**Arquivos alterados:** `index.html`, `public/robots.txt`, `scripts/generate-sitemap.cjs`, `src/lib/seoSchemas.ts`, possivelmente `supabase/functions/og-meta/index.ts`.
-**DB:** nenhuma alteração.
-**Pré-requisito:** conector Google Search Console autorizado (vou checar com `standard_connectors--list_connections`; se não estiver, vou pedir pra você conectar antes do step 5).
+## Arquivos a alterar
+- `src/pages/AdminPage.tsx` (ou novo `PaymentCodesTab.tsx` montado dentro da aba Configurações) — UI das duas listas.
+- `src/types/index.ts` — tipos `PaymentForma`, `PaymentCondicao`.
+- `src/pages/CheckoutPage.tsx` — selects condicionais.
+- `src/components/EditOrderDialog.tsx` — selects para vendedor editar.
+- `src/lib/exportOrder.ts` — usar códigos dinâmicos + `<condicaoPagamento>`.
+- Seed inicial (uma vez, via UI ou util) com os valores das imagens.

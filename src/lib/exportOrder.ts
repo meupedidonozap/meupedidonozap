@@ -60,6 +60,11 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const sellerCode = extra.sellerCode || rep.codigo || '';
   const televendas = extra.isTelevendas ? 'Sim' : 'Nao';
 
+  const formaCodigo = (order.customer as any)?.paymentFormaCodigo
+    || PAYMENT_CODE[order.paymentMethod]
+    || '';
+  const condicaoCodigo = (order.customer as any)?.paymentCondicaoCodigo || '';
+
   const itensXml = order.items
     .map((item: CartItem) => {
       const total = (item.price * item.quantity).toFixed(2);
@@ -93,7 +98,8 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <nomeRepresentante>${escapeXml(rep.nome || '')}</nomeRepresentante>
   <codigoRepresentante>${escapeXml(sellerCode)}</codigoRepresentante>
   <pedidoTelevendas>${televendas}</pedidoTelevendas>
-  <formaPagamento>${PAYMENT_CODE[order.paymentMethod] || ''}</formaPagamento>
+  <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
+  <condicaoPagamento>${escapeXml(condicaoCodigo)}</condicaoPagamento>
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
   <tabelaPrecos>${escapeXml(s.tabelaPrecos || '')}</tabelaPrecos>
   <colunaTabelaPrecos>2</colunaTabelaPrecos>

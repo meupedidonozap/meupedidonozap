@@ -33,6 +33,7 @@ import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
 import EditOrderDialog from '@/components/EditOrderDialog';
+import DicolorePaymentCodesTab from '@/components/DicolorePaymentCodesTab';
 import StoreUsersTab from '@/components/StoreUsersTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
 import IngredientsTab from '@/components/IngredientsTab';
@@ -1664,6 +1665,11 @@ export default function StoreAdminPage() {
 
             {/* Sellers management - Dicolore only */}
             {store.slug === 'dicolore' && (
+              <DicolorePaymentCodesTab store={store} />
+            )}
+
+            {/* Sellers management - Dicolore only */}
+            {store.slug === 'dicolore' && (
               <Card className="mt-6">
                 <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -2199,6 +2205,7 @@ export default function StoreAdminPage() {
         discountRules={store?.settings.discountRules || []}
         categories={categories}
         materialApoio={store?.settings.materialApoio}
+        store={store}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">

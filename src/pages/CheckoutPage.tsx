@@ -25,6 +25,7 @@ import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import ClosedBanner from '@/components/ClosedBanner';
 import { useStoreOpen } from '@/hooks/useStoreOpen';
 import type { PaymentMethod, DeliveryShift } from '@/types';
+import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
 
 interface ShippingOption {
   code: string;
@@ -50,6 +51,9 @@ export default function CheckoutPage() {
   const { data: sellers = [] } = useStoreSellers(store?.id);
   const upsertProfile = useUpsertCustomerProfile();
   const storeOpenStatus = useStoreOpen(store);
+  const dicolore = isDicoloreFlow(store?.slug, store?.settings);
+  const formas = getStoreFormas(store?.settings).filter(f => f.ativo);
+  const condicoes = getStoreCondicoes(store?.settings).filter(c => c.ativo);
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -62,6 +66,10 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+
+  // Dicolore ERP payment codes
+  const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
+  const [paymentCondicaoCodigo, setPaymentCondicaoCodigo] = useState<string>('');
 
   // Shipping state
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -314,6 +322,12 @@ export default function CheckoutPage() {
           address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
+          ...(dicolore ? {
+            paymentFormaCodigo: paymentFormaCodigo || undefined,
+            paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
+            paymentCondicaoCodigo: paymentCondicaoCodigo || undefined,
+            paymentCondicaoDescricao: condicoes.find(c => c.codigo === paymentCondicaoCodigo)?.descricao,
+          } : {}),
         },
         items: cart.items.map(item => ({
           ...item,
@@ -513,12 +527,39 @@ export default function CheckoutPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-3">
                   <Label>Forma de Pagamento</Label>
-                  <RadioGroup value={formData.paymentMethod} onValueChange={value => handleInputChange('paymentMethod', value)} className="flex flex-wrap gap-4">
-                    {store.settings.acceptPix && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
-                    {store.settings.acceptBoleto && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
-                    {store.settings.acceptCard && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>
-                  </RadioGroup>
+                  {dicolore ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Forma de Pagamento (ERP)</Label>
+                        <Select value={paymentFormaCodigo} onValueChange={setPaymentFormaCodigo}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent className="max-h-[40vh]">
+                            {formas.map(f => (
+                              <SelectItem key={f.codigo} value={f.codigo}>{f.codigo} - {f.descricao}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Condição de Pagamento (ERP)</Label>
+                        <Select value={paymentCondicaoCodigo} onValueChange={setPaymentCondicaoCodigo}>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent className="max-h-[40vh]">
+                            {condicoes.map(c => (
+                              <SelectItem key={c.codigo} value={c.codigo}>{c.codigo} - {c.descricao}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
+                    <RadioGroup value={formData.paymentMethod} onValueChange={value => handleInputChange('paymentMethod', value)} className="flex flex-wrap gap-4">
+                      {store.settings.acceptPix && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
+                      {store.settings.acceptBoleto && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
+                      {store.settings.acceptCard && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
+                      <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>
+                    </RadioGroup>
+                  )}
                 </div>
                 {sellers.length > 0 && (
                   <div className="rounded-lg border-2 border-primary/60 bg-primary/5 p-4 space-y-3">
