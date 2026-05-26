@@ -419,6 +419,18 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
               return;
             }
             toast.success(`Pagamento registrado (${paidCount} ${paidCount === 1 ? 'item' : 'itens'})`);
+            // Print non-fiscal receipt
+            const paidReceiptItems = selected.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice }));
+            const firstTabId = selected[0]?.tabId;
+            const tabInfo = tabs.find(t => t.id === firstTabId);
+            const allFromSameTab = selected.every(i => i.tabId === firstTabId);
+            const receiptNumber = `M${tableNumber ?? '-'}-${Date.now().toString().slice(-6)}`;
+            printReceiptFor(
+              paidReceiptItems,
+              paymentMethod,
+              receiptNumber,
+              allFromSameTab && tabInfo ? `Comanda ${tabInfo.number}${tabInfo.label ? ' · ' + tabInfo.label : ''}` : undefined,
+            );
             setShowPayment(false);
             // Auto-close session apenas quando todos os itens estiverem pagos/cancelados
             const remaining = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado' && !selectedIds.includes(i.id));
