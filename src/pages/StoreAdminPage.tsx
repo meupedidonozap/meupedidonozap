@@ -2205,6 +2205,7 @@ export default function StoreAdminPage() {
         discountRules={store?.settings.discountRules || []}
         categories={categories}
         materialApoio={store?.settings.materialApoio}
+        store={store}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">
