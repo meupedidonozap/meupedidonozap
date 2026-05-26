@@ -48,6 +48,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const { data: borders = [] } = usePizzaBorders(storeId);
   const { data: assemblies = [] } = useProductAssemblies(storeId);
   const { data: storeOrders = [] } = useOrders(storeId);
+  const { data: store } = useStoreBySlug(slug || '');
   const addTab = useAddTab();
   const addItem = useAddTabItem();
   const updateItem = useUpdateTabItem();
