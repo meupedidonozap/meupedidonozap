@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { buildStoreJsonLd } from '@/lib/seoSchemas';
 import { useParams, Link } from 'react-router-dom';
 import { format, addMinutes, isSameDay, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -88,6 +89,13 @@ export default function SalonStorePage() {
       <Helmet>
         <title>{store.name} — Agendamento</title>
         <meta name="description" content={`Agende seu horário em ${store.name}. ${store.address || ''}`.slice(0, 160)} />
+        <link rel="canonical" href={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:title" content={store.name} />
+        <meta property="og:description" content={`Agende seu horário em ${store.name}`} />
+        <meta property="og:image" content={store.logo || store.banner || 'https://meupedidonozap.lovable.app/placeholder.svg'} />
+        <meta property="og:url" content={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">{JSON.stringify(buildStoreJsonLd(store))}</script>
       </Helmet>
 
       {/* Header */}

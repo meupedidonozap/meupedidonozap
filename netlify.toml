@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "bun run build && node scripts/prerender.cjs"
+  command = "bun run build && node scripts/prerender.cjs && node scripts/generate-sitemap.cjs"
 
 [[edge_functions]]
   function = "og-redirect"

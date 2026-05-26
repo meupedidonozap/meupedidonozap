@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { buildStoreJsonLd } from '@/lib/seoSchemas';
 import { useParams, Link } from 'react-router-dom';
 import {
   Home, Search, ShoppingCart, FileText, Plus, Minus, X,
@@ -129,6 +130,7 @@ export default function FoodStorePage() {
         <meta property="og:image" content={store.logo || store.banner || 'https://meupedidonozap.lovable.app/placeholder.svg'} />
         <meta property="og:url" content={`https://meupedidonozap.lovable.app/${store.slug}`} />
         <meta property="og:type" content="website" />
+        <script type="application/ld+json">{JSON.stringify(buildStoreJsonLd(store))}</script>
       </Helmet>
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center justify-between">

@@ -28,6 +28,7 @@ import { usePlatformAdmin } from '@/hooks/usePlatformAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import RefreshButton from '@/components/RefreshButton';
+import { getTemplateForType } from '@/lib/storeTemplates';
 
 const storeTypeLabels: Record<StoreTypeEnum, string> = {
   LOJA: 'Loja de Produtos',
@@ -204,12 +205,47 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
         await updateStore.mutateAsync({ id: editingStore.id, ...formData });
         toast.success('Empresa atualizada com sucesso!');
       } else {
-        await createStore.mutateAsync({
+        const template = getTemplateForType(formData.type);
+        const mergedSettings = template
+          ? { ...defaultSettings, ...template.settings }
+          : defaultSettings;
+        const created = await createStore.mutateAsync({
           ...formData,
           isActive: true,
-          settings: defaultSettings,
+          settings: mergedSettings,
         });
-        toast.success('Empresa criada com sucesso!');
+
+        // Aplicar dados estruturais do template (categorias + ingredientes)
+        if (template && created?.id) {
+          const storeId = created.id;
+          try {
+            if (template.categories.length > 0) {
+              const catRows = template.categories.map((name, idx) => ({
+                store_id: storeId,
+                name,
+                sort_order: idx,
+              }));
+              await supabase.from('categories').insert(catRows);
+            }
+            if (template.ingredients.length > 0) {
+              const ingRows = template.ingredients.map((ing, idx) => ({
+                store_id: storeId,
+                name: ing.name,
+                extra_price: ing.extraPrice ?? 0,
+                sort_order: idx,
+              }));
+              await supabase.from('ingredients').insert(ingRows);
+            }
+            toast.success(
+              `Empresa criada com modelo Delivery — ${template.categories.length} categorias e ${template.ingredients.length} ingredientes pré-configurados!`
+            );
+          } catch (tplErr: any) {
+            console.error('[template] erro ao aplicar dados:', tplErr);
+            toast.success('Empresa criada! (Falha ao aplicar template — configure manualmente)');
+          }
+        } else {
+          toast.success('Empresa criada com sucesso!');
+        }
       }
       setIsDialogOpen(false);
     } catch (err: any) {
@@ -298,6 +334,13 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       <SelectItem value="SALAO">Salão de Beleza</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!editingStore && formData.type === 'COMIDA' && (
+                    <div className="rounded-md border border-accent/30 bg-accent/10 p-3 text-xs text-foreground">
+                      ✓ <strong>Modelo Pastelaria/Delivery</strong> será aplicado:
+                      horários 08:00–22:00, formas de pagamento (Pix, Cartão, Dinheiro),
+                      8 categorias-base e 26 ingredientes comuns (calabresa, mussarela, frango, bebidas etc.).
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="address">Endereço</Label>
