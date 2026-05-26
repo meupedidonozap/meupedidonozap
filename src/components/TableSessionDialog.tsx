@@ -128,6 +128,39 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
       .reduce((s, i) => s + i.unitPrice * i.quantity, 0)
   , [items]);
 
+  const activeItems = items.filter(i => i.status !== 'pago' && i.status !== 'cancelado');
+  const isEmpty = activeItems.length === 0;
+
+  const handleReleaseTable = async () => {
+    if (!isEmpty) { toast.error('Remova/finalize os itens antes de liberar'); return; }
+    if (!confirm(`Liberar mesa ${tableNumber ?? ''}? A sessão será encerrada.`)) return;
+    for (const i of items) {
+      if (i.paidOrderId) {
+        const o = orderById[i.paidOrderId];
+        if (o && o.status !== 'cancelado' && o.status !== 'entregue') {
+          try { await updateOrderStatus.mutateAsync({ id: i.paidOrderId, status: 'cancelado' as OrderStatus }); } catch {}
+        }
+      }
+    }
+    try {
+      await closeSession.mutateAsync(sessionId);
+      toast.success('Mesa liberada');
+      onClose();
+    } catch (e: any) { toast.error(e.message || 'Erro ao liberar mesa'); }
+  };
+
+  const occupiedTableIds = new Set(openSessions.filter(s => s.id !== sessionId).map(s => s.tableId));
+  const freeTables = allTables.filter(t => t.isActive && !occupiedTableIds.has(t.id) && t.id !== allTables.find(at => at.number === tableNumber)?.id);
+
+  const handleMoveTo = async (newTableId: string) => {
+    try {
+      await moveSession.mutateAsync({ sessionId, newTableId });
+      toast.success('Mesa trocada');
+      setShowMove(false);
+      onClose();
+    } catch (e: any) { toast.error(e.message || 'Erro ao trocar de mesa'); }
+  };
+
   const handleAddTab = async () => {
     const next = (tabs.length ? Math.max(...tabs.map(t => t.number)) : 0) + 1;
     if (next > 6) { toast.error('Máx. 6 comandas por mesa'); return; }
