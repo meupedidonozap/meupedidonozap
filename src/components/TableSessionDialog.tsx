@@ -370,6 +370,11 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                                     try { await updateOrderStatus.mutateAsync({ id: i.paidOrderId, status: 'cancelado' as OrderStatus }); } catch {}
                                   }
                                   await deleteItem.mutateAsync(i.id);
+                                  if (activeItems.length === 1) {
+                                    toast('Mesa vazia. Liberar?', {
+                                      action: { label: 'Liberar', onClick: () => handleReleaseTable() },
+                                    });
+                                  }
                                 }}>
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
