@@ -104,15 +104,16 @@ export function useUpdateOrder() {
       if (discount !== undefined) update.discount = discount;
       if (observations !== undefined) update.observations = observations;
       if (customer !== undefined) update.customer = customer as any;
-      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().single();
+      const { data, error } = await supabase.from('orders').update(update).eq('id', id).select().maybeSingle();
       if (error) throw error;
-      return mapOrder(data);
+      return data ? mapOrder(data) : null;
     },
     onSuccess: (updated) => {
-      // Immediate cache update
-      qc.setQueryData<Order[]>(['orders', updated.storeId], (old) =>
-        old ? old.map(o => o.id === updated.id ? updated : o) : [updated]
-      );
+      if (updated) {
+        qc.setQueryData<Order[]>(['orders', updated.storeId], (old) =>
+          old ? old.map(o => o.id === updated.id ? updated : o) : [updated]
+        );
+      }
       qc.invalidateQueries({ queryKey: ['orders'] });
     },
   });
