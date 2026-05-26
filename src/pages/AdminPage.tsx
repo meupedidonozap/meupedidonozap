@@ -334,6 +334,13 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                       <SelectItem value="SALAO">Salão de Beleza</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!editingStore && formData.type === 'COMIDA' && (
+                    <div className="rounded-md border border-accent/30 bg-accent/10 p-3 text-xs text-foreground">
+                      ✓ <strong>Modelo Pastelaria/Delivery</strong> será aplicado:
+                      horários 08:00–22:00, formas de pagamento (Pix, Cartão, Dinheiro),
+                      8 categorias-base e 26 ingredientes comuns (calabresa, mussarela, frango, bebidas etc.).
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="address">Endereço</Label>
