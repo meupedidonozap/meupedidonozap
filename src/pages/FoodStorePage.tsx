@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Home, Search, ShoppingCart, FileText, Plus, Minus, X,
   ChevronDown, ChevronUp, MapPin, Share2, Loader2, User, LogIn, LogOut, ShoppingBag,
-  List, LayoutGrid,
+  List, LayoutGrid, Menu,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,7 +26,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 
 export default function FoodStorePage() {
@@ -44,42 +45,33 @@ export default function FoodStorePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [assemblyProduct, setAssemblyProduct] = useState<Product | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
   useEffect(() => {
     if (store) {
       setStoreId(store.id);
-      setExpandedCategories(categories.map(c => c.id));
     }
-  }, [store, setStoreId, categories.length]);
+  }, [store, setStoreId]);
 
   const activeProducts = useMemo(() => allProducts.filter(p => p.isActive), [allProducts]);
 
   const filteredItems = useMemo(() => {
-    if (!searchTerm) return activeProducts;
-    return activeProducts.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [activeProducts, searchTerm]);
-
-  const itemsByCategory = useMemo(() => {
-    const grouped: Record<string, Product[]> = {};
-    categories.forEach(cat => {
-      grouped[cat.id] = filteredItems.filter(item => item.categoryId === cat.id);
-    });
-    return grouped;
-  }, [categories, filteredItems]);
+    const term = searchTerm.toLowerCase();
+    return activeProducts
+      .filter(item => {
+        const matchesSearch = !term ||
+          item.name.toLowerCase().includes(term) ||
+          item.description.toLowerCase().includes(term);
+        const matchesCategory = selectedCategory === 'all' || item.categoryId === selectedCategory;
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [activeProducts, searchTerm, selectedCategory]);
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev =>
-      prev.includes(categoryId) ? prev.filter(id => id !== categoryId) : [...prev, categoryId]
-    );
-  };
 
   const getAssembly = (productId: string): ProductAssembly | undefined =>
     assemblies.find(a => a.productId === productId);
