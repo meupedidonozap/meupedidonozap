@@ -517,6 +517,7 @@ export default function StoreAdminPage() {
           shipping: shippingData,
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
           offersDelivery,
+          cnpj: settingsCnpj.replace(/\D/g, ''),
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
