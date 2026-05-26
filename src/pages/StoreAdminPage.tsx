@@ -259,6 +259,7 @@ export default function StoreAdminPage() {
   const [settingsWhatsapp, setSettingsWhatsapp] = useState('');
   const [settingsLogo, setSettingsLogo] = useState('');
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
+  const [settingsCnpj, setSettingsCnpj] = useState('');
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
