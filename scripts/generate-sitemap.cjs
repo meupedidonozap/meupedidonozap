@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'https://meupedidonozap.lovable.app';
+const BASE_URL = 'https://meupedidonozap.online';
 
 let SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 let SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;

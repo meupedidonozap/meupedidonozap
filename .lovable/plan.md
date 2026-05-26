@@ -1,123 +1,66 @@
+## Objetivo
 
-Esse plano cobre **apenas os itens 4 e 5** (que precisam de código). Itens 1, 2 e 3 foram respondidos na análise acima. Se quiser que eu rode auditoria de segurança formal (item 3) ou implemente alguma melhoria do item 2, peça em chat separado.
+Trocar o domínio canônico do projeto de `meupedidonozap.lovable.app` para **`https://meupedidonozap.online`** (Netlify) e executar a verificação + indexação no Google Search Console de forma programática via conector.
 
----
-
-## Parte A — Template DELIVERY (item 4)
-
-**Objetivo:** ao criar nova loja com tipo `COMIDA` no `AdminPage`, aplicar automaticamente a mesma configuração madura da Pastelaria RM26: regras de desconto, formas de pagamento, horários múltiplos (manhã/almoço/tarde/noite), material de apoio (ingredientes/molhos/bebidas comuns), categorias-base, métodos de impressão, frete, mesas exemplo.
-
-### A.1 — Captura da config da Pastelaria RM26
-1. Ler `stores.settings` da Pastelaria RM26 do banco (via `read_query`)
-2. Ler `categories`, `ingredients`, `restaurant_tables` da Pastelaria RM26
-3. Extrair tudo que é "configuração estrutural do ramo" (não dados específicos: sem produtos, sem clientes, sem pedidos, sem CNPJ, sem logo, sem endereço)
-
-### A.2 — Arquivo de template
-Criar `src/lib/storeTemplates.ts` com:
-- `DELIVERY_TEMPLATE.settings` — JSON com horários (incluindo intervalo de almoço), regras de desconto progressivas, formas de pagamento (Pix/Cartão/Dinheiro), shipping padrão, materialApoio
-- `DELIVERY_TEMPLATE.categories` — array de nomes (ex: "Salgados", "Bebidas", "Sobremesas", "Combos")
-- `DELIVERY_TEMPLATE.ingredients` — ingredientes/molhos comuns (catchup, mostarda, maionese, etc.)
-- `DELIVERY_TEMPLATE.tables` — opcional (algumas pastelarias têm balcão), 4 mesas exemplo desativadas
-
-### A.3 — Aplicação no fluxo de criação
-Em `src/pages/AdminPage.tsx`:
-- Quando `type === 'COMIDA'` no submit do CreateDialog, em vez de `defaultSettings`, mesclar `DELIVERY_TEMPLATE.settings`
-- Após `useCreateStore` retornar o `id`, executar em sequência:
-  - `insert` em `categories` para cada categoria do template (com `store_id` novo)
-  - `insert` em `ingredients` para cada ingrediente do template
-  - `insert` em `restaurant_tables` para mesas exemplo (is_active=false)
-- Toast: "Loja criada com modelo Delivery (Pastelaria) — X categorias e Y ingredientes pré-configurados"
-
-### A.4 — UI no dialog
-- Quando usuário seleciona "Delivery de Comida", mostrar badge azul:
-  _"✓ Modelo Pastelaria será aplicado: horários com almoço, regras de desconto, formas de pagamento, categorias base e ingredientes comuns"_
-
-### A.5 — Aplicar a outros tipos no futuro (extensível)
-- Estrutura suporta adicionar `PIZZARIA_TEMPLATE`, `SALON_TEMPLATE` depois sem refatorar
-
-**Arquivos:** criar `src/lib/storeTemplates.ts`, editar `src/pages/AdminPage.tsx`.
-**DB:** sem migrações (só inserts via cliente, RLS já permite porque platform_admin cria).
+A recomendação é **NÃO registrar o domínio Lovable** no Search Console — concorda com sua escolha. Dois domínios indexados com o mesmo conteúdo geram conteúdo duplicado, prejudicam ranqueamento e diluem autoridade. O canônico fica só no `.online`. O Lovable continua acessível pra preview interno mas com `noindex` implícito por não estar no sitemap nem ter backlinks.
 
 ---
 
-## Parte B — Pacote SEO completo (item 5)
+## Parte 1 — Corrigir domínio no código
 
-### B.1 — Sitemap.xml dinâmico
-Criar `scripts/generate-sitemap.cjs` (modelo do prerender.cjs):
-- Busca todas as lojas ativas via REST
-- Busca produtos ativos por loja (para sitemap profundo)
-- Gera `dist/sitemap.xml` com:
-  - `/` (homepage)
-  - `/{slug}` (cada loja, `priority=0.9`, `changefreq=daily`)
-  - `/{slug}` para cada produto público? (opcional — depende se produto tem URL própria; verificar)
-- `lastmod` = `updated_at` real da loja
-- Atualizar `netlify.toml`: `command = "bun run build && node scripts/prerender.cjs && node scripts/generate-sitemap.cjs"`
-- Adicionar `Sitemap: https://meupedidonozap.online/sitemap.xml` no final do `public/robots.txt`
+Trocar todas as referências de `meupedidonozap.lovable.app` por `meupedidonozap.online`:
 
-### B.2 — JSON-LD por tipo de loja
-Em `src/pages/StorePage.tsx` (ou em cada storefront), adicionar via `<Helmet>`:
-- **COMIDA/PIZZARIA** → `@type: Restaurant` com `servesCuisine`, `priceRange`, `address`, `telephone`, `menu`, `openingHoursSpecification` (vindo de businessHours)
-- **SALAO** → `@type: HealthAndBeautyBusiness`
-- **LOJA/ACESSORIOS** → `@type: Store`
-- **SERVICOS** → `@type: LocalBusiness`
-- Todos com `aggregateRating` placeholder removível e `image: logo || banner`
+1. **`index.html`** — atualizar JSON-LD Organization/WebSite com novo `url`. Adicionar `<link rel="canonical" href="https://meupedidonozap.online/" />` e `og:url`.
+2. **`public/robots.txt`** — atualizar linha `Sitemap:` para `https://meupedidonozap.online/sitemap.xml`.
+3. **`scripts/generate-sitemap.cjs`** — alterar constante `BASE_URL`.
+4. **`src/lib/seoSchemas.ts`** — alterar constante `BASE_URL`.
+5. **`netlify/edge-functions/og-redirect.ts`** — verificar se há URL hardcoded (não há, é dinâmico via slug — ok).
+6. **`supabase/functions/og-meta/index.ts`** — verificar URLs absolutas geradas no HTML retornado e ajustar se necessário.
 
-Bonus: `BreadcrumbList` em rotas profundas.
+## Parte 2 — Verificação no Google Search Console (programática)
 
-### B.3 — index.html melhorado
-- Title: `"MeuPedidoNoZap — Cardápio digital e pedidos por WhatsApp sem comissão"`
-- Description: 155 chars com palavras-chave ("cardápio online", "pedido WhatsApp", "delivery sem comissão")
-- JSON-LD `Organization` + `WebSite` com `SearchAction`
+Usando o conector Google Search Console já disponível, executar via `code--exec` + `curl`:
 
-### B.4 — Noindex em rotas privadas
-Adicionar `<Helmet><meta name="robots" content="noindex,nofollow"/></Helmet>` em:
-- `CheckoutPage`, `OrderHistoryPage`, `StoreAdminPage`, `AdminPage`, `KitchenPage`, `WaiterPage`, `ResetPasswordPage`
+1. **Solicitar token META** para `https://meupedidonozap.online/`
+2. **Inserir meta tag de verificação no `index.html`** (substituir as 2 existentes do Lovable por uma nova específica do `.online`)
+3. **Você publica/sobe no Netlify** (precisa ser ação sua porque Netlify build é fora do Lovable). Confirmo quando estiver no ar.
+4. **Chamar endpoint verify** para o Google confirmar
+5. **Adicionar site como propriedade** no Search Console (PUT em `/sites/{url-encoded}`)
+6. **Submeter sitemap** `https://meupedidonozap.online/sitemap.xml` via API (PUT em `/sites/.../sitemaps/{sitemap-url-encoded}`)
+7. **(opcional)** Listar lojas ativas e solicitar inspeção/indexação das principais via URL Inspection API
 
-### B.5 — Alt text e H1
-- Auditar `ProductStorePage`, `FoodStorePage`, `PizzaStorePage`, `SalonStorePage`:
-  - Garantir 1 `<h1>` por página = nome da loja
-  - Todas `<img>` de produto com `alt={produto.name}`
-  - Logo com `alt={`Logo ${store.name}`}`
+## Parte 3 — Orientação operacional pós-execução
 
-### B.6 — Google Search Console — orientação operacional
-Crio script (não-código) com passo-a-passo para você:
+Depois da execução automática vou te entregar:
+- Status de cada step (verificado / sitemap aceito / quantas URLs enviadas)
+- Como acompanhar cobertura no painel do Search Console (link direto)
+- Como conectar Search Console ao Google Ads pra campanhas
+- Bing Webmaster Tools (importar da GSC em 1 clique — opcional)
 
-1. **Verificar domínio** em https://search.google.com/search-console
-   - Adicionar propriedade `https://meupedidonozap.online`
-   - Método: **Meta tag HTML** → Google fornece string `<meta name="google-site-verification" content="XXXX"/>`
-   - Você cola em `index.html` (já tem 2 lá, basta adicionar/atualizar)
-   - Clica "Verificar"
+---
 
-2. **Submeter sitemap:** Search Console → Sitemaps → colar `sitemap.xml` → Enviar
+## Fluxo de execução
 
-3. **Solicitar indexação manual** das principais lojas:
-   - URL Inspection → cola `https://meupedidonozap.online/pastelariarm26` → "Solicitar indexação"
-   - Repete para cada loja-vitrine
+```text
+1. Edit code (BASE_URL → .online)  ──┐
+2. Request META token                 │  programático
+3. Inject token meta into index.html  ┘
+   ↓
+4. VOCÊ: publica no Netlify
+   ↓
+5. POST verify                        ──┐
+6. PUT site                            │  programático
+7. PUT sitemap                          ┘
+   ↓
+8. Resumo de status + próximos passos
+```
 
-4. **Performance contínua:**
-   - Acompanhar "Cobertura" semanalmente
-   - Páginas com erro: corrigir e re-submeter
-   - "Consultas" mostra palavras-chave que trazem visitas (alimenta futuras campanhas Google Ads)
+## Sobre o "página não encontrada" ao compartilhar
 
-5. **Para campanhas Google Ads:**
-   - Páginas indexadas = elegíveis para Quality Score alto
-   - Usar URLs de loja específicas como landing page
-   - Conectar Search Console ao Google Ads para ver termos de busca reais
+Você confirmou que é em outro projeto — ignorando.
 
-6. **Bing Webmaster Tools** (5% do tráfego BR): importar da Search Console em 1 clique
+---
 
-### B.7 — (Opcional) Sitemap automático no Search Console via API
-Posso usar o conector Google Search Console para verificar domínio + submeter sitemap programaticamente. Requer aprovação OAuth no painel Connectors antes.
-
-**Arquivos:** criar `scripts/generate-sitemap.cjs`, editar `netlify.toml`, `public/robots.txt`, `index.html`, `src/pages/StorePage.tsx` (e/ou cada storefront), `src/pages/CheckoutPage.tsx`, `OrderHistoryPage.tsx`, `StoreAdminPage.tsx`, `AdminPage.tsx`, `KitchenPage.tsx`, `WaiterPage.tsx`, `ResetPasswordPage.tsx`.
+**Arquivos alterados:** `index.html`, `public/robots.txt`, `scripts/generate-sitemap.cjs`, `src/lib/seoSchemas.ts`, possivelmente `supabase/functions/og-meta/index.ts`.
 **DB:** nenhuma alteração.
-
----
-
-## Resumo de impacto
-- **Item 4** acelera onboarding de novas pastelarias/delivery em ~30 min de config manual
-- **Item 5** torna lojas indexáveis no Google, permite Ads bem ranqueados e gera rich snippets (estrela, preço, horário direto na busca)
-- Nenhuma quebra de funcionalidade existente
-- Zero migração de DB
-
-Após aprovação, implemento tudo numa única rodada. Se preferir dividir (ex: só item 4 primeiro), me avise.
+**Pré-requisito:** conector Google Search Console autorizado (vou checar com `standard_connectors--list_connections`; se não estiver, vou pedir pra você conectar antes do step 5).

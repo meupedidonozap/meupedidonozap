@@ -1,6 +1,6 @@
 import type { Store } from '@/types';
 
-const BASE_URL = 'https://meupedidonozap.lovable.app';
+const BASE_URL = 'https://meupedidonozap.online';
 
 function schemaTypeForStore(type: Store['type']): string {
   switch (type) {
