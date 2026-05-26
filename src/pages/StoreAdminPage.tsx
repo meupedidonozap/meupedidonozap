@@ -1665,6 +1665,11 @@ export default function StoreAdminPage() {
 
             {/* Sellers management - Dicolore only */}
             {store.slug === 'dicolore' && (
+              <DicolorePaymentCodesTab store={store} />
+            )}
+
+            {/* Sellers management - Dicolore only */}
+            {store.slug === 'dicolore' && (
               <Card className="mt-6">
                 <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
