@@ -1,46 +1,42 @@
-## Problema
+## Diagnóstico
 
-Hoje a Pastelaria RM (loja tipo COMIDA) usa `FoodStorePage`, que mostra os itens agrupados em categorias collapsibles e em modo lista por padrão. O cliente quer o mesmo comportamento da DICOLORE (`ProductStorePage`):
+No painel ADM da **Pastelaria RM** (`/pastelariarm26/admin`), ao clicar em **Novo Pedido → 2. Itens**, aparece "Nenhum produto encontrado" mesmo com as categorias carregando (ex.: `PASTEL`).
 
-- Abrir mostrando **todos os produtos** em **modo grade**, ordenados de **A–Z**, sem separação por categoria.
-- Botão de **menu** (ícone hambúrguer no header) abre uma **gaveta lateral** com a lista de categorias ("Todos os Produtos" + cada categoria), permitindo filtrar.
+**Causa:** o `NewOrderDialog` decide a fonte do catálogo apenas pelo `store.type`:
 
-## Solução
+```ts
+const isFood = store.type === 'COMIDA';
+const catalogItems = isFood ? foodItems : products;
+```
 
-Refatorar `src/pages/FoodStorePage.tsx` para usar o mesmo modelo de navegação da `ProductStorePage`, mantendo a lógica específica de comida (assembly dialog, ingredientes, bordas, material de apoio não se aplica aqui).
+Mas a Pastelaria RM (apesar de ser do tipo `COMIDA`) cadastra os itens na tabela **`products`** (igual à DICOLORE), não em `food_items`. Confirmado no banco:
+- `food_items` da pastelariarm26: **0 registros**
+- `products` da pastelariarm26: **65 registros**
 
-### Mudanças em `src/pages/FoodStorePage.tsx`
+A `FoodStorePage` (vitrine do cliente) já usa `useProducts`, por isso lá funciona. Só o diálogo de Novo Pedido no admin usa `foodItems`, que vem vazio.
 
-1. **Estado**
-   - Remover `expandedCategories` e `itemsByCategory` agrupado.
-   - Adicionar `selectedCategory: string` (default `'all'`) e `isCategoryOpen: boolean`.
-   - Trocar default do `viewMode` de `'list'` para `'grid'`.
+## Plano
 
-2. **Header**
-   - Adicionar botão `Menu` (ícone hambúrguer) à esquerda do nome da loja, abrindo `Sheet` lateral com:
-     - Item "Todos os Produtos"
-     - Lista das categorias da loja
-     - Ao clicar, atualiza `selectedCategory` e fecha a gaveta.
-   - Manter os botões de busca, alternância grade/lista, perfil/login e compartilhar.
+Unificar a fonte do catálogo no `NewOrderDialog` para sempre usar a lista `allProducts` que o `StoreAdminPage` já calcula (na linha 296: `store?.type === 'COMIDA' ? foodItems : products`, com fallback para `products` quando `foodItems` está vazio).
 
-3. **Listagem**
-   - Substituir o loop `categories.map(...Collapsible...)` por uma única grade/lista:
-     - Filtrar `activeProducts` por `searchTerm` **e** `selectedCategory` (`all` = todos).
-     - Ordenar **A–Z** por `name` (`localeCompare('pt-BR')`).
-   - Renderizar:
-     - Em `viewMode === 'grid'`: grid responsiva (2/3/4 colunas) com card já existente.
-     - Em `viewMode === 'list'`: grid 1/2 colunas com o card de linha já existente.
-   - Manter card, preço, botão `+` e contador de quantidade exatamente como já estão (`handleAddItem`, `AssemblyDialog`, `getItemQuantity`).
+### Alterações
 
-4. **Mantém intacto**
-   - Bottom nav (Início / Pedidos / Carrinho), FAB do carrinho, `CustomerAuthDialog`, `AssemblyDialog`, Helmet/SEO.
-   - Comportamento de variantes e montagem (clicar `+` segue chamando `handleAddItem` que decide se abre `AssemblyDialog`).
+**`src/components/NewOrderDialog.tsx`**
+1. Substituir as props `products` e `foodItems` por uma única prop `catalogItems: any[]`.
+2. Remover o switch `isFood ? foodItems : products`. Filtrar/buscar/categoria operam sobre `catalogItems`.
+3. Ler o preço por item de forma tolerante: `const unitPrice = item.price ?? item.basePrice ?? 0;` (cobre tanto `products` quanto `food_items`).
+4. Manter o restante (busca, categoria, carrinho, material de apoio, criação do pedido) sem mudanças funcionais.
 
-### Fora de escopo
+**`src/pages/StoreAdminPage.tsx`**
+1. Atualizar `allProducts` (linha 296) para: `const allProducts = (store?.type === 'COMIDA' && foodItems.length > 0) ? foodItems : products;` — garante usar `products` quando a loja COMIDA cadastra no catálogo padrão (caso Pastelaria RM).
+2. Passar `catalogItems={allProducts}` para `NewOrderDialog` (remover `products` e `foodItems`).
 
-- Nenhuma mudança em `ProductStorePage`, schema, RLS ou Edge Functions.
-- Nenhuma alteração em outras lojas COMIDA — todas passam a usar o novo layout (consistente com a memória do projeto: "A-Z catalog sorting" em todo o catálogo).
+### Não muda
+- Schema, RLS, edge functions.
+- Fluxo de DICOLORE / outras lojas LOJA / SERVICOS.
+- Demais COMIDA que usem `food_items` continuam funcionando (caem no ramo `foodItems`).
+- `EditOrderDialog` e demais telas.
 
-## Arquivo a alterar
-
-- `src/pages/FoodStorePage.tsx` — refatoração do header + listagem conforme acima.
+### Validação
+- Abrir `/pastelariarm26/admin → Novo Pedido → Itens` e confirmar que os 65 produtos aparecem, filtro por categoria `PASTEL` funciona e busca por nome retorna resultados.
+- Verificar que DICOLORE continua listando seus produtos normalmente.

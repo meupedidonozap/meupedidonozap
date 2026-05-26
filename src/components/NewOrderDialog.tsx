@@ -44,7 +44,11 @@ export default function NewOrderDialog({
   open, onOpenChange, store, products, foodItems, customerProfiles, categories,
 }: NewOrderDialogProps) {
   const createOrder = useCreateOrder();
-  const isFood = store.type === 'COMIDA';
+  // Algumas lojas COMIDA (ex.: Pastelaria RM) cadastram itens em `products`.
+  // Caímos para `products` quando não há registros em `food_items`.
+  const useFoodCatalog = store.type === 'COMIDA' && foodItems.length > 0;
+  const isFood = useFoodCatalog;
+  const catalogItems = useFoodCatalog ? foodItems : products;
   const offersDelivery = store.settings?.offersDelivery !== false;
 
   // Step state
@@ -79,8 +83,6 @@ export default function NewOrderDialog({
     );
   }, [customerProfiles, customerSearch]);
 
-  // Filter products
-  const catalogItems = isFood ? foodItems : products;
   const filteredProducts = useMemo(() => {
     let items = catalogItems.filter((p: any) => p.isActive !== false);
     if (selectedCategory !== 'all') {
