@@ -354,6 +354,8 @@ export default function CheckoutPage() {
         </div>
       </header>
 
+      <ClosedBanner store={store} />
+
       <main className="container py-6">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
@@ -658,10 +660,10 @@ export default function CheckoutPage() {
                   )}
                   <Button
                     onClick={handleSendWhatsApp}
-                    disabled={isSubmitting || ((store.settings?.minOrderValue || 0) > 0 && cart.subtotal < (store.settings?.minOrderValue || 0))}
+                    disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && cart.subtotal < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
-                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : 'Enviar pelo WhatsApp')}
                   </Button>
                 </div>
               </CardContent>
