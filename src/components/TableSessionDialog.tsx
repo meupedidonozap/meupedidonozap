@@ -435,7 +435,7 @@ function PaymentDialog({ items, tabs, onClose, onPay }: {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="w-screen sm:w-full max-w-[100vw] sm:max-w-2xl h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[85vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
         <DialogHeader><DialogTitle>Pagamento</DialogTitle></DialogHeader>
         <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
           <TabsList>
