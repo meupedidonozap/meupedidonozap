@@ -13,6 +13,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
+import ClosedBanner from '@/components/ClosedBanner';
 import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -430,6 +431,8 @@ export default function ProductStorePage() {
           </div>
         </div>
       </header>
+
+      <ClosedBanner store={store} />
 
       <main className="container py-4">
         {viewMode === 'list' ? (

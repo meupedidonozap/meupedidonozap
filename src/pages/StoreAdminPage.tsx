@@ -38,6 +38,7 @@ import SalonAdminTab from '@/components/SalonAdminTab';
 import IngredientsTab from '@/components/IngredientsTab';
 import PizzaBordersTab from '@/components/PizzaBordersTab';
 import TablesTab from '@/components/TablesTab';
+import BusinessHoursTab from '@/components/BusinessHoursTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -707,6 +708,9 @@ export default function StoreAdminPage() {
             )}
             {isAdmin && (
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="hours" className="gap-2"><Clock className="h-4 w-4" /> Horários</TabsTrigger>
             )}
           </TabsList>
 
@@ -1867,6 +1871,12 @@ export default function StoreAdminPage() {
           {store.type === 'COMIDA' && (
             <TabsContent value="tables" className="animate-fade-in">
               <TablesTab storeId={store.id} />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="hours" className="animate-fade-in">
+              <BusinessHoursTab store={store} />
             </TabsContent>
           )}
 

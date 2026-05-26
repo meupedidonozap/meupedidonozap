@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
+import ClosedBanner from '@/components/ClosedBanner';
+import { useStoreOpen } from '@/hooks/useStoreOpen';
 import type { PaymentMethod, DeliveryShift } from '@/types';
 
 interface ShippingOption {
@@ -47,6 +49,7 @@ export default function CheckoutPage() {
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
   const upsertProfile = useUpsertCustomerProfile();
+  const storeOpenStatus = useStoreOpen(store);
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -269,6 +272,10 @@ export default function CheckoutPage() {
 
   const handleSendWhatsApp = async () => {
     if (!validateForm()) return;
+    if (!storeOpenStatus.open) {
+      toast.error(`Loja fechada${storeOpenStatus.message ? ` — ${storeOpenStatus.message}` : ''}. Pedidos só dentro do horário.`);
+      return;
+    }
     const minOrder = store?.settings?.minOrderValue || 0;
     if (minOrder > 0 && cart.subtotal < minOrder) {
       toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - cart.subtotal)} em produtos.`);
@@ -346,6 +353,8 @@ export default function CheckoutPage() {
           </div>
         </div>
       </header>
+
+      <ClosedBanner store={store} />
 
       <main className="container py-6">
         <div className="grid gap-6 lg:grid-cols-3">
@@ -651,10 +660,10 @@ export default function CheckoutPage() {
                   )}
                   <Button
                     onClick={handleSendWhatsApp}
-                    disabled={isSubmitting || ((store.settings?.minOrderValue || 0) > 0 && cart.subtotal < (store.settings?.minOrderValue || 0))}
+                    disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && cart.subtotal < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
-                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : 'Enviar pelo WhatsApp'}
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : 'Enviar pelo WhatsApp')}
                   </Button>
                 </div>
               </CardContent>
