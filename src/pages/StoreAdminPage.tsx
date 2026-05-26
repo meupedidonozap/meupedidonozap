@@ -1874,6 +1874,12 @@ export default function StoreAdminPage() {
             </TabsContent>
           )}
 
+          {isAdmin && (
+            <TabsContent value="hours" className="animate-fade-in">
+              <BusinessHoursTab store={store} />
+            </TabsContent>
+          )}
+
           {/* Customers */}
           <TabsContent value="customers" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
