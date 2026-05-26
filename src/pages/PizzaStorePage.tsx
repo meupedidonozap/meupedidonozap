@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { buildStoreJsonLd } from '@/lib/seoSchemas';
 import { useParams, Link } from 'react-router-dom';
 import {
   Search, ShoppingCart, Plus, Minus, X, ChevronDown, ChevronUp,
@@ -333,6 +334,12 @@ export default function PizzaStorePage() {
         <title>{store.name} | MeuPedidoNoZap</title>
         <meta name="description" content={`Peça sua pizza em ${store.name}. Delivery rápido via WhatsApp.`} />
         <link rel="canonical" href={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:title" content={store.name} />
+        <meta property="og:description" content={`Peça sua pizza em ${store.name}`} />
+        <meta property="og:image" content={store.logo || store.banner || 'https://meupedidonozap.lovable.app/placeholder.svg'} />
+        <meta property="og:url" content={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">{JSON.stringify(buildStoreJsonLd(store))}</script>
       </Helmet>
 
       <header className="sticky top-0 z-40 border-b border-orange-500/20 bg-[#1a1a2e]/95 backdrop-blur">
