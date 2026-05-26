@@ -271,6 +271,10 @@ export default function CheckoutPage() {
 
   const handleSendWhatsApp = async () => {
     if (!validateForm()) return;
+    if (!storeOpenStatus.open) {
+      toast.error(`Loja fechada${storeOpenStatus.message ? ` — ${storeOpenStatus.message}` : ''}. Pedidos só dentro do horário.`);
+      return;
+    }
     const minOrder = store?.settings?.minOrderValue || 0;
     if (minOrder > 0 && cart.subtotal < minOrder) {
       toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - cart.subtotal)} em produtos.`);
