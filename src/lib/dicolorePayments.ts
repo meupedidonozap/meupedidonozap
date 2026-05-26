@@ -40,16 +40,18 @@ export const DEFAULT_DICOLORE_CONDICOES: PaymentCondicao[] = [
 export function getStoreFormas(settings: any): PaymentForma[] {
   const list = settings?.formasPagamento;
   if (Array.isArray(list) && list.length > 0) return list as PaymentForma[];
-  return [];
+  return DEFAULT_DICOLORE_FORMAS;
 }
 
 export function getStoreCondicoes(settings: any): PaymentCondicao[] {
   const list = settings?.condicoesPagamento;
   if (Array.isArray(list) && list.length > 0) return list as PaymentCondicao[];
-  return [];
+  return DEFAULT_DICOLORE_CONDICOES;
 }
 
 export function isDicoloreFlow(slug?: string | null, settings?: any): boolean {
   if (slug === 'dicolore') return true;
-  return getStoreFormas(settings).length > 0 && getStoreCondicoes(settings).length > 0;
+  const f = settings?.formasPagamento;
+  const c = settings?.condicoesPagamento;
+  return Array.isArray(f) && f.length > 0 && Array.isArray(c) && c.length > 0;
 }
