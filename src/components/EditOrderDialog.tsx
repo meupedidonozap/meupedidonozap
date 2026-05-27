@@ -32,6 +32,22 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   const [saving, setSaving] = useState(false);
   const [formaCodigo, setFormaCodigo] = useState<string>('');
   const [condicaoCodigo, setCondicaoCodigo] = useState<string>('');
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Detect virtual keyboard via VisualViewport (mobile)
+  useEffect(() => {
+    if (!open) return;
+    const vv = (window as any).visualViewport as VisualViewport | undefined;
+    if (!vv) return;
+    const baseH = window.innerHeight;
+    const handler = () => {
+      // If viewport shrinks > 150px, assume keyboard is open
+      setKeyboardOpen(baseH - vv.height > 150);
+    };
+    vv.addEventListener('resize', handler);
+    handler();
+    return () => vv.removeEventListener('resize', handler);
+  }, [open]);
 
   useEffect(() => {
     if (order) {
@@ -284,7 +300,9 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
           </p>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 pt-3 border-t mt-2 sticky bottom-0 bg-background">
+        <DialogFooter
+          className={`flex-col sm:flex-row gap-2 pt-3 border-t mt-2 bg-background sm:static sm:!flex fixed bottom-0 left-0 right-0 px-4 pb-[env(safe-area-inset-bottom)] z-10 ${keyboardOpen ? 'hidden sm:flex' : 'flex'}`}
+        >
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
           <Button className="w-full sm:w-auto" onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar alterações'}</Button>
         </DialogFooter>
