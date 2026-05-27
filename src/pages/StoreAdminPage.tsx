@@ -1090,15 +1090,29 @@ export default function StoreAdminPage() {
                           ) : (
                             (isAdmin || permissions.can_manage_orders) ? (
                             <div className="flex items-center gap-1">
-                              <Select value={order.status} onValueChange={(value) => {
-                                updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
-                                toast.success('Status atualizado!');
+                              <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
+                                setUpdatingStatusId(order.id);
+                                try {
+                                  await updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
+                                  toast.success('Status atualizado!');
+                                } catch (err: any) {
+                                  toast.error(err?.message || 'Erro ao atualizar status');
+                                } finally {
+                                  setUpdatingStatusId(null);
+                                }
                               }}>
                                 <SelectTrigger className="w-32">
-                                  <Badge className={statusConfig[order.status]?.color}>
-                                    {statusConfig[order.status]?.icon}
-                                    <span className="ml-1">{statusConfig[order.status]?.label}</span>
-                                  </Badge>
+                                  {updatingStatusId === order.id ? (
+                                    <Badge className={statusConfig[order.status]?.color}>
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      <span className="ml-1">Salvando...</span>
+                                    </Badge>
+                                  ) : (
+                                    <Badge className={statusConfig[order.status]?.color}>
+                                      {statusConfig[order.status]?.icon}
+                                      <span className="ml-1">{statusConfig[order.status]?.label}</span>
+                                    </Badge>
+                                  )}
                                 </SelectTrigger>
                                 <SelectContent>
                                   {Object.entries(statusConfig).map(([key, cfg]) => (
