@@ -145,7 +145,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:max-h-[90vh] p-4 sm:p-6 flex flex-col rounded-none sm:rounded-lg">
         <DialogHeader>
           <DialogTitle>Editar Pedido #{order.orderNumber}</DialogTitle>
         </DialogHeader>
@@ -284,9 +284,9 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
           </p>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar alterações'}</Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2 pt-3 border-t mt-2 sticky bottom-0 bg-background">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button className="w-full sm:w-auto" onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar alterações'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

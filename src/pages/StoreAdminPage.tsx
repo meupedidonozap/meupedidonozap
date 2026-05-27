@@ -1190,7 +1190,7 @@ export default function StoreAdminPage() {
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
-                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders) && (() => {
+                            {store.slug === 'dicolore' && order.status === 'pendente' && (isAdmin || permissions.can_manage_orders || restrictBySeller) && (() => {
                               if (restrictBySeller) {
                                 const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
                                 if (!code || !sellerCodeSet.has(code)) return false;
