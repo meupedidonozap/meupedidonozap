@@ -166,7 +166,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
           <DialogTitle>Editar Pedido #{order.orderNumber}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 pb-32 sm:pb-0">
           {/* Current items */}
           <div className="border rounded-md">
             <div className="px-3 py-2 border-b bg-muted/30 text-sm font-semibold">
