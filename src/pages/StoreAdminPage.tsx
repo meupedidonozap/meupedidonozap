@@ -637,29 +637,29 @@ export default function StoreAdminPage() {
   const revenueLabel = (startDate || endDate) ? 'Faturamento do Período' : 'Faturamento Total';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <header className="gradient-primary text-primary-foreground">
         <div className="container py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild className="text-primary-foreground hover:bg-primary-foreground/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" asChild className="text-primary-foreground hover:bg-primary-foreground/10 flex-shrink-0">
                 <Link to="/admin"><ArrowLeft className="h-5 w-5" /></Link>
               </Button>
-              <div>
-                <h1 className="text-xl font-bold">{store.name}</h1>
-                <p className="text-sm text-primary-foreground/80">Painel da Loja</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-xl font-bold break-words line-clamp-2">{store.name}</h1>
+                <p className="text-xs sm:text-sm text-primary-foreground/80">Painel da Loja</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 justify-end">
               <RefreshButton
                 variant="outline"
-                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent"
+                className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent h-9 px-3"
               />
-              <Button variant="outline" asChild className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                <Link to={`/${store.slug}`}><Eye className="mr-2 h-4 w-4" /> Ver Loja</Link>
+              <Button variant="outline" size="sm" asChild className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 h-9">
+                <Link to={`/${store.slug}`}><Eye className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Ver Loja</span></Link>
               </Button>
-              <Button variant="ghost" size="sm" className="text-primary-foreground hover:text-primary-foreground/80" onClick={() => { supabase.auth.signOut(); }}>
-                <LogOut className="h-4 w-4 mr-1" /> Sair
+              <Button variant="ghost" size="sm" className="text-primary-foreground hover:text-primary-foreground/80 h-9" onClick={() => { supabase.auth.signOut(); }}>
+                <LogOut className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Sair</span>
               </Button>
             </div>
           </div>
