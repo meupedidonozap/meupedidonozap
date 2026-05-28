@@ -419,9 +419,39 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                         <p className="text-sm text-muted-foreground">/{store.slug}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleToggleActive(store)} className="text-muted-foreground hover:text-foreground">
-                      {store.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {!searchTerm && (() => {
+                        const idx = stores.findIndex(s => s.id === store.id);
+                        const isFirst = idx <= 0;
+                        const isLast = idx >= stores.length - 1;
+                        const isPending = swapStoreOrder.isPending;
+                        return (
+                          <div className="flex flex-col">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveStore(store.id, -1)}
+                              disabled={isFirst || isPending}
+                              title="Mover para cima"
+                              className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveStore(store.id, 1)}
+                              disabled={isLast || isPending}
+                              title="Mover para baixo"
+                              className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                      <button onClick={() => handleToggleActive(store)} className="text-muted-foreground hover:text-foreground">
+                        {store.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                      </button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
