@@ -179,6 +179,22 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     store.slug.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleMoveStore = async (storeId: string, direction: -1 | 1) => {
+    const idx = stores.findIndex(s => s.id === storeId);
+    const neighborIdx = idx + direction;
+    if (idx < 0 || neighborIdx < 0 || neighborIdx >= stores.length) return;
+    const a = stores[idx];
+    const b = stores[neighborIdx];
+    try {
+      await swapStoreOrder.mutateAsync({
+        a: { id: a.id, sort_order: a.sortOrder ?? 0 },
+        b: { id: b.id, sort_order: b.sortOrder ?? 0 },
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao reordenar');
+    }
+  };
+
   const handleOpenDialog = (store?: StoreType) => {
     if (store) {
       setEditingStore(store);
