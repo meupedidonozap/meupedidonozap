@@ -107,6 +107,7 @@ export interface Store {
   createdAt: string;
   settings: StoreSettings;
   licenseExpiresAt?: string | null;
+  sortOrder?: number;
 }
 
 export interface ShippingSettings {

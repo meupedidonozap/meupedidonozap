@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert } from 'lucide-react';
-import { useStores, useCreateStore, useUpdateStore, useDeleteStore } from '@/hooks/useStores';
+import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert, ChevronUp, ChevronDown } from 'lucide-react';
+import { useStores, useCreateStore, useUpdateStore, useDeleteStore, useSwapStoreOrder } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -110,6 +110,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const createStore = useCreateStore();
   const updateStore = useUpdateStore();
   const deleteStore = useDeleteStore();
+  const swapStoreOrder = useSwapStoreOrder();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -177,6 +178,22 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.slug.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleMoveStore = async (storeId: string, direction: -1 | 1) => {
+    const idx = stores.findIndex(s => s.id === storeId);
+    const neighborIdx = idx + direction;
+    if (idx < 0 || neighborIdx < 0 || neighborIdx >= stores.length) return;
+    const a = stores[idx];
+    const b = stores[neighborIdx];
+    try {
+      await swapStoreOrder.mutateAsync({
+        a: { id: a.id, sort_order: a.sortOrder ?? 0 },
+        b: { id: b.id, sort_order: b.sortOrder ?? 0 },
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao reordenar');
+    }
+  };
 
   const handleOpenDialog = (store?: StoreType) => {
     if (store) {
@@ -402,9 +419,39 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                         <p className="text-sm text-muted-foreground">/{store.slug}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleToggleActive(store)} className="text-muted-foreground hover:text-foreground">
-                      {store.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {!searchTerm && (() => {
+                        const idx = stores.findIndex(s => s.id === store.id);
+                        const isFirst = idx <= 0;
+                        const isLast = idx >= stores.length - 1;
+                        const isPending = swapStoreOrder.isPending;
+                        return (
+                          <div className="flex flex-col">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveStore(store.id, -1)}
+                              disabled={isFirst || isPending}
+                              title="Mover para cima"
+                              className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveStore(store.id, 1)}
+                              disabled={isLast || isPending}
+                              title="Mover para baixo"
+                              className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                      <button onClick={() => handleToggleActive(store)} className="text-muted-foreground hover:text-foreground">
+                        {store.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                      </button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

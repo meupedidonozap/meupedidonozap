@@ -1116,6 +1116,7 @@ export type Database = {
           phone: string | null
           settings: Json
           slug: string
+          sort_order: number
           type: string
           whatsapp: string | null
         }
@@ -1132,6 +1133,7 @@ export type Database = {
           phone?: string | null
           settings?: Json
           slug: string
+          sort_order?: number
           type?: string
           whatsapp?: string | null
         }
@@ -1148,6 +1150,7 @@ export type Database = {
           phone?: string | null
           settings?: Json
           slug?: string
+          sort_order?: number
           type?: string
           whatsapp?: string | null
         }

@@ -19,6 +19,7 @@ function mapStore(row: any): Store {
     createdAt: row.created_at,
     settings: (row.settings || {}) as StoreSettings,
     licenseExpiresAt: row.license_expires_at ?? null,
+    sortOrder: row.sort_order ?? 0,
   };
 }
 
@@ -29,6 +30,7 @@ export function useStores() {
       const { data, error } = await supabase
         .from('stores')
         .select('*')
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []).map(mapStore);
@@ -111,6 +113,20 @@ export function useDeleteStore() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('stores').delete().eq('id', id);
       if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['stores'] }),
+  });
+}
+
+export function useSwapStoreOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ a, b }: { a: { id: string; sort_order: number }; b: { id: string; sort_order: number } }) => {
+      // Two-step swap to avoid unique conflicts (no constraint, but safer)
+      const { error: e1 } = await supabase.from('stores').update({ sort_order: b.sort_order }).eq('id', a.id).select('id').single();
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from('stores').update({ sort_order: a.sort_order }).eq('id', b.id).select('id').single();
+      if (e2) throw e2;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['stores'] }),
   });
