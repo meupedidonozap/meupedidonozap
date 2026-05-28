@@ -19,6 +19,7 @@ function mapStore(row: any): Store {
     createdAt: row.created_at,
     settings: (row.settings || {}) as StoreSettings,
     licenseExpiresAt: row.license_expires_at ?? null,
+    sortOrder: row.sort_order ?? 0,
   };
 }
 
