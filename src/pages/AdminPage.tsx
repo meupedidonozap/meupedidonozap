@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert } from 'lucide-react';
-import { useStores, useCreateStore, useUpdateStore, useDeleteStore } from '@/hooks/useStores';
+import { useStores, useCreateStore, useUpdateStore, useDeleteStore, useSwapStoreOrder } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
 import { Button } from '@/components/ui/button';
