@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert } from 'lucide-react';
+import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert, ChevronUp, ChevronDown } from 'lucide-react';
 import { useStores, useCreateStore, useUpdateStore, useDeleteStore, useSwapStoreOrder } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
@@ -110,6 +110,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const createStore = useCreateStore();
   const updateStore = useUpdateStore();
   const deleteStore = useDeleteStore();
+  const swapStoreOrder = useSwapStoreOrder();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
