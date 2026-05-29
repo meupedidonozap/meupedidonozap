@@ -2213,6 +2213,12 @@ export default function StoreAdminPage() {
         onOpenChange={setImportCustomersOpen}
         storeId={store.id}
       />
+      <ImportCustomersDialog
+        open={updateCustomersOpen}
+        onOpenChange={setUpdateCustomersOpen}
+        storeId={store.id}
+        mode="update"
+      />
       <ImportDiscountRulesDialog
         open={importRulesOpen}
         onOpenChange={setImportRulesOpen}
