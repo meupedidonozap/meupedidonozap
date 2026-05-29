@@ -40,7 +40,7 @@ function buildHTML(opts: ReceiptOptions): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante</title>
 <style>
-@media print { @page { margin: 2mm; width: 80mm; } body { margin: 0; } }
+@media print { @page { size: 80mm auto; margin: 2mm; }  body { margin: 0; } } /* @page { margin: 2mm; width: 80mm; } */
 body { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.4; width: 280px; max-width: 280px; margin: 0 auto; padding: 4px; color:#000; background:#fff; }
 .center { text-align:center; }
 .sep { text-align:center; letter-spacing:1px; margin:4px 0; }
