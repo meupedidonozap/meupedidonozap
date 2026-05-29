@@ -16,6 +16,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   storeId: string;
+  mode?: 'import' | 'update';
 }
 
 interface RowInput {
@@ -44,7 +45,8 @@ interface ResultRow {
 
 const COLUMNS = ['codigo','nome','cpf_cnpj','whatsapp','cep','uf','cidade','bairro','endereco','numero','complemento','codigo_vendedor'];
 
-export default function ImportCustomersDialog({ open, onOpenChange, storeId }: Props) {
+export default function ImportCustomersDialog({ open, onOpenChange, storeId, mode = 'import' }: Props) {
+  const isUpdate = mode === 'update';
   const qc = useQueryClient();
   const [rows, setRows] = useState<RowInput[]>([]);
   const [fileName, setFileName] = useState<string>('');
@@ -148,11 +150,21 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId }: P
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Importar Clientes do ERP</DialogTitle>
+          <DialogTitle>{isUpdate ? 'Atualizar Clientes do ERP' : 'Importar Clientes do ERP'}</DialogTitle>
           <DialogDescription>
-            Carregue uma planilha .xlsx com os clientes. Cada linha cria (ou atualiza) o cadastro e o login do cliente.
-            <br />
-            <strong>Login = código do cliente</strong>. Senha = mesma do código (mín. 6 chars; códigos curtos recebem prefixo "dico").
+            {isUpdate ? (
+              <>
+                Carregue uma planilha .xlsx com os clientes a serem atualizados. O match é feito pelo <strong>código do cliente</strong> (com fallback por CPF/CNPJ).
+                <br />
+                Clientes existentes terão <strong>Nome, WhatsApp e CPF/CNPJ</strong> sobrescritos. Clientes não encontrados serão criados automaticamente.
+              </>
+            ) : (
+              <>
+                Carregue uma planilha .xlsx com os clientes. Cada linha cria (ou atualiza) o cadastro e o login do cliente.
+                <br />
+                <strong>Login = código do cliente</strong>. Senha = mesma do código (mín. 6 chars; códigos curtos recebem prefixo "dico").
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -221,7 +233,7 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId }: P
               <Button variant="outline" onClick={() => handleClose(false)} disabled={importing}>Cancelar</Button>
               <Button onClick={runImport} disabled={importing || !validCount}>
                 {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Confirmar importação ({validCount})
+                {isUpdate ? `Confirmar atualização (${validCount})` : `Confirmar importação (${validCount})`}
               </Button>
             </DialogFooter>
           </>
