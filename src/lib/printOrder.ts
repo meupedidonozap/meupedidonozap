@@ -77,7 +77,8 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
 <title>Pedido #${order.orderNumber}</title>
 <style>
   @media print {
-    @page { margin: 2mm; width: 80mm; }
+    /*@page { margin: 2mm; width: 80mm; }*/
+    @page { size: 80mm auto; margin: 2mm; }
     body { margin: 0; }
   }
   body {
