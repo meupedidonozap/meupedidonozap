@@ -37,7 +37,7 @@ interface RowInput {
 interface ResultRow {
   codigo: string;
   nome: string;
-  status: 'created' | 'updated' | 'error';
+  status: 'created' | 'updated' | 'skipped' | 'error';
   email?: string;
   senha?: string;
   erro?: string;
@@ -110,13 +110,13 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
     setImporting(true);
     try {
       // process in batches of 50
-      const BATCH = 50;
+      const BATCH = 25;
       const valid = rows.filter(r => r.codigo && r.nome);
       const all: ResultRow[] = [];
       for (let i = 0; i < valid.length; i += BATCH) {
         const slice = valid.slice(i, i + BATCH);
         const { data, error } = await supabase.functions.invoke('import-customers', {
-          body: { storeId, rows: slice },
+          body: { storeId, rows: slice, mode },
         });
         if (error) throw error;
         all.push(...(data?.results || []));
@@ -125,8 +125,13 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
       qc.invalidateQueries({ queryKey: ['store-customer-profiles', storeId] });
       const created = all.filter(r => r.status === 'created').length;
       const updated = all.filter(r => r.status === 'updated').length;
+      const skipped = all.filter(r => r.status === 'skipped').length;
       const errors = all.filter(r => r.status === 'error').length;
-      toast.success(`${created} criado(s), ${updated} atualizado(s), ${errors} erro(s)`);
+      toast.success(
+        isUpdate
+          ? `${created} novo(s), ${skipped} já existente(s) ignorado(s), ${errors} erro(s)`
+          : `${created} criado(s), ${updated} atualizado(s), ${errors} erro(s)`,
+      );
     } catch (err: any) {
       toast.error('Erro na importação: ' + (err?.message || err));
     } finally {
@@ -154,9 +159,9 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
           <DialogDescription>
             {isUpdate ? (
               <>
-                Carregue uma planilha .xlsx com os clientes a serem atualizados. O match é feito pelo <strong>código do cliente</strong> (com fallback por CPF/CNPJ).
+                Carregue uma planilha .xlsx com os clientes. O match é feito pelo <strong>código do cliente</strong> (com fallback por CPF/CNPJ).
                 <br />
-                Clientes existentes terão <strong>Nome, WhatsApp e CPF/CNPJ</strong> sobrescritos. Clientes não encontrados serão criados automaticamente.
+                Clientes já cadastrados <strong>não serão alterados</strong> (dados e senha preservados). Apenas clientes <strong>novos</strong> serão cadastrados automaticamente.
               </>
             ) : (
               <>
@@ -244,6 +249,7 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
             <div className="flex flex-wrap gap-4 text-sm">
               <span className="text-green-700"><CheckCircle className="inline h-4 w-4 mr-1" />Criados: <strong>{results.filter(r => r.status === 'created').length}</strong></span>
               <span className="text-blue-700"><RefreshCw className="inline h-4 w-4 mr-1" />Atualizados: <strong>{results.filter(r => r.status === 'updated').length}</strong></span>
+              <span className="text-gray-700">Ignorados (já existiam): <strong>{results.filter(r => r.status === 'skipped').length}</strong></span>
               <span className="text-red-700"><AlertCircle className="inline h-4 w-4 mr-1" />Erros: <strong>{results.filter(r => r.status === 'error').length}</strong></span>
             </div>
             <Button onClick={downloadCredentials} className="w-full sm:w-auto">
@@ -268,6 +274,7 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
                       <TableCell>
                         {r.status === 'created' && <span className="text-green-700">Criado</span>}
                         {r.status === 'updated' && <span className="text-blue-700">Atualizado</span>}
+                        {r.status === 'skipped' && <span className="text-gray-600">Ignorado</span>}
                         {r.status === 'error' && <span className="text-red-700">Erro</span>}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{r.senha || '—'}</TableCell>
