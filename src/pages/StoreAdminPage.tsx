@@ -230,6 +230,7 @@ export default function StoreAdminPage() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
+  const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -1947,6 +1948,9 @@ export default function StoreAdminPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
               <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setUpdateCustomersOpen(true)}>
+                  <RefreshCw className="mr-2 h-4 w-4" /> Atualizar Clientes
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setImportCustomersOpen(true)}>
                   <Upload className="mr-2 h-4 w-4" /> Importar Clientes
                 </Button>
@@ -2208,6 +2212,12 @@ export default function StoreAdminPage() {
         open={importCustomersOpen}
         onOpenChange={setImportCustomersOpen}
         storeId={store.id}
+      />
+      <ImportCustomersDialog
+        open={updateCustomersOpen}
+        onOpenChange={setUpdateCustomersOpen}
+        storeId={store.id}
+        mode="update"
       />
       <ImportDiscountRulesDialog
         open={importRulesOpen}
