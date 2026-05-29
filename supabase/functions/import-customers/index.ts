@@ -59,7 +59,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { storeId, rows } = await req.json() as { storeId: string; rows: RowInput[] };
+    const { storeId, rows, mode } = await req.json() as { storeId: string; rows: RowInput[]; mode?: 'import' | 'update' };
+    const isUpdate = mode === 'update';
     if (!storeId || !Array.isArray(rows)) {
       return new Response(JSON.stringify({ error: 'Parâmetros inválidos' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
     const results: Array<{
       codigo: string;
       nome: string;
-      status: 'created' | 'updated' | 'error';
+      status: 'created' | 'updated' | 'skipped' | 'error';
       senha?: string;
       email?: string;
       erro?: string;
@@ -133,10 +134,19 @@ Deno.serve(async (req) => {
       }
 
       if (existingProfile?.user_id) {
+        // MODO UPDATE: cliente já existe → NÃO TOCAR em nada (preserva senha, dados e perfil)
+        if (isUpdate) {
+          results.push({ codigo, nome, status: 'skipped' });
+          continue;
+        }
         userId = existingProfile.user_id;
         action = 'updated';
         // refresh password to keep it = code
         await admin.auth.admin.updateUserById(userId, { password });
+      } else if (existingProfile?.id && isUpdate) {
+        // perfil existe sem user_id ainda → também ignorar em modo update
+        results.push({ codigo, nome, status: 'skipped' });
+        continue;
       } else {
         // try create auth user
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -236,6 +246,8 @@ Deno.serve(async (req) => {
       results.push({ codigo, nome, status: action, email, senha: password });
 
       // Propagar dados do ERP para qualquer cadastro "irmão" no mesmo telefone
+      // Pulado em modo update (não afetar clientes existentes).
+      if (isUpdate) continue;
       // (cliente que também entrou via email/senha cria um perfil separado).
       // Nunca sobrescrevemos campos já preenchidos, e nunca tocamos customer_code
       // (unique constraint store_id+customer_code).
