@@ -447,7 +447,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
             assembly={a}
             ingredients={ingForProduct}
             borders={borders}
-            onConfirm={(item) => { launchAssembled(item); setAssemblyProd(null); setCatalogOpen(false); }}
+            onConfirm={(item) => { addAssembledToDraft(item); setAssemblyProd(null); }}
           />
         );
       })()}
