@@ -164,8 +164,8 @@ export default function WaiterModeFAB() {
         >
           <ClipboardList className="h-5 w-5" />
           {totalItems === 0
-            ? 'Adicione itens para revisar'
-            : `Revisar Pedido (${totalItems} ${totalItems === 1 ? 'item' : 'itens'} • ${formatCurrency(cart.total)})`}
+            ? 'Adicione itens para enviar'
+            : `Enviar Pedido (${totalItems} ${totalItems === 1 ? 'item' : 'itens'} • ${formatCurrency(cart.total)})`}
         </Button>
       </div>
 
