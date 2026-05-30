@@ -407,8 +407,42 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
       {catalogOpen && (
         <Dialog open onOpenChange={setCatalogOpen}>
           <DialogContent className="w-screen sm:w-full max-w-[100vw] sm:max-w-2xl h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[80vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
-            <DialogHeader><DialogTitle>Lançar item — escolha produto</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Montar pedido — escolha os produtos</DialogTitle></DialogHeader>
             {!currentTabId && <p className="text-sm text-destructive">Adicione/selecione uma comanda primeiro.</p>}
+
+            {draftItems.length > 0 && (
+              <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-2 border-b bg-card px-3 py-2 shadow-sm sm:-mx-6 sm:px-6">
+                <div className="mb-1 text-sm font-semibold">Pedido em montagem ({draftItems.length})</div>
+                <div className="max-h-32 space-y-1 overflow-y-auto">
+                  {draftItems.map((d, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs">
+                      <span className="min-w-0 flex-1 truncate">
+                        {d.quantity}x {d.name}{d.size ? ` ${d.size}` : ''}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(d.price * d.quantity)}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        onClick={() => removeDraftItem(idx)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="text-sm">
+                    Total: <strong>{formatCurrency(draftItems.reduce((s, i) => s + i.price * i.quantity, 0))}</strong>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setDraftItems([])} disabled={sendingDraft}>
+                      Limpar
+                    </Button>
+                    <Button size="sm" onClick={sendDraft} disabled={sendingDraft || draftItems.length === 0}>
+                      {sendingDraft ? 'Enviando…' : 'Enviar pedido'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {categories.map(c => {
               const prods = products.filter(p => p.isActive && p.categoryId === c.id).sort((a, b) => a.name.localeCompare(b.name));
               if (!prods.length) return null;
@@ -418,7 +452,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                   <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                     {prods.map(p => (
                       <Button key={p.id} variant="outline" size="sm" className="justify-between"
-                        onClick={() => { handleProductClick(p); if (!needsAssembly(p)) setCatalogOpen(false); }}>
+                        onClick={() => handleProductClick(p)}>
                         <span className="truncate">{p.name}</span>
                         <span className="text-xs">{formatCurrency(p.basePrice)}</span>
                       </Button>
@@ -427,6 +461,11 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                 </div>
               );
             })}
+            <DialogFooter className="mt-3 border-t pt-3">
+              <Button variant="outline" onClick={() => setCatalogOpen(false)}>
+                {draftItems.length > 0 ? 'Continuar montando depois' : 'Fechar'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
