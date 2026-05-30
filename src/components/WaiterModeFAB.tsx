@@ -84,23 +84,25 @@ export default function WaiterModeFAB() {
         name: `MESA ${ws.tableNumber} · C${ws.tabNumber}${ws.tabLabel ? ` ${ws.tabLabel}` : ''}`.trim(),
         cpfCnpj: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '',
       } as any;
-      for (const it of cart.items) {
-        const cartItem = it as CartItem;
-        const subtotal = cartItem.price * cartItem.quantity;
-        const order = await createOrder.mutateAsync({
-          storeId: ws.storeId,
-          customer,
-          items: [cartItem],
-          subtotal,
-          discount: 0,
-          deliveryFee: 0,
-          total: subtotal,
-          paymentMethod: '' as any,
-          deliveryShift: 'tarde' as any,
-          observations: `${obs}${cartItem.observation ? ` | ${cartItem.observation}` : ''}`,
-          status: 'pendente' as any,
-          origem: 'mesa',
-        } as any);
+      // Cria UM ÚNICO pedido com todos os itens do carrinho (1 impressão só)
+      const cartItems = cart.items as CartItem[];
+      const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
+      const order = await createOrder.mutateAsync({
+        storeId: ws.storeId,
+        customer,
+        items: cartItems,
+        subtotal,
+        discount: 0,
+        deliveryFee: 0,
+        total: subtotal,
+        paymentMethod: '' as any,
+        deliveryShift: 'tarde' as any,
+        observations: obs,
+        status: 'pendente' as any,
+        origem: 'mesa',
+      } as any);
+      // Espelha cada item na comanda da mesa, vinculando ao mesmo pedido
+      for (const cartItem of cartItems) {
         const tabItem = await addTabItem.mutateAsync({
           tabId: ws.tabId,
           productId: cartItem.productId,
