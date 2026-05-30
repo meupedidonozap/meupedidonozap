@@ -155,19 +155,22 @@ export default function WaiterModeFAB() {
           </Button>
         </div>
       </div>
-      {/* Bottom CTA — opens review sheet before launching */}
-      <div className="fixed inset-x-0 bottom-0 z-[70] border-t bg-card p-3 shadow-2xl">
-        <Button
-          className="h-14 w-full gap-2 bg-orange-600 text-base font-bold text-white hover:bg-orange-700"
-          onClick={() => totalItems > 0 && setReviewOpen(true)}
-          disabled={submitting || totalItems === 0}
-        >
-          <ClipboardList className="h-5 w-5" />
-          {totalItems === 0
-            ? 'Adicione itens para enviar'
-            : `Enviar Pedido (${totalItems} ${totalItems === 1 ? 'item' : 'itens'} • ${formatCurrency(cart.total)})`}
-        </Button>
-      </div>
+      {/* Bottom CTA — opens review sheet before launching. Hide when sheet is open
+          so it doesn't overlap the sheet's own "Enviar Pedido" button. */}
+      {!reviewOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-[70] border-t bg-card p-3 shadow-2xl">
+          <Button
+            className="h-14 w-full gap-2 bg-orange-600 text-base font-bold text-white hover:bg-orange-700"
+            onClick={() => totalItems > 0 && setReviewOpen(true)}
+            disabled={submitting || totalItems === 0}
+          >
+            <ClipboardList className="h-5 w-5" />
+            {totalItems === 0
+              ? 'Adicione itens para revisar'
+              : `Revisar Pedido (${totalItems} ${totalItems === 1 ? 'item' : 'itens'} • ${formatCurrency(cart.total)})`}
+          </Button>
+        </div>
+      )}
 
       {/* Review sheet */}
       <Sheet open={reviewOpen} onOpenChange={setReviewOpen}>
@@ -245,7 +248,7 @@ export default function WaiterModeFAB() {
                 disabled={submitting || totalItems === 0}
               >
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-                {submitting ? 'Lançando…' : 'Lançar na Mesa'}
+                {submitting ? 'Enviando…' : 'Enviar Pedido'}
               </Button>
             </div>
           </div>
