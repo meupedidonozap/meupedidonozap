@@ -1,43 +1,49 @@
-# Atualizar Clientes — preservar clientes já cadastrados
-
 ## Problema
 
-1. O fluxo atual de "Atualizar Clientes" reescreve dados sensíveis dos clientes existentes (chama `auth.admin.updateUserById` para resetar a senha, atualiza nome/whatsapp/cpf, e ainda propaga para "perfis irmãos" pelo WhatsApp). Isso **afeta** clientes já cadastrados — quebra logins e sobrescreve dados que o cliente possa ter ajustado pelo app.
-2. A planilha tem 3022 linhas. O edge function processa em lotes de 50, e para cada cliente existente faz 1+ chamadas ao `auth.admin` (e até 20 páginas de `listUsers` no fallback). Isso estoura o tempo do edge function → "Edge Function returned a non-2xx status code".
+O preview de impressão da térmica está saindo como folha A4 inteira (vide print: "1 folha de papel"). A regra `@page { size: 80mm auto }` está correta no HTML do iframe, mas o Chrome **ignora `@page` quando o `print()` é disparado de um `<iframe>` invisível** — ele usa as configurações de página do documento pai (A4). Por isso o conteúdo sai estreito no canto de uma folha A4, sem corte automático.
 
-## Objetivo
+A nova impressora `GS-FJ80H-UE` é 80mm padrão (área imprimível ~72mm), então a correção serve para as duas.
 
-Em modo **Atualizar**:
-- Cliente já existe (match por `customer_code` ou CPF/CNPJ) → **NÃO TOCAR** em nada. Pular a linha.
-- Cliente não existe → cadastrar normalmente (cria auth user + profile, igual ao Importar).
+## Solução
 
-Em modo **Importar** (existente): comportamento atual permanece (cria/atualiza tudo).
+### 1. Trocar iframe por `window.open` na impressão térmica
+Arquivos: `src/lib/printOrder.ts`, `src/lib/printReceipt.ts`
 
-## Mudanças
+- Substituir o fluxo `createElement('iframe') → print()` por `window.open('', '_blank', 'width=380,height=600')`, escrever o HTML completo, aguardar `onload` e disparar `print()` na janela aberta. Chrome respeita `@page { size: 80mm auto }` em janelas reais, fazendo o papel ter altura exatamente igual ao conteúdo.
+- Fechar a janela após o print (`onafterprint`).
+- Manter o fluxo A4 atual (já funciona).
 
-### 1. `supabase/functions/import-customers/index.ts`
-- Aceitar `mode: 'import' | 'update'` no body (default `'import'`).
-- Quando `mode === 'update'`:
-  - Após localizar `existingProfile` (por code, com fallback por CPF), se existir: **`continue`** com `status: 'skipped'` (não chama auth, não faz update no profile, não propaga para twins).
-  - Se não existir: segue o mesmo caminho do Importar (cria auth user + insere profile).
-- Reduzir batch para 25 no cliente para diminuir risco de timeout mesmo no caminho rápido.
+### 2. Ajustar CSS do recibo térmico
+- `@page { size: 80mm auto; margin: 0; }` (margem zero — a impressora térmica já tem margem física).
+- `body { width: 72mm; padding: 3mm; margin: 0; }` (área imprimível real).
+- Remover o `width: 280px` em px (não escala bem entre impressoras 80mm) e usar `mm`.
+- Garantir que não há `min-height` ou elemento que force altura adicional.
 
-### 2. `src/components/ImportCustomersDialog.tsx`
-- Passar `mode` no `invoke` da função.
-- Adicionar status `'skipped'` ao tipo `ResultRow` e mostrar contador "Ignorados (já existiam)".
-- Atualizar textos do modo update: "Clientes existentes serão **ignorados**. Apenas novos clientes (não encontrados por código ou CPF/CNPJ) serão cadastrados."
-- Reduzir `BATCH` de 50 para 25.
+### 3. Configuração por loja: impressora padrão
+Arquivo: `src/components/SalonAdminTab.tsx` (ou aba de configurações da loja onde já estão settings)
 
-### 3. Sem mudanças de schema
-Nenhuma migração necessária.
+- Adicionar campo no `settings` JSONB da loja: `default_printer: 'thermal_80mm' | 'a4'`.
+- No menu de impressão em `StoreAdminPage.tsx` (linhas 1187-1200), quando `default_printer === 'thermal_80mm'`, o botão da impressora dispara direto `printOrder(order, store.name, 'thermal', ...)` em vez de abrir o dropdown — mantendo o dropdown apenas como opção secundária (long-press ou menu "...").
+- Não é possível pular o diálogo nativo do navegador (limitação do Chrome), mas com `@page size: 80mm auto` o preview já mostra o tamanho correto e o usuário só clica "Imprimir".
 
 ## Detalhes técnicos
 
-- O match continua sendo: 1º `customer_code`, 2º fallback por dígitos de `cpf_cnpj`.
-- Resposta da edge function passa a incluir `status: 'skipped'` para linhas ignoradas; o cliente conta e exibe.
-- O bloco de propagação ("twins" por WhatsApp) só roda no modo `import` — no `update` nunca executa, garantindo zero efeito colateral.
+**Por que iframe não funciona para `@page`:** o Chrome trata `iframe.print()` como impressão do documento host. Já `window.open().print()` cria um contexto de impressão independente que honra `@page size`.
 
-## Resultado esperado
-- 3022 linhas processadas sem timeout (a grande maioria será "skipped" em uma loja já populada, o que é instantâneo).
-- Clientes existentes intactos: senhas, endereços e qualquer dado preservados.
-- Apenas códigos novos viram cadastros novos.
+**Estrutura final do CSS térmico:**
+```css
+@page { size: 80mm auto; margin: 0; }
+@media print {
+  html, body { margin: 0; padding: 0; }
+  body { width: 72mm; padding: 3mm 4mm; }
+}
+body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.35; }
+```
+
+**Sem mudanças de schema** (campo `default_printer` vai dentro do `settings` JSONB já existente em `stores`).
+
+## Arquivos alterados
+- `src/lib/printOrder.ts` — trocar iframe→window.open + CSS térmico
+- `src/lib/printReceipt.ts` — mesmo tratamento
+- `src/pages/StoreAdminPage.tsx` — usar `store.settings.default_printer` no botão de impressão
+- Aba de configurações da loja — novo seletor "Impressora padrão"
