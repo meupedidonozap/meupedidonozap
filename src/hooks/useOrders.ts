@@ -30,7 +30,8 @@ export function useOrders(storeId: string | undefined) {
         .from('orders')
         .select('*')
         .eq('store_id', storeId!)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(0, 4999);
       if (error) throw error;
       return (data || []).map(mapOrder);
     },

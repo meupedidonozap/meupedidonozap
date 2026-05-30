@@ -1,47 +1,30 @@
 ## Diagnóstico
 
-O botão laranja **"Lançar na Mesa"** (em `WaiterModeFAB.tsx`) **já cria 1 único pedido** com todos os itens do carrinho — a lógica está correta após o ajuste anterior.
-
-O problema da segunda imagem (tela "Dados do Cliente") **não vem desse botão**. Ele vem da **barra verde "Ver Carrinho"** logo acima, que existe no storefront normal e leva para `/:slug/checkout`. Em Modo Garçom essa barra **não deveria aparecer** — o garçom não precisa preencher dados de cliente, ele só lança na mesa.
-
-Arquivos com a barra verde + link "Carrinho" no menu inferior:
-- `src/pages/FoodStorePage.tsx` (linhas 322-326 e 330-338)
-- `src/pages/ProductStorePage.tsx` (linha 509 e link no nav inferior)
-- `src/pages/PizzaStorePage.tsx` (linha 547 e link no nav inferior)
+- A aba **Pedidos** (`StoreAdminPage.tsx` linha 994) já renderiza **todos** os `scopedOrders` (sem `.slice()`), então o admin já tem acesso a todos. O que falta é paginação — com muitos pedidos a tabela fica gigante e lenta.
+- O card **"Pedidos Recentes"** do dashboard (linha 811) limita a 10 (`filteredOrders.slice(0, 10)`) — isso é intencional (resumo) e fica como está.
+- O hook `useOrders` (em `src/hooks/useOrders.ts`) faz `select('*')` sem `range/limit`, então herda o limite padrão do Supabase de **1000 linhas** por query. Funciona igual para **todas as lojas** (hook compartilhado). Lojas com mais de 1000 pedidos não veriam os mais antigos.
 
 ## Solução
 
-Em cada uma das 3 páginas de storefront, detectar se há sessão de garçom ativa via `getWaiterSession()` e:
+### 1. Paginação client-side na aba Pedidos (`src/pages/StoreAdminPage.tsx`)
 
-1. **Ocultar a barra flutuante verde "Ver Carrinho → /checkout"** (o garçom usa o botão laranja "Lançar na Mesa" do `WaiterModeFAB`).
-2. **Ocultar o item "Carrinho" do nav inferior** (mesma razão — leva para checkout).
-3. Manter o botão `+` nos produtos para adicionar itens normalmente ao carrinho.
+- Adicionar estado `ordersPage` (default 1) e constante `ORDERS_PAGE_SIZE = 20`.
+- Calcular `pagedOrders = scopedOrders.slice((ordersPage-1)*PAGE_SIZE, ordersPage*PAGE_SIZE)` e usar no `<TableBody>`.
+- Resetar `ordersPage` para 1 quando filtros (datas/status/busca, se houver) mudarem.
+- Adicionar barra de paginação abaixo da tabela: "Página X de Y · Total: N pedidos" + botões «Anterior» / «Próxima» + select de itens por página (20 / 50 / 100).
+- Aparece só se `scopedOrders.length > PAGE_SIZE`.
 
-Isso garante que o único caminho de finalização em Modo Garçom é o botão laranja, que já gera **1 pedido único** contendo todos os itens do carrinho (rotina de mesa, com `origem: 'mesa'`, observações "Mesa X - Comanda Y", e espelhamento na `tab_items`).
+### 2. Quebrar o teto de 1000 no hook (`src/hooks/useOrders.ts`)
 
-### Implementação
+- Ampliar para `.range(0, 4999)` (até 5.000 pedidos por loja na listagem) — suficiente para a maioria das lojas sem prejudicar performance. Lojas maiores precisariam de paginação server-side, mas isso é trabalho futuro.
 
-Em cada storefront:
-```tsx
-import { getWaiterSession } from '@/components/WaiterModeFAB';
-// ...
-const isWaiter = !!getWaiterSession();
+### 3. Verificação multi-loja
 
-// Esconder barra verde:
-{totalItems > 0 && !isWaiter && (
-  <div className="fixed bottom-20 ...">...Ver Carrinho...</div>
-)}
-
-// Esconder link Carrinho no nav inferior:
-{!isWaiter && (
-  <Link to={`/${store.slug}/checkout`}>...Carrinho...</Link>
-)}
-```
-
-Sem mudanças em `WaiterModeFAB.tsx` (já consolida em 1 pedido), sem mudanças em `TableSessionDialog.tsx`, sem mudanças no backend.
+- Como `useOrders` é único, a mudança vale para **todas as lojas** automaticamente (LOJA, COMIDA, SERVICOS, ACESSORIOS, PIZZARIA). Não há overrides por tipo.
 
 ## Arquivos alterados
 
-- `src/pages/FoodStorePage.tsx`
-- `src/pages/ProductStorePage.tsx`
-- `src/pages/PizzaStorePage.tsx`
+- `src/pages/StoreAdminPage.tsx` — estado de paginação + UI de controles + slice do `scopedOrders`.
+- `src/hooks/useOrders.ts` — `.range(0, 4999)` na query de listagem.
+
+Sem mudanças de schema, sem mudanças no Dashboard.
