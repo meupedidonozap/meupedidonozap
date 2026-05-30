@@ -85,11 +85,21 @@ export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string; storeId?: string }) => {
+      // Limpa itens vinculados a este pedido nas comandas das mesas
+      // (tab_items.paid_order_id), para que o pedido suma da mesa também.
+      const { error: tabErr } = await (supabase as any)
+        .from('tab_items')
+        .delete()
+        .eq('paid_order_id', id);
+      if (tabErr) throw tabErr;
       const { error } = await supabase.from('orders').delete().eq('id', id);
       if (error) throw error;
       return id;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] });
+      qc.invalidateQueries({ queryKey: ['tab_items'] });
+    },
   });
 }
 
