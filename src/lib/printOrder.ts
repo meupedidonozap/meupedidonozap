@@ -77,18 +77,16 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
 <title>Pedido #${order.orderNumber}</title>
 <style>
   @media print {
-    /*@page { margin: 2mm; width: 80mm; }*/
-    @page { size: 80mm auto; margin: 2mm; }
-    body { margin: 0; }
+    @page { size: 80mm auto; margin: 0; }
+    html, body { margin: 0 !important; padding: 0 !important; }
   }
   body {
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
     line-height: 1.4;
-    width: 280px;
-    max-width: 280px;
-    margin: 0 auto;
-    padding: 4px;
+    width: 72mm;
+    margin: 0;
+    padding: 3mm 4mm;
     color: #000;
     background: #fff;
   }
@@ -303,42 +301,47 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
 
 export function printOrder(order: Order, storeName: string, layout: 'thermal' | 'a4' = 'thermal', options?: PrintOptions): void {
   const html = layout === 'a4' ? buildA4HTML(order, storeName, options) : buildThermalHTML(order, storeName, options);
+  openPrintWindow(html);
+}
 
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.top = '-10000px';
-  iframe.style.left = '-10000px';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!doc) {
-    document.body.removeChild(iframe);
+/**
+ * Abre uma janela real (não iframe) para imprimir.
+ * Chrome só respeita @page { size: 80mm auto } em janelas reais — em iframes
+ * usa o tamanho de página do documento pai (A4), por isso o papel saía gigante.
+ */
+function openPrintWindow(html: string): void {
+  const win = window.open('', '_blank', 'width=420,height=640');
+  if (!win) {
+    // Popup bloqueado: fallback para iframe (qualidade reduzida)
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) { document.body.removeChild(iframe); return; }
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => {
+      try { iframe.contentWindow?.print(); } catch {}
+      setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 1000);
+    }, 400);
     return;
   }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 250);
+  const triggerPrint = () => {
+    try { win.focus(); win.print(); } catch {}
+    // Fecha após imprimir (ou cancelar)
+    const close = () => { try { win.close(); } catch {} };
+    win.onafterprint = close;
+    setTimeout(close, 30000);
   };
 
-  // Fallback if onload doesn't fire (content already written)
-  setTimeout(() => {
-    try {
-      iframe.contentWindow?.print();
-    } catch {}
-    setTimeout(() => {
-      if (iframe.parentNode) document.body.removeChild(iframe);
-    }, 1000);
-  }, 500);
+  if (win.document.readyState === 'complete') {
+    setTimeout(triggerPrint, 200);
+  } else {
+    win.addEventListener('load', () => setTimeout(triggerPrint, 200));
+    // Fallback caso o load não dispare
+    setTimeout(triggerPrint, 800);
+  }
 }
