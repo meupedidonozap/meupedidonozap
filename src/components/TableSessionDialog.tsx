@@ -66,6 +66,9 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const [assemblyProd, setAssemblyProd] = useState<Product | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showMove, setShowMove] = useState(false);
+  // Rascunho do Avulso: acumula itens e só vira pedido ao "Enviar"
+  const [draftItems, setDraftItems] = useState<CartItem[]>([]);
+  const [sendingDraft, setSendingDraft] = useState(false);
 
   const printReceiptFor = (
     receiptItems: { name: string; quantity: number; unitPrice: number }[],
@@ -187,78 +190,82 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const buildObservationsForTab = (tabNumber: number, tabLabel?: string, extra?: string) =>
     `Mesa ${tableNumber ?? ''} - Comanda ${tabNumber}${tabLabel ? ` (${tabLabel})` : ''}${extra ? ` | ${extra}` : ''}`.trim();
 
-  const createLinkedOrder = async (tabId: string, cartItem: CartItem) => {
-    const tab = tabs.find(t => t.id === tabId);
-    if (!tab) return null;
-    const subtotal = cartItem.price * cartItem.quantity;
-    const order = await createOrder.mutateAsync({
-      storeId,
-      customer: buildCustomerForTab(tab.number, tab.label),
-      items: [cartItem],
-      subtotal,
-      discount: 0,
-      deliveryFee: 0,
-      total: subtotal,
-      paymentMethod: '' as any,
-      deliveryShift: 'tarde' as any,
-      observations: buildObservationsForTab(tab.number, tab.label, cartItem.observation),
-      status: 'pendente' as any,
-      origem: 'mesa',
-    } as any);
-    return order;
-  };
-
-  const launchSimple = async (p: Product) => {
+  // Adiciona ao rascunho local (não cria pedido ainda)
+  const addSimpleToDraft = (p: Product) => {
     if (!currentTabId) { toast.error('Crie uma comanda primeiro'); return; }
     const cartItem: CartItem = {
       productId: p.id, name: p.name, code: p.code || '',
       price: p.basePrice, quantity: 1, image: p.image,
       ingredients: [], removedIngredients: [],
     } as any;
-    const order = await createLinkedOrder(currentTabId, cartItem);
-    const item = await addItem.mutateAsync({
-      tabId: currentTabId,
-      productId: p.id,
-      name: p.name,
-      code: p.code || '',
-      unitPrice: p.basePrice,
-      quantity: 1,
-      ingredients: [],
-      removedIngredients: [],
-      image: p.image,
-    } as any);
-    if (order && item) {
-      await updateItem.mutateAsync({ id: item.id, paidOrderId: order.id });
-    }
-    toast.success(`${p.name} lançado`);
+    setDraftItems(prev => [...prev, cartItem]);
+    toast.success(`${p.name} adicionado ao pedido`);
   };
 
-  const launchAssembled = async (item: CartItem) => {
+  const addAssembledToDraft = (item: CartItem) => {
     if (!currentTabId) return;
-    const order = await createLinkedOrder(currentTabId, item);
-    const created = await addItem.mutateAsync({
-      tabId: currentTabId,
-      productId: item.productId,
-      variantId: item.variantId,
-      name: item.name + (item.size ? ` ${item.size}` : ''),
-      code: item.code || '',
-      unitPrice: item.price,
-      quantity: item.quantity,
-      ingredients: item.ingredients || [],
-      removedIngredients: item.removedIngredients || [],
-      border: item.border,
-      observation: item.observation,
-      image: item.image,
-    } as any);
-    if (order && created) {
-      await updateItem.mutateAsync({ id: created.id, paidOrderId: order.id });
+    setDraftItems(prev => [...prev, item]);
+    toast.success('Item adicionado ao pedido');
+  };
+
+  const removeDraftItem = (idx: number) => {
+    setDraftItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Envia o rascunho: cria UM pedido com todos os itens e espelha na comanda
+  const sendDraft = async () => {
+    if (!currentTabId || draftItems.length === 0) return;
+    const tab = tabs.find(t => t.id === currentTabId);
+    if (!tab) return;
+    setSendingDraft(true);
+    try {
+      const subtotal = draftItems.reduce((s, i) => s + i.price * i.quantity, 0);
+      const order = await createOrder.mutateAsync({
+        storeId,
+        customer: buildCustomerForTab(tab.number, tab.label),
+        items: draftItems,
+        subtotal,
+        discount: 0,
+        deliveryFee: 0,
+        total: subtotal,
+        paymentMethod: '' as any,
+        deliveryShift: 'tarde' as any,
+        observations: buildObservationsForTab(tab.number, tab.label),
+        status: 'pendente' as any,
+        origem: 'mesa',
+      } as any);
+      for (const ci of draftItems) {
+        const created = await addItem.mutateAsync({
+          tabId: currentTabId,
+          productId: ci.productId,
+          variantId: ci.variantId,
+          name: ci.name + (ci.size ? ` ${ci.size}` : ''),
+          code: ci.code || '',
+          unitPrice: ci.price,
+          quantity: ci.quantity,
+          ingredients: ci.ingredients || [],
+          removedIngredients: ci.removedIngredients || [],
+          border: ci.border,
+          observation: ci.observation,
+          image: ci.image,
+        } as any);
+        if (order && created) {
+          await updateItem.mutateAsync({ id: created.id, paidOrderId: order.id });
+        }
+      }
+      toast.success(`Pedido enviado (${draftItems.length} ${draftItems.length === 1 ? 'item' : 'itens'})`);
+      setDraftItems([]);
+      setCatalogOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao enviar pedido');
+    } finally {
+      setSendingDraft(false);
     }
-    toast.success('Item lançado');
   };
 
   const handleProductClick = (p: Product) => {
     if (needsAssembly(p)) setAssemblyProd(p);
-    else launchSimple(p);
+    else addSimpleToDraft(p);
   };
 
   return (
