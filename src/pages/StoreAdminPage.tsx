@@ -203,6 +203,16 @@ export default function StoreAdminPage() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // Pagination for Orders tab
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPageSize, setOrdersPageSize] = useState(20);
+  const ordersTotalPages = Math.max(1, Math.ceil(scopedOrders.length / ordersPageSize));
+  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, scopedOrders.length]);
+  const pagedOrders = useMemo(
+    () => scopedOrders.slice((ordersPage - 1) * ordersPageSize, ordersPage * ordersPageSize),
+    [scopedOrders, ordersPage, ordersPageSize],
+  );
+
   // Auto-select default tab for restricted users
   useEffect(() => {
     if (!isAdmin && permissions.can_manage_tables &&
@@ -991,7 +1001,7 @@ export default function StoreAdminPage() {
                     </TableRow>
                   </TableHeader>
                    <TableBody>
-                     {scopedOrders.map(order => (
+                     {pagedOrders.map(order => (
                       <TableRow key={order.id}>
                         <TableCell>
                           <p className="font-medium">#{order.orderNumber}</p>
@@ -1229,6 +1239,31 @@ export default function StoreAdminPage() {
                   </TableBody>
                 </Table>
               </CardContent>
+                {scopedOrders.length > ordersPageSize && (
+                  <div className="flex flex-col gap-2 border-t p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      Mostrando {(ordersPage - 1) * ordersPageSize + 1}–{Math.min(ordersPage * ordersPageSize, scopedOrders.length)} de {scopedOrders.length} pedidos
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="h-8 rounded border bg-background px-2 text-xs"
+                        value={ordersPageSize}
+                        onChange={(e) => setOrdersPageSize(Number(e.target.value))}
+                      >
+                        <option value={20}>20/pág</option>
+                        <option value={50}>50/pág</option>
+                        <option value={100}>100/pág</option>
+                      </select>
+                      <Button size="sm" variant="outline" disabled={ordersPage === 1} onClick={() => setOrdersPage(p => Math.max(1, p - 1))}>
+                        Anterior
+                      </Button>
+                      <span className="text-xs">Pág {ordersPage} de {ordersTotalPages}</span>
+                      <Button size="sm" variant="outline" disabled={ordersPage >= ordersTotalPages} onClick={() => setOrdersPage(p => Math.min(ordersTotalPages, p + 1))}>
+                        Próxima
+                      </Button>
+                    </div>
+                  </div>
+                )}
             </Card>
           </TabsContent>
 
