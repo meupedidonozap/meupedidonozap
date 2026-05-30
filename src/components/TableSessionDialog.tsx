@@ -66,6 +66,9 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const [assemblyProd, setAssemblyProd] = useState<Product | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showMove, setShowMove] = useState(false);
+  // Rascunho do Avulso: acumula itens e só vira pedido ao "Enviar"
+  const [draftItems, setDraftItems] = useState<CartItem[]>([]);
+  const [sendingDraft, setSendingDraft] = useState(false);
 
   const printReceiptFor = (
     receiptItems: { name: string; quantity: number; unitPrice: number }[],
@@ -187,78 +190,82 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
   const buildObservationsForTab = (tabNumber: number, tabLabel?: string, extra?: string) =>
     `Mesa ${tableNumber ?? ''} - Comanda ${tabNumber}${tabLabel ? ` (${tabLabel})` : ''}${extra ? ` | ${extra}` : ''}`.trim();
 
-  const createLinkedOrder = async (tabId: string, cartItem: CartItem) => {
-    const tab = tabs.find(t => t.id === tabId);
-    if (!tab) return null;
-    const subtotal = cartItem.price * cartItem.quantity;
-    const order = await createOrder.mutateAsync({
-      storeId,
-      customer: buildCustomerForTab(tab.number, tab.label),
-      items: [cartItem],
-      subtotal,
-      discount: 0,
-      deliveryFee: 0,
-      total: subtotal,
-      paymentMethod: '' as any,
-      deliveryShift: 'tarde' as any,
-      observations: buildObservationsForTab(tab.number, tab.label, cartItem.observation),
-      status: 'pendente' as any,
-      origem: 'mesa',
-    } as any);
-    return order;
-  };
-
-  const launchSimple = async (p: Product) => {
+  // Adiciona ao rascunho local (não cria pedido ainda)
+  const addSimpleToDraft = (p: Product) => {
     if (!currentTabId) { toast.error('Crie uma comanda primeiro'); return; }
     const cartItem: CartItem = {
       productId: p.id, name: p.name, code: p.code || '',
       price: p.basePrice, quantity: 1, image: p.image,
       ingredients: [], removedIngredients: [],
     } as any;
-    const order = await createLinkedOrder(currentTabId, cartItem);
-    const item = await addItem.mutateAsync({
-      tabId: currentTabId,
-      productId: p.id,
-      name: p.name,
-      code: p.code || '',
-      unitPrice: p.basePrice,
-      quantity: 1,
-      ingredients: [],
-      removedIngredients: [],
-      image: p.image,
-    } as any);
-    if (order && item) {
-      await updateItem.mutateAsync({ id: item.id, paidOrderId: order.id });
-    }
-    toast.success(`${p.name} lançado`);
+    setDraftItems(prev => [...prev, cartItem]);
+    toast.success(`${p.name} adicionado ao pedido`);
   };
 
-  const launchAssembled = async (item: CartItem) => {
+  const addAssembledToDraft = (item: CartItem) => {
     if (!currentTabId) return;
-    const order = await createLinkedOrder(currentTabId, item);
-    const created = await addItem.mutateAsync({
-      tabId: currentTabId,
-      productId: item.productId,
-      variantId: item.variantId,
-      name: item.name + (item.size ? ` ${item.size}` : ''),
-      code: item.code || '',
-      unitPrice: item.price,
-      quantity: item.quantity,
-      ingredients: item.ingredients || [],
-      removedIngredients: item.removedIngredients || [],
-      border: item.border,
-      observation: item.observation,
-      image: item.image,
-    } as any);
-    if (order && created) {
-      await updateItem.mutateAsync({ id: created.id, paidOrderId: order.id });
+    setDraftItems(prev => [...prev, item]);
+    toast.success('Item adicionado ao pedido');
+  };
+
+  const removeDraftItem = (idx: number) => {
+    setDraftItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Envia o rascunho: cria UM pedido com todos os itens e espelha na comanda
+  const sendDraft = async () => {
+    if (!currentTabId || draftItems.length === 0) return;
+    const tab = tabs.find(t => t.id === currentTabId);
+    if (!tab) return;
+    setSendingDraft(true);
+    try {
+      const subtotal = draftItems.reduce((s, i) => s + i.price * i.quantity, 0);
+      const order = await createOrder.mutateAsync({
+        storeId,
+        customer: buildCustomerForTab(tab.number, tab.label),
+        items: draftItems,
+        subtotal,
+        discount: 0,
+        deliveryFee: 0,
+        total: subtotal,
+        paymentMethod: '' as any,
+        deliveryShift: 'tarde' as any,
+        observations: buildObservationsForTab(tab.number, tab.label),
+        status: 'pendente' as any,
+        origem: 'mesa',
+      } as any);
+      for (const ci of draftItems) {
+        const created = await addItem.mutateAsync({
+          tabId: currentTabId,
+          productId: ci.productId,
+          variantId: ci.variantId,
+          name: ci.name + (ci.size ? ` ${ci.size}` : ''),
+          code: ci.code || '',
+          unitPrice: ci.price,
+          quantity: ci.quantity,
+          ingredients: ci.ingredients || [],
+          removedIngredients: ci.removedIngredients || [],
+          border: ci.border,
+          observation: ci.observation,
+          image: ci.image,
+        } as any);
+        if (order && created) {
+          await updateItem.mutateAsync({ id: created.id, paidOrderId: order.id });
+        }
+      }
+      toast.success(`Pedido enviado (${draftItems.length} ${draftItems.length === 1 ? 'item' : 'itens'})`);
+      setDraftItems([]);
+      setCatalogOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao enviar pedido');
+    } finally {
+      setSendingDraft(false);
     }
-    toast.success('Item lançado');
   };
 
   const handleProductClick = (p: Product) => {
     if (needsAssembly(p)) setAssemblyProd(p);
-    else launchSimple(p);
+    else addSimpleToDraft(p);
   };
 
   return (
@@ -400,8 +407,42 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
       {catalogOpen && (
         <Dialog open onOpenChange={setCatalogOpen}>
           <DialogContent className="w-screen sm:w-full max-w-[100vw] sm:max-w-2xl h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[80vh] overflow-y-auto p-3 sm:p-6 rounded-none sm:rounded-lg">
-            <DialogHeader><DialogTitle>Lançar item — escolha produto</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Montar pedido — escolha os produtos</DialogTitle></DialogHeader>
             {!currentTabId && <p className="text-sm text-destructive">Adicione/selecione uma comanda primeiro.</p>}
+
+            {draftItems.length > 0 && (
+              <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-2 border-b bg-card px-3 py-2 shadow-sm sm:-mx-6 sm:px-6">
+                <div className="mb-1 text-sm font-semibold">Pedido em montagem ({draftItems.length})</div>
+                <div className="max-h-32 space-y-1 overflow-y-auto">
+                  {draftItems.map((d, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-2 rounded border px-2 py-1 text-xs">
+                      <span className="min-w-0 flex-1 truncate">
+                        {d.quantity}x {d.name}{d.size ? ` ${d.size}` : ''}
+                      </span>
+                      <span className="font-semibold">{formatCurrency(d.price * d.quantity)}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                        onClick={() => removeDraftItem(idx)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="text-sm">
+                    Total: <strong>{formatCurrency(draftItems.reduce((s, i) => s + i.price * i.quantity, 0))}</strong>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setDraftItems([])} disabled={sendingDraft}>
+                      Limpar
+                    </Button>
+                    <Button size="sm" onClick={sendDraft} disabled={sendingDraft || draftItems.length === 0}>
+                      {sendingDraft ? 'Enviando…' : 'Enviar pedido'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {categories.map(c => {
               const prods = products.filter(p => p.isActive && p.categoryId === c.id).sort((a, b) => a.name.localeCompare(b.name));
               if (!prods.length) return null;
@@ -411,7 +452,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                   <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                     {prods.map(p => (
                       <Button key={p.id} variant="outline" size="sm" className="justify-between"
-                        onClick={() => { handleProductClick(p); if (!needsAssembly(p)) setCatalogOpen(false); }}>
+                        onClick={() => handleProductClick(p)}>
                         <span className="truncate">{p.name}</span>
                         <span className="text-xs">{formatCurrency(p.basePrice)}</span>
                       </Button>
@@ -420,6 +461,11 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
                 </div>
               );
             })}
+            <DialogFooter className="mt-3 border-t pt-3">
+              <Button variant="outline" onClick={() => setCatalogOpen(false)}>
+                {draftItems.length > 0 ? 'Continuar montando depois' : 'Fechar'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
@@ -440,7 +486,7 @@ export default function TableSessionDialog({ sessionId, storeId, tableNumber, on
             assembly={a}
             ingredients={ingForProduct}
             borders={borders}
-            onConfirm={(item) => { launchAssembled(item); setAssemblyProd(null); setCatalogOpen(false); }}
+            onConfirm={(item) => { addAssembledToDraft(item); setAssemblyProd(null); }}
           />
         );
       })()}
