@@ -159,6 +159,10 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   if (!order) return null;
 
+  // Pedidos já transmitidos (qualquer status != 'pendente') só permitem
+  // EXCLUIR itens — não dá pra aumentar quantidade nem adicionar novos.
+  const removeOnly = order.status !== 'pendente';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl w-[100vw] sm:w-auto h-[100dvh] sm:h-auto sm:max-h-[90vh] p-4 sm:p-6 flex flex-col rounded-none sm:rounded-lg">
@@ -167,6 +171,11 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pb-32 sm:pb-0">
+          {removeOnly && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+              Este pedido já foi transmitido. Você só pode <strong>excluir itens</strong> que o cliente desistiu — não é possível adicionar produtos ou aumentar quantidades.
+            </div>
+          )}
           {/* Current items */}
           <div className="border rounded-md">
             <div className="px-3 py-2 border-b bg-muted/30 text-sm font-semibold">
@@ -200,15 +209,19 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
                         <p className="text-xs italic text-muted-foreground">Obs: {item.observation}</p>
                       ) : null}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, -1)}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, 1)}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    {removeOnly ? (
+                      <span className="w-12 text-center text-sm font-medium">{item.quantity}x</span>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, -1)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(idx, 1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                     <span className="text-sm font-medium w-24 text-right">{formatCurrency(item.price * item.quantity)}</span>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}>
                       <Trash2 className="h-3 w-3" />
@@ -220,7 +233,8 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
             )}
           </div>
 
-          {/* Add product */}
+          {/* Add product — só para pedidos pendentes */}
+          {!removeOnly && (
           <div className="space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -253,6 +267,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
               )}
             </div>
           </div>
+          )}
 
           {/* Dicolore — Forma e Condição de Pagamento (ERP) */}
           {dicolore && (formas.length > 0 || condicoes.length > 0) && (
@@ -295,8 +310,10 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
           </div>
 
           <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Badge variant="outline" className="text-[10px]">Atenção</Badge>
-            Apenas pedidos com status <strong>Pendente</strong> podem ser editados.
+            <Badge variant="outline" className="text-[10px]">Dica</Badge>
+            {removeOnly
+              ? <>Pedido transmitido: somente exclusão de itens é permitida.</>
+              : <>Pedidos <strong>Pendentes</strong> permitem edição completa (adicionar, remover e alterar quantidades).</>}
           </p>
         </div>
 
