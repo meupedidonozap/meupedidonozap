@@ -40,8 +40,11 @@ function buildHTML(opts: ReceiptOptions): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante</title>
 <style>
-@media print { @page { size: 80mm auto; margin: 2mm; }  body { margin: 0; } } /* @page { margin: 2mm; width: 80mm; } */
-body { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.4; width: 280px; max-width: 280px; margin: 0 auto; padding: 4px; color:#000; background:#fff; }
+@media print {
+  @page { size: 80mm auto; margin: 0; }
+  html, body { margin: 0 !important; padding: 0 !important; }
+}
+body { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.4; width: 72mm; margin: 0; padding: 3mm 4mm; color:#000; background:#fff; }
 .center { text-align:center; }
 .sep { text-align:center; letter-spacing:1px; margin:4px 0; }
 .title { font-size:13px; font-weight:bold; text-transform:uppercase; }
@@ -74,16 +77,31 @@ ${opts.paymentMethod ? `<div>Forma de pagamento: ${paymentMap[opts.paymentMethod
 
 export function printReceipt(opts: ReceiptOptions): void {
   const html = buildHTML(opts);
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!doc) { document.body.removeChild(iframe); return; }
-  doc.open(); doc.write(html); doc.close();
-  const trigger = () => {
-    try { iframe.contentWindow?.print(); } catch {}
-    setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 1000);
+  const win = window.open('', '_blank', 'width=420,height=640');
+  if (!win) {
+    // Fallback se popup bloqueado
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) { document.body.removeChild(iframe); return; }
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => {
+      try { iframe.contentWindow?.print(); } catch {}
+      setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 1000);
+    }, 400);
+    return;
+  }
+  win.document.open(); win.document.write(html); win.document.close();
+  const triggerPrint = () => {
+    try { win.focus(); win.print(); } catch {}
+    const close = () => { try { win.close(); } catch {} };
+    win.onafterprint = close;
+    setTimeout(close, 30000);
   };
-  iframe.onload = () => setTimeout(trigger, 250);
-  setTimeout(trigger, 600);
+  if (win.document.readyState === 'complete') setTimeout(triggerPrint, 200);
+  else {
+    win.addEventListener('load', () => setTimeout(triggerPrint, 200));
+    setTimeout(triggerPrint, 800);
+  }
 }
