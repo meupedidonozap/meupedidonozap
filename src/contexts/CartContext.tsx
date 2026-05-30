@@ -21,6 +21,7 @@ interface CartContextType {
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
+  updateItemObservation: (productId: string, observation: string, variantId?: string) => void;
   clearCart: () => void;
   applyCoupon: (code: string, discount: number) => void;
   removeCoupon: () => void;
@@ -174,6 +175,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateItemObservation = useCallback((productId: string, observation: string, variantId?: string) => {
+    setCart(prev => {
+      const newItems = prev.items.map(i =>
+        i.productId === productId && i.variantId === variantId ? { ...i, observation } : i
+      );
+      return { ...prev, items: newItems };
+    });
+  }, []);
+
   const clearCart = useCallback(() => {
     setCart(prev => {
       localStorage.removeItem(`cart_${prev.storeId}`);
@@ -204,6 +214,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        updateItemObservation,
         clearCart,
         applyCoupon,
         removeCoupon,
