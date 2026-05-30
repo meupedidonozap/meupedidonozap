@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, X, Loader2 } from 'lucide-react';
+import { ShoppingCart, X, Loader2, Plus, Minus, Trash2, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/contexts/CartContext';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAddTabItem, useUpdateTabItem } from '@/hooks/useTables';
@@ -40,7 +42,8 @@ export function clearWaiterSession() {
 export default function WaiterModeFAB() {
   const [ws, setWs] = useState<WaiterSession | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const { cart, clearCart } = useCart();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const { cart, clearCart, updateQuantity, removeItem, updateItemObservation } = useCart();
   const createOrder = useCreateOrder();
   const addTabItem = useAddTabItem();
   const updateTabItem = useUpdateTabItem();
@@ -123,6 +126,7 @@ export default function WaiterModeFAB() {
       }
       toast.success('Pedido lançado na mesa!');
       clearCart();
+      setReviewOpen(false);
       clearWaiterSession();
       setWs(null);
       navigate(`/${ws.storeSlug}/garcom`);
@@ -151,21 +155,102 @@ export default function WaiterModeFAB() {
           </Button>
         </div>
       </div>
-      {/* Bottom CTA — covers existing "Ver Carrinho"/checkout buttons */}
+      {/* Bottom CTA — opens review sheet before launching */}
       <div className="fixed inset-x-0 bottom-0 z-[70] border-t bg-card p-3 shadow-2xl">
         <Button
           className="h-14 w-full gap-2 bg-orange-600 text-base font-bold text-white hover:bg-orange-700"
-          onClick={submit}
+          onClick={() => totalItems > 0 && setReviewOpen(true)}
           disabled={submitting || totalItems === 0}
         >
-          {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShoppingCart className="h-5 w-5" />}
-          {submitting
-            ? 'Lançando…'
-            : totalItems === 0
-              ? 'Adicione itens para lançar'
-              : `Lançar na Mesa (${totalItems} ${totalItems === 1 ? 'item' : 'itens'} • ${formatCurrency(cart.total)})`}
+          <ClipboardList className="h-5 w-5" />
+          {totalItems === 0
+            ? 'Adicione itens para revisar'
+            : `Revisar Pedido (${totalItems} ${totalItems === 1 ? 'item' : 'itens'} • ${formatCurrency(cart.total)})`}
         </Button>
       </div>
+
+      {/* Review sheet */}
+      <Sheet open={reviewOpen} onOpenChange={setReviewOpen}>
+        <SheetContent side="bottom" className="flex h-[90dvh] flex-col p-0">
+          <SheetHeader className="border-b p-4">
+            <SheetTitle>
+              Revisar pedido — MESA {ws.tableNumber} · C{ws.tabNumber}
+              {ws.tabLabel ? ` (${ws.tabLabel})` : ''}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto p-3">
+            {cart.items.length === 0 ? (
+              <p className="py-12 text-center text-sm text-muted-foreground">Carrinho vazio.</p>
+            ) : (
+              <div className="space-y-2">
+                {cart.items.map((it) => {
+                  const lineTotal = it.price * it.quantity;
+                  return (
+                    <div key={`${it.productId}-${it.variantId || ''}-${(it.observation || '').slice(0,6)}`} className="rounded-lg border bg-card p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium leading-tight">{it.name}{it.size ? ` ${it.size}` : ''}</p>
+                          {(it.ingredients?.length || 0) > 0 && (
+                            <p className="text-xs text-muted-foreground">+ {it.ingredients!.map(x => x.name).join(', ')}</p>
+                          )}
+                          {(it.removedIngredients?.length || 0) > 0 && (
+                            <p className="text-xs text-muted-foreground">SEM {it.removedIngredients!.map(x => x.name).join(', ')}</p>
+                          )}
+                          {it.border && <p className="text-xs">Borda: {it.border.name}</p>}
+                          <p className="mt-1 text-sm text-muted-foreground">{formatCurrency(it.price)} un.</p>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive shrink-0"
+                          onClick={() => removeItem(it.productId, it.variantId)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Button size="icon" variant="outline" className="h-8 w-8"
+                            onClick={() => updateQuantity(it.productId, it.quantity - 1, it.variantId)}>
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="w-8 text-center font-semibold">{it.quantity}</span>
+                          <Button size="icon" variant="outline" className="h-8 w-8"
+                            onClick={() => updateQuantity(it.productId, it.quantity + 1, it.variantId)}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <span className="font-semibold">{formatCurrency(lineTotal)}</span>
+                      </div>
+                      <Textarea
+                        className="mt-2 min-h-[40px] text-xs"
+                        placeholder="Observação do item (opcional)…"
+                        value={it.observation || ''}
+                        onChange={(e) => updateItemObservation(it.productId, e.target.value, it.variantId)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="border-t bg-card p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Total</span>
+              <span className="text-lg font-bold">{formatCurrency(cart.total)}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setReviewOpen(false)}>
+                Continuar adicionando
+              </Button>
+              <Button
+                className="flex-1 bg-orange-600 font-bold text-white hover:bg-orange-700"
+                onClick={submit}
+                disabled={submitting || totalItems === 0}
+              >
+                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+                {submitting ? 'Lançando…' : 'Lançar na Mesa'}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
