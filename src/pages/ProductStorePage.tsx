@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import ClosedBanner from '@/components/ClosedBanner';
+import { getWaiterSession } from '@/components/WaiterModeFAB';
 import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -503,7 +504,7 @@ export default function ProductStorePage() {
           </div>
         </div>
       </footer>
-      {totalItems > 0 && !isCartOpen && (
+      {totalItems > 0 && !isCartOpen && !getWaiterSession() && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card p-3 shadow-lg">
           <Button onClick={() => setIsCartOpen(true)} className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
             <ShoppingCart className="h-5 w-5" /> Ver Carrinho ({totalItems} {totalItems === 1 ? 'item' : 'itens'}) — {formatCurrency(cart.total)}

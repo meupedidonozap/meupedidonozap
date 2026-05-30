@@ -21,6 +21,7 @@ import { useIngredients } from '@/hooks/useIngredients';
 import { usePizzaBorders } from '@/hooks/usePizzaBorders';
 import { useProductAssemblies } from '@/hooks/useProductAssembly';
 import AssemblyDialog from '@/components/AssemblyDialog';
+import { getWaiterSession } from '@/components/WaiterModeFAB';
 import type { Product, ProductAssembly } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import { formatCurrency } from '@/lib/formatters';
@@ -319,15 +320,17 @@ export default function FoodStorePage() {
           <Link to={`/${store.slug}/admin`} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground">
             <FileText className="h-5 w-5" /><span className="text-xs">Pedidos</span>
           </Link>
-          <Link to={`/${store.slug}/checkout`} className="relative flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground">
-            <ShoppingCart className="h-5 w-5" />
-            {totalItems > 0 && <Badge className="absolute -right-2 -top-1 h-5 w-5 rounded-full bg-accent p-0 text-xs">{totalItems}</Badge>}
-            <span className="text-xs">Carrinho</span>
-          </Link>
+          {!getWaiterSession() && (
+            <Link to={`/${store.slug}/checkout`} className="relative flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground">
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && <Badge className="absolute -right-2 -top-1 h-5 w-5 rounded-full bg-accent p-0 text-xs">{totalItems}</Badge>}
+              <span className="text-xs">Carrinho</span>
+            </Link>
+          )}
         </div>
       </nav>
 
-      {totalItems > 0 && (
+      {totalItems > 0 && !getWaiterSession() && (
         <div className="fixed bottom-20 left-0 right-0 z-40 p-4">
           <Button asChild className="w-full gap-2 bg-accent text-accent-foreground shadow-lg hover:bg-accent/90">
             <Link to={`/${store.slug}/checkout`}>

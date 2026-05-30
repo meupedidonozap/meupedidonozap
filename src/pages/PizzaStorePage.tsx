@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import ClosedBanner from '@/components/ClosedBanner';
+import { getWaiterSession } from '@/components/WaiterModeFAB';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -529,18 +530,20 @@ export default function PizzaStorePage() {
           <button onClick={() => setActiveSection('pizzas')} className="flex flex-col items-center gap-1 text-orange-400">
             <Pizza className="h-5 w-5" /><span className="text-xs">Cardápio</span>
           </button>
-          <Link to={`/${store.slug}/checkout`} className="relative flex flex-col items-center gap-1 text-gray-400 hover:text-orange-400">
-            <ShoppingCart className="h-5 w-5" />
-            {totalItems > 0 && <Badge className="absolute -right-2 -top-1 h-5 w-5 rounded-full bg-orange-500 p-0 text-xs text-white border-0">{totalItems}</Badge>}
-            <span className="text-xs">Carrinho</span>
-          </Link>
+          {!getWaiterSession() && (
+            <Link to={`/${store.slug}/checkout`} className="relative flex flex-col items-center gap-1 text-gray-400 hover:text-orange-400">
+              <ShoppingCart className="h-5 w-5" />
+              {totalItems > 0 && <Badge className="absolute -right-2 -top-1 h-5 w-5 rounded-full bg-orange-500 p-0 text-xs text-white border-0">{totalItems}</Badge>}
+              <span className="text-xs">Carrinho</span>
+            </Link>
+          )}
           <button onClick={() => { navigator.share?.({ url: window.location.href, title: store.name }).catch(() => {}); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-orange-400">
             <Share2 className="h-5 w-5" /><span className="text-xs">Compartilhar</span>
           </button>
         </div>
       </nav>
 
-      {totalItems > 0 && (
+      {totalItems > 0 && !getWaiterSession() && (
         <div className="fixed bottom-20 left-0 right-0 z-40 p-4">
           <Button asChild className="w-full gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/30 font-bold">
             <Link to={`/${store.slug}/checkout`}>

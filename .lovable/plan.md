@@ -1,49 +1,47 @@
-## Problema
+## Diagnóstico
 
-O preview de impressão da térmica está saindo como folha A4 inteira (vide print: "1 folha de papel"). A regra `@page { size: 80mm auto }` está correta no HTML do iframe, mas o Chrome **ignora `@page` quando o `print()` é disparado de um `<iframe>` invisível** — ele usa as configurações de página do documento pai (A4). Por isso o conteúdo sai estreito no canto de uma folha A4, sem corte automático.
+O botão laranja **"Lançar na Mesa"** (em `WaiterModeFAB.tsx`) **já cria 1 único pedido** com todos os itens do carrinho — a lógica está correta após o ajuste anterior.
 
-A nova impressora `GS-FJ80H-UE` é 80mm padrão (área imprimível ~72mm), então a correção serve para as duas.
+O problema da segunda imagem (tela "Dados do Cliente") **não vem desse botão**. Ele vem da **barra verde "Ver Carrinho"** logo acima, que existe no storefront normal e leva para `/:slug/checkout`. Em Modo Garçom essa barra **não deveria aparecer** — o garçom não precisa preencher dados de cliente, ele só lança na mesa.
+
+Arquivos com a barra verde + link "Carrinho" no menu inferior:
+- `src/pages/FoodStorePage.tsx` (linhas 322-326 e 330-338)
+- `src/pages/ProductStorePage.tsx` (linha 509 e link no nav inferior)
+- `src/pages/PizzaStorePage.tsx` (linha 547 e link no nav inferior)
 
 ## Solução
 
-### 1. Trocar iframe por `window.open` na impressão térmica
-Arquivos: `src/lib/printOrder.ts`, `src/lib/printReceipt.ts`
+Em cada uma das 3 páginas de storefront, detectar se há sessão de garçom ativa via `getWaiterSession()` e:
 
-- Substituir o fluxo `createElement('iframe') → print()` por `window.open('', '_blank', 'width=380,height=600')`, escrever o HTML completo, aguardar `onload` e disparar `print()` na janela aberta. Chrome respeita `@page { size: 80mm auto }` em janelas reais, fazendo o papel ter altura exatamente igual ao conteúdo.
-- Fechar a janela após o print (`onafterprint`).
-- Manter o fluxo A4 atual (já funciona).
+1. **Ocultar a barra flutuante verde "Ver Carrinho → /checkout"** (o garçom usa o botão laranja "Lançar na Mesa" do `WaiterModeFAB`).
+2. **Ocultar o item "Carrinho" do nav inferior** (mesma razão — leva para checkout).
+3. Manter o botão `+` nos produtos para adicionar itens normalmente ao carrinho.
 
-### 2. Ajustar CSS do recibo térmico
-- `@page { size: 80mm auto; margin: 0; }` (margem zero — a impressora térmica já tem margem física).
-- `body { width: 72mm; padding: 3mm; margin: 0; }` (área imprimível real).
-- Remover o `width: 280px` em px (não escala bem entre impressoras 80mm) e usar `mm`.
-- Garantir que não há `min-height` ou elemento que force altura adicional.
+Isso garante que o único caminho de finalização em Modo Garçom é o botão laranja, que já gera **1 pedido único** contendo todos os itens do carrinho (rotina de mesa, com `origem: 'mesa'`, observações "Mesa X - Comanda Y", e espelhamento na `tab_items`).
 
-### 3. Configuração por loja: impressora padrão
-Arquivo: `src/components/SalonAdminTab.tsx` (ou aba de configurações da loja onde já estão settings)
+### Implementação
 
-- Adicionar campo no `settings` JSONB da loja: `default_printer: 'thermal_80mm' | 'a4'`.
-- No menu de impressão em `StoreAdminPage.tsx` (linhas 1187-1200), quando `default_printer === 'thermal_80mm'`, o botão da impressora dispara direto `printOrder(order, store.name, 'thermal', ...)` em vez de abrir o dropdown — mantendo o dropdown apenas como opção secundária (long-press ou menu "...").
-- Não é possível pular o diálogo nativo do navegador (limitação do Chrome), mas com `@page size: 80mm auto` o preview já mostra o tamanho correto e o usuário só clica "Imprimir".
+Em cada storefront:
+```tsx
+import { getWaiterSession } from '@/components/WaiterModeFAB';
+// ...
+const isWaiter = !!getWaiterSession();
 
-## Detalhes técnicos
+// Esconder barra verde:
+{totalItems > 0 && !isWaiter && (
+  <div className="fixed bottom-20 ...">...Ver Carrinho...</div>
+)}
 
-**Por que iframe não funciona para `@page`:** o Chrome trata `iframe.print()` como impressão do documento host. Já `window.open().print()` cria um contexto de impressão independente que honra `@page size`.
-
-**Estrutura final do CSS térmico:**
-```css
-@page { size: 80mm auto; margin: 0; }
-@media print {
-  html, body { margin: 0; padding: 0; }
-  body { width: 72mm; padding: 3mm 4mm; }
-}
-body { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.35; }
+// Esconder link Carrinho no nav inferior:
+{!isWaiter && (
+  <Link to={`/${store.slug}/checkout`}>...Carrinho...</Link>
+)}
 ```
 
-**Sem mudanças de schema** (campo `default_printer` vai dentro do `settings` JSONB já existente em `stores`).
+Sem mudanças em `WaiterModeFAB.tsx` (já consolida em 1 pedido), sem mudanças em `TableSessionDialog.tsx`, sem mudanças no backend.
 
 ## Arquivos alterados
-- `src/lib/printOrder.ts` — trocar iframe→window.open + CSS térmico
-- `src/lib/printReceipt.ts` — mesmo tratamento
-- `src/pages/StoreAdminPage.tsx` — usar `store.settings.default_printer` no botão de impressão
-- Aba de configurações da loja — novo seletor "Impressora padrão"
+
+- `src/pages/FoodStorePage.tsx`
+- `src/pages/ProductStorePage.tsx`
+- `src/pages/PizzaStorePage.tsx`
