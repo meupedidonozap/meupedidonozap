@@ -134,7 +134,12 @@ Deno.serve(async (req) => {
         if (match) existingProfile = match as any;
       }
 
-      if (existingProfile?.user_id) {
+      if (isUpdate) {
+        // Modo update rápido: NÃO mexe no Auth (lento e desnecessário).
+        // Reaproveita user_id existente, ou deixa null (cliente cria login depois).
+        userId = existingProfile?.user_id ?? null;
+        action = existingProfile ? 'updated' : 'created';
+      } else if (existingProfile?.user_id) {
         userId = existingProfile.user_id;
         action = 'updated';
       } else {
