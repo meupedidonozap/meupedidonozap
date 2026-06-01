@@ -108,6 +108,13 @@ export default function CheckoutPage() {
     }
   }, [customerProfile, profileLoaded]);
 
+  // Auto-select the only available recipient (e.g. customer has just one linked seller)
+  useEffect(() => {
+    if (!selectedSellerId && recipientOptions.length === 1) {
+      setSelectedSellerId(recipientOptions[0].id);
+    }
+  }, [recipientOptions, selectedSellerId]);
+
   if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
