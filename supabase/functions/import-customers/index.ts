@@ -94,19 +94,20 @@ Deno.serve(async (req) => {
     const onlyDigits = (s: string) => (s || '').replace(/\D/g, '');
 
     for (const row of rows) {
-      const codigo = String(row.codigo || '').trim();
-      const nome = String(row.nome || '').trim();
-      if (!codigo) {
-        results.push({ codigo: '', nome, status: 'error', erro: 'Código vazio' });
-        continue;
-      }
-      if (!nome) {
-        results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
-        continue;
-      }
+      try {
+        const codigo = String(row.codigo || '').trim();
+        const nome = String(row.nome || '').trim();
+        if (!codigo) {
+          results.push({ codigo: '', nome, status: 'error', erro: 'Código vazio' });
+          continue;
+        }
+        if (!nome) {
+          results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
+          continue;
+        }
 
-      const email = buildEmail(codigo, slug);
-      const password = buildPassword(codigo);
+        const email = buildEmail(codigo, slug);
+        const password = buildPassword(codigo);
 
       let userId: string | null = null;
       let action: 'created' | 'updated' = 'created';
