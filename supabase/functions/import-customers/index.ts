@@ -28,9 +28,9 @@ function buildEmail(codigo: string, slug: string) {
 
 function buildPassword(codigo: string) {
   const c = codigo.trim();
-  // Senha = código ERP exatamente (sem padding).
-  // Supabase admin.createUser via service_role aceita qualquer comprimento.
-  return c;
+  // Senha padrão = código ERP. Para códigos com menos de 6 caracteres,
+  // usa prefixo para atender a regra mínima de senha do auth.
+  return c.length >= 6 ? c : `dico${c}`;
 }
 
 Deno.serve(async (req) => {
