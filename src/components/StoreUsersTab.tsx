@@ -410,19 +410,9 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                 <>
               {role === 'televendas' && (
                 <div className="grid gap-2 pt-1">
-                  <Label className="text-sm font-semibold">Aparecer ao cliente como (vendedor)</Label>
                   <p className="text-xs text-muted-foreground">
-                    Quando o cliente for enviar o pedido, esta televendas aparece como uma opção de destino vinculada a este vendedor.
+                    Esta televendas aparecerá automaticamente como opção de destino para os clientes dos vendedores vinculados abaixo (vínculo automático pelo nome quando houver um vendedor cadastrado com o mesmo nome desta televendas).
                   </p>
-                  <Select value={sellerId || 'none'} onValueChange={(v) => setSellerId(v === 'none' ? '' : v)}>
-                    <SelectTrigger><SelectValue placeholder="Selecione um vendedor" /></SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      <SelectItem value="none">— Sem vínculo —</SelectItem>
-                      {allSellers.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               )}
               <div className="font-semibold text-sm pt-1">
