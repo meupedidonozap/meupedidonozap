@@ -281,8 +281,16 @@ Deno.serve(async (req) => {
             }
           }
         }
-      } catch (_propErr) {
-        // não falha a linha por erro de propagação
+        } catch (_propErr) {
+          // não falha a linha por erro de propagação
+        }
+      } catch (rowErr: any) {
+        results.push({
+          codigo: String(row.codigo || '').trim(),
+          nome: String(row.nome || '').trim(),
+          status: 'error',
+          erro: rowErr?.message || 'Erro ao processar linha',
+        });
       }
     }
 
