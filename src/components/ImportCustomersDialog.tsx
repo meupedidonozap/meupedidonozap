@@ -109,7 +109,6 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
     }
     setImporting(true);
     try {
-      // process in batches of 50
       const BATCH = 25;
       const valid = rows.filter(r => r.codigo && r.nome);
       const all: ResultRow[] = [];
@@ -129,7 +128,7 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
       const errors = all.filter(r => r.status === 'error').length;
       toast.success(
         isUpdate
-          ? `${created} novo(s), ${skipped} já existente(s) ignorado(s), ${errors} erro(s)`
+          ? `${created} novo(s), ${updated} atualizado(s), ${errors} erro(s)`
           : `${created} criado(s), ${updated} atualizado(s), ${errors} erro(s)`,
       );
     } catch (err: any) {
@@ -161,7 +160,7 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
               <>
                 Carregue uma planilha .xlsx com os clientes. O match é feito pelo <strong>código do cliente</strong> (com fallback por CPF/CNPJ).
                 <br />
-                Clientes já cadastrados <strong>não serão alterados</strong> (dados e senha preservados). Apenas clientes <strong>novos</strong> serão cadastrados automaticamente.
+                Clientes já cadastrados terão dados atualizados. Clientes sem cadastro serão criados automaticamente.
               </>
             ) : (
               <>
