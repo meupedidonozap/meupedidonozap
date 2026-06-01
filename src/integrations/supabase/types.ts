@@ -1015,6 +1015,7 @@ export type Database = {
           name: string
           role: string
           seller_codes: string[]
+          seller_id: string | null
           store_id: string
           updated_at: string
           user_id: string
@@ -1034,6 +1035,7 @@ export type Database = {
           name?: string
           role?: string
           seller_codes?: string[]
+          seller_id?: string | null
           store_id: string
           updated_at?: string
           user_id: string
@@ -1053,11 +1055,19 @@ export type Database = {
           name?: string
           role?: string
           seller_codes?: string[]
+          seller_id?: string | null
           store_id?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "store_users_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "store_sellers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "store_users_store_id_fkey"
             columns: ["store_id"]
@@ -1281,6 +1291,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_order_recipients: {
+        Args: { p_seller_code: string; p_store_id: string }
+        Returns: {
+          id: string
+          kind: string
+          name: string
+          whatsapp: string
+        }[]
+      }
       has_any_store_access: {
         Args: { _store_id: string; _user_id: string }
         Returns: boolean
