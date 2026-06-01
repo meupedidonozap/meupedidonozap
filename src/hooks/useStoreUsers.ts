@@ -20,6 +20,7 @@ export interface StoreUser {
   can_manage_tables: boolean;
   seller_codes: string[];
   role: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+  seller_id?: string | null;
 }
 
 export function useStoreUsers(storeId: string | undefined) {
@@ -69,6 +70,7 @@ export function useCreateStoreUser() {
       permissions: Partial<StorePermissions>;
       sellerCodes?: string[];
       role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+      sellerId?: string | null;
     }) => {
       return callManage({
         action: 'create',
@@ -79,6 +81,7 @@ export function useCreateStoreUser() {
         permissions: input.permissions,
         sellerCodes: input.sellerCodes ?? [],
         role: input.role ?? 'auxiliar',
+        sellerId: input.sellerId ?? null,
       });
     },
     onSuccess: (_d, vars) => {
@@ -98,6 +101,7 @@ export function useUpdateStoreUser() {
       permissions?: Partial<StorePermissions>;
       sellerCodes?: string[];
       role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+      sellerId?: string | null;
     }) => {
       return callManage({
         action: 'update',
@@ -108,6 +112,7 @@ export function useUpdateStoreUser() {
         permissions: input.permissions,
         sellerCodes: input.sellerCodes,
         role: input.role,
+        sellerId: input.sellerId,
       });
     },
     onSuccess: (_d, vars) => {
