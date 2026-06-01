@@ -91,6 +91,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   const [sellerFilter, setSellerFilter] = useState('');
   const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas'>('auxiliar');
+  const [sellerId, setSellerId] = useState<string>('');
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [pwTargetUser, setPwTargetUser] = useState<StoreUser | null>(null);
@@ -107,6 +108,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerCodes([]);
     setSellerFilter('');
     setRole('auxiliar');
+    setSellerId('');
     setDialogOpen(true);
   };
 
@@ -127,6 +129,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
     setRole((u.role as any) || 'auxiliar');
+    setSellerId((u as any).seller_id || '');
     setDialogOpen(true);
   };
 
@@ -144,6 +147,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           permissions: perms,
           sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
           role,
+          sellerId: role === 'televendas' ? (sellerId || null) : null,
         });
         toast.success('Usuário atualizado!');
       } else {
@@ -159,6 +163,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           permissions: perms,
           sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
           role,
+          sellerId: role === 'televendas' ? (sellerId || null) : null,
         });
         toast.success('Usuário criado!');
       }
@@ -403,6 +408,23 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
 
               {role !== 'auxiliar' && (
                 <>
+              {role === 'televendas' && (
+                <div className="grid gap-2 pt-1">
+                  <Label className="text-sm font-semibold">Aparecer ao cliente como (vendedor)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Quando o cliente for enviar o pedido, esta televendas aparece como uma opção de destino vinculada a este vendedor.
+                  </p>
+                  <Select value={sellerId || 'none'} onValueChange={(v) => setSellerId(v === 'none' ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione um vendedor" /></SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="none">— Sem vínculo —</SelectItem>
+                      {allSellers.map(s => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}{s.code ? ` · ${s.code}` : ''}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="font-semibold text-sm pt-1">
                 {role === 'vendedor' ? 'Vendedor vinculado' : 'Vendedores vinculados'}
               </div>

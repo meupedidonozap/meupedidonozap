@@ -6,6 +6,7 @@ import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useStoreSellers } from '@/hooks/useStoreSellers';
+import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
@@ -49,6 +50,12 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
+  const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
+  // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
+  // Otherwise fall back to all active sellers.
+  const recipientOptions = (customerProfile?.sellerCode && recipientsRpc.length > 0)
+    ? recipientsRpc.map(r => ({ id: r.id, name: r.name, whatsapp: r.whatsapp, kind: r.kind }))
+    : sellers.map(s => ({ id: s.id, name: s.name, whatsapp: s.whatsapp, kind: 'vendedor' as const }));
   const upsertProfile = useUpsertCustomerProfile();
   const storeOpenStatus = useStoreOpen(store);
   const dicolore = isDicoloreFlow(store?.slug, store?.settings);
@@ -100,6 +107,13 @@ export default function CheckoutPage() {
       setProfileLoaded(true);
     }
   }, [customerProfile, profileLoaded]);
+
+  // Auto-select the only available recipient (e.g. customer has just one linked seller)
+  useEffect(() => {
+    if (!selectedSellerId && recipientOptions.length === 1) {
+      setSelectedSellerId(recipientOptions[0].id);
+    }
+  }, [recipientOptions, selectedSellerId]);
 
   if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -170,7 +184,7 @@ export default function CheckoutPage() {
       toast.error('Selecione o bairro de entrega');
       return false;
     }
-    if (sellers.length > 0 && !selectedSellerId) {
+    if (recipientOptions.length > 0 && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
@@ -343,8 +357,8 @@ export default function CheckoutPage() {
         status: 'pendente',
       });
 
-      const targetWhatsapp = sellers.length > 0 && selectedSellerId
-        ? (sellers.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
+      const targetWhatsapp = recipientOptions.length > 0 && selectedSellerId
+        ? (recipientOptions.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
         : store.whatsapp;
       openWhatsApp(targetWhatsapp, generateOrderMessage());
       toast.success('Pedido enviado!');
@@ -561,7 +575,7 @@ export default function CheckoutPage() {
                     </RadioGroup>
                   )}
                 </div>
-                {sellers.length > 0 && (
+                {recipientOptions.length > 0 && (
                   <div className="rounded-lg border-2 border-primary/60 bg-primary/5 p-4 space-y-3">
                     <Label className="text-base font-bold flex items-center gap-2">
                       📱 Enviar pedido para <span className="text-destructive">*</span>
@@ -569,8 +583,11 @@ export default function CheckoutPage() {
                     <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
                       <SelectTrigger className="border-primary/40"><SelectValue placeholder="Selecione o vendedor" /></SelectTrigger>
                       <SelectContent className="max-h-[40vh]">
-                        {sellers.map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        {recipientOptions.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                            {s.kind === 'televendas' ? ' · Televendas' : ''}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

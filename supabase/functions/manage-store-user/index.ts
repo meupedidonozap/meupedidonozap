@@ -29,6 +29,7 @@ interface Body {
   isActive?: boolean;
   sellerCodes?: string[];
   role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+  sellerId?: string | null;
 }
 
 function json(b: unknown, status = 200) {
@@ -102,6 +103,9 @@ Deno.serve(async (req) => {
         ? body.role
         : undefined;
 
+    const sellerId: string | null | undefined =
+      body.sellerId === undefined ? undefined : (body.sellerId || null);
+
     if (action === "create") {
       const { email, password, name } = body;
       if (!email || !password || password.length < 6) {
@@ -152,6 +156,7 @@ Deno.serve(async (req) => {
             ...permRow,
             seller_codes: sellerCodes ?? [],
             role: role ?? 'auxiliar',
+            seller_id: sellerId ?? null,
           },
           { onConflict: "store_id,user_id" },
         )
@@ -170,6 +175,7 @@ Deno.serve(async (req) => {
       if (body.name) updateData.name = body.name;
       if (sellerCodes !== undefined) updateData.seller_codes = sellerCodes;
       if (role !== undefined) updateData.role = role;
+      if (sellerId !== undefined) updateData.seller_id = sellerId;
 
       const { data, error: updErr } = await admin
         .from("store_users")
