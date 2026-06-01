@@ -91,6 +91,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   const [sellerFilter, setSellerFilter] = useState('');
   const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas'>('auxiliar');
+  const [sellerId, setSellerId] = useState<string>('');
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [pwTargetUser, setPwTargetUser] = useState<StoreUser | null>(null);
@@ -107,6 +108,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerCodes([]);
     setSellerFilter('');
     setRole('auxiliar');
+    setSellerId('');
     setDialogOpen(true);
   };
 
@@ -127,6 +129,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
     setRole((u.role as any) || 'auxiliar');
+    setSellerId((u as any).seller_id || '');
     setDialogOpen(true);
   };
 
@@ -144,6 +147,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           permissions: perms,
           sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
           role,
+          sellerId: role === 'televendas' ? (sellerId || null) : null,
         });
         toast.success('Usuário atualizado!');
       } else {
@@ -159,6 +163,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           permissions: perms,
           sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
           role,
+          sellerId: role === 'televendas' ? (sellerId || null) : null,
         });
         toast.success('Usuário criado!');
       }
