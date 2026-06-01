@@ -248,7 +248,7 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
             <div className="flex flex-wrap gap-4 text-sm">
               <span className="text-green-700"><CheckCircle className="inline h-4 w-4 mr-1" />Criados: <strong>{results.filter(r => r.status === 'created').length}</strong></span>
               <span className="text-blue-700"><RefreshCw className="inline h-4 w-4 mr-1" />Atualizados: <strong>{results.filter(r => r.status === 'updated').length}</strong></span>
-              <span className="text-gray-700">Ignorados (já existiam): <strong>{results.filter(r => r.status === 'skipped').length}</strong></span>
+              <span className="text-gray-700">Ignorados: <strong>{results.filter(r => r.status === 'skipped').length}</strong></span>
               <span className="text-red-700"><AlertCircle className="inline h-4 w-4 mr-1" />Erros: <strong>{results.filter(r => r.status === 'error').length}</strong></span>
             </div>
             <Button onClick={downloadCredentials} className="w-full sm:w-auto">
