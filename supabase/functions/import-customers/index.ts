@@ -134,19 +134,8 @@ Deno.serve(async (req) => {
       }
 
       if (existingProfile?.user_id) {
-        // MODO UPDATE: cliente já existe → NÃO TOCAR em nada (preserva senha, dados e perfil)
-        if (isUpdate) {
-          results.push({ codigo, nome, status: 'skipped' });
-          continue;
-        }
         userId = existingProfile.user_id;
         action = 'updated';
-        // refresh password to keep it = code
-        await admin.auth.admin.updateUserById(userId, { password });
-      } else if (existingProfile?.id && isUpdate) {
-        // perfil existe sem user_id ainda → também ignorar em modo update
-        results.push({ codigo, nome, status: 'skipped' });
-        continue;
       } else {
         // try create auth user
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
