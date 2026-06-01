@@ -28,9 +28,9 @@ function buildEmail(codigo: string, slug: string) {
 
 function buildPassword(codigo: string) {
   const c = codigo.trim();
-  // Senha = código ERP exatamente (sem padding).
-  // Supabase admin.createUser via service_role aceita qualquer comprimento.
-  return c;
+  // Senha padrão = código ERP. Para códigos com menos de 6 caracteres,
+  // usa prefixo para atender a regra mínima de senha do auth.
+  return c.length >= 6 ? c : `dico${c}`;
 }
 
 Deno.serve(async (req) => {
@@ -94,19 +94,20 @@ Deno.serve(async (req) => {
     const onlyDigits = (s: string) => (s || '').replace(/\D/g, '');
 
     for (const row of rows) {
-      const codigo = String(row.codigo || '').trim();
-      const nome = String(row.nome || '').trim();
-      if (!codigo) {
-        results.push({ codigo: '', nome, status: 'error', erro: 'Código vazio' });
-        continue;
-      }
-      if (!nome) {
-        results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
-        continue;
-      }
+      try {
+        const codigo = String(row.codigo || '').trim();
+        const nome = String(row.nome || '').trim();
+        if (!codigo) {
+          results.push({ codigo: '', nome, status: 'error', erro: 'Código vazio' });
+          continue;
+        }
+        if (!nome) {
+          results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
+          continue;
+        }
 
-      const email = buildEmail(codigo, slug);
-      const password = buildPassword(codigo);
+        const email = buildEmail(codigo, slug);
+        const password = buildPassword(codigo);
 
       let userId: string | null = null;
       let action: 'created' | 'updated' = 'created';
@@ -134,19 +135,8 @@ Deno.serve(async (req) => {
       }
 
       if (existingProfile?.user_id) {
-        // MODO UPDATE: cliente já existe → NÃO TOCAR em nada (preserva senha, dados e perfil)
-        if (isUpdate) {
-          results.push({ codigo, nome, status: 'skipped' });
-          continue;
-        }
         userId = existingProfile.user_id;
         action = 'updated';
-        // refresh password to keep it = code
-        await admin.auth.admin.updateUserById(userId, { password });
-      } else if (existingProfile?.id && isUpdate) {
-        // perfil existe sem user_id ainda → também ignorar em modo update
-        results.push({ codigo, nome, status: 'skipped' });
-        continue;
       } else {
         // try create auth user
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -291,8 +281,16 @@ Deno.serve(async (req) => {
             }
           }
         }
-      } catch (_propErr) {
-        // não falha a linha por erro de propagação
+        } catch (_propErr) {
+          // não falha a linha por erro de propagação
+        }
+      } catch (rowErr: any) {
+        results.push({
+          codigo: String(row.codigo || '').trim(),
+          nome: String(row.nome || '').trim(),
+          status: 'error',
+          erro: rowErr?.message || 'Erro ao processar linha',
+        });
       }
     }
 
