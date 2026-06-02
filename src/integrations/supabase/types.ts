@@ -268,6 +268,39 @@ export type Database = {
         }
         Relationships: []
       }
+      order_create_errors: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          error_message: string
+          id: string
+          payload_summary: Json
+          store_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          error_message?: string
+          id?: string
+          payload_summary?: Json
+          store_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          error_message?: string
+          id?: string
+          payload_summary?: Json
+          store_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string

@@ -63,7 +63,26 @@ export function useCreateOrder() {
         user_id: userId,
         origem: (order as any).origem || 'web',
       }).select().single();
-      if (error) throw error;
+      if (error) {
+        // Log diagnostic record (best-effort, never blocks the error)
+        try {
+          await (supabase as any).from('order_create_errors').insert({
+            store_id: order.storeId,
+            user_id: userId,
+            error_message: error.message || String(error),
+            error_code: (error as any).code || null,
+            payload_summary: {
+              items_count: Array.isArray(order.items) ? order.items.length : 0,
+              total: order.total,
+              payment_method: order.paymentMethod,
+              origem: (order as any).origem || 'web',
+              status: order.status,
+            },
+            user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+          });
+        } catch (_) {}
+        throw error;
+      }
       return mapOrder(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
