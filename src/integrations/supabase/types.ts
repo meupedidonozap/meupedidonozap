@@ -641,6 +641,48 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          is_active: boolean
+          last_used_at: string
+          p256dh: string
+          seller_id: string
+          store_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string
+          p256dh: string
+          seller_id: string
+          store_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string
+          p256dh?: string
+          seller_id?: string
+          store_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       restaurant_tables: {
         Row: {
           created_at: string
