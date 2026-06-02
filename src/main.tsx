@@ -47,7 +47,25 @@ createRoot(document.getElementById("root")!).render(
 // Register service worker for push notifications (skip when ?limpar)
 if ('serviceWorker' in navigator && !window.location.search.includes('limpar')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      // Auto-reload once when a new SW takes control (forces fresh bundle).
+      const RELOAD_KEY = '__sw_reloaded_once';
+      const triggerReload = () => {
+        if (sessionStorage.getItem(RELOAD_KEY)) return;
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+      };
+      if (reg.waiting && navigator.serviceWorker.controller) triggerReload();
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'activated' && navigator.serviceWorker.controller) {
+            triggerReload();
+          }
+        });
+      });
+    }).catch((err) => {
       console.warn('SW register failed', err);
     });
   });
