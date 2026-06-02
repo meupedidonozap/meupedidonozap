@@ -679,6 +679,9 @@ export default function StoreAdminPage() {
       </header>
 
       <main className="container py-6">
+        <div className="mb-4">
+          <PushNotificationsCard storeId={store.id} />
+        </div>
         {(() => {
           const ls = getLicenseStatus(store.licenseExpiresAt);
           if (ls.level !== 'warning' && ls.level !== 'expired') return null;
