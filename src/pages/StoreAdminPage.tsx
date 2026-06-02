@@ -75,6 +75,7 @@ import { buildRenewalLink } from '@/lib/supportContact';
 import { AlertTriangle } from 'lucide-react';
 import ChangePasswordCard from '@/components/ChangePasswordCard';
 import { PushNotificationsCard } from '@/components/PushNotificationsCard';
+import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
@@ -1472,6 +1473,7 @@ export default function StoreAdminPage() {
           <TabsContent value="settings" className="animate-fade-in">
             <div className="space-y-6">
             <ChangePasswordCard />
+            <OrderErrorsDiagnosticsCard storeId={store.id} />
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
               <CardContent className="space-y-6">
