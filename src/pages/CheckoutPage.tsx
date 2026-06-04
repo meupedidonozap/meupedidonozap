@@ -311,21 +311,26 @@ export default function CheckoutPage() {
         formData.observations || '',
       ].filter(Boolean).join(' ').trim();
 
-      // Save/update customer profile
-      if (!isPickup) await upsertProfile.mutateAsync({
-        userId: user.id,
-        storeId: store.id,
-        name: formData.name,
-        cpfCnpj: formData.cpfCnpj,
-        whatsapp: formData.whatsapp,
-        cep: formData.cep,
-        uf: formData.uf,
-        city: formData.city,
-        neighborhood: formData.neighborhood,
-        address: formData.address,
-        number: formData.number,
-        complement: formData.complement || undefined,
-      });
+      // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes)
+      try {
+        await upsertProfile.mutateAsync({
+          userId: user.id,
+          storeId: store.id,
+          name: formData.name,
+          cpfCnpj: formData.cpfCnpj,
+          whatsapp: formData.whatsapp,
+          cep: isPickup ? '' : formData.cep,
+          uf: isPickup ? '' : formData.uf,
+          city: isPickup ? '' : formData.city,
+          neighborhood: isPickup ? '' : formData.neighborhood,
+          address: isPickup ? '' : formData.address,
+          number: isPickup ? '' : formData.number,
+          complement: isPickup ? undefined : (formData.complement || undefined),
+        });
+      } catch (profileErr) {
+        // Não bloqueia o pedido se o upsert do perfil falhar
+        console.warn('[checkout] upsertProfile falhou:', profileErr);
+      }
 
       await createOrder.mutateAsync({
         storeId: store.id,
