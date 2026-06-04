@@ -247,6 +247,7 @@ export default function NewOrderDialog({
   const canProceedFromCustomer = customerMode === 'existing' ? !!selectedCustomerId : !!customerForm.name.trim();
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetAndClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
