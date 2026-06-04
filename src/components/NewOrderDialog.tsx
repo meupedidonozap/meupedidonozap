@@ -350,18 +350,23 @@ export default function NewOrderDialog({
                 ) : (
                   <div className="divide-y">
                     {filteredProducts.map((p: any) => {
-                      const inCart = orderItems.find(i => i.productId === p.id);
+                      const hasVariants = !isFood && p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
+                      const inCart = !hasVariants ? orderItems.find(i => i.productId === p.id && !i.variantId) : null;
+                      const variantPrices = hasVariants ? (p.variants as any[]).map(v => Number(v.price)) : [];
+                      const minPrice = hasVariants ? Math.min(...variantPrices) : (isFood ? p.price : p.basePrice);
                       return (
                         <div key={p.id} className="flex items-center justify-between p-3 hover:bg-muted/50">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{formatCurrency(isFood ? p.price : p.basePrice)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {hasVariants ? `A partir de ${formatCurrency(minPrice)}` : formatCurrency(minPrice)}
+                            </p>
                           </div>
                           {inCart ? (
                             <div className="flex items-center gap-1">
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(p.id, -1)}><Minus className="h-3 w-3" /></Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(itemKey(inCart), -1)}><Minus className="h-3 w-3" /></Button>
                               <span className="w-6 text-center text-sm font-medium">{inCart.quantity}</span>
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(p.id, 1)}><Plus className="h-3 w-3" /></Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(itemKey(inCart), 1)}><Plus className="h-3 w-3" /></Button>
                             </div>
                           ) : (
                             <Button variant="outline" size="sm" onClick={() => addProduct(p)}><Plus className="h-3 w-3 mr-1" /> Adicionar</Button>
@@ -378,11 +383,16 @@ export default function NewOrderDialog({
                 <div className="border rounded-md p-3 space-y-2">
                   <p className="text-sm font-semibold">Itens selecionados ({orderItems.length})</p>
                   {orderItems.map(item => (
-                    <div key={item.productId} className="flex items-center justify-between text-sm">
-                      <span className="truncate flex-1">{item.quantity}x {item.name}</span>
+                    <div key={itemKey(item)} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1">
+                        {item.quantity}x {item.name}
+                        {(item.size || item.color) && (
+                          <span className="text-muted-foreground"> — {[item.size, item.color].filter(Boolean).join(' / ')}</span>
+                        )}
+                      </span>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">{formatCurrency(item.price * item.quantity)}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(item.productId)}><Trash2 className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(itemKey(item))}><Trash2 className="h-3 w-3" /></Button>
                       </div>
                     </div>
                   ))}
@@ -422,8 +432,13 @@ export default function NewOrderDialog({
               <div className="border rounded-md p-3 space-y-1">
                 <p className="text-sm font-semibold mb-1">Itens</p>
                 {orderItems.map(item => (
-                  <div key={item.productId} className="flex justify-between text-sm">
-                    <span>{item.quantity}x {item.name}</span>
+                  <div key={itemKey(item)} className="flex justify-between text-sm">
+                    <span>
+                      {item.quantity}x {item.name}
+                      {(item.size || item.color) && (
+                        <span className="text-muted-foreground"> — {[item.size, item.color].filter(Boolean).join(' / ')}</span>
+                      )}
+                    </span>
                     <span>{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
