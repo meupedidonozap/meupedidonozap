@@ -1,28 +1,20 @@
-## Ajustar Novo Pedido (Admin) para suportar variantes
+## Causa do problema
 
-### Problema
-Na Pastelaria RM, os produtos da categoria "Pastel" têm variantes de tamanho (P/G) com preços distintos. Hoje, no diálogo "Novo Pedido" do painel admin, o botão **+ Adicionar** insere o produto direto pelo `basePrice`, ignorando as variantes — todos saem como "PASTEL BACON COM PALMITO R$ 15,00" sem distinção de tamanho, e o preço de "G" nunca é aplicado.
+O pedido #238 (GEOVANE RENATO MICHELLI, 47 99255-0199) foi feito com **RETIRAR NA LOJA**. No checkout (`src/pages/CheckoutPage.tsx`, linha 315) o upsert do perfil do cliente está condicionado a entrega:
 
-### Solução
-Replicar no `NewOrderDialog` o mesmo comportamento da loja pública (storefront): quando o produto tem variantes, abrir um seletor de tamanho/cor antes de adicionar ao pedido. Cada combinação vira uma linha separada no carrinho do pedido.
+```ts
+if (!isPickup) await upsertProfile.mutateAsync({ ... });
+```
 
-### Mudanças
+Ou seja, quando o cliente escolhe retirada, o pedido é gravado normalmente (com `user_id`), mas o perfil **nunca** é criado em `customer_profiles` — por isso ele não aparece na aba **Clientes** do painel. Conferi no banco: existe o `user_id` no pedido, mas nenhum registro em `customer_profiles` para esse usuário/whatsapp.
 
-**`src/components/NewOrderDialog.tsx`**
+## Correção
 
-1. Detectar variantes: `product.hasVariants && product.variants?.length > 0`.
-2. Ao clicar em **+ Adicionar** num produto com variantes:
-   - Abrir um pequeno dialog inline (estado local `variantPicker: { product, color?, size? }`) com botões P/G (tamanhos) e cores, igual ao `VariantDialog` do storefront, porém sem carrossel/imagens — apenas seletor compacto e botão "Adicionar".
-   - Mostrar o preço da variante selecionada.
-3. Ao confirmar, inserir item no `orderItems` com:
-   - `productId`, `variantId`, `name`, `code` (sufixo `P` ou `G`), `size`, `color`, `price` = `variant.price`, `quantity: 1`.
-   - Chave de identidade do item passa a ser `productId + variantId` (em vez de só `productId`) — ajustar `addProduct`, `updateQuantity`, `removeItem` e o `find` que detecta "já no carrinho" para usar essa chave composta.
-4. Na lista de produtos:
-   - Se `hasVariants`, mostrar "A partir de R$ X,XX" e o botão **+ Adicionar** sempre abre o seletor (mesmo que já exista no carrinho — permite adicionar outro tamanho).
-   - Os controles +/− por linha continuam funcionando para produtos sem variante; para produtos com variante, removo os +/− inline (a quantidade é gerenciada no resumo "Itens selecionados").
-5. No resumo "Itens selecionados", exibir o tamanho/cor ao lado do nome (ex.: "1x PASTEL BACON COM PALMITO — G").
+**1. `src/pages/CheckoutPage.tsx`** — remover o `if (!isPickup)` e **sempre** chamar `upsertProfile.mutateAsync(...)`, passando strings vazias para os campos de endereço quando for retirada (nome, whatsapp e CPF/CNPJ continuam sendo salvos). Isso garante que todo cliente que finaliza um pedido fique cadastrado na lista.
 
-### Fora do escopo
-- Não muda o fluxo da loja pública nem o `VariantDialog`.
-- Não muda salvamento do pedido (`useCreateOrder` já persiste `variantId`, `size`, `color`).
-- Não mexe em trigger/cache/erros de pedido (já tratados nos turnos anteriores).
+**2. Backfill do GEOVANE (pedido #238)** — criar um registro em `customer_profiles` para o `user_id` do pedido, copiando nome e whatsapp do JSON `customer` do próprio pedido. Faço via migration de INSERT idempotente (só insere se não existir perfil para aquele `user_id` + `store_id`). Como medida geral, a mesma migration roda um INSERT…SELECT para qualquer outro pedido órfão da Pastelaria RM que tenha `user_id` mas sem perfil correspondente.
+
+## Fora do escopo
+
+- Não mexo no fluxo de variantes do Novo Pedido (já entregue no turno anterior).
+- Não mexo em RLS, triggers de `order_number`, cache/SW, nem na lógica de pedidos via Mesa/Admin (esses já gravam clientes pelo próprio fluxo de Mesa).
