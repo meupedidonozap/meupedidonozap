@@ -68,6 +68,9 @@ export default function NewOrderDialog({
   const [productSearch, setProductSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  // Variant picker (for products with size/color variants)
+  const [variantPicker, setVariantPicker] = useState<{ product: any; color?: string; size?: string } | null>(null);
+
   // Order details
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [deliveryShift, setDeliveryShift] = useState<DeliveryShift>('tarde');
@@ -114,14 +117,21 @@ export default function NewOrderDialog({
     return customerForm;
   };
 
+  const itemKey = (i: { productId: string; variantId?: string }) => `${i.productId}::${i.variantId || ''}`;
+
   const addProduct = (product: any) => {
+    // If product has variants, open picker instead of adding directly
+    if (!isFood && product.hasVariants && Array.isArray(product.variants) && product.variants.length > 0) {
+      setVariantPicker({ product });
+      return;
+    }
     const unitPrice = isFood ? product.price : product.basePrice;
     const check = wouldExceedMaterialApoio(orderItems, product.id, unitPrice, catalogItems as any, store.settings.materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
-    const existing = orderItems.find(i => i.productId === product.id);
+    const existing = orderItems.find(i => i.productId === product.id && !i.variantId);
     if (existing) {
       setOrderItems(items => items.map(i =>
-        i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
+        i.productId === product.id && !i.variantId ? { ...i, quantity: i.quantity + 1 } : i
       ));
     } else {
       setOrderItems(items => [...items, {
@@ -135,23 +145,59 @@ export default function NewOrderDialog({
     }
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const addVariantToOrder = () => {
+    if (!variantPicker) return;
+    const { product, color, size } = variantPicker;
+    const variants: any[] = product.variants || [];
+    const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
+    const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
+    if (uniqueColors.length > 0 && !color) { toast.error('Selecione a cor'); return; }
+    if (uniqueSizes.length > 0 && !size) { toast.error('Selecione o tamanho'); return; }
+    const variant = variants.find(v =>
+      (uniqueColors.length === 0 || v.color === color) &&
+      (uniqueSizes.length === 0 || v.size === size)
+    );
+    if (!variant) { toast.error('Variante indisponível'); return; }
+    const check = wouldExceedMaterialApoio(orderItems, product.id, variant.price, catalogItems as any, store.settings.materialApoio);
+    if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+    const existing = orderItems.find(i => i.productId === product.id && i.variantId === variant.id);
+    if (existing) {
+      setOrderItems(items => items.map(i =>
+        i.productId === product.id && i.variantId === variant.id ? { ...i, quantity: i.quantity + 1 } : i
+      ));
+    } else {
+      setOrderItems(items => [...items, {
+        productId: product.id,
+        variantId: variant.id,
+        name: product.name,
+        code: product.code || '',
+        color: variant.color,
+        size: variant.size,
+        price: Number(variant.price),
+        quantity: 1,
+        image: product.image,
+      }]);
+    }
+    setVariantPicker(null);
+  };
+
+  const updateQuantity = (key: string, delta: number) => {
     if (delta > 0) {
-      const it = orderItems.find(i => i.productId === productId);
+      const it = orderItems.find(i => itemKey(i) === key);
       if (it) {
-        const check = wouldExceedMaterialApoio(orderItems, productId, it.price * delta, catalogItems as any, store.settings.materialApoio);
+        const check = wouldExceedMaterialApoio(orderItems, it.productId, it.price * delta, catalogItems as any, store.settings.materialApoio);
         if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
       }
     }
     setOrderItems(items => items.map(i => {
-      if (i.productId !== productId) return i;
+      if (itemKey(i) !== key) return i;
       const newQty = i.quantity + delta;
       return newQty <= 0 ? i : { ...i, quantity: newQty };
     }));
   };
 
-  const removeItem = (productId: string) => {
-    setOrderItems(items => items.filter(i => i.productId !== productId));
+  const removeItem = (key: string) => {
+    setOrderItems(items => items.filter(i => itemKey(i) !== key));
   };
 
   const handleSubmit = async () => {
