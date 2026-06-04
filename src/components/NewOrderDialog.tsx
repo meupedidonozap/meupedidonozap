@@ -487,5 +487,76 @@ export default function NewOrderDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Variant picker sub-dialog */}
+    <Dialog open={!!variantPicker} onOpenChange={(v) => { if (!v) setVariantPicker(null); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">{variantPicker?.product.name}</DialogTitle>
+        </DialogHeader>
+        {variantPicker && (() => {
+          const variants: any[] = variantPicker.product.variants || [];
+          const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean))) as string[];
+          const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean))) as string[];
+          const matching = variants.find(v =>
+            (uniqueColors.length === 0 || v.color === variantPicker.color) &&
+            (uniqueSizes.length === 0 || v.size === variantPicker.size)
+          );
+          return (
+            <div className="space-y-4">
+              {uniqueColors.length > 0 && (
+                <div>
+                  <Label className="text-sm mb-2 block">Cor</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueColors.map(c => {
+                      const v = variants.find(x => x.color === c);
+                      return (
+                        <Button key={c} type="button" size="sm"
+                          variant={variantPicker.color === c ? 'default' : 'outline'}
+                          onClick={() => setVariantPicker(p => p ? { ...p, color: c, size: undefined } : p)}>
+                          {c}{uniqueSizes.length === 0 && v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {uniqueSizes.length > 0 && (
+                <div>
+                  <Label className="text-sm mb-2 block">Tamanho</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueSizes.map(s => {
+                      const v = variants.find(x =>
+                        x.size === s && (uniqueColors.length === 0 || x.color === variantPicker.color)
+                      );
+                      const disabled = uniqueColors.length > 0 && !variantPicker.color;
+                      return (
+                        <Button key={s} type="button" size="sm" disabled={disabled || !v}
+                          variant={variantPicker.size === s ? 'default' : 'outline'}
+                          onClick={() => setVariantPicker(p => p ? { ...p, size: s } : p)}>
+                          {s}{v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t pt-3">
+                <span className="text-sm font-semibold">
+                  {matching ? formatCurrency(Number(matching.price)) : '—'}
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setVariantPicker(null)}>Cancelar</Button>
+                  <Button size="sm" onClick={addVariantToOrder} disabled={!matching}>
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
