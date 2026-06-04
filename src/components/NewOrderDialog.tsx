@@ -68,6 +68,9 @@ export default function NewOrderDialog({
   const [productSearch, setProductSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  // Variant picker (for products with size/color variants)
+  const [variantPicker, setVariantPicker] = useState<{ product: any; color?: string; size?: string } | null>(null);
+
   // Order details
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
   const [deliveryShift, setDeliveryShift] = useState<DeliveryShift>('tarde');
@@ -114,14 +117,21 @@ export default function NewOrderDialog({
     return customerForm;
   };
 
+  const itemKey = (i: { productId: string; variantId?: string }) => `${i.productId}::${i.variantId || ''}`;
+
   const addProduct = (product: any) => {
+    // If product has variants, open picker instead of adding directly
+    if (!isFood && product.hasVariants && Array.isArray(product.variants) && product.variants.length > 0) {
+      setVariantPicker({ product });
+      return;
+    }
     const unitPrice = isFood ? product.price : product.basePrice;
     const check = wouldExceedMaterialApoio(orderItems, product.id, unitPrice, catalogItems as any, store.settings.materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
-    const existing = orderItems.find(i => i.productId === product.id);
+    const existing = orderItems.find(i => i.productId === product.id && !i.variantId);
     if (existing) {
       setOrderItems(items => items.map(i =>
-        i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
+        i.productId === product.id && !i.variantId ? { ...i, quantity: i.quantity + 1 } : i
       ));
     } else {
       setOrderItems(items => [...items, {
@@ -135,23 +145,59 @@ export default function NewOrderDialog({
     }
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const addVariantToOrder = () => {
+    if (!variantPicker) return;
+    const { product, color, size } = variantPicker;
+    const variants: any[] = product.variants || [];
+    const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
+    const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
+    if (uniqueColors.length > 0 && !color) { toast.error('Selecione a cor'); return; }
+    if (uniqueSizes.length > 0 && !size) { toast.error('Selecione o tamanho'); return; }
+    const variant = variants.find(v =>
+      (uniqueColors.length === 0 || v.color === color) &&
+      (uniqueSizes.length === 0 || v.size === size)
+    );
+    if (!variant) { toast.error('Variante indisponível'); return; }
+    const check = wouldExceedMaterialApoio(orderItems, product.id, variant.price, catalogItems as any, store.settings.materialApoio);
+    if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+    const existing = orderItems.find(i => i.productId === product.id && i.variantId === variant.id);
+    if (existing) {
+      setOrderItems(items => items.map(i =>
+        i.productId === product.id && i.variantId === variant.id ? { ...i, quantity: i.quantity + 1 } : i
+      ));
+    } else {
+      setOrderItems(items => [...items, {
+        productId: product.id,
+        variantId: variant.id,
+        name: product.name,
+        code: product.code || '',
+        color: variant.color,
+        size: variant.size,
+        price: Number(variant.price),
+        quantity: 1,
+        image: product.image,
+      }]);
+    }
+    setVariantPicker(null);
+  };
+
+  const updateQuantity = (key: string, delta: number) => {
     if (delta > 0) {
-      const it = orderItems.find(i => i.productId === productId);
+      const it = orderItems.find(i => itemKey(i) === key);
       if (it) {
-        const check = wouldExceedMaterialApoio(orderItems, productId, it.price * delta, catalogItems as any, store.settings.materialApoio);
+        const check = wouldExceedMaterialApoio(orderItems, it.productId, it.price * delta, catalogItems as any, store.settings.materialApoio);
         if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
       }
     }
     setOrderItems(items => items.map(i => {
-      if (i.productId !== productId) return i;
+      if (itemKey(i) !== key) return i;
       const newQty = i.quantity + delta;
       return newQty <= 0 ? i : { ...i, quantity: newQty };
     }));
   };
 
-  const removeItem = (productId: string) => {
-    setOrderItems(items => items.filter(i => i.productId !== productId));
+  const removeItem = (key: string) => {
+    setOrderItems(items => items.filter(i => itemKey(i) !== key));
   };
 
   const handleSubmit = async () => {
@@ -201,6 +247,7 @@ export default function NewOrderDialog({
   const canProceedFromCustomer = customerMode === 'existing' ? !!selectedCustomerId : !!customerForm.name.trim();
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetAndClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -304,18 +351,23 @@ export default function NewOrderDialog({
                 ) : (
                   <div className="divide-y">
                     {filteredProducts.map((p: any) => {
-                      const inCart = orderItems.find(i => i.productId === p.id);
+                      const hasVariants = !isFood && p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
+                      const inCart = !hasVariants ? orderItems.find(i => i.productId === p.id && !i.variantId) : null;
+                      const variantPrices = hasVariants ? (p.variants as any[]).map(v => Number(v.price)) : [];
+                      const minPrice = hasVariants ? Math.min(...variantPrices) : (isFood ? p.price : p.basePrice);
                       return (
                         <div key={p.id} className="flex items-center justify-between p-3 hover:bg-muted/50">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium truncate">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{formatCurrency(isFood ? p.price : p.basePrice)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {hasVariants ? `A partir de ${formatCurrency(minPrice)}` : formatCurrency(minPrice)}
+                            </p>
                           </div>
                           {inCart ? (
                             <div className="flex items-center gap-1">
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(p.id, -1)}><Minus className="h-3 w-3" /></Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(itemKey(inCart), -1)}><Minus className="h-3 w-3" /></Button>
                               <span className="w-6 text-center text-sm font-medium">{inCart.quantity}</span>
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(p.id, 1)}><Plus className="h-3 w-3" /></Button>
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(itemKey(inCart), 1)}><Plus className="h-3 w-3" /></Button>
                             </div>
                           ) : (
                             <Button variant="outline" size="sm" onClick={() => addProduct(p)}><Plus className="h-3 w-3 mr-1" /> Adicionar</Button>
@@ -332,11 +384,16 @@ export default function NewOrderDialog({
                 <div className="border rounded-md p-3 space-y-2">
                   <p className="text-sm font-semibold">Itens selecionados ({orderItems.length})</p>
                   {orderItems.map(item => (
-                    <div key={item.productId} className="flex items-center justify-between text-sm">
-                      <span className="truncate flex-1">{item.quantity}x {item.name}</span>
+                    <div key={itemKey(item)} className="flex items-center justify-between text-sm">
+                      <span className="truncate flex-1">
+                        {item.quantity}x {item.name}
+                        {(item.size || item.color) && (
+                          <span className="text-muted-foreground"> — {[item.size, item.color].filter(Boolean).join(' / ')}</span>
+                        )}
+                      </span>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">{formatCurrency(item.price * item.quantity)}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(item.productId)}><Trash2 className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(itemKey(item))}><Trash2 className="h-3 w-3" /></Button>
                       </div>
                     </div>
                   ))}
@@ -376,8 +433,13 @@ export default function NewOrderDialog({
               <div className="border rounded-md p-3 space-y-1">
                 <p className="text-sm font-semibold mb-1">Itens</p>
                 {orderItems.map(item => (
-                  <div key={item.productId} className="flex justify-between text-sm">
-                    <span>{item.quantity}x {item.name}</span>
+                  <div key={itemKey(item)} className="flex justify-between text-sm">
+                    <span>
+                      {item.quantity}x {item.name}
+                      {(item.size || item.color) && (
+                        <span className="text-muted-foreground"> — {[item.size, item.color].filter(Boolean).join(' / ')}</span>
+                      )}
+                    </span>
                     <span>{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
@@ -426,5 +488,76 @@ export default function NewOrderDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Variant picker sub-dialog */}
+    <Dialog open={!!variantPicker} onOpenChange={(v) => { if (!v) setVariantPicker(null); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">{variantPicker?.product.name}</DialogTitle>
+        </DialogHeader>
+        {variantPicker && (() => {
+          const variants: any[] = variantPicker.product.variants || [];
+          const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean))) as string[];
+          const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean))) as string[];
+          const matching = variants.find(v =>
+            (uniqueColors.length === 0 || v.color === variantPicker.color) &&
+            (uniqueSizes.length === 0 || v.size === variantPicker.size)
+          );
+          return (
+            <div className="space-y-4">
+              {uniqueColors.length > 0 && (
+                <div>
+                  <Label className="text-sm mb-2 block">Cor</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueColors.map(c => {
+                      const v = variants.find(x => x.color === c);
+                      return (
+                        <Button key={c} type="button" size="sm"
+                          variant={variantPicker.color === c ? 'default' : 'outline'}
+                          onClick={() => setVariantPicker(p => p ? { ...p, color: c, size: undefined } : p)}>
+                          {c}{uniqueSizes.length === 0 && v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {uniqueSizes.length > 0 && (
+                <div>
+                  <Label className="text-sm mb-2 block">Tamanho</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {uniqueSizes.map(s => {
+                      const v = variants.find(x =>
+                        x.size === s && (uniqueColors.length === 0 || x.color === variantPicker.color)
+                      );
+                      const disabled = uniqueColors.length > 0 && !variantPicker.color;
+                      return (
+                        <Button key={s} type="button" size="sm" disabled={disabled || !v}
+                          variant={variantPicker.size === s ? 'default' : 'outline'}
+                          onClick={() => setVariantPicker(p => p ? { ...p, size: s } : p)}>
+                          {s}{v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t pt-3">
+                <span className="text-sm font-semibold">
+                  {matching ? formatCurrency(Number(matching.price)) : '—'}
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setVariantPicker(null)}>Cancelar</Button>
+                  <Button size="sm" onClick={addVariantToOrder} disabled={!matching}>
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
