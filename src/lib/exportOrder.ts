@@ -117,7 +117,7 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
     order.customer.name,
     order.total.toFixed(2),
     extra.sellerCode || '',
-    extra.isTelevendas ? 'Sim' : 'Nao',
+    extra.isTelevendas ? 'Sim' : 'Não',
   ].join(';');
 
   const lines = order.items.map((item) => {
