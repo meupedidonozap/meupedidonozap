@@ -58,12 +58,11 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const rep = s.representante || {};
   const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const sellerCode = extra.sellerCode || rep.codigo || '';
-  const televendas = extra.isTelevendas ? 'Sim' : 'Nao';
+  const televendas = extra.isTelevendas ? 'Sim' : 'Não';
 
   const formaCodigo = (order.customer as any)?.paymentFormaCodigo
     || PAYMENT_CODE[order.paymentMethod]
     || '';
-  const condicaoCodigo = (order.customer as any)?.paymentCondicaoCodigo || '';
 
   const itensXml = order.items
     .map((item: CartItem) => {
@@ -99,7 +98,6 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <codigoRepresentante>${escapeXml(sellerCode)}</codigoRepresentante>
   <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
-  <condicaoPagamento>${escapeXml(condicaoCodigo)}</condicaoPagamento>
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
   <tabelaPrecos>${escapeXml(s.tabelaPrecos || '')}</tabelaPrecos>
   <colunaTabelaPrecos>2</colunaTabelaPrecos>
@@ -119,7 +117,7 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
     order.customer.name,
     order.total.toFixed(2),
     extra.sellerCode || '',
-    extra.isTelevendas ? 'Sim' : 'Nao',
+    extra.isTelevendas ? 'Sim' : 'Não',
   ].join(';');
 
   const lines = order.items.map((item) => {
