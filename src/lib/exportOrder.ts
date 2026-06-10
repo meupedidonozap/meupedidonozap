@@ -38,6 +38,17 @@ function onlyDigits(s: string | undefined): string {
   return (s || '').replace(/\D/g, '');
 }
 
+function formatCgc(s: string | undefined): string {
+  const d = onlyDigits(s);
+  if (d.length === 11) {
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  }
+  if (d.length === 14) {
+    return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+  }
+  return d;
+}
+
 interface StoreLike {
   name: string;
   settings?: any;
@@ -58,7 +69,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const rep = s.representante || {};
   const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const sellerCode = extra.sellerCode || rep.codigo || '';
-  const televendas = extra.isTelevendas ? 'Sim' : 'Não';
+  const televendas = extra.isTelevendas ? 'Sim' : 'Nao';
 
   const formaCodigo = (order.customer as any)?.paymentFormaCodigo
     || PAYMENT_CODE[order.paymentMethod]
@@ -91,7 +102,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
 <dadosGeraisPedido>
   <numero>${pad(order.orderNumber, 9)}</numero>
   <emissao>${formatDateBR(created)}</emissao>
-  <cgcCliente>${escapeXml(onlyDigits(cpfCnpj))}</cgcCliente>
+  <cgcCliente>${escapeXml(formatCgc(cpfCnpj))}</cgcCliente>
   <nomeCliente>${escapeXml(order.customer.name)}</nomeCliente>
   <cgcRepresentante>${escapeXml(onlyDigits(rep.cgc))}</cgcRepresentante>
   <nomeRepresentante>${escapeXml(rep.nome || '')}</nomeRepresentante>
@@ -113,11 +124,11 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
     'PEDIDO',
     pad(order.orderNumber, 9),
     formatDateBR(created),
-    onlyDigits(cpfCnpj),
+    formatCgc(cpfCnpj),
     order.customer.name,
     order.total.toFixed(2),
     extra.sellerCode || '',
-    extra.isTelevendas ? 'Sim' : 'Não',
+    extra.isTelevendas ? 'Sim' : 'Nao',
   ].join(';');
 
   const lines = order.items.map((item) => {
