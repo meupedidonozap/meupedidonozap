@@ -4,32 +4,95 @@
     <meta name="google" content="notranslate" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
+
     <title>MeuPedidoNoZap — Cardápio digital e pedidos por WhatsApp sem comissão</title>
     <meta name="description" content="Plataforma de cardápio online e pedidos via WhatsApp para delivery, pizzaria, loja, salão e serviços. Sem mensalidade, sem comissão por pedido." />
     <meta name="author" content="DWS" />
     <link rel="canonical" href="https://meupedidonozap.online/" />
+
+    <!-- Google Search Console -->
     <meta name="google-site-verification" content="d9LrNQlZ83iCH60VYDv5sn2w9oPJywY0THKr3L74meM" />
     <meta name="google-site-verification" content="3Ymv1yibwdBxZGzHcVPV0nLN7NxZWDQ9uO1rp1gDYus" />
 
-    <!-- TODO: Update og:title to match your application name -->
-    <meta property="og:title" content="MeuPedidoNoZap" />
-    <meta property="og:description" content="Cardápio digital e pedidos por WhatsApp sem comissão" />
+    <!-- Open Graph — imagem própria (não mais do Lovable) -->
+    <meta property="og:title" content="MeuPedidoNoZap — Cardápio digital via WhatsApp" />
+    <meta property="og:description" content="Cardápio digital e pedidos por WhatsApp sem mensalidade e sem comissão. Delivery, pizzarias, salões e lojas." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://meupedidonozap.online/" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="https://meupedidonozap.online/meupedidonozap.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="MeuPedidoNoZap" />
 
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="MeuPedidoNoZap — Cardápio digital via WhatsApp" />
+    <meta name="twitter:description" content="Cardápio digital e pedidos por WhatsApp sem mensalidade e sem comissão." />
+    <meta name="twitter:image" content="https://meupedidonozap.online/meupedidonozap.png" />
 
     <link rel="icon" type="image/x-icon" href="/meupedidonozap.ico" />
 
+    <!-- Schema.org: SoftwareApplication (aparece com estrelas e preço no Google) -->
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"Organization","name":"MeuPedidoNoZap","url":"https://meupedidonozap.online","description":"Plataforma de cardápio online e pedidos via WhatsApp para delivery, pizzaria, loja, salão e serviços."}
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "MeuPedidoNoZap",
+      "url": "https://meupedidonozap.online",
+      "description": "Plataforma de cardápio online e pedidos via WhatsApp para delivery, pizzaria, loja, salão e serviços. Sem mensalidade, sem comissão por pedido.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL",
+        "description": "Plano gratuito disponível, sem comissão por pedido"
+      },
+      "featureList": [
+        "Cardápio digital",
+        "Pedidos via WhatsApp",
+        "Sem comissão por pedido",
+        "Delivery e retirada",
+        "Gestão de pedidos"
+      ]
+    }
     </script>
+
+    <!-- Schema.org: WebSite com SearchAction -->
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"WebSite","name":"MeuPedidoNoZap","url":"https://meupedidonozap.online"}
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "MeuPedidoNoZap",
+      "url": "https://meupedidonozap.online",
+      "description": "Cardápio digital e pedidos por WhatsApp sem comissão. Delivery, pizzarias, salões e lojas.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://meupedidonozap.online/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Schema.org: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "MeuPedidoNoZap",
+      "url": "https://meupedidonozap.online",
+      "logo": "https://meupedidonozap.online/meupedidonozap.png",
+      "description": "Plataforma de cardápio online e pedidos via WhatsApp para delivery, pizzaria, loja, salão e serviços.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "availableLanguage": "Portuguese"
+      }
+    }
     </script>
   </head>
 
