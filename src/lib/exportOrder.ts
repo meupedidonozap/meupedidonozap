@@ -63,7 +63,6 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const formaCodigo = (order.customer as any)?.paymentFormaCodigo
     || PAYMENT_CODE[order.paymentMethod]
     || '';
-  const condicaoCodigo = (order.customer as any)?.paymentCondicaoCodigo || '';
 
   const itensXml = order.items
     .map((item: CartItem) => {
@@ -97,9 +96,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <cgcRepresentante>${escapeXml(onlyDigits(rep.cgc))}</cgcRepresentante>
   <nomeRepresentante>${escapeXml(rep.nome || '')}</nomeRepresentante>
   <codigoRepresentante>${escapeXml(sellerCode)}</codigoRepresentante>
-  <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
-  <condicaoPagamento>${escapeXml(condicaoCodigo)}</condicaoPagamento>
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
   <tabelaPrecos>${escapeXml(s.tabelaPrecos || '')}</tabelaPrecos>
   <colunaTabelaPrecos>2</colunaTabelaPrecos>

@@ -1,20 +1,27 @@
-## Causa do problema
+## Diferenças encontradas
 
-O pedido #238 (GEOVANE RENATO MICHELLI, 47 99255-0199) foi feito com **RETIRAR NA LOJA**. No checkout (`src/pages/CheckoutPage.tsx`, linha 315) o upsert do perfil do cliente está condicionado a entrega:
+Comparando o arquivo de referência (que o ERP lê corretamente) com o gerado hoje em `src/lib/exportOrder.ts`:
 
-```ts
-if (!isPickup) await upsertProfile.mutateAsync({ ... });
+1. **Tag `<condicaoPagamento>` não existe no arquivo correto** — o atual gera essa tag entre `<formaPagamento>` e `<prazoMedio>`, e isso é o que está quebrando a leitura.
+2. **`<pedidoTelevendas>` deve ser `Sim` / `Não`** — hoje sai `Sim` / `Nao` (sem acento).
+
+A ordem correta da seção de pagamento, conforme a referência, é:
+```
+<formaPagamento>3</formaPagamento>
+<prazoMedio>0</prazoMedio>
+<tabelaPrecos></tabelaPrecos>
+<colunaTabelaPrecos>2</colunaTabelaPrecos>
 ```
 
-Ou seja, quando o cliente escolhe retirada, o pedido é gravado normalmente (com `user_id`), mas o perfil **nunca** é criado em `customer_profiles` — por isso ele não aparece na aba **Clientes** do painel. Conferi no banco: existe o `user_id` no pedido, mas nenhum registro em `customer_profiles` para esse usuário/whatsapp.
+## Ajuste
 
-## Correção
+Em `src/lib/exportOrder.ts`:
 
-**1. `src/pages/CheckoutPage.tsx`** — remover o `if (!isPickup)` e **sempre** chamar `upsertProfile.mutateAsync(...)`, passando strings vazias para os campos de endereço quando for retirada (nome, whatsapp e CPF/CNPJ continuam sendo salvos). Isso garante que todo cliente que finaliza um pedido fique cadastrado na lista.
+- Remover a linha `<condicaoPagamento>...</condicaoPagamento>` da geração do XML.
+- Trocar `Nao` por `Não` no valor de `<pedidoTelevendas>` (XML e TXT).
 
-**2. Backfill do GEOVANE (pedido #238)** — criar um registro em `customer_profiles` para o `user_id` do pedido, copiando nome e whatsapp do JSON `customer` do próprio pedido. Faço via migration de INSERT idempotente (só insere se não existir perfil para aquele `user_id` + `store_id`). Como medida geral, a mesma migration roda um INSERT…SELECT para qualquer outro pedido órfão da Pastelaria RM que tenha `user_id` mas sem perfil correspondente.
+Nada mais é alterado: itens, datas, semana ISO, representante, cliente, totais e nome do arquivo continuam iguais. A UI do diálogo de baixar pedido (toggle "Pedido Tele-Vendas") também permanece como está.
 
 ## Fora do escopo
 
-- Não mexo no fluxo de variantes do Novo Pedido (já entregue no turno anterior).
-- Não mexo em RLS, triggers de `order_number`, cache/SW, nem na lógica de pedidos via Mesa/Admin (esses já gravam clientes pelo próprio fluxo de Mesa).
+- Não mexer em `DicolorePaymentCodesTab`, na coluna `paymentCondicaoCodigo` salva no pedido (continua existindo no banco, só deixa de ser escrita no XML), nem em qualquer outro fluxo.
