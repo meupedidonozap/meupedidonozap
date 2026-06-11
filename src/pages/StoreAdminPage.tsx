@@ -2373,6 +2373,60 @@ export default function StoreAdminPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dicolore: confirmar liberação do pedido para o ERP */}
+      <AlertDialog open={!!pendingErpRelease} onOpenChange={(open) => { if (!open) setPendingErpRelease(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Liberar pedido para o ERP</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja liberar o pedido {pendingErpRelease ? `#${pendingErpRelease.orderNumber}` : ''} para o ERP?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const pending = pendingErpRelease;
+                if (!pending) return;
+                setPendingErpRelease(null);
+                setUpdatingStatusId(pending.orderId);
+                try {
+                  await updateOrderStatus.mutateAsync({ id: pending.orderId, status: 'liberado_transmissao' });
+                  toast.success('Status atualizado!');
+                } catch (err: any) {
+                  toast.error(err?.message || 'Erro ao atualizar status');
+                } finally {
+                  setUpdatingStatusId(null);
+                }
+              }}
+            >
+              Não
+            </Button>
+            <AlertDialogAction
+              onClick={async () => {
+                const pending = pendingErpRelease;
+                if (!pending) return;
+                setPendingErpRelease(null);
+                setUpdatingStatusId(pending.orderId);
+                try {
+                  await updateOrderStatus.mutateAsync({ id: pending.orderId, status: 'liberado_transmissao' });
+                  toast.success('Status atualizado!');
+                  const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
+                  window.open(`https://wa.me/5547992491139?text=${encodeURIComponent(text)}`, '_blank');
+                } catch (err: any) {
+                  toast.error(err?.message || 'Erro ao atualizar status');
+                } finally {
+                  setUpdatingStatusId(null);
+                }
+              }}
+            >
+              Sim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
