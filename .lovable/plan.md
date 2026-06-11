@@ -1,35 +1,66 @@
-# Liberar pedido para ERP via WhatsApp (Dicolore)
-
 ## Objetivo
-Quando, no admin da loja **dicolore**, o status de um pedido for alterado para **"Liberado p/ Transmissão"**, exibir um diálogo de confirmação:
 
-> "Deseja liberar o pedido para o ERP?"
+Substituir o fluxo de upload de planilha por uma sincronização automática (botão único) que lê a planilha do Google Sheets e atualiza/cria os clientes da Dicolore — espelhando como funciona "Atualizar Preços" hoje.
 
-Ao confirmar (**Sim**), abrir em nova aba:
-`https://wa.me/5547992491139?text=Olá, o pedido "#<número>" pode ser transmitido`
+## Por que não está funcionando hoje
 
-O usuário (vendedor) então envia a mensagem ao administrador interno fixo. Ao escolher **Não**, o status é atualizado normalmente, mas sem abrir o WhatsApp.
+O importador atual (`ImportCustomersDialog` → Edge Function `import-customers`) só reconhece colunas `codigo, nome, cpf_cnpj, whatsapp, cep, uf, cidade, bairro, endereco, numero, complemento, codigo_vendedor`. A planilha do ERP da Dicolore usa os nomes originais (`clicod, clirazsoc, clicgccpf, clicel, clicep, cliest, clicid, clibai, cliend, cliendnum, cliendcom, clirepcod`), então todas as linhas viram inválidas e nada é gravado.
 
-## Escopo
-- Aplica-se **exclusivamente** quando `store.slug === 'dicolore'`.
-- Aplica-se **somente** ao alterar status para `liberado_transmissao` (qualquer outro status mantém o comportamento atual).
-- Não altera regras de banco, RLS, edge functions, nem o fluxo de exportação XML.
+## Mudanças
 
-## Arquivos a alterar
-- `src/pages/StoreAdminPage.tsx` — interceptar o `onValueChange` do `Select` de status (linha ~1109) e o handler do botão "Liberar p/ Transmissão" (linha ~1188, se houver atalho equivalente).
+### 1. Nova Edge Function `sync-customers` (espelha `sync-prices`)
 
-## Implementação (resumo técnico)
-1. Adicionar um `AlertDialog` controlado por state local (`pendingErpRelease: { orderId, orderNumber } | null`) no componente.
-2. No `onValueChange` do Select de status, antes de chamar `updateOrderStatus.mutateAsync`, verificar:
-   - se `store.slug === 'dicolore'` **e** `value === 'liberado_transmissao'` → abrir o AlertDialog e guardar `{ orderId, orderNumber }`.
-   - caso contrário → manter o fluxo atual.
-3. No AlertDialog:
-   - **Sim**: executar `updateOrderStatus.mutateAsync({ id, status: 'liberado_transmissao' })` e, em seguida, `window.open('https://wa.me/5547992491139?text=' + encodeURIComponent('Olá, o pedido "#'+orderNumber+'" pode ser transmitido'), '_blank')`.
-   - **Não**: executar apenas o `updateOrderStatus.mutateAsync` (sem abrir WhatsApp).
-   - **Cancelar** (X / overlay): não muda o status, fecha o diálogo.
-4. Aplicar a mesma checagem em qualquer botão de atalho que defina diretamente `liberado_transmissao` (se existir no fluxo atual).
+- Recebe `{ store_id }` no body.
+- Busca o CSV publicado da planilha da Dicolore (URL fixa no código, igual a `sync-prices`).
+- Parser RFC 4180 reaproveitado de `sync-prices`.
+- Mapeia colunas do ERP:
+  - `clicod` → `customer_code`
+  - `clirazsoc` → `name`
+  - `clicgccpf` → `cpf_cnpj` (Cadastrar como vem do sistema)
+  - `clicel` → `whatsapp` (só dígitos, conforme decisão)
+  - `clicep` → `cep`
+  - `cliest` → `uf` (2 chars uppercase)
+  - `clicid` → `city`
+  - `clibai` → `neighborhood`
+  - `cliend` → `address`
+  - `cliendnum` → `number`
+  - `cliendcom` → `complement`
+  - `clirepcod` → `seller_code`
+- Filtro: usa apenas linhas com `clisit = 'A'` (ativos). Os demais ficam `is_active = false`.
+- Para cada linha:
+  - Busca em `customer_profiles` por `store_id + customer_code`.
+  - Se existe: UPDATE preservando o `user_id` atual (não mexe no Auth, igual ao modo "update" atual).
+  - Se não existe: INSERT com `user_id = null` (cliente cria login depois, ou usamos o fluxo de import original quando precisar).
+- Usa `service_role` para escrever (igual `sync-prices`).
+- Retorna `{ success, updated, created, deactivated, errors }`.
+
+### 2. UI no admin da loja (`StoreAdminPage.tsx`)
+
+- Na aba **Clientes**, quando `store.slug === 'dicolore'`:
+  - Substituir os botões "Atualizar Clientes" e "Importar Clientes" por um único botão **"Atualizar Clientes"** (idêntico ao "Atualizar Preços").
+  - Botão chama `supabase.functions.invoke('sync-customers', { body: { store_id: store.id } })`.
+  - Mostra spinner enquanto sincroniza e toast com resultado (`X criados, Y atualizados, Z desativados`).
+  - Invalida `['store-customer-profiles', store.id]`.
+- Demais lojas continuam vendo os botões antigos (upload).
+
+### 3. Pré-requisito do usuário
+
+A URL que você enviou é o link de edição. Para o servidor ler, é preciso publicar a planilha:
+
+1. No Google Sheets → **Arquivo → Compartilhar → Publicar na web**.
+2. Selecionar a aba certa, formato **CSV**, e copiar a URL gerada (termina em `output=csv`).
+3. Me envie essa URL para eu fixar dentro de `sync-customers` (igual ao `sync-prices`).
+
+Sem essa URL pública, a Edge Function não consegue ler a planilha (o link `/edit?usp=sharing` exige login Google).
 
 ## Fora do escopo
-- Outras lojas continuam com comportamento idêntico ao atual.
-- Nenhuma mudança em pedidos vindos da edge function `criar-pedido` ou em notificações push.
-- Nenhuma persistência do "liberado" — o WhatsApp é apenas um disparo manual.
+
+- Não mexe na Edge Function `import-customers` nem no `ImportCustomersDialog` (continuam disponíveis para outras lojas).
+- Não cria usuários no Auth durante o sync (mantém comportamento rápido do modo "update").
+- Não toca em XML/exportOrder/fluxo do ERP de saída.
+
+## Detalhes técnicos
+
+- `supabase/functions/sync-customers/index.ts` (nova) — clona estrutura de `sync-prices/index.ts`.
+- `supabase/config.toml` — adicionar `[functions.sync-customers]` com `verify_jwt = false` (igual `sync-prices`).
+- `src/pages/StoreAdminPage.tsx` — adicionar estado `syncingCustomers`, handler `handleSyncCustomers`, e condicional `store.slug === 'dicolore'` na aba Clientes.
