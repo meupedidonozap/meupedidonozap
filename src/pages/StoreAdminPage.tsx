@@ -478,11 +478,6 @@ export default function StoreAdminPage() {
     }
   };
 
-  const handleAddCategory = async () => {
-    void 0;
-    return _handleAddCategory();
-  };
-
   const handleSyncCustomers = async () => {
     if (!store) return;
     setSyncingCustomers(true);
@@ -509,7 +504,7 @@ export default function StoreAdminPage() {
     }
   };
 
-  const _handleAddCategory = async () => {
+  const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     await createCategory.mutateAsync({ storeId: store.id, name: newCategoryName });
     setNewCategoryName('');
