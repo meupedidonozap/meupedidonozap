@@ -113,7 +113,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
-  <tabelaPrecos>${escapeXml(s.tabelaPrecos || (isDicoloreFlow(undefined, s) ? 'SALAO DICO' : ''))}</tabelaPrecos>
+  <tabelaPrecos>${escapeXml(s.tabelaPrecos || (isDicoloreFlow(undefined, s) ? '4' : ''))}</tabelaPrecos>
   <colunaTabelaPrecos>2</colunaTabelaPrecos>
 ${itensXml}
 </dadosGeraisPedido>
