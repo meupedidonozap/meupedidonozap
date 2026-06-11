@@ -479,6 +479,37 @@ export default function StoreAdminPage() {
   };
 
   const handleAddCategory = async () => {
+    void 0;
+    return _handleAddCategory();
+  };
+
+  const handleSyncCustomers = async () => {
+    if (!store) return;
+    setSyncingCustomers(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-customers', {
+        body: { store_id: store.id },
+      });
+      if (error) throw error;
+      const parts: string[] = [];
+      if (data?.created > 0) parts.push(`${data.created} criado(s)`);
+      if (data?.updated > 0) parts.push(`${data.updated} atualizado(s)`);
+      if (data?.deactivated > 0) parts.push(`${data.deactivated} desativado(s)`);
+      if (data?.errors > 0) parts.push(`${data.errors} erro(s)`);
+      if (parts.length > 0) {
+        toast.success(`Clientes sincronizados: ${parts.join(', ')} (planilha: ${data?.total_sheet_rows || 0})`);
+      } else {
+        toast.info(`Nenhuma alteração. Planilha: ${data?.total_sheet_rows || 0} / Banco: ${data?.total_db_rows || 0}`);
+      }
+      qc.invalidateQueries({ queryKey: ['store-customer-profiles', store.id] });
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar clientes: ' + (err?.message || err));
+    } finally {
+      setSyncingCustomers(false);
+    }
+  };
+
+  const _handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     await createCategory.mutateAsync({ storeId: store.id, name: newCategoryName });
     setNewCategoryName('');
