@@ -248,6 +248,7 @@ export default function StoreAdminPage() {
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
+  const [syncingCustomers, setSyncingCustomers] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
@@ -474,6 +475,32 @@ export default function StoreAdminPage() {
       toast.error('Erro ao sincronizar preços: ' + (err.message || err));
     } finally {
       setSyncingPrices(false);
+    }
+  };
+
+  const handleSyncCustomers = async () => {
+    if (!store) return;
+    setSyncingCustomers(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-customers', {
+        body: { store_id: store.id },
+      });
+      if (error) throw error;
+      const parts: string[] = [];
+      if (data?.created > 0) parts.push(`${data.created} criado(s)`);
+      if (data?.updated > 0) parts.push(`${data.updated} atualizado(s)`);
+      if (data?.deactivated > 0) parts.push(`${data.deactivated} desativado(s)`);
+      if (data?.errors > 0) parts.push(`${data.errors} erro(s)`);
+      if (parts.length > 0) {
+        toast.success(`Clientes sincronizados: ${parts.join(', ')} (planilha: ${data?.total_sheet_rows || 0})`);
+      } else {
+        toast.info(`Nenhuma alteração. Planilha: ${data?.total_sheet_rows || 0} / Banco: ${data?.total_db_rows || 0}`);
+      }
+      qc.invalidateQueries({ queryKey: ['store-customer-profiles', store.id] });
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar clientes: ' + (err?.message || err));
+    } finally {
+      setSyncingCustomers(false);
     }
   };
 
@@ -2000,12 +2027,21 @@ export default function StoreAdminPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setUpdateCustomersOpen(true)}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> Atualizar Clientes
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setImportCustomersOpen(true)}>
-                  <Upload className="mr-2 h-4 w-4" /> Importar Clientes
-                </Button>
+                {store.slug === 'dicolore' ? (
+                  <Button size="sm" variant="outline" onClick={handleSyncCustomers} disabled={syncingCustomers}>
+                    {syncingCustomers ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Atualizar Clientes
+                  </Button>
+                ) : (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setUpdateCustomersOpen(true)}>
+                      <RefreshCw className="mr-2 h-4 w-4" /> Atualizar Clientes
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setImportCustomersOpen(true)}>
+                      <Upload className="mr-2 h-4 w-4" /> Importar Clientes
+                    </Button>
+                  </>
+                )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
                   setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
