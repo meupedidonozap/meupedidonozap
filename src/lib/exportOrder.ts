@@ -1,4 +1,5 @@
 import type { Order, CartItem } from '@/types';
+import { isDicoloreFlow } from './dicolorePayments';
 
 const PAYMENT_CODE: Record<string, string> = {
   pix: '1',
