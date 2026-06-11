@@ -77,7 +77,9 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
 
   const itensXml = order.items
     .map((item: CartItem) => {
-      const total = (item.price * item.quantity).toFixed(2);
+      const discPct = (item as any).discountPercent || 0;
+      const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+      const total = (unitPrice * item.quantity).toFixed(2);
       return `  <itensPedido>
     <produto>${escapeXml(item.code)}</produto>
     <descProduto>${escapeXml(item.name)}</descProduto>
@@ -85,7 +87,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
     <descCor>${escapeXml(item.color || '')}</descCor>
     <gtam>${escapeXml(item.size || '')}</gtam>
     <descGtam>${escapeXml(item.size || '')}</descGtam>
-    <precoUnitario>${item.price.toFixed(2)}</precoUnitario>
+    <precoUnitario>${unitPrice.toFixed(2)}</precoUnitario>
     <valorTotal>${total}</valorTotal>
     <dataEntrega>${formatDateBR(delivery)}</dataEntrega>
     <anoEntrega>${delivery.getFullYear()}</anoEntrega>
@@ -132,6 +134,8 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
   ].join(';');
 
   const lines = order.items.map((item) => {
+    const discPct = (item as any).discountPercent || 0;
+    const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
     return [
       'ITEM',
       item.code,
@@ -139,8 +143,8 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
       item.color || '',
       item.size || '',
       item.quantity,
-      item.price.toFixed(2),
-      (item.price * item.quantity).toFixed(2),
+      unitPrice.toFixed(2),
+      (unitPrice * item.quantity).toFixed(2),
     ].join(';');
   });
 
