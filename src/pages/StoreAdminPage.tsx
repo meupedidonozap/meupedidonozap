@@ -248,6 +248,7 @@ export default function StoreAdminPage() {
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
+  const [syncingCustomers, setSyncingCustomers] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
