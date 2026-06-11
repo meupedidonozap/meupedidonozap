@@ -41,6 +41,10 @@ import PizzaBordersTab from '@/components/PizzaBordersTab';
 import TablesTab from '@/components/TablesTab';
 import BusinessHoursTab from '@/components/BusinessHoursTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -288,6 +292,9 @@ export default function StoreAdminPage() {
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerWhatsapp, setNewSellerWhatsapp] = useState('');
   const [newSellerCode, setNewSellerCode] = useState('');
+
+  // Dicolore: confirmação para liberar pedido ao ERP via WhatsApp
+  const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number } | null>(null);
 
   // Image optimization state
   const [optimizing, setOptimizing] = useState(false);
@@ -1107,6 +1114,10 @@ export default function StoreAdminPage() {
                             (isAdmin || permissions.can_manage_orders) ? (
                             <div className="flex items-center gap-1">
                               <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
+                                if (store.slug === 'dicolore' && value === 'liberado_transmissao') {
+                                  setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber });
+                                  return;
+                                }
                                 setUpdatingStatusId(order.id);
                                 try {
                                   await updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
