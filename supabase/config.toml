@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.manage-store-user]
 verify_jwt = false
+
+[functions.sync-customers]
+verify_jwt = false
