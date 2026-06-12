@@ -71,6 +71,8 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const sellerCode = extra.sellerCode || rep.codigo || '';
   const televendas = extra.isTelevendas ? 'Sim' : 'Nao';
+  const isDicolore = isDicoloreFlow(undefined, s);
+  const priceDecimals = isDicolore ? 3 : 2;
 
   const formaCodigo = (order.customer as any)?.paymentFormaCodigo
     || PAYMENT_CODE[order.paymentMethod]
@@ -88,7 +90,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
     <descCor>${escapeXml(item.color || '')}</descCor>
     <gtam>${escapeXml(item.size || '')}</gtam>
     <descGtam>${escapeXml(item.size || '')}</descGtam>
-    <precoUnitario>${unitPrice.toFixed(2)}</precoUnitario>
+    <precoUnitario>${unitPrice.toFixed(priceDecimals)}</precoUnitario>
     <valorTotal>${total}</valorTotal>
     <dataEntrega>${formatDateBR(delivery)}</dataEntrega>
     <anoEntrega>${delivery.getFullYear()}</anoEntrega>
@@ -113,8 +115,8 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
-  <tabelaPrecos>${escapeXml(s.tabelaPrecos || (isDicoloreFlow(undefined, s) ? '4' : ''))}</tabelaPrecos>
-  <colunaTabelaPrecos>2</colunaTabelaPrecos>
+  <tabelaPrecos>${escapeXml(s.tabelaPrecos || (isDicolore ? '4' : ''))}</tabelaPrecos>
+  <colunaTabelaPrecos>${isDicolore ? 3 : 2}</colunaTabelaPrecos>
 ${itensXml}
 </dadosGeraisPedido>
 `;
