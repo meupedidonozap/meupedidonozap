@@ -259,7 +259,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -2044,7 +2044,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2083,6 +2083,7 @@ export default function StoreAdminPage() {
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
+                              transportadora: (cp as any).transportadora || '',
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
