@@ -2165,6 +2165,7 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     </div>
+                    <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
