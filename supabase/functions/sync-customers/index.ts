@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
     const iCom = firstIdx("cliendcom", "complemento");
     const iRep = firstIdx("clirepcod", "codigo_vendedor");
     const iSit = firstIdx("clisit", "situacao");
+    const iTrans = firstIdx("transportadora", "clitrans", "clitransp");
 
     if (iCod === -1 || iNome === -1) {
       return new Response(JSON.stringify({ error: "Colunas obrigatórias não encontradas (codigo, nome)" }), {
@@ -147,6 +148,7 @@ Deno.serve(async (req) => {
         number: iNum !== -1 ? String(cols[iNum] || "").trim() : "",
         complement: iCom !== -1 ? (String(cols[iCom] || "").trim() || null) : null,
         seller_code: iRep !== -1 ? String(cols[iRep] || "").trim() : "",
+        transportadora: iTrans !== -1 ? (String(cols[iTrans] || "").trim() || null) : null,
         is_active: isActive,
       };
 
