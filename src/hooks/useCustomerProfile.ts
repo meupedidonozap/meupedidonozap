@@ -16,6 +16,7 @@ export interface CustomerProfile {
   number: string;
   complement?: string;
   sellerCode?: string;
+  transportadora?: string;
 }
 
 function mapProfile(row: any): CustomerProfile {
