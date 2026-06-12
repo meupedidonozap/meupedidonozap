@@ -5,10 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// URL CSV publicada da planilha de clientes da Dicolore
-// (Arquivo → Compartilhar → Publicar na web → CSV)
+// CSV exportado da planilha de clientes da Dicolore
+// (planilha compartilhada como "qualquer pessoa com o link")
 const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/REPLACE_WITH_PUBLISHED_ID/pub?output=csv";
+  "https://docs.google.com/spreadsheets/d/1Z3ETF7f-eD1d84rBpmcHRmVXzgiXFS5efnQgwrwxUHg/export?format=csv";
 
 function parseCSVLine(line: string): string[] {
   const fields: string[] = [];
@@ -65,23 +65,30 @@ Deno.serve(async (req) => {
     }
 
     const header = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
-    const idx = (name: string) => header.indexOf(name);
-    const iCod = idx("clicod");
-    const iNome = idx("clirazsoc");
-    const iCpf = idx("clicgccpf");
-    const iCel = idx("clicel");
-    const iCep = idx("clicep");
-    const iUf = idx("cliest");
-    const iCid = idx("clicid");
-    const iBai = idx("clibai");
-    const iEnd = idx("cliend");
-    const iNum = idx("cliendnum");
-    const iCom = idx("cliendcom");
-    const iRep = idx("clirepcod");
-    const iSit = idx("clisit");
+    // Aceita tanto colunas do ERP (clicod, clirazsoc...) quanto do modelo do sistema (codigo, nome...)
+    const firstIdx = (...names: string[]) => {
+      for (const n of names) {
+        const i = header.indexOf(n);
+        if (i !== -1) return i;
+      }
+      return -1;
+    };
+    const iCod = firstIdx("clicod", "codigo");
+    const iNome = firstIdx("clirazsoc", "nome");
+    const iCpf = firstIdx("clicgccpf", "cpf_cnpj");
+    const iCel = firstIdx("clicel", "whatsapp");
+    const iCep = firstIdx("clicep", "cep");
+    const iUf = firstIdx("cliest", "uf");
+    const iCid = firstIdx("clicid", "cidade");
+    const iBai = firstIdx("clibai", "bairro");
+    const iEnd = firstIdx("cliend", "endereco");
+    const iNum = firstIdx("cliendnum", "numero");
+    const iCom = firstIdx("cliendcom", "complemento");
+    const iRep = firstIdx("clirepcod", "codigo_vendedor");
+    const iSit = firstIdx("clisit", "situacao");
 
     if (iCod === -1 || iNome === -1) {
-      return new Response(JSON.stringify({ error: "Colunas obrigatórias não encontradas (clicod, clirazsoc)" }), {
+      return new Response(JSON.stringify({ error: "Colunas obrigatórias não encontradas (codigo, nome)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
