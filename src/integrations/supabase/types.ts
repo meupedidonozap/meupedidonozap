@@ -106,6 +106,7 @@ export type Database = {
           number: string
           seller_code: string
           store_id: string
+          transportadora: string | null
           uf: string
           updated_at: string
           user_id: string | null
@@ -126,6 +127,7 @@ export type Database = {
           number?: string
           seller_code?: string
           store_id: string
+          transportadora?: string | null
           uf?: string
           updated_at?: string
           user_id?: string | null
@@ -146,6 +148,7 @@ export type Database = {
           number?: string
           seller_code?: string
           store_id?: string
+          transportadora?: string | null
           uf?: string
           updated_at?: string
           user_id?: string | null
