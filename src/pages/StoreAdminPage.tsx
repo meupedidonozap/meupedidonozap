@@ -259,7 +259,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -2044,7 +2044,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2083,6 +2083,7 @@ export default function StoreAdminPage() {
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
+                              transportadora: (cp as any).transportadora || '',
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -2164,6 +2165,7 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     </div>
+                    <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
@@ -2196,6 +2198,10 @@ export default function StoreAdminPage() {
                     <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
                   </div>
                   <div className="grid gap-1"><Label className="text-sm">Complemento</Label><Input value={customerForm.complement} onChange={e => setCustomerForm(f => ({ ...f, complement: e.target.value }))} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
+                    <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>

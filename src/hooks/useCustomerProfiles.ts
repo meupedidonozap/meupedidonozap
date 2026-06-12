@@ -20,6 +20,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCo
     sellerCode: row.seller_code || '',
     isActive: row.is_active ?? true,
     customerCode: row.customer_code || '',
+    transportadora: row.transportadora || '',
   };
 }
 
@@ -66,6 +67,7 @@ export function useCreateCustomerProfileAdmin() {
       complement?: string;
       cpfCnpj?: string;
       sellerCode?: string;
+      transportadora?: string;
     }) => {
       const { error } = await supabase
         .from('customer_profiles')
@@ -82,6 +84,7 @@ export function useCreateCustomerProfileAdmin() {
           complement: params.complement || null,
           cpf_cnpj: params.cpfCnpj || '',
           seller_code: params.sellerCode || '',
+          transportadora: params.transportadora || null,
         } as any);
       if (error) throw error;
     },
@@ -108,6 +111,7 @@ export function useUpdateCustomerProfileAdmin() {
       complement?: string;
       cpfCnpj?: string;
       sellerCode?: string;
+      transportadora?: string;
     }) => {
       const update: any = {};
       if (params.name !== undefined) update.name = params.name;
@@ -121,6 +125,7 @@ export function useUpdateCustomerProfileAdmin() {
       if (params.complement !== undefined) update.complement = params.complement;
       if (params.cpfCnpj !== undefined) update.cpf_cnpj = params.cpfCnpj;
       if (params.sellerCode !== undefined) update.seller_code = params.sellerCode;
+      if (params.transportadora !== undefined) update.transportadora = params.transportadora || null;
 
       const { error } = await supabase
         .from('customer_profiles')
