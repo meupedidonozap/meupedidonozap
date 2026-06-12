@@ -100,19 +100,37 @@ Deno.serve(async (req) => {
     );
 
     // Carrega cadastros existentes da loja
-    const existing = new Map<string, { id: string }>();
+    // Carrega cadastros existentes da loja (com todos os campos comparáveis,
+    // para evitar UPDATE em linhas que não mudaram — principal gargalo)
+    type ExistingRow = {
+      id: string;
+      name: string | null;
+      cpf_cnpj: string | null;
+      whatsapp: string | null;
+      cep: string | null;
+      uf: string | null;
+      city: string | null;
+      neighborhood: string | null;
+      address: string | null;
+      number: string | null;
+      complement: string | null;
+      seller_code: string | null;
+      transportadora: string | null;
+      is_active: boolean | null;
+    };
+    const existing = new Map<string, ExistingRow>();
     const PAGE = 1000;
     let from = 0;
     while (true) {
       const { data, error } = await supabase
         .from("customer_profiles")
-        .select("id, customer_code")
+        .select("id, customer_code, name, cpf_cnpj, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, transportadora, is_active")
         .eq("store_id", store_id)
         .range(from, from + PAGE - 1);
       if (error) throw error;
       const rows = data || [];
       for (const r of rows) {
-        if (r.customer_code) existing.set(String(r.customer_code), { id: r.id });
+        if (r.customer_code) existing.set(String(r.customer_code), r as ExistingRow);
       }
       if (rows.length < PAGE) break;
       from += PAGE;
@@ -121,8 +139,13 @@ Deno.serve(async (req) => {
     let created = 0;
     let updated = 0;
     let deactivated = 0;
+    let skipped = 0;
     const errors: { codigo: string; erro: string }[] = [];
     const sheetCodes = new Set<string>();
+    const toUpdate: { id: string; codigo: string; payload: Record<string, unknown> }[] = [];
+    const toInsert: Record<string, unknown>[] = [];
+
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
 
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
@@ -154,21 +177,63 @@ Deno.serve(async (req) => {
 
       const found = existing.get(codigo);
       if (found) {
-        const { error } = await supabase
-          .from("customer_profiles")
-          .update(payload)
-          .eq("id", found.id);
-        if (error) errors.push({ codigo, erro: error.message });
-        else {
-          updated++;
-          if (!isActive) deactivated++;
+        // Diff: só envia UPDATE se algum campo mudou
+        const changed =
+          norm(found.name) !== norm(payload.name) ||
+          norm(found.cpf_cnpj) !== norm(payload.cpf_cnpj) ||
+          norm(found.whatsapp) !== norm(payload.whatsapp) ||
+          norm(found.cep) !== norm(payload.cep) ||
+          norm(found.uf) !== norm(payload.uf) ||
+          norm(found.city) !== norm(payload.city) ||
+          norm(found.neighborhood) !== norm(payload.neighborhood) ||
+          norm(found.address) !== norm(payload.address) ||
+          norm(found.number) !== norm(payload.number) ||
+          norm(found.complement) !== norm(payload.complement) ||
+          norm(found.seller_code) !== norm(payload.seller_code) ||
+          norm(found.transportadora) !== norm(payload.transportadora) ||
+          (found.is_active ?? true) !== isActive;
+
+        if (!changed) {
+          skipped++;
+          continue;
+        }
+        toUpdate.push({ id: found.id, codigo, payload });
+        if (!isActive && (found.is_active ?? true)) deactivated++;
+      } else {
+        toInsert.push({ ...payload, user_id: null });
+      }
+    }
+
+    // Executa updates em paralelo controlado (lote de N requisições simultâneas)
+    const CONCURRENCY = 20;
+    for (let i = 0; i < toUpdate.length; i += CONCURRENCY) {
+      const slice = toUpdate.slice(i, i + CONCURRENCY);
+      const results = await Promise.all(
+        slice.map((u) =>
+          supabase.from("customer_profiles").update(u.payload).eq("id", u.id)
+            .then((r) => ({ codigo: u.codigo, error: r.error }))
+        )
+      );
+      for (const r of results) {
+        if (r.error) errors.push({ codigo: r.codigo, erro: r.error.message });
+        else updated++;
+      }
+    }
+
+    // Inserts em lote (rápido — uma única chamada por chunk)
+    const INSERT_CHUNK = 500;
+    for (let i = 0; i < toInsert.length; i += INSERT_CHUNK) {
+      const chunk = toInsert.slice(i, i + INSERT_CHUNK);
+      const { error } = await supabase.from("customer_profiles").insert(chunk);
+      if (error) {
+        // fallback: insere uma a uma para identificar o erro
+        for (const row of chunk) {
+          const { error: e2 } = await supabase.from("customer_profiles").insert(row);
+          if (e2) errors.push({ codigo: String(row.customer_code || ""), erro: e2.message });
+          else created++;
         }
       } else {
-        const { error } = await supabase
-          .from("customer_profiles")
-          .insert({ ...payload, user_id: null });
-        if (error) errors.push({ codigo, erro: error.message });
-        else created++;
+        created += chunk.length;
       }
     }
 
@@ -177,6 +242,7 @@ Deno.serve(async (req) => {
         success: true,
         created,
         updated,
+        skipped,
         deactivated,
         errors: errors.length,
         error_samples: errors.slice(0, 10),
