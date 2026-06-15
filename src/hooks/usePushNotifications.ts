@@ -34,17 +34,37 @@ export function useMySellerId(storeId: string | undefined) {
         .maybeSingle();
       if (!su) return null;
       if ((su as any).seller_id) return (su as any).seller_id as string;
-      // Fallback: match by name
-      const cleanName = (su.name || '').trim().toLowerCase().replace(/televendas/g, '').trim();
-      if (!cleanName) return null;
+
       const { data: sellers } = await supabase
         .from('store_sellers')
-        .select('id, name')
+        .select('id, name, code')
         .eq('store_id', storeId)
         .eq('is_active', true);
-      const match = (sellers || []).find(
-        (s: any) => (s.name || '').trim().toLowerCase().replace(/televendas/g, '').trim() === cleanName,
-      );
+      const list = (sellers || []) as Array<{ id: string; name: string | null; code: string | null }>;
+
+      // 1) Match by seller_codes (most reliable)
+      const codes: string[] = Array.isArray((su as any).seller_codes) ? (su as any).seller_codes : [];
+      const cleanCodes = codes.map((c) => String(c ?? '').trim()).filter(Boolean);
+      if (cleanCodes.length > 0) {
+        const byCode = list.find((s) => cleanCodes.includes(String(s.code ?? '').trim()));
+        if (byCode) return byCode.id;
+      }
+
+      // 2) Fallback by name, normalized (remove "rep", "representante", "televendas", "tv", accents)
+      const norm = (s: string) =>
+        (s || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/\btele\s*vendas\b/g, '')
+          .replace(/\btv\b/g, '')
+          .replace(/\brepresentante\b/g, '')
+          .replace(/\breps?\b/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      const cleanName = norm(su.name || '');
+      if (!cleanName) return null;
+      const match = list.find((s) => norm(s.name || '') === cleanName);
       return match?.id || null;
     },
     enabled: !!storeId && !!user,
