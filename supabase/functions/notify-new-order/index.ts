@@ -91,11 +91,26 @@ Deno.serve(async (req) => {
     }
 
     const totalBR = Number(order.total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const slug = (store?.slug || "").toLowerCase();
+    const orderNumFmt = `#${String(order.order_number).padStart(5, "0")}`;
+    const customerName = (customer.name || "Cliente").toString().trim();
+
+    let title = `🛎️ Novo pedido #${order.order_number} — REVISAR`;
+    let body = `${customerName} · ${totalBR}`;
+    let tag = `order-${order.id}`;
+
+    // Follow Up exclusivo da Dicolore: somente quando o pedido está pendente
+    if (slug === "dicolore" && String(order.status) === "pendente") {
+      title = `Novo pedido ${orderNumFmt} — avaliar`;
+      body = `Olá, o(a) cliente "${customerName}" enviou o pedido ${orderNumFmt} para a sua avaliação.`;
+      tag = `dicolore-followup-${order.id}`;
+    }
+
     const payload = JSON.stringify({
-      title: `🛎️ Novo pedido #${order.order_number} — REVISAR`,
-      body: `${customer.name || "Cliente"} · ${totalBR}`,
+      title,
+      body,
       url: `/${store?.slug || ""}/admin`,
-      tag: `order-${order.id}`,
+      tag,
     });
 
     let sent = 0;
