@@ -311,6 +311,11 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      // Recalcula descontos por grupo na hora, evitando estado defasado do contexto
+      const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
+        computeGroupDiscounts(cart.items, discountRules);
+      const liveTotalDiscount = cart.couponDiscount + liveQtyDiscount;
+      const liveTotal = Math.max(0, cart.subtotal - liveTotalDiscount) + deliveryFee;
       const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
       const observationsFinal = [
         !offersDelivery ? '' : (isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : '')),
@@ -356,12 +361,15 @@ export default function CheckoutPage() {
         },
         items: cart.items.map(item => ({
           ...item,
-          discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || undefined,
+          discountPercent:
+            liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            undefined,
         })),
         subtotal: cart.subtotal,
-        discount: totalDiscount,
+        discount: liveTotalDiscount,
         deliveryFee,
-        total: totalWithDelivery,
+        total: liveTotal,
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
         observations: observationsFinal || undefined,
