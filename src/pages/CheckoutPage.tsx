@@ -263,6 +263,8 @@ export default function CheckoutPage() {
   };
 
   const generateOrderMessage = () => {
+    const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
+      computeGroupDiscounts(cart.items, discountRules);
     return generateWhatsAppMessage({
       storeName: store.name,
       customer: {
@@ -277,10 +279,13 @@ export default function CheckoutPage() {
         price: item.price,
         size: item.size,
         color: item.color,
-        discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || 0,
+        discountPercent:
+          liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+          itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+          0,
       })),
       subtotal: cart.subtotal,
-      discount: cart.couponDiscount,
+      discount: cart.couponDiscount + liveQtyDiscount,
       total: totalWithDelivery,
       paymentMethod: formData.paymentMethod,
       deliveryShift: formData.deliveryShift,
