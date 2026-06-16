@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useCreateOrder } from '@/hooks/useOrders';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
+import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 
 interface CustomerProfile {
   id: string;
@@ -101,7 +102,11 @@ export default function NewOrderDialog({
   // Totals
   const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const deliveryFee = offersDelivery ? (store.settings.deliveryFee || 0) : 0;
-  const total = subtotal + deliveryFee;
+  const { quantityDiscount, itemDiscounts } = useMemo(
+    () => computeGroupDiscounts(orderItems, store.settings.discountRules || []),
+    [orderItems, store.settings.discountRules],
+  );
+  const total = Math.max(0, subtotal - quantityDiscount) + deliveryFee;
 
   const getCustomerInfo = (): CustomerInfo => {
     if (customerMode === 'existing') {
@@ -207,12 +212,17 @@ export default function NewOrderDialog({
 
     setIsSubmitting(true);
     try {
+      const stampedItems = orderItems.map(it => {
+        const key = `${it.productId}-${it.variantId || ''}`;
+        const pct = itemDiscounts[key];
+        return pct ? { ...it, discountPercent: pct } : it;
+      });
       await createOrder.mutateAsync({
         storeId: store.id,
         customer,
-        items: orderItems,
+        items: stampedItems,
         subtotal,
-        discount: 0,
+        discount: quantityDiscount,
         deliveryFee,
         total,
         paymentMethod,
