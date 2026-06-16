@@ -1240,13 +1240,13 @@ export default function StoreAdminPage() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => {
                                   const so = serviceOrders.find(s => s.orderId === order.id);
-                                  printOrder(order, store.name, 'thermal', { extraItems: so?.extraItems });
+                                  printOrder(order, store.name, 'thermal', { extraItems: so?.extraItems, discountRules: store?.settings?.discountRules });
                                 }}>
                                   Impressora Térmica (80mm)
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                   const so = serviceOrders.find(s => s.orderId === order.id);
-                                  printOrder(order, store.name, 'a4', { extraItems: so?.extraItems });
+                                  printOrder(order, store.name, 'a4', { extraItems: so?.extraItems, discountRules: store?.settings?.discountRules });
                                 }}>
                                   Folha A4
                                 </DropdownMenuItem>
