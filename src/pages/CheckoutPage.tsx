@@ -8,6 +8,7 @@ import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustome
 import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
+import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
   generateWhatsAppMessage, openWhatsApp, downloadTxt,
@@ -46,7 +47,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const createOrder = useCreateOrder();
-  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem } = useCart();
+  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
