@@ -1,5 +1,6 @@
-import type { Order, CartItem } from '@/types';
+import type { Order, CartItem, DiscountRule } from '@/types';
 import { isDicoloreFlow } from './dicolorePayments';
+import { ensureItemDiscountPercents } from './groupDiscounts';
 
 const PAYMENT_CODE: Record<string, string> = {
   pix: '1',
@@ -59,6 +60,7 @@ export interface CustomerExtra {
   cpfCnpj?: string;
   sellerCode?: string;
   isTelevendas?: boolean;
+  discountRules?: DiscountRule[];
 }
 
 export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
@@ -78,7 +80,9 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
     || PAYMENT_CODE[order.paymentMethod]
     || '';
 
-  const itensXml = order.items
+  const rules = extra.discountRules ?? s.discountRules;
+  const itemsForExport = ensureItemDiscountPercents(order.items as any, rules);
+  const itensXml = itemsForExport
     .map((item: CartItem) => {
       const discPct = (item as any).discountPercent || 0;
       const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
@@ -136,7 +140,10 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
     extra.isTelevendas ? 'Sim' : 'Nao',
   ].join(';');
 
-  const lines = order.items.map((item) => {
+  const s = store.settings || {};
+  const rules = extra.discountRules ?? s.discountRules;
+  const itemsForExport = ensureItemDiscountPercents(order.items as any, rules);
+  const lines = itemsForExport.map((item) => {
     const discPct = (item as any).discountPercent || 0;
     const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
     return [

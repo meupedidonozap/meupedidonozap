@@ -16,9 +16,10 @@ function categoryOf(productId: string, products: AnyProduct[] | undefined): stri
 
 /**
  * Calcula o limite máximo permitido em itens das categorias "material de apoio".
- * Regra: total_material <= (subtotal_outras) * percent / 100.
- * Verifica se a adição de `extra` (valor monetário) à categoria de apoio ainda
- * respeita a regra.
+ * Regra: total_material <= total_pedido * percent / 100, onde
+ * total_pedido = outras + material (sem descontos).
+ * Verifica se a adição de `extra` (valor monetário) à categoria de apoio
+ * ainda respeita a regra.
  *
  * Se a categoria do produto candidato NÃO é de apoio, sempre permite.
  */
@@ -47,7 +48,8 @@ export function wouldExceedMaterialApoio(
     if (cat && apoioSet.has(cat)) material += v;
     else outras += v;
   }
-  const limit = outras * (config.maxPercent / 100);
   const newMaterial = material + candidateAdditionalValue;
+  const totalPedido = outras + newMaterial;
+  const limit = totalPedido * (config.maxPercent / 100);
   return { exceeds: newMaterial > limit + 0.001, limit, currentMaterial: newMaterial };
 }

@@ -1,58 +1,37 @@
+Diagnóstico do pedido #284:
 
-## Diagnóstico do pedido #283
+- Subtotal salvo: R$ 781,00.
+- Total salvo: R$ 738,84.
+- Desconto salvo: R$ 42,16.
+- Desconto visível nas linhas: apenas R$ 12,55, vindo do grupo FLASH COLOR.
+- O item 10, MP TOALHA DICOLORE PCT3 UNID, está com grupo MATERIAL DE APOIO e categoria MATERIAL DE APOIO, mas foi salvo sem `discountPercent`.
+- Se aplicar 99% no item 10: R$ 29,90 x 99% = R$ 29,60.
+- R$ 12,55 + R$ 29,60 = R$ 42,16, fechando exatamente com o total salvo.
 
-A regra realmente é UMA SÓ (`computeGroupDiscounts` em `src/lib/groupDiscounts.ts`): para cada grupo, escolhe a faixa de qtd. e aplica o % naquele grupo. **Não há duplicação no cálculo**, mas há duplicação na **apresentação**, e foi isso que confundiu.
+Plano de correção:
 
-Recalculando o pedido #283 com as regras atuais salvas em `stores.settings.discountRules`:
+1. Corrigir a apresentação/impressão/exportação
+   - Garantir que pedidos antigos e novos sempre apresentem o desconto correto por linha.
+   - Se o pedido já tem `order.discount` salvo, mas algum item não tem `discountPercent`, recalcular/derivar a apresentação com base nas regras atuais da loja antes de imprimir/exportar.
+   - Assim a soma das linhas com desconto vai bater com: subtotal sem desconto - desconto = total.
 
-| Grupo | Qtd | % regra | Desc. R$ |
-|---|---|---|---|
-| OXIDANTES (OX 20+30) | 6 | 20% | 54,00 |
-| SCULPT PENTEADOS | 7 | 5% | 25,55 |
-| COLORAÇÃO | 15 | 10% | 32,85 |
-| **LAVATORIO (LITRO)** | 3 | **5%** | **14,30** |
-| **MATERIAL DE APOIO** | 3 | **99% (bonificação)** | **45,24** |
-| TONALIZANTES | 2 | — | 0 |
-| **Total** | | | **171,94** ✓ |
+2. Corrigir o pedido #284 no banco
+   - Atualizar somente o JSON dos itens do pedido #284 para gravar `discountPercent: 99` no item do grupo MATERIAL DE APOIO.
+   - O subtotal, desconto e total já estão corretos; não precisam mudar.
 
-Bate exatamente com o `discount = 171,94` salvo. Ou seja, **não soma duas vezes** — o que falta é o sistema ter **estampado o `discountPercent` em todos os itens** (faltou em LAVATORIO e MATERIAL DE APOIO no JSON salvo do #283). Por isso, somando só os % visíveis no PDF dá 110,21 e parece "sobrar" 61,73 sem explicação.
+3. Fortalecer a criação/edição de pedidos
+   - Garantir que o checkout, novo pedido manual e edição de pedido gravem os itens já com `discountPercent` correto.
+   - Hoje o checkout foi ajustado, mas o fluxo administrativo/manual também precisa aplicar a mesma regra para não gerar novos pedidos com desconto total correto e linhas incompletas.
 
-### Por que algumas linhas ficaram sem `discountPercent`
-Provável **race condition**: `itemDiscounts` é recalculado num `useEffect` do `CartContext`. Se o usuário clicar "Enviar" logo após mexer no carrinho, o `handleSendWhatsApp` lê um `itemDiscounts` ainda desatualizado. O `cart.quantityDiscount` também é atualizado nesse effect, mas como ele é usado direto da regra (`computeGroupDiscounts` roda sempre), o total fica certo enquanto as marcações por linha podem ficar incompletas.
+4. Validar a regra de Material de Apoio
+   - A configuração atual está ativa: `enabled: true`, `maxPercent: 4`, categoria MATERIAL DE APOIO configurada.
+   - Ajustar a validação para a regra literal: permitir Material de Apoio somente se o valor total desses itens for até 4% do total bruto do pedido, antes dos descontos.
+   - Aplicar a mesma validação no catálogo, novo pedido manual e edição de pedido.
 
-## Plano de correção
-
-Foco em **garantir paridade entre o que aparece linha-a-linha e o total**, sem mexer no cálculo (que está correto).
-
-### 1. `src/pages/CheckoutPage.tsx` — calcular na hora
-No `handleSendWhatsApp` e `generateOrderMessage`, em vez de ler `itemDiscounts` do contexto, chamar `computeGroupDiscounts(cart.items, discountRules)` na hora e usar o resultado retornado para:
-- estampar `discountPercent` em cada item enviado ao `createOrder`
-- somar `discount = couponDiscount + quantityDiscount` (mesmo número usado hoje)
-
-Isso elimina o risco de estado defasado.
-
-### 2. `src/lib/printOrder.ts` (e telas de visualização)
-Adicionar logo acima do TOTAL uma linha explícita:
-
-```
-Subtotal ............... R$ 1.476,20
-Desconto por quantidade  -R$   171,94
-TOTAL ................. R$ 1.304,26
-```
-
-Assim, mesmo que o leitor faça a conta linha-a-linha, vê de onde vem cada centavo. A coluna "Preço unit." continua exibindo o `discountPercent` por item (informativo), mas a verdade do total fica explícita.
-
-### 3. Validação visual no Checkout
-No bloco de resumo já existe `cart.quantityDiscount`. Garantir que ele seja sempre mostrado quando > 0 (já está em `CheckoutPage.tsx:679` e `ProductStorePage.tsx:371`). Sem mudança funcional, só revisão.
-
-### 4. Pedido #283 (opcional)
-O pedido já existe com `discount = 171,94` correto, só faltam as marcações de % em 5 linhas. Posso rodar um update no `items` JSONB do #283 reestampando `discountPercent` pelos grupos, para o PDF re-emitido bater linha-a-linha. Confirme se quer.
-
-## Arquivos a alterar
-- `src/pages/CheckoutPage.tsx` — recálculo síncrono em `handleSendWhatsApp` e `generateOrderMessage`
-- `src/lib/printOrder.ts` — linha "Desconto por quantidade" antes do TOTAL
-
-## O que NÃO muda
-- `src/lib/groupDiscounts.ts` (cálculo está certo)
-- `src/contexts/CartContext.tsx` (lógica de uma única regra por grupo permanece)
-- Regras em `stores.settings.discountRules`
+5. Resultado esperado
+   - Pedido #284 passa a mostrar:
+     - Subtotal: R$ 781,00
+     - Desconto: R$ 42,16
+     - Total: R$ 738,84
+   - A linha 10 aparece com 99% de desconto e total aproximado de R$ 0,30.
+   - A regra de 4% de Material de Apoio continua bloqueando excesso antes de fechar/adicionar o item.

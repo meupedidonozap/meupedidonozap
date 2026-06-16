@@ -36,3 +36,24 @@ export function computeGroupDiscounts(
 
   return { quantityDiscount: totalDiscount, itemDiscounts };
 }
+
+/**
+ * Retorna uma cópia dos itens com `discountPercent` preenchido a partir das
+ * regras de grupo, quando o item ainda não tem um percentual gravado.
+ * Útil na impressão/exportação de pedidos antigos cujos itens foram salvos
+ * sem o campo `discountPercent` em todas as linhas.
+ */
+export function ensureItemDiscountPercents<T extends CartItem & { discountPercent?: number }>(
+  items: T[],
+  rules: DiscountRule[] | undefined,
+): T[] {
+  if (!rules || rules.length === 0) return items;
+  const { itemDiscounts } = computeGroupDiscounts(items, rules);
+  return items.map(it => {
+    if (it.discountPercent && it.discountPercent > 0) return it;
+    const key = `${it.productId}-${it.variantId || ''}`;
+    const pct = itemDiscounts[key];
+    if (!pct) return it;
+    return { ...it, discountPercent: pct };
+  });
+}
