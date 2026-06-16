@@ -8,6 +8,7 @@ import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustome
 import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
+import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
   generateWhatsAppMessage, openWhatsApp, downloadTxt,
@@ -46,7 +47,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const createOrder = useCreateOrder();
-  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem } = useCart();
+  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
@@ -262,6 +263,8 @@ export default function CheckoutPage() {
   };
 
   const generateOrderMessage = () => {
+    const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
+      computeGroupDiscounts(cart.items, discountRules);
     return generateWhatsAppMessage({
       storeName: store.name,
       customer: {
@@ -276,10 +279,13 @@ export default function CheckoutPage() {
         price: item.price,
         size: item.size,
         color: item.color,
-        discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || 0,
+        discountPercent:
+          liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+          itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+          0,
       })),
       subtotal: cart.subtotal,
-      discount: cart.couponDiscount,
+      discount: cart.couponDiscount + liveQtyDiscount,
       total: totalWithDelivery,
       paymentMethod: formData.paymentMethod,
       deliveryShift: formData.deliveryShift,
@@ -305,6 +311,11 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      // Recalcula descontos por grupo na hora, evitando estado defasado do contexto
+      const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
+        computeGroupDiscounts(cart.items, discountRules);
+      const liveTotalDiscount = cart.couponDiscount + liveQtyDiscount;
+      const liveTotal = Math.max(0, cart.subtotal - liveTotalDiscount) + deliveryFee;
       const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
       const observationsFinal = [
         !offersDelivery ? '' : (isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : '')),
@@ -350,12 +361,15 @@ export default function CheckoutPage() {
         },
         items: cart.items.map(item => ({
           ...item,
-          discountPercent: itemDiscounts[`${item.productId}-${item.variantId || ''}`] || undefined,
+          discountPercent:
+            liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            undefined,
         })),
         subtotal: cart.subtotal,
-        discount: totalDiscount,
+        discount: liveTotalDiscount,
         deliveryFee,
-        total: totalWithDelivery,
+        total: liveTotal,
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
         observations: observationsFinal || undefined,
