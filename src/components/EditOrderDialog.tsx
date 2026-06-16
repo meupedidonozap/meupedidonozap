@@ -134,7 +134,12 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
     if (items.length === 0) { toast.error('O pedido precisa ter pelo menos um item'); return; }
     setSaving(true);
     try {
-      const updates: any = { id: order.id, items, subtotal, total, discount };
+      const stampedItems = items.map(it => {
+        const key = `${it.productId}-${it.variantId || ''}`;
+        const pct = itemDiscounts[key];
+        return pct ? { ...it, discountPercent: pct } : { ...it, discountPercent: undefined };
+      });
+      const updates: any = { id: order.id, items: stampedItems, subtotal, total, discount };
       if (dicolore) {
         const f = formas.find(x => x.codigo === formaCodigo);
         const c = condicoes.find(x => x.codigo === condicaoCodigo);
