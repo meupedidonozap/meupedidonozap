@@ -127,39 +127,22 @@ export function useEnablePush(storeId: string | undefined, sellerId: string | nu
       const auth = (json.keys as any)?.auth;
       if (!p256dh || !auth) throw new Error('Falha ao obter chaves da inscrição.');
 
-      // Upsert by endpoint
-      const { data: existing } = await supabase
-        .from('push_subscriptions')
-        .select('id')
-        .eq('endpoint', endpoint)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase
-          .from('push_subscriptions')
-          .update({
-            store_id: storeId,
-            seller_id: sellerId,
-            user_id: user.id,
-            p256dh,
-            auth,
-            user_agent: navigator.userAgent,
-            is_active: true,
-            last_used_at: new Date().toISOString(),
-          })
-          .eq('id', (existing as any).id);
-      } else {
-        const { error } = await supabase.from('push_subscriptions').insert({
-          store_id: storeId,
-          seller_id: sellerId,
-          user_id: user.id,
-          endpoint,
-          p256dh,
-          auth,
-          user_agent: navigator.userAgent,
-          is_active: true,
-        });
-        if (error) throw error;
+      // Upsert seguro via RPC (resolve casos em que o mesmo aparelho já tinha
+      // uma inscrição cadastrada por outro usuário e a RLS escondia a linha).
+      const { error: rpcError } = await supabase.rpc('upsert_push_subscription', {
+        p_store_id: storeId,
+        p_seller_id: sellerId,
+        p_endpoint: endpoint,
+        p_p256dh: p256dh,
+        p_auth: auth,
+        p_user_agent: navigator.userAgent,
+      });
+      if (rpcError) {
+        const msg = (rpcError.message || '').toLowerCase();
+        if (msg.includes('duplicate') || msg.includes('unique')) {
+          throw new Error('Este aparelho já tinha uma inscrição. Tente desativar e ativar novamente.');
+        }
+        throw new Error('Não foi possível ativar as notificações neste aparelho. Tente novamente.');
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['my-push-sub'] }),

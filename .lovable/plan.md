@@ -1,37 +1,39 @@
-Diagnóstico do pedido #284:
+## Diagnóstico
 
-- Subtotal salvo: R$ 781,00.
-- Total salvo: R$ 738,84.
-- Desconto salvo: R$ 42,16.
-- Desconto visível nas linhas: apenas R$ 12,55, vindo do grupo FLASH COLOR.
-- O item 10, MP TOALHA DICOLORE PCT3 UNID, está com grupo MATERIAL DE APOIO e categoria MATERIAL DE APOIO, mas foi salvo sem `discountPercent`.
-- Se aplicar 99% no item 10: R$ 29,90 x 99% = R$ 29,60.
-- R$ 12,55 + R$ 29,60 = R$ 42,16, fechando exatamente com o total salvo.
+- O erro de duplicidade no iPhone vem do cadastro de `push_subscriptions`: hoje o sistema procura uma inscrição existente só por `endpoint`, mas a política de acesso não permite enxergar/atualizar inscrição de outro usuário/aparelho em alguns cenários. Isso gera erro de chave única no `endpoint`.
+- A notificação do Android do Ronaldo não chegou porque a função de envio está falhando com: `VAPID_PRIVATE_KEY not configured`.
+- A regra de destinatário está correta para o pedido recente: cliente com `seller_code = 21` resolve para `Ronaldo` e `Televendas Grazi`.
+- Hoje existe 1 aparelho ativo para Ronaldo, mas o comportamento desejado é: todos os aparelhos logados no mesmo usuário/vendedor e com notificação ativada devem receber.
 
-Plano de correção:
+## Plano de correção
 
-1. Corrigir a apresentação/impressão/exportação
-   - Garantir que pedidos antigos e novos sempre apresentem o desconto correto por linha.
-   - Se o pedido já tem `order.discount` salvo, mas algum item não tem `discountPercent`, recalcular/derivar a apresentação com base nas regras atuais da loja antes de imprimir/exportar.
-   - Assim a soma das linhas com desconto vai bater com: subtotal sem desconto - desconto = total.
+1. **Configurar o envio push no backend**
+   - Adicionar/configurar o segredo `VAPID_PRIVATE_KEY` correspondente à chave pública já usada no app.
+   - Manter a função `notify-new-order` usando essa chave para assinar e entregar as notificações.
 
-2. Corrigir o pedido #284 no banco
-   - Atualizar somente o JSON dos itens do pedido #284 para gravar `discountPercent: 99` no item do grupo MATERIAL DE APOIO.
-   - O subtotal, desconto e total já estão corretos; não precisam mudar.
+2. **Corrigir cadastro por múltiplos aparelhos**
+   - Ajustar a ativação de push para permitir vários aparelhos por usuário/vendedor.
+   - Resolver duplicidade de `endpoint` fazendo upsert robusto: se o mesmo navegador/aparelho já existir, reativa e atualiza; se for outro aparelho, cria nova inscrição.
+   - Garantir que o cadastro sempre grave `store_id`, `seller_id`, `user_id`, `endpoint`, `p256dh`, `auth`, `user_agent` e `is_active = true`.
 
-3. Fortalecer a criação/edição de pedidos
-   - Garantir que o checkout, novo pedido manual e edição de pedido gravem os itens já com `discountPercent` correto.
-   - Hoje o checkout foi ajustado, mas o fluxo administrativo/manual também precisa aplicar a mesma regra para não gerar novos pedidos com desconto total correto e linhas incompletas.
+3. **Ajustar regra de leitura/atualização da inscrição**
+   - Criar uma função/política segura no banco para permitir que o próprio usuário reative/atualize sua inscrição sem esbarrar no erro de duplicidade.
+   - Preservar RLS: usuário comum só gerencia as próprias inscrições; serviço backend continua podendo enviar para todos os vendedores vinculados.
 
-4. Validar a regra de Material de Apoio
-   - A configuração atual está ativa: `enabled: true`, `maxPercent: 4`, categoria MATERIAL DE APOIO configurada.
-   - Ajustar a validação para a regra literal: permitir Material de Apoio somente se o valor total desses itens for até 4% do total bruto do pedido, antes dos descontos.
-   - Aplicar a mesma validação no catálogo, novo pedido manual e edição de pedido.
+4. **Garantir envio para todos os aparelhos ativos**
+   - Conferir a função `notify-new-order` para buscar todas as inscrições ativas dos destinatários (`seller_id IN (...)`) e enviar para cada uma.
+   - Não limitar por usuário nem por um único aparelho.
+   - Manter desativação automática de inscrições mortas quando o navegador retorna 404/410.
 
-5. Resultado esperado
-   - Pedido #284 passa a mostrar:
-     - Subtotal: R$ 781,00
-     - Desconto: R$ 42,16
-     - Total: R$ 738,84
-   - A linha 10 aparece com 99% de desconto e total aproximado de R$ 0,30.
-   - A regra de 4% de Material de Apoio continua bloqueando excesso antes de fechar/adicionar o item.
+5. **Melhorar mensagem de erro na tela**
+   - Trocar o erro técnico de duplicidade por uma mensagem amigável como: “Este aparelho já tinha uma inscrição; tente novamente ou desative/ative as notificações.”
+   - Quando possível, tentar corrigir automaticamente reativando a inscrição.
+
+6. **Validar com dados da Dicolore**
+   - Confirmar que Ronaldo continua vinculado ao vendedor código `21`.
+   - Confirmar que pedidos novos de clientes com `seller_code = 21` disparam para Ronaldo e para televendas vinculados.
+   - Após a chave VAPID estar configurada, testar/confirmar que a função não retorna mais erro 500.
+
+## Observação importante
+
+Para finalizar 100%, preciso que a chave privada VAPID seja cadastrada como segredo do backend. Se ela não existir/não for conhecida, será necessário gerar um novo par VAPID e atualizar tanto a chave pública no app quanto a privada no backend.
