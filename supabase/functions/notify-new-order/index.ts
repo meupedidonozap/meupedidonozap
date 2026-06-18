@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const VAPID_PUBLIC = "BPRHLL7rrtzve-_u32OLNOU7DuGYkFi7KTmDJGR_fpm2itHoZT4JrplJVUF2-MG4f6kILiNX2mTtNVmWFrpGsy0";
+const VAPID_PUBLIC = "BJ6oIN09KH0dVoehG1bB8w1ebT4B6vWQ2AeAEpdfv8sEWkhu3vhTOMHebadvnRujYhAF7pWKgZSZOtyaozsU3jk";
 
 function digits(s: string | undefined | null): string {
   return String(s ?? "").replace(/\D/g, "");
