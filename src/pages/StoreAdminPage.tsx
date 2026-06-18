@@ -2451,12 +2451,21 @@ export default function StoreAdminPage() {
                 const pending = pendingErpRelease;
                 if (!pending) return;
                 setPendingErpRelease(null);
+                // IMPORTANTE: abrir o WhatsApp SINCRONICAMENTE, antes de qualquer await.
+                // No iOS (Safari/PWA) o gesto do usuário se perde após um await e o
+                // window.open é bloqueado silenciosamente. Por isso disparamos a janela
+                // primeiro e só depois atualizamos o status do pedido.
+                const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
+                const waUrl = `https://wa.me/5547992491139?text=${encodeURIComponent(text)}`;
+                const waWin = window.open(waUrl, '_blank');
+                if (!waWin) {
+                  // Fallback (PWA standalone): navega na própria janela
+                  window.location.href = waUrl;
+                }
                 setUpdatingStatusId(pending.orderId);
                 try {
                   await updateOrderStatus.mutateAsync({ id: pending.orderId, status: 'liberado_transmissao' });
                   toast.success('Status atualizado!');
-                  const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
-                  window.open(`https://wa.me/5547992491139?text=${encodeURIComponent(text)}`, '_blank');
                 } catch (err: any) {
                   toast.error(err?.message || 'Erro ao atualizar status');
                 } finally {
