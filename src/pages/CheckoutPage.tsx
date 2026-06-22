@@ -47,6 +47,7 @@ export default function CheckoutPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
+  useDataVersionSync(slug, store?.id);
   const createOrder = useCreateOrder();
   const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
