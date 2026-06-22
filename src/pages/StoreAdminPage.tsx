@@ -2407,6 +2407,7 @@ export default function StoreAdminPage() {
                 cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
                 sellerCode: cp?.sellerCode || '',
                 isTelevendas: downloadTelevendas,
+                transportadora: cp?.transportadora || '',
               });
               setDownloadOrder(null);
             }} className="gap-2">
