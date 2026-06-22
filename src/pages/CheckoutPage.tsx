@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
+import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
@@ -46,6 +47,7 @@ export default function CheckoutPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
+  useDataVersionSync(slug, store?.id);
   const createOrder = useCreateOrder();
   const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
@@ -311,6 +313,18 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      // Bloqueia a finalização se o catálogo/preços foram atualizados pela loja
+      // enquanto o cliente estava com o navegador aberto.
+      if (slug && store?.id) {
+        const wasStale = await ensureLatestDataVersion(slug, store.id);
+        if (wasStale) {
+          toast.error('Os preços foram atualizados pela loja. Revise seu pedido antes de finalizar.');
+          setIsSubmitting(false);
+          // Força recarregar a página para puxar preços novos do catálogo
+          setTimeout(() => window.location.reload(), 1200);
+          return;
+        }
+      }
       // Recalcula descontos por grupo na hora, evitando estado defasado do contexto
       const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
         computeGroupDiscounts(cart.items, discountRules);
