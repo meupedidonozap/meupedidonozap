@@ -61,6 +61,7 @@ export interface CustomerExtra {
   sellerCode?: string;
   isTelevendas?: boolean;
   discountRules?: DiscountRule[];
+  transportadora?: string;
 }
 
 export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
@@ -79,6 +80,8 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const formaCodigo = (order.customer as any)?.paymentFormaCodigo
     || PAYMENT_CODE[order.paymentMethod]
     || '';
+  const condicaoCodigo = (order.customer as any)?.paymentCondicaoCodigo || '';
+  const transportadora = extra.transportadora || '';
 
   const rules = extra.discountRules ?? s.discountRules;
   const itemsForExport = ensureItemDiscountPercents(order.items as any, rules);
@@ -118,6 +121,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <codigoRepresentante>${escapeXml(sellerCode)}</codigoRepresentante>
   <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
+${isDicolore ? `  <tipovenda>${escapeXml(condicaoCodigo)}</tipovenda>\n  <transportadora>${escapeXml(transportadora)}</transportadora>\n` : ''}\
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
   <tabelaPrecos>${escapeXml(s.tabelaPrecos || (isDicolore ? '4' : ''))}</tabelaPrecos>
   <colunaTabelaPrecos>${isDicolore ? 3 : 2}</colunaTabelaPrecos>
