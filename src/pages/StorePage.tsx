@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useTrackVisit } from '@/hooks/useStoreVisits';
+import { useDataVersionSync } from '@/hooks/useDataVersionSync';
 import ProductStorePage from './ProductStorePage';
 import FoodStorePage from './FoodStorePage';
 import PizzaStorePage from './PizzaStorePage';
@@ -15,6 +16,10 @@ export default function StorePage() {
 
   // Track visit once per session
   useTrackVisit(store?.id);
+
+  // Sincroniza versão dos dados (preços/catálogo). Quando o admin
+  // marcar nova versão, todos os clientes recarregam sem perder o carrinho.
+  useDataVersionSync(slug, store?.id);
 
   if (isLoading) {
     return (
