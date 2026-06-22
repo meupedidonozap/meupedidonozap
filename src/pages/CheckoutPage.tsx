@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
+import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
