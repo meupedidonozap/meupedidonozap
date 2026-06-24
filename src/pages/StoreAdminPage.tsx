@@ -243,6 +243,7 @@ export default function StoreAdminPage() {
   }, [isAdmin]);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryCommission, setEditingCategoryCommission] = useState<string>('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
@@ -251,6 +252,7 @@ export default function StoreAdminPage() {
   const [syncingCustomers, setSyncingCustomers] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryCommission, setNewCategoryCommission] = useState<string>('');
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [soDialogOpen, setSODialogOpen] = useState(false);
   const selectedSO = useMemo(() => selectedSOId ? serviceOrders.find(s => s.id === selectedSOId) || null : null, [selectedSOId, serviceOrders]);
