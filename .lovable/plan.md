@@ -1,39 +1,38 @@
-## Diagnóstico
+## Mudanças no XML da DICOLORE
 
-- O erro de duplicidade no iPhone vem do cadastro de `push_subscriptions`: hoje o sistema procura uma inscrição existente só por `endpoint`, mas a política de acesso não permite enxergar/atualizar inscrição de outro usuário/aparelho em alguns cenários. Isso gera erro de chave única no `endpoint`.
-- A notificação do Android do Ronaldo não chegou porque a função de envio está falhando com: `VAPID_PRIVATE_KEY not configured`.
-- A regra de destinatário está correta para o pedido recente: cliente com `seller_code = 21` resolve para `Ronaldo` e `Televendas Grazi`.
-- Hoje existe 1 aparelho ativo para Ronaldo, mas o comportamento desejado é: todos os aparelhos logados no mesmo usuário/vendedor e com notificação ativada devem receber.
+Apenas para a loja `dicolore`, três ajustes no `src/lib/exportOrder.ts` e um novo campo de cadastro.
 
-## Plano de correção
+### 1. Tag `<pedidoTelevendas>` — S/N
 
-1. **Configurar o envio push no backend**
-   - Adicionar/configurar o segredo `VAPID_PRIVATE_KEY` correspondente à chave pública já usada no app.
-   - Manter a função `notify-new-order` usando essa chave para assinar e entregar as notificações.
+Hoje envia `Sim` / `Nao`. Passa a enviar `S` / `N` apenas no fluxo Dicolore (demais lojas mantêm o texto atual, para não quebrar nada).
 
-2. **Corrigir cadastro por múltiplos aparelhos**
-   - Ajustar a ativação de push para permitir vários aparelhos por usuário/vendedor.
-   - Resolver duplicidade de `endpoint` fazendo upsert robusto: se o mesmo navegador/aparelho já existir, reativa e atualiza; se for outro aparelho, cria nova inscrição.
-   - Garantir que o cadastro sempre grave `store_id`, `seller_id`, `user_id`, `endpoint`, `p256dh`, `auth`, `user_agent` e `is_active = true`.
+### 2. Tag `<perCom>` por item
 
-3. **Ajustar regra de leitura/atualização da inscrição**
-   - Criar uma função/política segura no banco para permitir que o próprio usuário reative/atualize sua inscrição sem esbarrar no erro de duplicidade.
-   - Preservar RLS: usuário comum só gerencia as próprias inscrições; serviço backend continua podendo enviar para todos os vendedores vinculados.
+Dentro de `<itensPedido>`, logo abaixo de `<valorTotal>`, incluir:
 
-4. **Garantir envio para todos os aparelhos ativos**
-   - Conferir a função `notify-new-order` para buscar todas as inscrições ativas dos destinatários (`seller_id IN (...)`) e enviar para cada uma.
-   - Não limitar por usuário nem por um único aparelho.
-   - Manter desativação automática de inscrições mortas quando o navegador retorna 404/410.
+```
+<perCom>1.00</perCom>
+```
 
-5. **Melhorar mensagem de erro na tela**
-   - Trocar o erro técnico de duplicidade por uma mensagem amigável como: “Este aparelho já tinha uma inscrição; tente novamente ou desative/ative as notificações.”
-   - Quando possível, tentar corrigir automaticamente reativando a inscrição.
+Formato com 2 casas decimais. Valor obtido a partir da **categoria** do produto:
+- usa o `commissionPercent` cadastrado na categoria à qual o produto pertence;
+- se a categoria não tiver percentual cadastrado, envia `0.00`.
 
-6. **Validar com dados da Dicolore**
-   - Confirmar que Ronaldo continua vinculado ao vendedor código `21`.
-   - Confirmar que pedidos novos de clientes com `seller_code = 21` disparam para Ronaldo e para televendas vinculados.
-   - Após a chave VAPID estar configurada, testar/confirmar que a função não retorna mais erro 500.
+### 3. Campo "Comissão %" no cadastro de Categorias
 
-## Observação importante
+- Adicionar coluna `commission_percent NUMERIC(5,2) DEFAULT 0` na tabela `categories` (migração).
+- Atualizar `useCategories` para ler/gravar o campo.
+- Adicionar input "Comissão (%)" no diálogo de cadastro/edição de categorias dentro do painel admin da loja (`StoreAdminPage` → aba Categorias). Mostrar apenas quando `isDicoloreFlow(store)` for verdadeiro, para não poluir a UI das outras lojas.
 
-Para finalizar 100%, preciso que a chave privada VAPID seja cadastrada como segredo do backend. Se ela não existir/não for conhecida, será necessário gerar um novo par VAPID e atualizar tanto a chave pública no app quanto a privada no backend.
+### Arquivos afetados
+
+- migração SQL: adiciona `commission_percent` em `categories`.
+- `src/types/index.ts`: campo opcional `commissionPercent` em `Category`.
+- `src/hooks/useCategories.ts`: mapear e persistir o novo campo.
+- `src/lib/exportOrder.ts`:
+  - `pedidoTelevendas` vira `S`/`N` quando Dicolore;
+  - assinatura de `exportOrderXml` / `downloadOrderFile` recebe um mapa `categoryCommission: Record<categoryId, number>`;
+  - novo `<perCom>` impresso após `<valorTotal>`.
+- `src/pages/StoreAdminPage.tsx`: ao chamar `downloadOrderFile`, montar o mapa a partir das categorias carregadas e passar adiante; adicionar o campo no formulário de categoria (apenas Dicolore).
+
+Sem mudanças em outras lojas, carrinho, preços ou pedidos já gravados.

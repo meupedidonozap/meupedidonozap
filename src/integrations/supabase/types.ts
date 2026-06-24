@@ -16,18 +16,21 @@ export type Database = {
     Tables: {
       categories: {
         Row: {
+          commission_percent: number
           id: string
           name: string
           sort_order: number
           store_id: string
         }
         Insert: {
+          commission_percent?: number
           id?: string
           name: string
           sort_order?: number
           store_id: string
         }
         Update: {
+          commission_percent?: number
           id?: string
           name?: string
           sort_order?: number
