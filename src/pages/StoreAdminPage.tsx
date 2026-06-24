@@ -985,6 +985,15 @@ export default function StoreAdminPage() {
               <h3 className="text-lg font-semibold">Categorias</h3>
               <div className="flex gap-2">
                 <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Nome da categoria" className="w-48" />
+                {store.slug === 'dicolore' && (
+                  <Input
+                    value={newCategoryCommission}
+                    onChange={e => setNewCategoryCommission(e.target.value)}
+                    placeholder="Comissão %"
+                    inputMode="decimal"
+                    className="w-28"
+                  />
+                )}
                 <Button className="gap-2" onClick={handleAddCategory}><Plus className="h-4 w-4" /> Adicionar</Button>
               </div>
             </div>
@@ -1001,6 +1010,15 @@ export default function StoreAdminPage() {
                           onKeyDown={e => e.key === 'Enter' && handleSaveCategory()}
                           autoFocus
                         />
+                        {store.slug === 'dicolore' && (
+                          <Input
+                            value={editingCategoryCommission}
+                            onChange={e => setEditingCategoryCommission(e.target.value)}
+                            placeholder="Comissão %"
+                            inputMode="decimal"
+                            className="w-24"
+                          />
+                        )}
                         <Button size="sm" onClick={handleSaveCategory}>Salvar</Button>
                         <Button size="sm" variant="ghost" onClick={() => setEditingCategoryId(null)}>Cancelar</Button>
                       </div>
@@ -1010,6 +1028,9 @@ export default function StoreAdminPage() {
                           <p className="font-medium">{category.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {products.filter(p => p.categoryId === category.id).length} produtos
+                            {store.slug === 'dicolore' && (
+                              <> · Comissão: {(category.commissionPercent || 0).toFixed(2)}%</>
+                            )}
                           </p>
                         </div>
                         <div className="flex gap-1">
