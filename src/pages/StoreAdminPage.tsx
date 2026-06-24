@@ -2408,6 +2408,12 @@ export default function StoreAdminPage() {
                 sellerCode: cp?.sellerCode || '',
                 isTelevendas: downloadTelevendas,
                 transportadora: cp?.transportadora || '',
+                productCommission: Object.fromEntries(
+                  products.map(p => {
+                    const cat = categories.find(c => c.id === p.categoryId);
+                    return [p.id, Number(cat?.commissionPercent) || 0];
+                  })
+                ),
               });
               setDownloadOrder(null);
             }} className="gap-2">
