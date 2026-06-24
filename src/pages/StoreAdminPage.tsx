@@ -243,6 +243,7 @@ export default function StoreAdminPage() {
   }, [isAdmin]);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryCommission, setEditingCategoryCommission] = useState<string>('');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
@@ -251,6 +252,7 @@ export default function StoreAdminPage() {
   const [syncingCustomers, setSyncingCustomers] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryCommission, setNewCategoryCommission] = useState<string>('');
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [soDialogOpen, setSODialogOpen] = useState(false);
   const selectedSO = useMemo(() => selectedSOId ? serviceOrders.find(s => s.id === selectedSOId) || null : null, [selectedSOId, serviceOrders]);
@@ -506,8 +508,13 @@ export default function StoreAdminPage() {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    await createCategory.mutateAsync({ storeId: store.id, name: newCategoryName });
+    await createCategory.mutateAsync({
+      storeId: store.id,
+      name: newCategoryName,
+      commissionPercent: store.slug === 'dicolore' ? Number(newCategoryCommission.replace(',', '.')) || 0 : undefined,
+    });
     setNewCategoryName('');
+    setNewCategoryCommission('');
     toast.success('Categoria criada!');
   };
 
@@ -521,13 +528,20 @@ export default function StoreAdminPage() {
   const handleEditCategory = (id: string, name: string) => {
     setEditingCategoryId(id);
     setEditingCategoryName(name);
+    const cat = categories.find(c => c.id === id);
+    setEditingCategoryCommission(cat?.commissionPercent ? String(cat.commissionPercent) : '');
   };
 
   const handleSaveCategory = async () => {
     if (!editingCategoryId || !editingCategoryName.trim()) return;
-    await updateCategory.mutateAsync({ id: editingCategoryId, name: editingCategoryName.trim() });
+    await updateCategory.mutateAsync({
+      id: editingCategoryId,
+      name: editingCategoryName.trim(),
+      commissionPercent: store.slug === 'dicolore' ? Number(editingCategoryCommission.replace(',', '.')) || 0 : undefined,
+    });
     setEditingCategoryId(null);
     setEditingCategoryName('');
+    setEditingCategoryCommission('');
     toast.success('Categoria atualizada!');
   };
 
@@ -971,6 +985,15 @@ export default function StoreAdminPage() {
               <h3 className="text-lg font-semibold">Categorias</h3>
               <div className="flex gap-2">
                 <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Nome da categoria" className="w-48" />
+                {store.slug === 'dicolore' && (
+                  <Input
+                    value={newCategoryCommission}
+                    onChange={e => setNewCategoryCommission(e.target.value)}
+                    placeholder="Comissão %"
+                    inputMode="decimal"
+                    className="w-28"
+                  />
+                )}
                 <Button className="gap-2" onClick={handleAddCategory}><Plus className="h-4 w-4" /> Adicionar</Button>
               </div>
             </div>
@@ -987,6 +1010,15 @@ export default function StoreAdminPage() {
                           onKeyDown={e => e.key === 'Enter' && handleSaveCategory()}
                           autoFocus
                         />
+                        {store.slug === 'dicolore' && (
+                          <Input
+                            value={editingCategoryCommission}
+                            onChange={e => setEditingCategoryCommission(e.target.value)}
+                            placeholder="Comissão %"
+                            inputMode="decimal"
+                            className="w-24"
+                          />
+                        )}
                         <Button size="sm" onClick={handleSaveCategory}>Salvar</Button>
                         <Button size="sm" variant="ghost" onClick={() => setEditingCategoryId(null)}>Cancelar</Button>
                       </div>
@@ -996,6 +1028,9 @@ export default function StoreAdminPage() {
                           <p className="font-medium">{category.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {products.filter(p => p.categoryId === category.id).length} produtos
+                            {store.slug === 'dicolore' && (
+                              <> · Comissão: {(category.commissionPercent || 0).toFixed(2)}%</>
+                            )}
                           </p>
                         </div>
                         <div className="flex gap-1">
@@ -2408,6 +2443,12 @@ export default function StoreAdminPage() {
                 sellerCode: cp?.sellerCode || '',
                 isTelevendas: downloadTelevendas,
                 transportadora: cp?.transportadora || '',
+                productCommission: Object.fromEntries(
+                  products.map(p => {
+                    const cat = categories.find(c => c.id === p.categoryId);
+                    return [p.id, Number(cat?.commissionPercent) || 0];
+                  })
+                ),
               });
               setDownloadOrder(null);
             }} className="gap-2">

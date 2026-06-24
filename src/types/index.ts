@@ -215,6 +215,7 @@ export interface Category {
   storeId: string;
   name: string;
   order: number;
+  commissionPercent?: number;
 }
 
 export interface Group {
