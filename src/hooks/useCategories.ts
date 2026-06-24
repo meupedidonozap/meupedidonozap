@@ -8,6 +8,7 @@ function mapCategory(row: any): Category {
     storeId: row.store_id,
     name: row.name,
     order: row.sort_order,
+    commissionPercent: row.commission_percent != null ? Number(row.commission_percent) : 0,
   };
 }
 
@@ -31,11 +32,12 @@ export function useCategories(storeId: string | undefined) {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (cat: { storeId: string; name: string; order?: number }) => {
+    mutationFn: async (cat: { storeId: string; name: string; order?: number; commissionPercent?: number }) => {
       const { error } = await supabase.from('categories').insert({
         store_id: cat.storeId,
         name: cat.name,
         sort_order: cat.order || 0,
+        commission_percent: cat.commissionPercent ?? 0,
       });
       if (error) throw error;
     },
@@ -46,10 +48,11 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, name, order }: { id: string; name?: string; order?: number }) => {
+    mutationFn: async ({ id, name, order, commissionPercent }: { id: string; name?: string; order?: number; commissionPercent?: number }) => {
       const updates: any = {};
       if (name !== undefined) updates.name = name;
       if (order !== undefined) updates.sort_order = order;
+      if (commissionPercent !== undefined) updates.commission_percent = commissionPercent;
       const { error } = await supabase.from('categories').update(updates).eq('id', id);
       if (error) throw error;
     },
