@@ -508,8 +508,13 @@ export default function StoreAdminPage() {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    await createCategory.mutateAsync({ storeId: store.id, name: newCategoryName });
+    await createCategory.mutateAsync({
+      storeId: store.id,
+      name: newCategoryName,
+      commissionPercent: store.slug === 'dicolore' ? Number(newCategoryCommission.replace(',', '.')) || 0 : undefined,
+    });
     setNewCategoryName('');
+    setNewCategoryCommission('');
     toast.success('Categoria criada!');
   };
 
@@ -523,13 +528,20 @@ export default function StoreAdminPage() {
   const handleEditCategory = (id: string, name: string) => {
     setEditingCategoryId(id);
     setEditingCategoryName(name);
+    const cat = categories.find(c => c.id === id);
+    setEditingCategoryCommission(cat?.commissionPercent ? String(cat.commissionPercent) : '');
   };
 
   const handleSaveCategory = async () => {
     if (!editingCategoryId || !editingCategoryName.trim()) return;
-    await updateCategory.mutateAsync({ id: editingCategoryId, name: editingCategoryName.trim() });
+    await updateCategory.mutateAsync({
+      id: editingCategoryId,
+      name: editingCategoryName.trim(),
+      commissionPercent: store.slug === 'dicolore' ? Number(editingCategoryCommission.replace(',', '.')) || 0 : undefined,
+    });
     setEditingCategoryId(null);
     setEditingCategoryName('');
+    setEditingCategoryCommission('');
     toast.success('Categoria atualizada!');
   };
 
