@@ -62,6 +62,8 @@ export interface CustomerExtra {
   isTelevendas?: boolean;
   discountRules?: DiscountRule[];
   transportadora?: string;
+  /** Map productId -> commission percent (Dicolore <perCom>). */
+  productCommission?: Record<string, number>;
 }
 
 export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
@@ -73,9 +75,12 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const rep = s.representante || {};
   const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const sellerCode = extra.sellerCode || rep.codigo || '';
-  const televendas = extra.isTelevendas ? 'Sim' : 'Nao';
   const isDicolore = isDicoloreFlow(undefined, s);
   const priceDecimals = isDicolore ? 3 : 2;
+  const televendas = isDicolore
+    ? (extra.isTelevendas ? 'S' : 'N')
+    : (extra.isTelevendas ? 'Sim' : 'Nao');
+  const commissionMap = extra.productCommission || {};
 
   const formaCodigo = (order.customer as any)?.paymentFormaCodigo
     || PAYMENT_CODE[order.paymentMethod]
@@ -90,6 +95,9 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
       const discPct = (item as any).discountPercent || 0;
       const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
       const total = (unitPrice * item.quantity).toFixed(2);
+      const perComTag = isDicolore
+        ? `\n    <perCom>${(Number(commissionMap[item.productId]) || 0).toFixed(2)}</perCom>`
+        : '';
       return `  <itensPedido>
     <produto>${escapeXml(item.code)}</produto>
     <descProduto>${escapeXml(item.name)}</descProduto>
@@ -98,7 +106,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
     <gtam>${escapeXml(item.size || '')}</gtam>
     <descGtam>${escapeXml(item.size || '')}</descGtam>
     <precoUnitario>${unitPrice.toFixed(priceDecimals)}</precoUnitario>
-    <valorTotal>${total}</valorTotal>
+    <valorTotal>${total}</valorTotal>${perComTag}
     <dataEntrega>${formatDateBR(delivery)}</dataEntrega>
     <anoEntrega>${delivery.getFullYear()}</anoEntrega>
     <periodoEntrega>${isoWeek(delivery)}</periodoEntrega>
