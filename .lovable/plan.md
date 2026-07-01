@@ -1,38 +1,27 @@
-## Mudanças no XML da DICOLORE
+## Problema
 
-Apenas para a loja `dicolore`, três ajustes no `src/lib/exportOrder.ts` e um novo campo de cadastro.
+Pedido #308 da Dicolore fechou em R$ 393,90 mesmo com pedido mínimo configurado em R$ 400,00.
 
-### 1. Tag `<pedidoTelevendas>` — S/N
+**Causa:** a validação de pedido mínimo compara `cart.subtotal` (valor sem desconto) com `minOrderValue`. O #308 tinha subtotal R$ 432,30 → passou no filtro → após o desconto por grupo (R$ 38,40) o total caiu para R$ 393,90, abaixo do mínimo.
 
-Hoje envia `Sim` / `Nao`. Passa a enviar `S` / `N` apenas no fluxo Dicolore (demais lojas mantêm o texto atual, para não quebrar nada).
+## Correção
 
-### 2. Tag `<perCom>` por item
+Trocar a base de comparação de `subtotal` para o **total já com desconto** (`subtotal - quantityDiscount`) nos 3 pontos onde a regra é aplicada:
 
-Dentro de `<itensPedido>`, logo abaixo de `<valorTotal>`, incluir:
+1. `src/pages/CheckoutPage.tsx` (linha ~309) — bloqueio no `handleSendWhatsApp`.
+2. `src/pages/CheckoutPage.tsx` (linhas ~733-754) — aviso "faltam R$ X" e `disabled` do botão finalizar.
+3. `src/pages/ProductStorePage.tsx` (linhas ~376-392) — mesmo aviso/`disabled` no carrinho lateral da loja.
 
+Fórmula usada nos 3 lugares:
 ```
-<perCom>1.00</perCom>
+const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
+if (minOrder > 0 && effectiveTotal < minOrder) { ...faltam (minOrder - effectiveTotal)... }
 ```
 
-Formato com 2 casas decimais. Valor obtido a partir da **categoria** do produto:
-- usa o `commissionPercent` cadastrado na categoria à qual o produto pertence;
-- se a categoria não tiver percentual cadastrado, envia `0.00`.
+Mensagem atualizada: "Pedido mínimo de R$ 400,00. Faltam R$ X em produtos (já considerando descontos)."
 
-### 3. Campo "Comissão %" no cadastro de Categorias
+## Fora do escopo
 
-- Adicionar coluna `commission_percent NUMERIC(5,2) DEFAULT 0` na tabela `categories` (migração).
-- Atualizar `useCategories` para ler/gravar o campo.
-- Adicionar input "Comissão (%)" no diálogo de cadastro/edição de categorias dentro do painel admin da loja (`StoreAdminPage` → aba Categorias). Mostrar apenas quando `isDicoloreFlow(store)` for verdadeiro, para não poluir a UI das outras lojas.
-
-### Arquivos afetados
-
-- migração SQL: adiciona `commission_percent` em `categories`.
-- `src/types/index.ts`: campo opcional `commissionPercent` em `Category`.
-- `src/hooks/useCategories.ts`: mapear e persistir o novo campo.
-- `src/lib/exportOrder.ts`:
-  - `pedidoTelevendas` vira `S`/`N` quando Dicolore;
-  - assinatura de `exportOrderXml` / `downloadOrderFile` recebe um mapa `categoryCommission: Record<categoryId, number>`;
-  - novo `<perCom>` impresso após `<valorTotal>`.
-- `src/pages/StoreAdminPage.tsx`: ao chamar `downloadOrderFile`, montar o mapa a partir das categorias carregadas e passar adiante; adicionar o campo no formulário de categoria (apenas Dicolore).
-
-Sem mudanças em outras lojas, carrinho, preços ou pedidos já gravados.
+- Não altero o cálculo do desconto em si.
+- Não mudo pedidos já gravados (#308 permanece como está).
+- Sem mudança de schema/backend — validação continua no client (o Checkout já roda `ensureLatestDataVersion` antes de enviar, o que é suficiente para este caso).
