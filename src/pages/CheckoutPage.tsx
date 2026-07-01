@@ -307,8 +307,9 @@ export default function CheckoutPage() {
       return;
     }
     const minOrder = store?.settings?.minOrderValue || 0;
-    if (minOrder > 0 && cart.subtotal < minOrder) {
-      toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - cart.subtotal)} em produtos.`);
+    const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
+    if (minOrder > 0 && effectiveTotal < minOrder) {
+      toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - effectiveTotal)} em produtos (já considerando descontos).`);
       return;
     }
     setIsSubmitting(true);
@@ -731,12 +732,13 @@ export default function CheckoutPage() {
                 </div>
                 {(() => {
                   const minOrder = store.settings?.minOrderValue || 0;
-                  const missing = Math.max(0, minOrder - cart.subtotal);
+                  const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
+                  const missing = Math.max(0, minOrder - effectiveTotal);
                   if (minOrder > 0 && missing > 0) {
                     return (
                       <div className="mt-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200">
                         <p className="font-semibold">Pedido mínimo: {formatCurrency(minOrder)}</p>
-                        <p>Faltam <strong>{formatCurrency(missing)}</strong> em produtos para finalizar.</p>
+                        <p>Faltam <strong>{formatCurrency(missing)}</strong> em produtos para finalizar (já considerando descontos).</p>
                       </div>
                     );
                   }
@@ -751,7 +753,7 @@ export default function CheckoutPage() {
                   )}
                   <Button
                     onClick={handleSendWhatsApp}
-                    disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && cart.subtotal < (store.settings?.minOrderValue || 0))}
+                    disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
                     <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : 'Enviar pelo WhatsApp')}
