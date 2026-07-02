@@ -77,6 +77,10 @@ Deno.serve(async (req) => {
     const codeIdx = header.indexOf("procod");
     const priceIdx = header.indexOf("protabpre");
     const grpIdx = header.findIndex((h) => h === "des grp" || h === "desgrp" || h === "des_grp");
+    const nameIdx = header.findIndex((h) =>
+      ["pronom", "descricao", "descrição", "des_pro", "despro", "des pro", "produto", "nome"].includes(h)
+    );
+    const barIdx = header.findIndex((h) => ["procodbar", "codbar", "ean", "barras"].includes(h));
 
     if (codeIdx === -1 || priceIdx === -1) {
       return new Response(
@@ -86,7 +90,7 @@ Deno.serve(async (req) => {
     }
 
     // Build price + category map from spreadsheet
-    const sheetData: Record<string, { price: number; category?: string }> = {};
+    const sheetData: Record<string, { price: number; category?: string; name?: string; bar?: string }> = {};
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
       const code = cols[codeIdx];
@@ -94,7 +98,9 @@ Deno.serve(async (req) => {
       const price = parseFloat(rawPrice);
       if (!code || isNaN(price) || price <= 0) continue;
       const category = grpIdx !== -1 ? cols[grpIdx]?.trim() || undefined : undefined;
-      sheetData[code] = { price, category };
+      const name = nameIdx !== -1 ? cols[nameIdx]?.trim() || undefined : undefined;
+      const bar = barIdx !== -1 ? cols[barIdx]?.trim() || undefined : undefined;
+      sheetData[code] = { price, category, name, bar };
     }
 
     // Supabase client with service role
@@ -132,6 +138,9 @@ Deno.serve(async (req) => {
     const priceUpdates: { code: string; old_price: number; new_price: number }[] = [];
     const categoryUpdates: { code: string; old_cat: string | null; new_cat: string }[] = [];
     const categoriesCreated: string[] = [];
+    const productsCreated: { code: string; name: string }[] = [];
+
+    const existingCodes = new Set((products || []).map((p) => p.code));
 
     for (const product of products || []) {
       const sheet = sheetData[product.code];
@@ -188,18 +197,73 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Insert products that exist in the sheet but not in the DB
+    const toInsert: Array<Record<string, unknown>> = [];
+    for (const [code, sheet] of Object.entries(sheetData)) {
+      if (existingCodes.has(code)) continue;
+
+      let catId: string | null = null;
+      if (sheet.category) {
+        const catKey = sheet.category.toLowerCase();
+        catId = catMap.get(catKey) || null;
+        if (!catId) {
+          const { data: newCat, error: catErr } = await supabase
+            .from("categories")
+            .insert({ store_id, name: sheet.category, sort_order: 0 })
+            .select("id")
+            .single();
+          if (!catErr && newCat) {
+            catId = newCat.id;
+            catMap.set(catKey, catId as string);
+            categoriesCreated.push(sheet.category);
+          }
+        }
+      }
+
+      const productName = sheet.name || `Produto ${code}`;
+      toInsert.push({
+        store_id,
+        code,
+        name: productName,
+        description: sheet.bar ? `EAN: ${sheet.bar}` : "",
+        base_price: sheet.price,
+        category_id: catId,
+        is_active: true,
+        has_variants: false,
+      });
+      productsCreated.push({ code, name: productName });
+    }
+
+    if (toInsert.length > 0) {
+      // Batch insert to avoid payload limits
+      const BATCH = 200;
+      for (let i = 0; i < toInsert.length; i += BATCH) {
+        const batch = toInsert.slice(i, i + BATCH);
+        const { error: insErr } = await supabase.from("products").insert(batch);
+        if (insErr) {
+          return new Response(
+            JSON.stringify({ error: `Erro ao inserir produtos novos: ${insErr.message}` }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         updated_prices: priceUpdates.length,
         updated_categories: categoryUpdates.length,
         created_categories: categoriesCreated.length,
+        created_products: productsCreated.length,
         total_sheet_codes: Object.keys(sheetData).length,
         total_products: (products || []).length,
         has_category_column: grpIdx !== -1,
+        has_name_column: nameIdx !== -1,
         price_updates: priceUpdates,
         category_updates: categoryUpdates,
         categories_created: categoriesCreated,
+        products_created: productsCreated,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
