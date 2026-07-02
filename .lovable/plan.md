@@ -1,27 +1,35 @@
 ## Problema
 
-Pedido #308 da Dicolore fechou em R$ 393,90 mesmo com pedido mínimo configurado em R$ 400,00.
+A função `sync-prices` (botão "Atualizar Preços" na DiColore) hoje só faz UPDATE em produtos que já existem no banco. Ela lê os 421 códigos da planilha, mas se um código não existe em `products`, é ignorado — por isso ficam 324 no banco enquanto a planilha tem 421.
 
-**Causa:** a validação de pedido mínimo compara `cart.subtotal` (valor sem desconto) com `minOrderValue`. O #308 tinha subtotal R$ 432,30 → passou no filtro → após o desconto por grupo (R$ 38,40) o total caiu para R$ 393,90, abaixo do mínimo.
+## Objetivo
 
-## Correção
+Fazer o "Atualizar Preços" também **cadastrar os produtos novos** encontrados na planilha (upsert por `code` dentro da loja), mantendo a lógica atual de atualização de preço e categoria.
 
-Trocar a base de comparação de `subtotal` para o **total já com desconto** (`subtotal - quantityDiscount`) nos 3 pontos onde a regra é aplicada:
+## Mudanças
 
-1. `src/pages/CheckoutPage.tsx` (linha ~309) — bloqueio no `handleSendWhatsApp`.
-2. `src/pages/CheckoutPage.tsx` (linhas ~733-754) — aviso "faltam R$ X" e `disabled` do botão finalizar.
-3. `src/pages/ProductStorePage.tsx` (linhas ~376-392) — mesmo aviso/`disabled` no carrinho lateral da loja.
+**Arquivo único:** `supabase/functions/sync-prices/index.ts`
 
-Fórmula usada nos 3 lugares:
-```
-const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
-if (minOrder > 0 && effectiveTotal < minOrder) { ...faltam (minOrder - effectiveTotal)... }
-```
+1. Detectar colunas extras da planilha além de `procod` e `protabpre`:
+   - `pronom` (ou equivalente já usado no import atual) → nome do produto
+   - `des grp` → categoria (já detectado)
+   - `procodbar` → código de barras/EAN, se existir (opcional, para descrição)
+2. Após o loop de updates, identificar códigos da planilha que **não** estão em `products` para essa `store_id`.
+3. Para cada código novo:
+   - Resolver/criar categoria (reusa `catMap` já montado).
+   - Gerar próximo `code` interno não é necessário — usar o `procod` da planilha como `code`, igual ao import atual.
+   - Inserir em `products` com: `store_id`, `code`, `name` (fallback: `"Produto {code}"` se não houver coluna de nome), `base_price`, `category_id`, `is_active=true`, `has_variants=false`, `description=''`.
+4. Retornar no JSON de resposta novos campos: `created_products` (contagem) e `products_created` (lista com code + name) para o toast do admin exibir.
 
-Mensagem atualizada: "Pedido mínimo de R$ 400,00. Faltam R$ X em produtos (já considerando descontos)."
+## Detalhes técnicos
 
-## Fora do escopo
+- Manter parser CSV RFC 4180 existente.
+- Buscar índice do nome com tolerância: `pronom`, `descricao`, `des_pro`, `despro` (o que existir).
+- Se nenhum campo de nome existir na planilha, ainda assim criar com nome = `code` (melhor cadastrar do que ignorar; admin edita depois).
+- Não mexer em `variants`, `images`, nem em `product_assembly` — produtos entram simples.
+- Nenhuma alteração de schema, RLS ou frontend. O toast atual em `StoreAdminPage` já mostra os campos do retorno; ele passa a mostrar também "X produtos criados" (pequeno ajuste de string opcional, mas o backend já devolve o número).
 
-- Não altero o cálculo do desconto em si.
-- Não mudo pedidos já gravados (#308 permanece como está).
-- Sem mudança de schema/backend — validação continua no client (o Checkout já roda `ensureLatestDataVersion` antes de enviar, o que é suficiente para este caso).
+## Fora de escopo
+
+- Remover produtos que estão no banco mas não na planilha (não solicitado).
+- Sincronizar imagens ou variantes.
