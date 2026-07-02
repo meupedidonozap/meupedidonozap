@@ -466,6 +466,7 @@ export default function StoreAdminPage() {
       if (data?.updated_prices > 0) parts.push(`${data.updated_prices} preço(s)`);
       if (data?.updated_categories > 0) parts.push(`${data.updated_categories} categoria(s)`);
       if (data?.created_categories > 0) parts.push(`${data.created_categories} categoria(s) criada(s)`);
+      if (data?.created_products > 0) parts.push(`${data.created_products} produto(s) criado(s)`);
       if (parts.length > 0) {
         toast.success(`Atualizado: ${parts.join(', ')}. Planilha: ${data.total_sheet_codes} códigos / Banco: ${data.total_products} produtos`);
         qc.invalidateQueries({ queryKey: ['products'] });
