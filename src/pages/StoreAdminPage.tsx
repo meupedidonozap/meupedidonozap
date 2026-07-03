@@ -928,6 +928,37 @@ export default function StoreAdminPage() {
                 <Button className="gap-2" onClick={handleNewProduct}><Plus className="h-4 w-4" /> Novo Produto</Button>
               </div>
             </div>
+            {(() => null)()}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Input
+                value={filterCode}
+                onChange={e => setFilterCode(e.target.value)}
+                placeholder="Buscar por código"
+                className="w-full sm:w-48"
+              />
+              <Input
+                value={filterName}
+                onChange={e => setFilterName(e.target.value)}
+                placeholder="Buscar por produto"
+                className="w-full sm:w-64"
+              />
+              <Select value={filterCategoryId} onValueChange={setFilterCategoryId}>
+                <SelectTrigger className="w-full sm:w-56">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(filterCode || filterName || filterCategoryId !== 'all') && (
+                <Button variant="ghost" size="sm" onClick={() => { setFilterCode(''); setFilterName(''); setFilterCategoryId('all'); }}>
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
