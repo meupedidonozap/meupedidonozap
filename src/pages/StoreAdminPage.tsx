@@ -984,7 +984,7 @@ export default function StoreAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map(product => (
+                    {filteredProducts.map(product => (
                       <TableRow key={product.id}>
                         <TableCell>
                           {product.image ? (
@@ -1015,8 +1015,8 @@ export default function StoreAdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {products.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhum produto cadastrado</TableCell></TableRow>
+                    {filteredProducts.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">{hasProductFilter ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
