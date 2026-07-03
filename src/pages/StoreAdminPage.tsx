@@ -247,6 +247,9 @@ export default function StoreAdminPage() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
+  const [filterCode, setFilterCode] = useState('');
+  const [filterName, setFilterName] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('all');
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
   const [syncingCustomers, setSyncingCustomers] = useState(false);
