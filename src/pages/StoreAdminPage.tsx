@@ -247,6 +247,20 @@ export default function StoreAdminPage() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importCustomersOpen, setImportCustomersOpen] = useState(false);
+  const [filterCode, setFilterCode] = useState('');
+  const [filterName, setFilterName] = useState('');
+  const [filterCategoryId, setFilterCategoryId] = useState('all');
+  const filteredProducts = useMemo(() => {
+    const code = filterCode.trim().toLowerCase();
+    const name = filterName.trim().toLowerCase();
+    return products.filter(p => {
+      if (code && !(p.code || '').toLowerCase().includes(code)) return false;
+      if (name && !p.name.toLowerCase().includes(name)) return false;
+      if (filterCategoryId !== 'all' && p.categoryId !== filterCategoryId) return false;
+      return true;
+    });
+  }, [products, filterCode, filterName, filterCategoryId]);
+  const hasProductFilter = !!(filterCode || filterName || filterCategoryId !== 'all');
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
   const [syncingCustomers, setSyncingCustomers] = useState(false);
@@ -925,6 +939,36 @@ export default function StoreAdminPage() {
                 <Button className="gap-2" onClick={handleNewProduct}><Plus className="h-4 w-4" /> Novo Produto</Button>
               </div>
             </div>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Input
+                value={filterCode}
+                onChange={e => setFilterCode(e.target.value)}
+                placeholder="Buscar por código"
+                className="w-full sm:w-48"
+              />
+              <Input
+                value={filterName}
+                onChange={e => setFilterName(e.target.value)}
+                placeholder="Buscar por produto"
+                className="w-full sm:w-64"
+              />
+              <Select value={filterCategoryId} onValueChange={setFilterCategoryId}>
+                <SelectTrigger className="w-full sm:w-56">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(filterCode || filterName || filterCategoryId !== 'all') && (
+                <Button variant="ghost" size="sm" onClick={() => { setFilterCode(''); setFilterName(''); setFilterCategoryId('all'); }}>
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -940,7 +984,7 @@ export default function StoreAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map(product => (
+                    {filteredProducts.map(product => (
                       <TableRow key={product.id}>
                         <TableCell>
                           {product.image ? (
@@ -971,8 +1015,8 @@ export default function StoreAdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {products.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Nenhum produto cadastrado</TableCell></TableRow>
+                    {filteredProducts.length === 0 && (
+                      <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">{hasProductFilter ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
