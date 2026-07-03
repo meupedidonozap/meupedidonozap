@@ -250,6 +250,17 @@ export default function StoreAdminPage() {
   const [filterCode, setFilterCode] = useState('');
   const [filterName, setFilterName] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('all');
+  const filteredProducts = useMemo(() => {
+    const code = filterCode.trim().toLowerCase();
+    const name = filterName.trim().toLowerCase();
+    return products.filter(p => {
+      if (code && !(p.code || '').toLowerCase().includes(code)) return false;
+      if (name && !p.name.toLowerCase().includes(name)) return false;
+      if (filterCategoryId !== 'all' && p.categoryId !== filterCategoryId) return false;
+      return true;
+    });
+  }, [products, filterCode, filterName, filterCategoryId]);
+  const hasProductFilter = !!(filterCode || filterName || filterCategoryId !== 'all');
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
   const [syncingCustomers, setSyncingCustomers] = useState(false);
