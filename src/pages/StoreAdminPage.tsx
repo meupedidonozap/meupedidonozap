@@ -179,6 +179,13 @@ export default function StoreAdminPage() {
     if (wa && customerCodeLookup.byWa.has(wa)) return customerCodeLookup.byWa.get(wa)!;
     return '';
   };
+  const resolveOrderSellerName = (c: any): string | null => {
+    const wa = last8(c?.whatsapp || '');
+    const sellerCode = wa ? whatsappToSellerCode.get(wa) : undefined;
+    if (!sellerCode) return null;
+    return sellerByCode.get(sellerCode.trim())?.name || null;
+  };
+
   const scopedCustomerProfiles = useMemo(() => {
     if (!restrictBySeller) return customerProfiles as any[];
     return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
@@ -1138,6 +1145,11 @@ export default function StoreAdminPage() {
                             const code = resolveCustomerCode(order.customer);
                             return code ? <p className="text-xs text-muted-foreground">Código: {code}</p> : null;
                           })()}
+                          {order.origem !== 'mesa' && (() => {
+                            const sellerName = resolveOrderSellerName(order.customer);
+                            return sellerName ? <p className="text-xs text-destructive">Vendedor: {sellerName}</p> : null;
+                          })()}
+
                         </TableCell>
                          <TableCell>
                             <div className="space-y-0.5 min-w-[180px]">
