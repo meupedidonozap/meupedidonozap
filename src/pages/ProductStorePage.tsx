@@ -60,16 +60,40 @@ export default function ProductStorePage() {
     }
   }, [store, setStoreId, setDiscountRules]);
 
+  // Mapa id->nome de categoria (permite consolidar categorias duplicadas por nome)
+  const categoryNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    categories.forEach(c => m.set(c.id, c.name));
+    return m;
+  }, [categories]);
+
+  // Lista de categorias única por nome (evita duplicatas no menu)
+  const uniqueCategories = useMemo(() => {
+    const seen = new Set<string>();
+    return categories.filter(c => {
+      const key = (c.name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [categories]);
+
+  const selectedCategoryName = useMemo(() => {
+    if (selectedCategory === 'all') return null;
+    return (categoryNameById.get(selectedCategory) || '').trim().toLowerCase();
+  }, [selectedCategory, categoryNameById]);
+
   const filteredProducts = useMemo(() => {
     return allProducts.filter(product => {
       const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory;
+      const prodCatName = (categoryNameById.get(product.categoryId) || '').trim().toLowerCase();
+      const matchesCategory = !selectedCategoryName || prodCatName === selectedCategoryName;
       return matchesSearch && matchesCategory && product.isActive;
     });
-  }, [allProducts, searchTerm, selectedCategory]);
+  }, [allProducts, searchTerm, selectedCategoryName, categoryNameById]);
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -224,7 +248,7 @@ export default function ProductStorePage() {
                     className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === 'all' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
                     Todos os Produtos
                   </button>
-                  {categories.map(category => (
+                  {uniqueCategories.map(category => (
                     <button key={category.id} onClick={() => { setSelectedCategory(category.id); setIsCategoryOpen(false); }}
                       className={`w-full rounded-lg px-4 py-3 text-left transition-colors ${selectedCategory === category.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
                       {category.name}
