@@ -1,41 +1,52 @@
 ## Objetivo
-Na aba **Pedidos** do painel administrativo, quando o cliente do pedido tiver um representante/vendedor vinculado, apresentar o **nome do vendedor** abaixo da linha do código do cliente.
+
+Ao rodar a sincronização de preços da Dicolore, o menu de **Categorias** no painel admin deve refletir exatamente as categorias que existem nos produtos importados da planilha:
+
+- Categorias que ficarem **sem produtos** devem ser **eliminadas**.
+- Categorias novas vindas da planilha continuam sendo **criadas** (já ocorre hoje).
+- Toda categoria **criada automaticamente** pela sincronização deve nascer com **comissão = 1.00%** (hoje nasce 0%).
+- Categorias duplicadas (mesmo nome) devem ser **consolidadas** em uma única, movendo os produtos para a categoria mantida antes da limpeza — isso resolve o caso atual da Dicolore onde há entradas duplicadas no menu (ex.: "LAVATORIO (LITRO)", "LINHA DICCO") aparecendo com 0 produtos.
 
 ## Mudanças
 
-Arquivo único: `src/pages/StoreAdminPage.tsx` (aba "Pedidos", em torno da linha 1129).
+Arquivo único: `supabase/functions/sync-prices/index.ts`.
 
-### 1. Resolução do vendedor vinculado ao pedido
-A página já possui os dados necessários em memória:
+### 1. Comissão padrão nas categorias criadas
 
-- `customerProfiles` → campo `sellerCode` (código do representante vinculado ao cliente).
-- `sellers` / `sellerByCode` → Map de `code` → objeto do vendedor com `name`.
-- `whatsappToSellerCode` → Map de últimos 8 dígitos do WhatsApp → `sellerCode`.
+Nos dois pontos onde o edge function faz `insert` em `categories` (durante o update de produtos existentes e durante a inserção de produtos novos), passar `commission_percent: 1.00` no payload, no lugar do default 0.
 
-Criar uma função helper `resolveOrderSellerName(order)` que:
+### 2. Consolidação de categorias duplicadas por nome
 
-1. Pega o WhatsApp do pedido (`order.customer.whatsapp`).
-2. Busca o `sellerCode` via `whatsappToSellerCode`.
-3. Se houver código, busca o vendedor em `sellerByCode`.
-4. Retorna o `name` do vendedor ou `null`.
+Antes da fase de limpeza, para cada nome de categoria que apareça mais de uma vez no store:
 
-### 2. Exibição na célula do cliente
-Na célula "Cliente" da tabela de pedidos (linha ~1129), logo após a linha que exibe `Código: {code}`, adicionar condicionalmente:
+1. Escolher uma categoria "canônica" (a mais antiga por `created_at`, ou a que já tem mais produtos).
+2. Atualizar `products.category_id` de todos os produtos que apontam para as duplicadas, redirecionando para a canônica.
+3. Deletar as duplicadas vazias.
 
-```text
-Vendedor: {sellerName}
-```
+### 3. Eliminação de categorias sem produtos
 
-- Exibir apenas quando `sellerName` existir.
-- Usar `text-xs` e uma cor semântica do tema (ex: `text-muted-foreground` ou `text-destructive` conforme identidade visual) para manter a hierarquia visual.
-- Manter o layout flex em coluna, como já está.
+Após aplicar todas as atualizações e inserções de produtos:
 
-### 3. Fora de escopo
-- Nenhuma mudança em backend, hooks, RLS, banco ou outras abas.
-- Apenas exibição; não altera criação, edição, filtros ou exportação dos pedidos.
-- A lógica de paginação e ordenação existente dos pedidos permanece inalterada.
+1. Recarregar `products` do store (apenas `category_id`).
+2. Buscar todas as `categories` do store.
+3. Deletar as categorias cujo `id` não aparece em nenhum `product.category_id` do store.
+
+### 4. Resposta do endpoint
+
+Incluir no JSON de retorno os novos contadores para feedback ao admin:
+
+- `categories_merged` (duplicadas consolidadas)
+- `categories_deleted` (removidas por estarem vazias)
+
+### 5. Fora de escopo
+
+- Sem alterações em UI, hooks, RLS ou outras edge functions.
+- A regra "eliminar categorias vazias" roda **apenas** dentro do `sync-prices` (fluxo Dicolore), não como job global — categorias vazias criadas manualmente em outras lojas continuam intactas.
+- Comissão de 1.00% é aplicada só quando a categoria é **criada** pela sincronização; categorias já existentes preservam a comissão que o admin configurou.
 
 ## Validação
-- Verificar visualmente no preview um pedido cujo cliente tenha representante vinculado (ex: Dicolore).
-- Confirmar que o nome do vendedor aparece abaixo do código do cliente.
-- Confirmar que pedidos sem representante não exibem a nova linha.
+
+- Rodar "Sincronizar preços" no admin da Dicolore.
+- Conferir na aba **Categorias** que as entradas duplicadas com 0 produtos sumiram e as demais mostram a contagem correta.
+- Conferir que categorias novas trazidas da planilha aparecem com "Comissão: 1.00%".
+- Conferir que categorias existentes mantiveram sua comissão anterior.

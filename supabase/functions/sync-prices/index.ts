@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
         if (!catId) {
           const { data: newCat, error: catErr } = await supabase
             .from("categories")
-            .insert({ store_id, name: sheet.category, sort_order: 0 })
+            .insert({ store_id, name: sheet.category, sort_order: 0, commission_percent: 1.00 })
             .select("id")
             .single();
           if (!catErr && newCat) {
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
         if (!catId) {
           const { data: newCat, error: catErr } = await supabase
             .from("categories")
-            .insert({ store_id, name: sheet.category, sort_order: 0 })
+            .insert({ store_id, name: sheet.category, sort_order: 0, commission_percent: 1.00 })
             .select("id")
             .single();
           if (!catErr && newCat) {
@@ -249,6 +249,84 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // Consolidação de categorias duplicadas + remoção de vazias
+    // ============================================================
+    let categoriesMerged = 0;
+    let categoriesDeleted = 0;
+
+    // Recarrega categorias (com created_at para escolher canônica)
+    const { data: allCats } = await supabase
+      .from("categories")
+      .select("id, name, created_at")
+      .eq("store_id", store_id);
+
+    // Recarrega produtos para saber quais categorias têm uso
+    const { data: allProducts } = await supabase
+      .from("products")
+      .select("id, category_id")
+      .eq("store_id", store_id);
+
+    // Agrupa categorias por nome normalizado
+    const byName = new Map<string, Array<{ id: string; created_at: string }>>();
+    for (const c of allCats || []) {
+      const key = (c.name || "").trim().toLowerCase();
+      if (!key) continue;
+      const arr = byName.get(key) || [];
+      arr.push({ id: c.id, created_at: c.created_at });
+      byName.set(key, arr);
+    }
+
+    // Contagem de produtos por category_id
+    const productCountByCat = new Map<string, number>();
+    for (const p of allProducts || []) {
+      if (!p.category_id) continue;
+      productCountByCat.set(p.category_id, (productCountByCat.get(p.category_id) || 0) + 1);
+    }
+
+    // Consolidar duplicadas: escolhe a com mais produtos; empate → mais antiga
+    for (const [, group] of byName.entries()) {
+      if (group.length < 2) continue;
+      const sorted = [...group].sort((a, b) => {
+        const ca = productCountByCat.get(a.id) || 0;
+        const cb = productCountByCat.get(b.id) || 0;
+        if (cb !== ca) return cb - ca;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+      const canonical = sorted[0];
+      const dupIds = sorted.slice(1).map((c) => c.id);
+      // Move produtos das duplicadas para a canônica
+      const { error: mvErr } = await supabase
+        .from("products")
+        .update({ category_id: canonical.id })
+        .in("category_id", dupIds);
+      if (!mvErr) {
+        // Atualiza contagem local para etapa de exclusão
+        for (const dId of dupIds) {
+          const moved = productCountByCat.get(dId) || 0;
+          productCountByCat.set(canonical.id, (productCountByCat.get(canonical.id) || 0) + moved);
+          productCountByCat.set(dId, 0);
+        }
+        categoriesMerged += dupIds.length;
+      }
+    }
+
+    // Elimina categorias sem produtos
+    const emptyIds: string[] = (allCats || [])
+      .filter((c) => (productCountByCat.get(c.id) || 0) === 0)
+      .map((c) => c.id);
+
+    if (emptyIds.length > 0) {
+      const { error: delErr, count } = await supabase
+        .from("categories")
+        .delete({ count: "exact" })
+        .in("id", emptyIds)
+        .eq("store_id", store_id);
+      if (!delErr) {
+        categoriesDeleted = count ?? emptyIds.length;
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -256,6 +334,8 @@ Deno.serve(async (req) => {
         updated_categories: categoryUpdates.length,
         created_categories: categoriesCreated.length,
         created_products: productsCreated.length,
+        categories_merged: categoriesMerged,
+        categories_deleted: categoriesDeleted,
         total_sheet_codes: Object.keys(sheetData).length,
         total_products: (products || []).length,
         has_category_column: grpIdx !== -1,
