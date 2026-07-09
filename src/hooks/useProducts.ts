@@ -187,8 +187,19 @@ export function useUpdateProduct() {
       if (product.hasVariants !== undefined) updates.has_variants = product.hasVariants;
       if (product.durationMinutes !== undefined) updates.duration_minutes = product.durationMinutes;
 
-      const { error } = await supabase.from('products').update(updates).eq('id', product.id);
+      const { data: updatedProduct, error } = await supabase
+        .from('products')
+        .update(updates)
+        .eq('id', product.id)
+        .select('id, image_url')
+        .single();
       if (error) throw error;
+      if (!updatedProduct) {
+        throw new Error('Produto não foi atualizado. Verifique se o login de administrador ainda está ativo.');
+      }
+      if (product.imageUrl !== undefined && updatedProduct.image_url !== product.imageUrl) {
+        throw new Error('A imagem foi enviada, mas não ficou vinculada ao produto. Faça login novamente e tente salvar.');
+      }
 
       // Replace variants if provided
       if (product.variants !== undefined) {
