@@ -37,8 +37,8 @@ function normalize(s: string) {
 function extractGroupName(raw: string): string {
   const s = String(raw || '').trim();
   if (!s) return '';
-  // Strip leading "NN - " prefix if present
-  const m = s.match(/^\s*\d+\s*-\s*(.+)$/);
+  // Strip leading "NN - " or alphanumeric code prefix (e.g. "P20 - ")
+  const m = s.match(/^\s*[A-Za-z0-9]+\s*-\s*(.+)$/);
   return (m ? m[1] : s).trim();
 }
 
