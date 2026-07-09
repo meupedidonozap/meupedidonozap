@@ -7,6 +7,7 @@ import { useIngredients } from '@/hooks/useIngredients';
 import { useProductAssemblies, useUpsertProductAssembly } from '@/hooks/useProductAssembly';
 import { Checkbox } from '@/components/ui/checkbox';
 import { uploadProductImage } from '@/lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +49,30 @@ interface ImageForm {
   file?: File;
   url?: string; // existing URL from DB
   label: string;
+}
+
+async function touchStoreDataVersion(storeId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('settings')
+      .eq('id', storeId)
+      .maybeSingle();
+    if (error || !data) {
+      if (error) console.warn('[ProductForm] dataVersion read failed', error);
+      return;
+    }
+
+    const settings = (data.settings as Record<string, unknown> | null) || {};
+    const { error: updateError } = await supabase
+      .from('stores')
+      .update({ settings: { ...settings, dataVersion: new Date().toISOString() } })
+      .eq('id', storeId);
+
+    if (updateError) console.warn('[ProductForm] dataVersion update failed', updateError);
+  } catch (err) {
+    console.warn('[ProductForm] dataVersion touch failed', err);
+  }
 }
 
 export default function ProductFormDialog({
@@ -301,6 +326,8 @@ export default function ProductFormDialog({
         }
         toast.success('Produto criado!');
       }
+
+      await touchStoreDataVersion(storeId);
 
       onOpenChange(false);
     } catch (err: any) {
