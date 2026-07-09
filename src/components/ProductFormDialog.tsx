@@ -305,7 +305,8 @@ export default function ProductFormDialog({
       onOpenChange(false);
     } catch (err: any) {
       console.error('[ProductForm] save error', err);
-      toast.error(err.message || err.error_description || 'Erro ao salvar produto');
+      const msg = err?.message || err?.error_description || err?.error || JSON.stringify(err);
+      toast.error(`Erro ao salvar: ${msg}`, { duration: 12000 });
     } finally {
       setSaving(false);
     }
