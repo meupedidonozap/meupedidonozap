@@ -158,6 +158,7 @@ export default function ProductFormDialog({
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    console.log('[ProductForm] handleImageSelect', file);
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
@@ -303,7 +304,8 @@ export default function ProductFormDialog({
 
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar produto');
+      console.error('[ProductForm] save error', err);
+      toast.error(err.message || err.error_description || 'Erro ao salvar produto');
     } finally {
       setSaving(false);
     }
