@@ -10,9 +10,17 @@ export async function compressImage(file: File, maxSize = 800, quality = 0.8): P
   // Skip non-image files
   if (!file.type.startsWith('image/')) return file;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
+    let settled = false;
+    const done = (result: File) => { if (!settled) { settled = true; resolve(result); } };
+    // Safety: if the browser never fires onload/onerror (rare), fall back to original after 6s
+    const timer = setTimeout(() => {
+      console.warn('[compressImage] timeout, using original file');
+      done(file);
+    }, 6000);
     img.onload = () => {
+      clearTimeout(timer);
       let { width, height } = img;
 
       // Scale down if needed
@@ -26,7 +34,7 @@ export async function compressImage(file: File, maxSize = 800, quality = 0.8): P
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(file); return; }
+      if (!ctx) { done(file); return; }
 
       ctx.drawImage(img, 0, 0, width, height);
 
@@ -36,11 +44,11 @@ export async function compressImage(file: File, maxSize = 800, quality = 0.8): P
           (blob) => {
             if (blob) {
               const name = file.name.replace(/\.[^.]+$/, `.${ext}`);
-              resolve(new File([blob], name, { type: mime }));
+              done(new File([blob], name, { type: mime }));
             } else if (mime === 'image/webp') {
               tryFormat('image/jpeg', 'jpg');
             } else {
-              resolve(file);
+              done(file);
             }
           },
           mime,
@@ -51,15 +59,24 @@ export async function compressImage(file: File, maxSize = 800, quality = 0.8): P
       tryFormat('image/webp', 'webp');
     };
 
-    img.onerror = () => resolve(file); // fallback to original on error
+    img.onerror = (e) => {
+      clearTimeout(timer);
+      console.warn('[compressImage] img.onerror, using original', e);
+      done(file);
+    };
     img.src = URL.createObjectURL(file);
   });
 }
 
 export async function uploadProductImage(file: File, storeId: string): Promise<string> {
   console.log('[uploadProductImage] start', { name: file.name, size: file.size, type: file.type, storeId });
-  // Compress before uploading
-  const compressed = await compressImage(file);
+  // Compress before uploading (never fails — falls back to original)
+  let compressed = file;
+  try {
+    compressed = await compressImage(file);
+  } catch (e) {
+    console.warn('[uploadProductImage] compress threw, using original', e);
+  }
   console.log('[uploadProductImage] compressed', { size: compressed.size, type: compressed.type });
 
   const ext = compressed.name.split('.').pop();
@@ -70,8 +87,9 @@ export async function uploadProductImage(file: File, storeId: string): Promise<s
     .upload(fileName, compressed, { upsert: true, contentType: compressed.type });
 
   if (error) {
-    console.error('[uploadProductImage] storage error', error);
-    throw new Error(`Upload falhou: ${error.message}`);
+    console.error('[uploadProductImage] storage error', error, JSON.stringify(error));
+    const detail = (error as any)?.message || (error as any)?.error || 'erro desconhecido';
+    throw new Error(`Upload da imagem falhou: ${detail}`);
   }
   console.log('[uploadProductImage] uploaded', fileName);
 
