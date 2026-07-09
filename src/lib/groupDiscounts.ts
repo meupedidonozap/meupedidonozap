@@ -1,5 +1,17 @@
 import type { CartItem, DiscountRule } from '@/types';
 
+function normalizeGroupId(raw: string | undefined | null): string {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  // Strip leading "XX - " prefix (digits or alphanumeric code, e.g. "32 - " or "P20 - ")
+  const m = s.match(/^\s*[A-Za-z0-9]+\s*-\s*(.+)$/);
+  const base = (m ? m[1] : s).trim();
+  return base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 export function computeGroupDiscounts(
   items: CartItem[],
   rules: DiscountRule[]
@@ -13,15 +25,17 @@ export function computeGroupDiscounts(
   const groupMap = new Map<string, CartItem[]>();
   for (const item of items) {
     if (!item.groupId) continue;
-    const list = groupMap.get(item.groupId) || [];
+    const key = normalizeGroupId(item.groupId);
+    if (!key) continue;
+    const list = groupMap.get(key) || [];
     list.push(item);
-    groupMap.set(item.groupId, list);
+    groupMap.set(key, list);
   }
 
-  for (const [groupId, groupItems] of groupMap) {
+  for (const [groupKey, groupItems] of groupMap) {
     const totalQty = groupItems.reduce((s, i) => s + i.quantity, 0);
     const applicable = groupRules
-      .filter(r => r.groupId === groupId && (r.minQuantity || 0) <= totalQty)
+      .filter(r => normalizeGroupId(r.groupId) === groupKey && (r.minQuantity || 0) <= totalQty)
       .sort((a, b) => (b.minQuantity || 0) - (a.minQuantity || 0))[0];
 
     if (!applicable) continue;
