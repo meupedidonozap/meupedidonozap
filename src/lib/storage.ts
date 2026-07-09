@@ -57,17 +57,23 @@ export async function compressImage(file: File, maxSize = 800, quality = 0.8): P
 }
 
 export async function uploadProductImage(file: File, storeId: string): Promise<string> {
+  console.log('[uploadProductImage] start', { name: file.name, size: file.size, type: file.type, storeId });
   // Compress before uploading
   const compressed = await compressImage(file);
+  console.log('[uploadProductImage] compressed', { size: compressed.size, type: compressed.type });
 
   const ext = compressed.name.split('.').pop();
   const fileName = `${storeId}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
     .from('product-images')
-    .upload(fileName, compressed, { upsert: true });
+    .upload(fileName, compressed, { upsert: true, contentType: compressed.type });
 
-  if (error) throw error;
+  if (error) {
+    console.error('[uploadProductImage] storage error', error);
+    throw new Error(`Upload falhou: ${error.message}`);
+  }
+  console.log('[uploadProductImage] uploaded', fileName);
 
   const { data } = supabase.storage
     .from('product-images')
