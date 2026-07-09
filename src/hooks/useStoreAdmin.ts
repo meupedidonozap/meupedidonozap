@@ -41,6 +41,15 @@ export function useStoreAdmin(storeId: string | undefined) {
       if (!user || !storeId) {
         return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
       }
+      // Platform admin: full access to any store
+      const { data: platform } = await supabase
+        .from('platform_admins')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (platform) {
+        return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS, sellerCodes: [] as string[] };
+      }
       // Check primary admin
       const { data: adminRow } = await supabase
         .from('store_admins')
