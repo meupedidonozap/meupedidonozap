@@ -179,7 +179,10 @@ export default function ProductFormDialog({
       setDefaultIngredientIds([]);
       setLimitsByVariant({});
     }
-  }, [product, open, assemblies]);
+    // NOTE: `assemblies` intentionally omitted from deps — it defaults to a
+    // fresh `[]` each render which would cause an infinite update loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id, open]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
