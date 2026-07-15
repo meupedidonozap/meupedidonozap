@@ -10,6 +10,9 @@ function mapVariant(row: any): ProductVariant {
     price: Number(row.price),
     stock: row.stock,
     sku: row.sku,
+    priceTable1: row.price_table_1 != null ? Number(row.price_table_1) : undefined,
+    priceTable4: row.price_table_4 != null ? Number(row.price_table_4) : undefined,
+    priceTable9: row.price_table_9 != null ? Number(row.price_table_9) : undefined,
   };
 }
 
@@ -32,6 +35,9 @@ function mapProduct(row: any): Product {
     categoryId: row.category_id || '',
     groupId: row.group_id || undefined,
     basePrice: Number(row.base_price),
+    priceTable1: row.price_table_1 != null ? Number(row.price_table_1) : undefined,
+    priceTable4: row.price_table_4 != null ? Number(row.price_table_4) : undefined,
+    priceTable9: row.price_table_9 != null ? Number(row.price_table_9) : undefined,
     image: row.image_url || undefined,
     isActive: row.is_active,
     hasVariants: row.has_variants,
@@ -90,6 +96,9 @@ export function useCreateProduct() {
       categoryId: string | null;
       groupId?: string;
       basePrice: number;
+      priceTable1?: number;
+      priceTable4?: number;
+      priceTable9?: number;
       imageUrl?: string;
       isActive: boolean;
       hasVariants: boolean;
@@ -110,6 +119,9 @@ export function useCreateProduct() {
         category_id: product.categoryId,
         group_id: product.groupId || null,
         base_price: product.basePrice,
+        price_table_1: product.priceTable1 ?? product.basePrice,
+        price_table_4: product.priceTable4 ?? product.basePrice,
+        price_table_9: product.priceTable9 ?? product.basePrice,
         image_url: product.imageUrl || null,
         is_active: product.isActive,
         has_variants: product.hasVariants,
@@ -124,6 +136,9 @@ export function useCreateProduct() {
             color: v.color || null,
             size: v.size || null,
             price: v.price,
+            price_table_1: v.priceTable1 ?? v.price,
+            price_table_4: v.priceTable4 ?? v.price,
+            price_table_9: v.priceTable9 ?? v.price,
             stock: v.stock,
             sku: v.sku,
           }))
@@ -167,6 +182,9 @@ export function useUpdateProduct() {
       categoryId?: string | null;
       groupId?: string | null;
       basePrice?: number;
+      priceTable1?: number;
+      priceTable4?: number;
+      priceTable9?: number;
       imageUrl?: string | null;
       isActive?: boolean;
       hasVariants?: boolean;
@@ -182,6 +200,9 @@ export function useUpdateProduct() {
       if (product.categoryId !== undefined) updates.category_id = product.categoryId;
       if (product.groupId !== undefined) updates.group_id = product.groupId;
       if (product.basePrice !== undefined) updates.base_price = product.basePrice;
+      if (product.priceTable1 !== undefined) updates.price_table_1 = product.priceTable1;
+      if (product.priceTable4 !== undefined) updates.price_table_4 = product.priceTable4;
+      if (product.priceTable9 !== undefined) updates.price_table_9 = product.priceTable9;
       if (product.imageUrl !== undefined) updates.image_url = product.imageUrl;
       if (product.isActive !== undefined) updates.is_active = product.isActive;
       if (product.hasVariants !== undefined) updates.has_variants = product.hasVariants;
@@ -211,6 +232,9 @@ export function useUpdateProduct() {
               color: v.color || null,
               size: v.size || null,
               price: v.price,
+              price_table_1: v.priceTable1 ?? v.price,
+              price_table_4: v.priceTable4 ?? v.price,
+              price_table_9: v.priceTable9 ?? v.price,
               stock: v.stock,
               sku: v.sku,
             }))
