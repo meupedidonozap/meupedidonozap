@@ -207,6 +207,8 @@ export interface DiscountRule {
   groupId?: string;
   discountPercent: number;
   description: string;
+  /** Optional price-table scope (1, 4 or 9). Undefined = applies to all tables. */
+  priceTable?: 1 | 4 | 9;
 }
 
 // Product types
