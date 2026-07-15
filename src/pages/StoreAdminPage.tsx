@@ -295,7 +295,7 @@ export default function StoreAdminPage() {
   // Discount rules state
   const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
-  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
+  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' });
   const [savingRules, setSavingRules] = useState(false);
   const [importRulesOpen, setImportRulesOpen] = useState(false);
 
@@ -690,9 +690,10 @@ export default function StoreAdminPage() {
       minQuantity: Number(newRule.minQuantity),
       discountPercent: Number(newRule.discountPercent),
       description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
+      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 4 | 9),
     };
     setDiscountRulesLocal(prev => [...prev, rule]);
-    setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
+    setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
   };
 
   const handleRemoveDiscountRule = (id: string) => {
