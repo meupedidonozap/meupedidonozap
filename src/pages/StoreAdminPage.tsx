@@ -1436,7 +1436,7 @@ export default function StoreAdminPage() {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <div className="grid gap-1">
                       <Label className="text-sm">ID do Grupo *</Label>
                       <Input
@@ -1460,6 +1460,21 @@ export default function StoreAdminPage() {
                         value={newRule.discountPercent}
                         onChange={e => setNewRule(r => ({ ...r, discountPercent: e.target.value }))}
                       />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Tabela de Preço</Label>
+                      <Select
+                        value={newRule.priceTable}
+                        onValueChange={(v) => setNewRule(r => ({ ...r, priceTable: v as 'all' | '1' | '4' | '9' }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="1">Tabela 1</SelectItem>
+                          <SelectItem value="4">Tabela 4</SelectItem>
+                          <SelectItem value="9">Tabela 9</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Descrição</Label>
