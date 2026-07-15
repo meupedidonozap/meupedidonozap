@@ -43,6 +43,9 @@ interface VariantForm {
   price: number;
   stock: number;
   sku: string;
+  priceTable1: number;
+  priceTable4: number;
+  priceTable9: number;
 }
 
 interface ImageForm {
@@ -99,6 +102,8 @@ export default function ProductFormDialog({
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [basePrice, setBasePrice] = useState('');
+  const [priceTable1, setPriceTable1] = useState('');
+  const [priceTable9, setPriceTable9] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [hasVariants, setHasVariants] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -123,6 +128,8 @@ export default function ProductFormDialog({
       setDescription(product.description);
       setCategoryId(product.categoryId || '');
       setBasePrice(String(product.basePrice));
+      setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : String(product.basePrice));
+      setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : String(product.basePrice));
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
@@ -136,6 +143,9 @@ export default function ProductFormDialog({
           price: v.price,
           stock: v.stock,
           sku: v.sku,
+          priceTable1: v.priceTable1 != null && v.priceTable1 > 0 ? v.priceTable1 : v.price,
+          priceTable4: v.priceTable4 != null && v.priceTable4 > 0 ? v.priceTable4 : v.price,
+          priceTable9: v.priceTable9 != null && v.priceTable9 > 0 ? v.priceTable9 : v.price,
         })) || []
       );
       setProductImages(
@@ -165,6 +175,8 @@ export default function ProductFormDialog({
       setDescription('');
       setCategoryId('');
       setBasePrice('');
+      setPriceTable1('');
+      setPriceTable9('');
       setIsActive(true);
       setHasVariants(false);
       setImagePreview(null);
@@ -220,7 +232,13 @@ export default function ProductFormDialog({
   };
 
   const addVariant = () => {
-    setVariants(prev => [...prev, { color: '', size: '', price: Number(basePrice) || 0, stock: 0, sku: '' }]);
+    const bp = Number(basePrice) || 0;
+    const pt1 = Number(priceTable1) || bp;
+    const pt9 = Number(priceTable9) || bp;
+    setVariants(prev => [...prev, {
+      color: '', size: '', price: bp, stock: 0, sku: '',
+      priceTable1: pt1, priceTable4: bp, priceTable9: pt9,
+    }]);
   };
 
   const removeVariant = (index: number) => {
@@ -229,7 +247,14 @@ export default function ProductFormDialog({
 
   const updateVariant = (index: number, field: keyof VariantForm, value: string | number) => {
     setVariants(prev =>
-      prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+      prev.map((v, i) => {
+        if (i !== index) return v;
+        const next = { ...v, [field]: value } as VariantForm;
+        // Keep the legacy `price` column in sync with Tabela 4 (default retail).
+        if (field === 'priceTable4') next.price = Number(value) || 0;
+        if (field === 'price') next.priceTable4 = Number(value) || 0;
+        return next;
+      })
     );
   };
 
@@ -268,9 +293,12 @@ export default function ProductFormDialog({
         ? variants.map(v => ({
             color: v.color || undefined,
             size: v.size || undefined,
-            price: v.price,
+            price: v.priceTable4 || v.price,
             stock: v.stock,
             sku: v.sku,
+            priceTable1: v.priceTable1 || v.priceTable4 || v.price,
+            priceTable4: v.priceTable4 || v.price,
+            priceTable9: v.priceTable9 || v.priceTable4 || v.price,
           }))
         : [];
 
@@ -282,6 +310,9 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: Number(basePrice) || 0,
+          priceTable1: Number(priceTable1) || Number(basePrice) || 0,
+          priceTable4: Number(basePrice) || 0,
+          priceTable9: Number(priceTable9) || Number(basePrice) || 0,
           imageUrl: imageUrl,
           isActive,
           hasVariants,
@@ -309,6 +340,9 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: Number(basePrice) || 0,
+          priceTable1: Number(priceTable1) || Number(basePrice) || 0,
+          priceTable4: Number(basePrice) || 0,
+          priceTable9: Number(priceTable9) || Number(basePrice) || 0,
           imageUrl: imageUrl || undefined,
           isActive,
           hasVariants,
@@ -417,7 +451,7 @@ export default function ProductFormDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="price">{isSalon ? 'Preço (R$)' : 'Preço Base'}</Label>
+              <Label htmlFor="price">{isSalon ? 'Preço (R$)' : 'Preço (Tabela 4 — Varejo)'}</Label>
               <Input
                 id="price"
                 type="number"
@@ -428,6 +462,36 @@ export default function ProductFormDialog({
               />
             </div>
           </div>
+
+          {!isSalon && (
+            <div className="grid grid-cols-2 gap-4 rounded-lg border p-3 bg-muted/20">
+              <div className="grid gap-2">
+                <Label htmlFor="price-t1" className="text-xs">Tabela 1 (Atacado)</Label>
+                <Input
+                  id="price-t1"
+                  type="number"
+                  step="0.01"
+                  value={priceTable1}
+                  onChange={e => setPriceTable1(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="price-t9" className="text-xs">Tabela 9 (Atacado)</Label>
+                <Input
+                  id="price-t9"
+                  type="number"
+                  step="0.01"
+                  value={priceTable9}
+                  onChange={e => setPriceTable9(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground">
+                A Tabela 4 é preenchida pelo campo "Preço" acima. Se deixar em branco, todas as tabelas usam o mesmo valor.
+              </p>
+            </div>
+          )}
 
           {isSalon && (
             <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
@@ -553,7 +617,7 @@ export default function ProductFormDialog({
                 </Button>
               </div>
               {variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-6 gap-2 items-end">
+                <div key={i} className="grid grid-cols-8 gap-2 items-end">
                   <div>
                     <Label className="text-xs">Cor</Label>
                     <Input value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Azul" />
@@ -563,8 +627,16 @@ export default function ProductFormDialog({
                     <Input value={v.size} onChange={e => updateVariant(i, 'size', e.target.value)} placeholder="M" />
                   </div>
                   <div>
-                    <Label className="text-xs">Preço</Label>
-                    <Input type="number" step="0.01" value={v.price} onChange={e => updateVariant(i, 'price', Number(e.target.value))} />
+                    <Label className="text-xs">Tab. 1</Label>
+                    <Input type="number" step="0.01" value={v.priceTable1} onChange={e => updateVariant(i, 'priceTable1', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tab. 4</Label>
+                    <Input type="number" step="0.01" value={v.priceTable4} onChange={e => updateVariant(i, 'priceTable4', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tab. 9</Label>
+                    <Input type="number" step="0.01" value={v.priceTable9} onChange={e => updateVariant(i, 'priceTable9', Number(e.target.value))} />
                   </div>
                   <div>
                     <Label className="text-xs">Estoque</Label>

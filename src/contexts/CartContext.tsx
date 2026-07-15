@@ -18,6 +18,7 @@ interface CartContextType {
   cart: Cart;
   discountRules: DiscountRule[];
   itemDiscounts: Record<string, number>; // key: `${productId}-${variantId|''}` -> discountPercent
+  customerPriceTable: 1 | 4 | 9;
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
@@ -27,6 +28,7 @@ interface CartContextType {
   removeCoupon: () => void;
   setStoreId: (storeId: string) => void;
   setDiscountRules: (rules: DiscountRule[]) => void;
+  setCustomerPriceTable: (table: 1 | 4 | 9) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -55,6 +57,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>(initialCart);
   const [discountRules, setDiscountRulesState] = useState<DiscountRule[]>([]);
   const [itemDiscounts, setItemDiscounts] = useState<Record<string, number>>({});
+  const [customerPriceTable, setCustomerPriceTableState] = useState<1 | 4 | 9>(4);
 
   // Persist cart to localStorage whenever it changes
   useEffect(() => {
@@ -67,7 +70,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { quantityDiscount, itemDiscounts: newItemDiscounts } = computeGroupDiscounts(
       cart.items,
-      discountRules
+      discountRules,
+      customerPriceTable,
     );
     setItemDiscounts(newItemDiscounts);
     setCart(prev => {
@@ -77,10 +81,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return { ...prev, quantityDiscount, subtotal, total };
     });
-  }, [cart.items, discountRules]);
+  }, [cart.items, discountRules, customerPriceTable]);
 
   const setDiscountRules = useCallback((rules: DiscountRule[]) => {
     setDiscountRulesState(rules);
+  }, []);
+
+  const setCustomerPriceTable = useCallback((table: 1 | 4 | 9) => {
+    setCustomerPriceTableState((prev) => (prev === table ? prev : table));
   }, []);
 
   const setStoreId = useCallback((storeId: string) => {
@@ -211,6 +219,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         cart,
         discountRules,
         itemDiscounts,
+        customerPriceTable,
         addItem,
         removeItem,
         updateQuantity,
@@ -220,6 +229,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeCoupon,
         setStoreId,
         setDiscountRules,
+        setCustomerPriceTable,
       }}
     >
       {children}

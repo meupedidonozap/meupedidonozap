@@ -282,7 +282,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 as 1 | 4 | 9 });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -295,7 +295,7 @@ export default function StoreAdminPage() {
   // Discount rules state
   const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
-  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
+  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' });
   const [savingRules, setSavingRules] = useState(false);
   const [importRulesOpen, setImportRulesOpen] = useState(false);
 
@@ -690,9 +690,10 @@ export default function StoreAdminPage() {
       minQuantity: Number(newRule.minQuantity),
       discountPercent: Number(newRule.discountPercent),
       description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
+      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 4 | 9),
     };
     setDiscountRulesLocal(prev => [...prev, rule]);
-    setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '' });
+    setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
   };
 
   const handleRemoveDiscountRule = (id: string) => {
@@ -1435,7 +1436,7 @@ export default function StoreAdminPage() {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <div className="grid gap-1">
                       <Label className="text-sm">ID do Grupo *</Label>
                       <Input
@@ -1459,6 +1460,21 @@ export default function StoreAdminPage() {
                         value={newRule.discountPercent}
                         onChange={e => setNewRule(r => ({ ...r, discountPercent: e.target.value }))}
                       />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Tabela de Preço</Label>
+                      <Select
+                        value={newRule.priceTable}
+                        onValueChange={(v) => setNewRule(r => ({ ...r, priceTable: v as 'all' | '1' | '4' | '9' }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="1">Tabela 1</SelectItem>
+                          <SelectItem value="4">Tabela 4</SelectItem>
+                          <SelectItem value="9">Tabela 9</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Descrição</Label>
@@ -1498,6 +1514,7 @@ export default function StoreAdminPage() {
                           <TableHead>Grupo</TableHead>
                           <TableHead>Qtd. Mínima</TableHead>
                           <TableHead>Desconto</TableHead>
+                          <TableHead>Tabela</TableHead>
                           <TableHead>Descrição</TableHead>
                           <TableHead className="text-right">Ação</TableHead>
                         </TableRow>
@@ -1510,6 +1527,9 @@ export default function StoreAdminPage() {
                             <TableCell><Badge variant="outline" className="font-mono">{rule.groupId}</Badge></TableCell>
                             <TableCell>{rule.minQuantity}+ peças</TableCell>
                             <TableCell><Badge className="bg-accent text-accent-foreground">{rule.discountPercent}% OFF</Badge></TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{rule.priceTable ? `Tab. ${rule.priceTable}` : 'Todas'}</Badge>
+                            </TableCell>
                             <TableCell className="text-muted-foreground text-sm">{rule.description}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleRemoveDiscountRule(rule.id)}>
@@ -2136,7 +2156,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2176,6 +2196,7 @@ export default function StoreAdminPage() {
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
                               transportadora: (cp as any).transportadora || '',
+                              priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -2258,6 +2279,20 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Tabela de Preço</Label>
+                      <Select
+                        value={String(customerForm.priceTable)}
+                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                          <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                          <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
@@ -2293,6 +2328,20 @@ export default function StoreAdminPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-sm">Tabela de Preço</Label>
+                    <Select
+                      value={String(customerForm.priceTable)}
+                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 }))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                        <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                        <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">

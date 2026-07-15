@@ -266,7 +266,7 @@ export default function CheckoutPage() {
 
   const generateOrderMessage = () => {
     const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
-      computeGroupDiscounts(cart.items, discountRules);
+      computeGroupDiscounts(cart.items, discountRules, customerProfile?.priceTable);
     return generateWhatsAppMessage({
       storeName: store.name,
       customer: {
@@ -328,7 +328,7 @@ export default function CheckoutPage() {
       }
       // Recalcula descontos por grupo na hora, evitando estado defasado do contexto
       const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
-        computeGroupDiscounts(cart.items, discountRules);
+        computeGroupDiscounts(cart.items, discountRules, customerProfile?.priceTable);
       const liveTotalDiscount = cart.couponDiscount + liveQtyDiscount;
       const liveTotal = Math.max(0, cart.subtotal - liveTotalDiscount) + deliveryFee;
       const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;

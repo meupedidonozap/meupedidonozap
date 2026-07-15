@@ -21,6 +21,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCo
     isActive: row.is_active ?? true,
     customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
+    priceTable: (row.price_table === 1 || row.price_table === 9 ? row.price_table : 4) as 1 | 4 | 9,
   };
 }
 
@@ -68,6 +69,7 @@ export function useCreateCustomerProfileAdmin() {
       cpfCnpj?: string;
       sellerCode?: string;
       transportadora?: string;
+      priceTable?: 1 | 4 | 9;
     }) => {
       const { error } = await supabase
         .from('customer_profiles')
@@ -85,6 +87,7 @@ export function useCreateCustomerProfileAdmin() {
           cpf_cnpj: params.cpfCnpj || '',
           seller_code: params.sellerCode || '',
           transportadora: params.transportadora || null,
+          price_table: params.priceTable ?? 4,
         } as any);
       if (error) throw error;
     },
@@ -112,6 +115,7 @@ export function useUpdateCustomerProfileAdmin() {
       cpfCnpj?: string;
       sellerCode?: string;
       transportadora?: string;
+      priceTable?: 1 | 4 | 9;
     }) => {
       const update: any = {};
       if (params.name !== undefined) update.name = params.name;
@@ -126,6 +130,7 @@ export function useUpdateCustomerProfileAdmin() {
       if (params.cpfCnpj !== undefined) update.cpf_cnpj = params.cpfCnpj;
       if (params.sellerCode !== undefined) update.seller_code = params.sellerCode;
       if (params.transportadora !== undefined) update.transportadora = params.transportadora || null;
+      if (params.priceTable !== undefined) update.price_table = params.priceTable;
 
       const { error } = await supabase
         .from('customer_profiles')
