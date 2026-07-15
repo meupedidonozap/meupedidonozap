@@ -33,6 +33,8 @@ interface ParsedRow {
   description: string;
   category: string;
   price: number;
+  price1: number;
+  price9: number;
   active: boolean;
   valid: boolean;
   error?: string;
@@ -76,6 +78,16 @@ const COLUMN_MAP: Record<string, string> = {
   category: 'category',
   preco: 'price',
   price: 'price',
+  preco1: 'price1',
+  price1: 'price1',
+  'preco 1': 'price1',
+  tabela1: 'price1',
+  'tabela 1': 'price1',
+  preco9: 'price9',
+  price9: 'price9',
+  'preco 9': 'price9',
+  tabela9: 'price9',
+  'tabela 9': 'price9',
   ativo: 'active',
   active: 'active',
   cor: 'color',
@@ -196,6 +208,10 @@ function parseSimpleRows(
     const code = String(getField(row, headerMap, 'code') || '').trim();
     const name = String(getField(row, headerMap, 'name') || '').trim();
     const price = parsePrice(getField(row, headerMap, 'price'));
+    const price1Raw = parsePrice(getField(row, headerMap, 'price1'));
+    const price9Raw = parsePrice(getField(row, headerMap, 'price9'));
+    const price1 = price1Raw > 0 ? price1Raw : price;
+    const price9 = price9Raw > 0 ? price9Raw : price;
     const valid = !!name && price > 0;
     const existingId = code ? codeMap.get(code.toLowerCase().trim()) : undefined;
 
@@ -205,6 +221,8 @@ function parseSimpleRows(
       description: String(getField(row, headerMap, 'description') || '').trim(),
       category: String(getField(row, headerMap, 'category') || '').trim(),
       price,
+      price1,
+      price9,
       active: parseActive(getField(row, headerMap, 'active')),
       valid,
       error: !name ? 'Nome obrigatório' : price <= 0 ? 'Preço inválido' : undefined,
@@ -237,8 +255,8 @@ function downloadTemplate(isAccessories: boolean) {
         { Codigo: '002', Nome: 'Bone Trucker', Descricao: 'Aba curva', Categoria: 'Bones', Preco: 49.90, Cor: '', Tamanho: '', Estoque: 30, SKU: '002', Ativo: 'Sim' },
       ]
     : [
-        { Codigo: '001', Nome: 'X-Burguer', Descricao: 'Hamburguer com queijo', Categoria: 'Lanches', Preco: 25.90, Ativo: 'Sim' },
-        { Codigo: '002', Nome: 'Coca-Cola 350ml', Descricao: 'Refrigerante', Categoria: 'Bebidas', Preco: 7.50, Ativo: 'Sim' },
+        { Codigo: '001', Nome: 'X-Burguer', Descricao: 'Hamburguer com queijo', Categoria: 'Lanches', Preco: 25.90, Preco1: 22.90, Preco9: 20.90, Ativo: 'Sim' },
+        { Codigo: '002', Nome: 'Coca-Cola 350ml', Descricao: 'Refrigerante', Categoria: 'Bebidas', Preco: 7.50, Preco1: 6.50, Preco9: 5.90, Ativo: 'Sim' },
       ];
 
   const ws = XLSX.utils.json_to_sheet(data);
@@ -428,6 +446,9 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         description: r.description,
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
         base_price: r.price,
+        price_table_1: r.price1,
+        price_table_4: r.price,
+        price_table_9: r.price9,
         is_active: r.active,
       }).eq('id', r.existingId!);
 
@@ -446,6 +467,9 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         description: r.description,
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
         base_price: r.price,
+        price_table_1: r.price1,
+        price_table_4: r.price,
+        price_table_9: r.price9,
         is_active: r.active,
         has_variants: false,
       }));
@@ -491,7 +515,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const description = isAccessories
     ? 'Colunas: Código, Nome, Descrição, Categoria, Preço, Cor, Tamanho, Estoque, SKU, Ativo. Linhas com o mesmo Código serão agrupadas como variantes.'
-    : 'Selecione um arquivo .xlsx ou .xls com as colunas: Nome, Preço, Código, Descrição, Categoria, Ativo. Produtos com código existente serão atualizados automaticamente.';
+    : 'Selecione um arquivo .xlsx ou .xls com as colunas: Código, Nome, Descrição, Categoria, Preço (tabela 4 - varejo), Preco1 (atacado), Preco9 (atacado), Ativo. Preco1 e Preco9 são opcionais — se vazios, usam o valor de Preço. Produtos com código existente serão atualizados automaticamente.';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) { onOpenChange(v); if (!v) reset(); } }}>
@@ -592,7 +616,9 @@ function SimplePreviewTable({ rows }: { rows: ParsedRow[] }) {
           <TableHead>Código</TableHead>
           <TableHead>Nome</TableHead>
           <TableHead>Categoria</TableHead>
-          <TableHead>Preço</TableHead>
+          <TableHead>Preço (T4)</TableHead>
+          <TableHead>T1</TableHead>
+          <TableHead>T9</TableHead>
           <TableHead>Ativo</TableHead>
         </TableRow>
       </TableHeader>
@@ -608,6 +634,8 @@ function SimplePreviewTable({ rows }: { rows: ParsedRow[] }) {
             <TableCell>{row.name || <span className="text-destructive">Vazio</span>}</TableCell>
             <TableCell>{row.category || '-'}</TableCell>
             <TableCell>{row.price > 0 ? formatCurrency(row.price) : <span className="text-destructive">Inválido</span>}</TableCell>
+            <TableCell>{formatCurrency(row.price1)}</TableCell>
+            <TableCell>{formatCurrency(row.price9)}</TableCell>
             <TableCell>{row.active ? 'Sim' : 'Não'}</TableCell>
           </TableRow>
         ))}
