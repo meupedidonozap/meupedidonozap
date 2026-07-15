@@ -1514,6 +1514,7 @@ export default function StoreAdminPage() {
                           <TableHead>Grupo</TableHead>
                           <TableHead>Qtd. Mínima</TableHead>
                           <TableHead>Desconto</TableHead>
+                          <TableHead>Tabela</TableHead>
                           <TableHead>Descrição</TableHead>
                           <TableHead className="text-right">Ação</TableHead>
                         </TableRow>
@@ -1526,6 +1527,9 @@ export default function StoreAdminPage() {
                             <TableCell><Badge variant="outline" className="font-mono">{rule.groupId}</Badge></TableCell>
                             <TableCell>{rule.minQuantity}+ peças</TableCell>
                             <TableCell><Badge className="bg-accent text-accent-foreground">{rule.discountPercent}% OFF</Badge></TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{rule.priceTable ? `Tab. ${rule.priceTable}` : 'Todas'}</Badge>
+                            </TableCell>
                             <TableCell className="text-muted-foreground text-sm">{rule.description}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleRemoveDiscountRule(rule.id)}>
