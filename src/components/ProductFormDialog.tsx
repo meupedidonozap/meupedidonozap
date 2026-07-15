@@ -451,7 +451,7 @@ export default function ProductFormDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="price">{isSalon ? 'Preço (R$)' : 'Preço Base'}</Label>
+              <Label htmlFor="price">{isSalon ? 'Preço (R$)' : 'Preço (Tabela 4 — Varejo)'}</Label>
               <Input
                 id="price"
                 type="number"
@@ -462,6 +462,36 @@ export default function ProductFormDialog({
               />
             </div>
           </div>
+
+          {!isSalon && (
+            <div className="grid grid-cols-2 gap-4 rounded-lg border p-3 bg-muted/20">
+              <div className="grid gap-2">
+                <Label htmlFor="price-t1" className="text-xs">Tabela 1 (Atacado)</Label>
+                <Input
+                  id="price-t1"
+                  type="number"
+                  step="0.01"
+                  value={priceTable1}
+                  onChange={e => setPriceTable1(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="price-t9" className="text-xs">Tabela 9 (Atacado)</Label>
+                <Input
+                  id="price-t9"
+                  type="number"
+                  step="0.01"
+                  value={priceTable9}
+                  onChange={e => setPriceTable9(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground">
+                A Tabela 4 é preenchida pelo campo "Preço" acima. Se deixar em branco, todas as tabelas usam o mesmo valor.
+              </p>
+            </div>
+          )}
 
           {isSalon && (
             <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
