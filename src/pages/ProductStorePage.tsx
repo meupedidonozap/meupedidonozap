@@ -33,13 +33,14 @@ import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
+import { resolveProductPrice, resolveVariantPrice } from '@/lib/pricing';
 
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allProducts = [] } = useProducts(store?.id);
-  const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules } = useCart();
+  const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable } = useCart();
   const { user, signOut } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
 
@@ -59,6 +60,14 @@ export default function ProductStorePage() {
       setDiscountRules(store.settings.discountRules || []);
     }
   }, [store, setStoreId, setDiscountRules]);
+
+  // Sync the customer's price table into the cart (default 4 for visitors/unknown).
+  const activePriceTable: 1 | 4 | 9 = (customerProfile?.priceTable === 1 || customerProfile?.priceTable === 9)
+    ? customerProfile.priceTable
+    : 4;
+  useEffect(() => {
+    setCustomerPriceTable(activePriceTable);
+  }, [activePriceTable, setCustomerPriceTable]);
 
   // Mapa id->nome de categoria (permite consolidar categorias duplicadas por nome)
   const categoryNameById = useMemo(() => {
@@ -104,7 +113,9 @@ export default function ProductStorePage() {
     // Resolve groupId: usa group_id do produto, senão usa o nome da categoria
     const category = categories.find(c => c.id === product.categoryId);
     const resolvedGroupId = product.groupId || category?.name || undefined;
-    const unitPrice = variantData?.price || product.basePrice;
+    const unitPrice = variantData
+      ? resolveVariantPrice(variantData, activePriceTable)
+      : resolveProductPrice(product, activePriceTable);
     const check = wouldExceedMaterialApoio(
       cart.items,
       product.id,
@@ -124,7 +135,7 @@ export default function ProductStorePage() {
       code: product.code,
       color: variant?.color,
       size: variant?.size,
-      price: variantData?.price || product.basePrice,
+      price: unitPrice,
       quantity: 1,
       image: product.image,
     });
