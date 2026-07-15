@@ -484,7 +484,7 @@ export default function ProductStorePage() {
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
                     <h3 className="font-medium line-clamp-3">{product.name}</h3>
-                    <p className="text-lg font-bold text-primary">{formatCurrency(product.basePrice)}</p>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
                   </div>
                   <Button size="icon" className="shrink-0 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-5 w-5" /></Button>
                 </CardContent>
@@ -502,7 +502,7 @@ export default function ProductStorePage() {
                   <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
                   <h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
                   <div className="mt-2 flex items-center justify-between">
-                    <p className="font-bold text-primary">{formatCurrency(product.basePrice)}</p>
+                    <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
                     <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-4 w-4" /></Button>
                   </div>
                 </CardContent>
