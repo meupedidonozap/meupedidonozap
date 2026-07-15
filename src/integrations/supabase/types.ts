@@ -107,6 +107,7 @@ export type Database = {
           name: string
           neighborhood: string
           number: string
+          price_table: number
           seller_code: string
           store_id: string
           transportadora: string | null
@@ -128,6 +129,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           number?: string
+          price_table?: number
           seller_code?: string
           store_id: string
           transportadora?: string | null
@@ -149,6 +151,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           number?: string
+          price_table?: number
           seller_code?: string
           store_id?: string
           transportadora?: string | null
@@ -584,6 +587,9 @@ export type Database = {
           color: string | null
           id: string
           price: number
+          price_table_1: number
+          price_table_4: number
+          price_table_9: number
           product_id: string
           size: string | null
           sku: string
@@ -593,6 +599,9 @@ export type Database = {
           color?: string | null
           id?: string
           price?: number
+          price_table_1?: number
+          price_table_4?: number
+          price_table_9?: number
           product_id: string
           size?: string | null
           sku?: string
@@ -602,6 +611,9 @@ export type Database = {
           color?: string | null
           id?: string
           price?: number
+          price_table_1?: number
+          price_table_4?: number
+          price_table_9?: number
           product_id?: string
           size?: string | null
           sku?: string
@@ -631,6 +643,9 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           name: string
+          price_table_1: number
+          price_table_4: number
+          price_table_9: number
           store_id: string
         }
         Insert: {
@@ -646,6 +661,9 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name: string
+          price_table_1?: number
+          price_table_4?: number
+          price_table_9?: number
           store_id: string
         }
         Update: {
@@ -661,6 +679,9 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name?: string
+          price_table_1?: number
+          price_table_4?: number
+          price_table_9?: number
           store_id?: string
         }
         Relationships: [
