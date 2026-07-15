@@ -2279,6 +2279,20 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Tabela de Preço</Label>
+                      <Select
+                        value={String(customerForm.priceTable)}
+                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                          <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                          <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
@@ -2314,6 +2328,20 @@ export default function StoreAdminPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-sm">Tabela de Preço</Label>
+                    <Select
+                      value={String(customerForm.priceTable)}
+                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 }))}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                        <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                        <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
