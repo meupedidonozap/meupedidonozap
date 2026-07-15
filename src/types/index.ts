@@ -233,6 +233,9 @@ export interface ProductVariant {
   price: number;
   stock: number;
   sku: string;
+  priceTable1?: number;
+  priceTable4?: number;
+  priceTable9?: number;
 }
 
 export interface ProductImage {
@@ -251,6 +254,9 @@ export interface Product {
   categoryId: string;
   groupId?: string;
   basePrice: number;
+  priceTable1?: number;
+  priceTable4?: number;
+  priceTable9?: number;
   image?: string;
   isActive: boolean;
   hasVariants: boolean;
