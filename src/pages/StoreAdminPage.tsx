@@ -2196,6 +2196,7 @@ export default function StoreAdminPage() {
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
                               transportadora: (cp as any).transportadora || '',
+                              priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
