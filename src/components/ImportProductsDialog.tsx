@@ -33,6 +33,8 @@ interface ParsedRow {
   description: string;
   category: string;
   price: number;
+  price1: number;
+  price9: number;
   active: boolean;
   valid: boolean;
   error?: string;
@@ -76,6 +78,16 @@ const COLUMN_MAP: Record<string, string> = {
   category: 'category',
   preco: 'price',
   price: 'price',
+  preco1: 'price1',
+  price1: 'price1',
+  'preco 1': 'price1',
+  tabela1: 'price1',
+  'tabela 1': 'price1',
+  preco9: 'price9',
+  price9: 'price9',
+  'preco 9': 'price9',
+  tabela9: 'price9',
+  'tabela 9': 'price9',
   ativo: 'active',
   active: 'active',
   cor: 'color',
@@ -196,6 +208,10 @@ function parseSimpleRows(
     const code = String(getField(row, headerMap, 'code') || '').trim();
     const name = String(getField(row, headerMap, 'name') || '').trim();
     const price = parsePrice(getField(row, headerMap, 'price'));
+    const price1Raw = parsePrice(getField(row, headerMap, 'price1'));
+    const price9Raw = parsePrice(getField(row, headerMap, 'price9'));
+    const price1 = price1Raw > 0 ? price1Raw : price;
+    const price9 = price9Raw > 0 ? price9Raw : price;
     const valid = !!name && price > 0;
     const existingId = code ? codeMap.get(code.toLowerCase().trim()) : undefined;
 
@@ -205,6 +221,8 @@ function parseSimpleRows(
       description: String(getField(row, headerMap, 'description') || '').trim(),
       category: String(getField(row, headerMap, 'category') || '').trim(),
       price,
+      price1,
+      price9,
       active: parseActive(getField(row, headerMap, 'active')),
       valid,
       error: !name ? 'Nome obrigatório' : price <= 0 ? 'Preço inválido' : undefined,
