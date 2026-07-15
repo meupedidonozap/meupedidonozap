@@ -617,7 +617,7 @@ export default function ProductFormDialog({
                 </Button>
               </div>
               {variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-6 gap-2 items-end">
+                <div key={i} className="grid grid-cols-8 gap-2 items-end">
                   <div>
                     <Label className="text-xs">Cor</Label>
                     <Input value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Azul" />
@@ -627,8 +627,16 @@ export default function ProductFormDialog({
                     <Input value={v.size} onChange={e => updateVariant(i, 'size', e.target.value)} placeholder="M" />
                   </div>
                   <div>
-                    <Label className="text-xs">Preço</Label>
-                    <Input type="number" step="0.01" value={v.price} onChange={e => updateVariant(i, 'price', Number(e.target.value))} />
+                    <Label className="text-xs">Tab. 1</Label>
+                    <Input type="number" step="0.01" value={v.priceTable1} onChange={e => updateVariant(i, 'priceTable1', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tab. 4</Label>
+                    <Input type="number" step="0.01" value={v.priceTable4} onChange={e => updateVariant(i, 'priceTable4', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tab. 9</Label>
+                    <Input type="number" step="0.01" value={v.priceTable9} onChange={e => updateVariant(i, 'priceTable9', Number(e.target.value))} />
                   </div>
                   <div>
                     <Label className="text-xs">Estoque</Label>
