@@ -515,7 +515,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const description = isAccessories
     ? 'Colunas: Código, Nome, Descrição, Categoria, Preço, Cor, Tamanho, Estoque, SKU, Ativo. Linhas com o mesmo Código serão agrupadas como variantes.'
-    : 'Selecione um arquivo .xlsx ou .xls com as colunas: Nome, Preço, Código, Descrição, Categoria, Ativo. Produtos com código existente serão atualizados automaticamente.';
+    : 'Selecione um arquivo .xlsx ou .xls com as colunas: Código, Nome, Descrição, Categoria, Preço (tabela 4 - varejo), Preco1 (atacado), Preco9 (atacado), Ativo. Preco1 e Preco9 são opcionais — se vazios, usam o valor de Preço. Produtos com código existente serão atualizados automaticamente.';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) { onOpenChange(v); if (!v) reset(); } }}>
@@ -616,7 +616,9 @@ function SimplePreviewTable({ rows }: { rows: ParsedRow[] }) {
           <TableHead>Código</TableHead>
           <TableHead>Nome</TableHead>
           <TableHead>Categoria</TableHead>
-          <TableHead>Preço</TableHead>
+          <TableHead>Preço (T4)</TableHead>
+          <TableHead>T1</TableHead>
+          <TableHead>T9</TableHead>
           <TableHead>Ativo</TableHead>
         </TableRow>
       </TableHeader>
@@ -632,6 +634,8 @@ function SimplePreviewTable({ rows }: { rows: ParsedRow[] }) {
             <TableCell>{row.name || <span className="text-destructive">Vazio</span>}</TableCell>
             <TableCell>{row.category || '-'}</TableCell>
             <TableCell>{row.price > 0 ? formatCurrency(row.price) : <span className="text-destructive">Inválido</span>}</TableCell>
+            <TableCell>{formatCurrency(row.price1)}</TableCell>
+            <TableCell>{formatCurrency(row.price9)}</TableCell>
             <TableCell>{row.active ? 'Sim' : 'Não'}</TableCell>
           </TableRow>
         ))}
