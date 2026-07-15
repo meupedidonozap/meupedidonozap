@@ -43,6 +43,9 @@ interface VariantForm {
   price: number;
   stock: number;
   sku: string;
+  priceTable1: number;
+  priceTable4: number;
+  priceTable9: number;
 }
 
 interface ImageForm {
@@ -99,6 +102,8 @@ export default function ProductFormDialog({
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [basePrice, setBasePrice] = useState('');
+  const [priceTable1, setPriceTable1] = useState('');
+  const [priceTable9, setPriceTable9] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [hasVariants, setHasVariants] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -123,6 +128,8 @@ export default function ProductFormDialog({
       setDescription(product.description);
       setCategoryId(product.categoryId || '');
       setBasePrice(String(product.basePrice));
+      setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : String(product.basePrice));
+      setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : String(product.basePrice));
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
@@ -136,6 +143,9 @@ export default function ProductFormDialog({
           price: v.price,
           stock: v.stock,
           sku: v.sku,
+          priceTable1: v.priceTable1 != null && v.priceTable1 > 0 ? v.priceTable1 : v.price,
+          priceTable4: v.priceTable4 != null && v.priceTable4 > 0 ? v.priceTable4 : v.price,
+          priceTable9: v.priceTable9 != null && v.priceTable9 > 0 ? v.priceTable9 : v.price,
         })) || []
       );
       setProductImages(
@@ -165,6 +175,8 @@ export default function ProductFormDialog({
       setDescription('');
       setCategoryId('');
       setBasePrice('');
+      setPriceTable1('');
+      setPriceTable9('');
       setIsActive(true);
       setHasVariants(false);
       setImagePreview(null);
@@ -220,7 +232,13 @@ export default function ProductFormDialog({
   };
 
   const addVariant = () => {
-    setVariants(prev => [...prev, { color: '', size: '', price: Number(basePrice) || 0, stock: 0, sku: '' }]);
+    const bp = Number(basePrice) || 0;
+    const pt1 = Number(priceTable1) || bp;
+    const pt9 = Number(priceTable9) || bp;
+    setVariants(prev => [...prev, {
+      color: '', size: '', price: bp, stock: 0, sku: '',
+      priceTable1: pt1, priceTable4: bp, priceTable9: pt9,
+    }]);
   };
 
   const removeVariant = (index: number) => {
@@ -229,7 +247,14 @@ export default function ProductFormDialog({
 
   const updateVariant = (index: number, field: keyof VariantForm, value: string | number) => {
     setVariants(prev =>
-      prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+      prev.map((v, i) => {
+        if (i !== index) return v;
+        const next = { ...v, [field]: value } as VariantForm;
+        // Keep the legacy `price` column in sync with Tabela 4 (default retail).
+        if (field === 'priceTable4') next.price = Number(value) || 0;
+        if (field === 'price') next.priceTable4 = Number(value) || 0;
+        return next;
+      })
     );
   };
 
@@ -268,9 +293,12 @@ export default function ProductFormDialog({
         ? variants.map(v => ({
             color: v.color || undefined,
             size: v.size || undefined,
-            price: v.price,
+            price: v.priceTable4 || v.price,
             stock: v.stock,
             sku: v.sku,
+            priceTable1: v.priceTable1 || v.priceTable4 || v.price,
+            priceTable4: v.priceTable4 || v.price,
+            priceTable9: v.priceTable9 || v.priceTable4 || v.price,
           }))
         : [];
 
@@ -282,6 +310,9 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: Number(basePrice) || 0,
+          priceTable1: Number(priceTable1) || Number(basePrice) || 0,
+          priceTable4: Number(basePrice) || 0,
+          priceTable9: Number(priceTable9) || Number(basePrice) || 0,
           imageUrl: imageUrl,
           isActive,
           hasVariants,
@@ -309,6 +340,9 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: Number(basePrice) || 0,
+          priceTable1: Number(priceTable1) || Number(basePrice) || 0,
+          priceTable4: Number(basePrice) || 0,
+          priceTable9: Number(priceTable9) || Number(basePrice) || 0,
           imageUrl: imageUrl || undefined,
           isActive,
           hasVariants,
