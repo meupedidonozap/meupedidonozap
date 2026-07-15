@@ -255,8 +255,8 @@ function downloadTemplate(isAccessories: boolean) {
         { Codigo: '002', Nome: 'Bone Trucker', Descricao: 'Aba curva', Categoria: 'Bones', Preco: 49.90, Cor: '', Tamanho: '', Estoque: 30, SKU: '002', Ativo: 'Sim' },
       ]
     : [
-        { Codigo: '001', Nome: 'X-Burguer', Descricao: 'Hamburguer com queijo', Categoria: 'Lanches', Preco: 25.90, Ativo: 'Sim' },
-        { Codigo: '002', Nome: 'Coca-Cola 350ml', Descricao: 'Refrigerante', Categoria: 'Bebidas', Preco: 7.50, Ativo: 'Sim' },
+        { Codigo: '001', Nome: 'X-Burguer', Descricao: 'Hamburguer com queijo', Categoria: 'Lanches', Preco: 25.90, Preco1: 22.90, Preco9: 20.90, Ativo: 'Sim' },
+        { Codigo: '002', Nome: 'Coca-Cola 350ml', Descricao: 'Refrigerante', Categoria: 'Bebidas', Preco: 7.50, Preco1: 6.50, Preco9: 5.90, Ativo: 'Sim' },
       ];
 
   const ws = XLSX.utils.json_to_sheet(data);
@@ -446,6 +446,9 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         description: r.description,
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
         base_price: r.price,
+        price_table_1: r.price1,
+        price_table_4: r.price,
+        price_table_9: r.price9,
         is_active: r.active,
       }).eq('id', r.existingId!);
 
@@ -464,6 +467,9 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         description: r.description,
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
         base_price: r.price,
+        price_table_1: r.price1,
+        price_table_4: r.price,
+        price_table_9: r.price9,
         is_active: r.active,
         has_variants: false,
       }));
