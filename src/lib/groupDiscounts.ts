@@ -14,9 +14,18 @@ function normalizeGroupId(raw: string | undefined | null): string {
 
 export function computeGroupDiscounts(
   items: CartItem[],
-  rules: DiscountRule[]
+  rules: DiscountRule[],
+  customerPriceTable?: 1 | 4 | 9,
 ): { quantityDiscount: number; itemDiscounts: Record<string, number> } {
-  const groupRules = rules.filter(r => r.type === 'group');
+  const effectiveTable: 1 | 4 | 9 = (customerPriceTable === 1 || customerPriceTable === 9 || customerPriceTable === 4)
+    ? customerPriceTable
+    : 4;
+  const groupRules = rules.filter(r => {
+    if (r.type !== 'group') return false;
+    // Rules with no priceTable = universal. Otherwise must match the customer's table.
+    if (r.priceTable == null) return true;
+    return r.priceTable === effectiveTable;
+  });
   let totalDiscount = 0;
   const itemDiscounts: Record<string, number> = {};
 
@@ -60,9 +69,10 @@ export function computeGroupDiscounts(
 export function ensureItemDiscountPercents<T extends CartItem & { discountPercent?: number }>(
   items: T[],
   rules: DiscountRule[] | undefined,
+  customerPriceTable?: 1 | 4 | 9,
 ): T[] {
   if (!rules || rules.length === 0) return items;
-  const { itemDiscounts } = computeGroupDiscounts(items, rules);
+  const { itemDiscounts } = computeGroupDiscounts(items, rules, customerPriceTable);
   return items.map(it => {
     if (it.discountPercent && it.discountPercent > 0) return it;
     const key = `${it.productId}-${it.variantId || ''}`;
