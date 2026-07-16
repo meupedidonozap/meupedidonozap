@@ -1,71 +1,36 @@
-## Segmentação por tabela de preço (Dicolore) — sem impacto operacional
+## Corrigir sync-prices para a nova planilha (3 tabelas)
 
-Estratégia: adicionar as 3 tabelas (1, 4, 9) em produtos, variantes, clientes e regras de desconto, **backfillando tudo com tabela 4**. A operação continua idêntica até que novas importações tragam dados de outras tabelas.
+### Causa do erro
+`supabase/functions/sync-prices/index.ts` procura a coluna `protabpre` no CSV. A nova planilha da Dicolore tem `Preço 1`, `Preço 4`, `Preço 9`, `Descrição PRoduto`, `GRUPO`. Header não encontrado → função retorna HTTP 400 → toast "Edge Function returned a non-2xx status code".
 
-### 1. Migration (idempotente, sem quebra)
+### Ajuste na Edge Function `sync-prices`
 
-**products**
-- `price_table_1 numeric NOT NULL DEFAULT 0`
-- `price_table_4 numeric NOT NULL DEFAULT 0`
-- `price_table_9 numeric NOT NULL DEFAULT 0`
-- Backfill: `price_table_4 = base_price` para todos os registros existentes. `price_table_1` e `price_table_9` também recebem `base_price` como fallback inicial (assim, um cliente tabela 1 ou 9 nunca vê preço zero — só verá preço diferente após nova importação).
-- `base_price` permanece — é a fonte de verdade para lojas que não usam segmentação.
+1. **Novo mapeamento de header** (case-insensitive, aceita acento e espaço):
+   - `procod` (mantém)
+   - `preco 1` / `preço 1` / `tabela 1` → `price1Idx`
+   - `preco 4` / `preço 4` / `tabela 4` / `protabpre` (fallback legado) → `price4Idx`
+   - `preco 9` / `preço 9` / `tabela 9` → `price9Idx`
+   - `descrição produto` / `descricao produto` / `des_pro` / `pronom` / `nome` → `nameIdx`
+   - `grupo` / `des grp` / `desgrp` → `grpIdx`
+   - `procodbar` / `ean` / `barras` → `barIdx`
 
-**product_variants**
-- `price_table_1`, `price_table_4`, `price_table_9` (mesmo padrão, backfill = `price`).
+2. **Validação**: exigir `procod` + pelo menos uma das colunas de preço (`price1Idx`, `price4Idx` ou `price9Idx`). Mensagem de erro passa a listar exatamente quais colunas foram lidas, para facilitar diagnóstico futuro.
 
-**customer_profiles**
-- `price_table smallint NOT NULL DEFAULT 4 CHECK (price_table IN (1,4,9))`.
-- Todos os clientes existentes ficam com `4` automaticamente (via DEFAULT no ADD COLUMN).
+3. **Parsing linha a linha**:
+   - `p1 = parse(price1Idx)`, `p4 = parse(price4Idx)`, `p9 = parse(price9Idx)`.
+   - Fallback: se alguma tabela vier vazia/0, usar o primeiro valor válido entre as três (garante retrocompatibilidade com planilhas antigas de tabela única).
+   - Considerar linha válida quando pelo menos um preço > 0.
 
-**Regras de desconto** (em `stores.settings.discountRules` JSONB)
-- Novo campo opcional `priceTable?: 1|4|9`.
-- Backfill: script na mesma migration percorre `stores.settings->discountRules` e adiciona `"priceTable": 4` em cada regra existente. Regras futuras podem vir com outra tabela ou sem tabela (= todas).
+4. **Update de produtos existentes**: comparar e gravar `price_table_1`, `price_table_4`, `price_table_9`. Manter `base_price = p4` (fonte de verdade para storefronts não segmentados). Continuar registrando `priceUpdates` quando qualquer uma das três tabelas mudar (com detalhamento por tabela no retorno).
 
-### 2. Runtime (sem mudar comportamento até haver dados)
+5. **Insert de produtos novos**: preencher `base_price = p4`, `price_table_1 = p1`, `price_table_4 = p4`, `price_table_9 = p9`.
 
-- Helper `src/lib/pricing.ts`:
-  - `getActivePriceTable(customer)` → tabela do cliente logado; default `4` (para visitante).
-  - `resolveProductPrice(product, table)` → devolve `price_table_<n>`, com fallback para `base_price` quando `0`/nulo.
-  - `resolveVariantPrice(variant, table)` → idem, fallback para `price`.
-- Como o backfill preencheu todas as tabelas com o mesmo valor, **qualquer cliente vê exatamente o mesmo preço de hoje** até uma importação diferenciada acontecer.
+6. **Categorias e consolidação**: lógica atual preservada (usa `GRUPO`).
 
-### 3. Descontos (`src/lib/groupDiscounts.ts`)
+### Fora de escopo
+- UI do botão "Atualizar Preços" e demais telas não mudam.
+- Nenhuma migration nova — colunas `price_table_*` já existem.
 
-- Filtro: aplicar regra se `rule.priceTable == null || rule.priceTable === customer.priceTable`.
-- Como toda regra existente foi backfillada com `priceTable = 4` e todo cliente existente é `4`, o comportamento permanece idêntico.
-
-### 4. Tipos (`src/types/index.ts`)
-
-- `Product`, `ProductVariant`: `priceTable1`, `priceTable4`, `priceTable9`.
-- `CustomerProfile`: `priceTable: 1|4|9`.
-- `DiscountRule`: `priceTable?: 1|4|9`.
-
-### 5. UI Admin (aditiva, não muda o fluxo atual)
-
-- **ProductFormDialog / VariantDialog**: exibir 3 campos (Tabela 1 / 4 / 9). O campo principal "Preço" atual passa a alimentar Tabela 4 e continuar sincronizado com `base_price`, mantendo o mesmo fluxo de digitação para quem não usa segmentação.
-- **Regras de desconto** (aba no StoreAdmin): novo seletor "Tabela de preço" (Todas / 1 / 4 / 9), default 4 nas regras já existentes.
-- **Clientes** (admin): novo seletor de tabela; cliente final não vê.
-- **Imports**: `ImportProductsDialog`, `ImportCustomersDialog`, `ImportDiscountRulesDialog`, `sync-prices`, `sync-customers`, `import-customers` passam a aceitar (opcionalmente) colunas de tabela; ausência → tabela 4.
-
-### 6. Retrocompat garantida
-
-- Lojas que não usam tabelas: nada muda visualmente (os 3 preços são iguais, cliente default = 4).
-- Regras backfillada com tabela 4 + cliente default 4 = mesmo resultado de hoje.
-- `base_price` continua sendo usado como fallback em toda leitura.
-
-### Detalhes técnicos
-
-- Uma única migration adiciona colunas com DEFAULT (não trava a tabela) e roda o UPDATE de backfill de `price_table_*` e o `jsonb_set` recursivo nas `stores.settings.discountRules`.
-- Sem novos GRANTs (colunas em tabelas já existentes herdam permissões).
-- `useProducts`, `useCustomerProfile`, mappers de discount rules atualizados para ler/gravar os novos campos.
-- `.select().single()` mantido nos updates.
-
-### Ordem de execução
-
-1. Migration (schema + backfill).
-2. Tipos + mappers + helper de pricing.
-3. Consumo do helper em Cart/Checkout/storefronts/impressão.
-4. Filtro por tabela nos descontos.
-5. UI admin (produtos, regras, clientes).
-6. Imports/sync com colunas de tabela opcionais.
+### Verificação
+- Após a alteração, clicar em "Atualizar Preços" com o produto `7898418090477` deve gravar `price_table_1=13.90`, `price_table_4=25.00`, `price_table_9=14.90`, `base_price=25.00`.
+- Toast deve mostrar contadores de preços atualizados sem 4xx/5xx.

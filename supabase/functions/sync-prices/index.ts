@@ -72,35 +72,80 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse header using RFC parser
-    const header = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
+    // Parse header using RFC parser. Normalize: lowercase + strip accents + collapse spaces.
+    const normalizeHeader = (h: string) =>
+      h
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    const header = parseCSVLine(lines[0]).map(normalizeHeader);
     const codeIdx = header.indexOf("procod");
-    const priceIdx = header.indexOf("protabpre");
-    const grpIdx = header.findIndex((h) => h === "des grp" || h === "desgrp" || h === "des_grp");
+    const price1Idx = header.findIndex((h) => ["preco 1", "preco1", "tabela 1", "tab 1"].includes(h));
+    const price4Idx = header.findIndex((h) =>
+      ["preco 4", "preco4", "tabela 4", "tab 4", "protabpre", "preco"].includes(h)
+    );
+    const price9Idx = header.findIndex((h) => ["preco 9", "preco9", "tabela 9", "tab 9"].includes(h));
+    const grpIdx = header.findIndex((h) =>
+      ["grupo", "des grp", "desgrp", "des_grp", "categoria"].includes(h)
+    );
     const nameIdx = header.findIndex((h) =>
-      ["pronom", "descricao", "descrição", "des_pro", "despro", "des pro", "produto", "nome"].includes(h)
+      [
+        "pronom",
+        "descricao",
+        "descricao produto",
+        "descricao pRoduto".toLowerCase(),
+        "des pro",
+        "des_pro",
+        "despro",
+        "produto",
+        "nome",
+      ].includes(h)
     );
     const barIdx = header.findIndex((h) => ["procodbar", "codbar", "ean", "barras"].includes(h));
 
-    if (codeIdx === -1 || priceIdx === -1) {
+    if (codeIdx === -1 || (price1Idx === -1 && price4Idx === -1 && price9Idx === -1)) {
       return new Response(
-        JSON.stringify({ error: "Columns procod/protabpre not found in spreadsheet" }),
+        JSON.stringify({
+          error:
+            "Cabeçalho inválido: exige 'procod' e ao menos uma coluna de preço (Preço 1 / Preço 4 / Preço 9).",
+          detected_headers: header,
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const parseNum = (raw: string | undefined): number => {
+      if (!raw) return NaN;
+      const n = parseFloat(String(raw).replace(/\./g, "").replace(",", "."));
+      // If value contains no comma and no dot-decimal, fallback:
+      if (isNaN(n)) return parseFloat(String(raw).replace(",", "."));
+      return n;
+    };
+
     // Build price + category map from spreadsheet
-    const sheetData: Record<string, { price: number; category?: string; name?: string; bar?: string }> = {};
+    const sheetData: Record<
+      string,
+      { price1: number; price4: number; price9: number; category?: string; name?: string; bar?: string }
+    > = {};
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCSVLine(lines[i]);
       const code = cols[codeIdx];
-      const rawPrice = cols[priceIdx]?.replace(",", ".");
-      const price = parseFloat(rawPrice);
-      if (!code || isNaN(price) || price <= 0) continue;
+      if (!code) continue;
+      const p1raw = price1Idx !== -1 ? parseFloat(cols[price1Idx]?.replace(",", ".")) : NaN;
+      const p4raw = price4Idx !== -1 ? parseFloat(cols[price4Idx]?.replace(",", ".")) : NaN;
+      const p9raw = price9Idx !== -1 ? parseFloat(cols[price9Idx]?.replace(",", ".")) : NaN;
+      const candidates = [p4raw, p1raw, p9raw].filter((n) => Number.isFinite(n) && n > 0);
+      if (candidates.length === 0) continue;
+      const fallback = candidates[0];
+      const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : fallback;
+      const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : fallback;
+      const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : fallback;
       const category = grpIdx !== -1 ? cols[grpIdx]?.trim() || undefined : undefined;
       const name = nameIdx !== -1 ? cols[nameIdx]?.trim() || undefined : undefined;
       const bar = barIdx !== -1 ? cols[barIdx]?.trim() || undefined : undefined;
-      sheetData[code] = { price, category, name, bar };
+      sheetData[code] = { price1, price4, price9, category, name, bar };
     }
 
     // Supabase client with service role
@@ -112,7 +157,7 @@ Deno.serve(async (req) => {
     // Fetch products from DB
     const { data: products, error: pErr } = await supabase
       .from("products")
-      .select("id, code, base_price, category_id")
+      .select("id, code, base_price, price_table_1, price_table_4, price_table_9, category_id")
       .eq("store_id", store_id);
 
     if (pErr) {
@@ -135,7 +180,14 @@ Deno.serve(async (req) => {
     }
 
     // Track results
-    const priceUpdates: { code: string; old_price: number; new_price: number }[] = [];
+    const priceUpdates: {
+      code: string;
+      old_price: number;
+      new_price: number;
+      t1?: { old: number; new: number };
+      t4?: { old: number; new: number };
+      t9?: { old: number; new: number };
+    }[] = [];
     const categoryUpdates: { code: string; old_cat: string | null; new_cat: string }[] = [];
     const categoriesCreated: string[] = [];
     const productsCreated: { code: string; name: string }[] = [];
@@ -148,13 +200,29 @@ Deno.serve(async (req) => {
 
       const updates: Record<string, unknown> = {};
 
-      // Price check
-      if (Math.abs(sheet.price - Number(product.base_price)) > 0.001) {
-        updates.base_price = sheet.price;
+      const oldBase = Number(product.base_price) || 0;
+      const oldT1 = Number(product.price_table_1) || 0;
+      const oldT4 = Number(product.price_table_4) || 0;
+      const oldT9 = Number(product.price_table_9) || 0;
+
+      const diff1 = Math.abs(sheet.price1 - oldT1) > 0.001;
+      const diff4 = Math.abs(sheet.price4 - oldT4) > 0.001;
+      const diff9 = Math.abs(sheet.price9 - oldT9) > 0.001;
+      const diffBase = Math.abs(sheet.price4 - oldBase) > 0.001;
+
+      if (diff1) updates.price_table_1 = sheet.price1;
+      if (diff4) updates.price_table_4 = sheet.price4;
+      if (diff9) updates.price_table_9 = sheet.price9;
+      if (diffBase) updates.base_price = sheet.price4;
+
+      if (diff1 || diff4 || diff9 || diffBase) {
         priceUpdates.push({
           code: product.code,
-          old_price: Number(product.base_price),
-          new_price: sheet.price,
+          old_price: oldBase,
+          new_price: sheet.price4,
+          t1: diff1 ? { old: oldT1, new: sheet.price1 } : undefined,
+          t4: diff4 ? { old: oldT4, new: sheet.price4 } : undefined,
+          t9: diff9 ? { old: oldT9, new: sheet.price9 } : undefined,
         });
       }
 
@@ -226,7 +294,10 @@ Deno.serve(async (req) => {
         code,
         name: productName,
         description: sheet.bar ? `EAN: ${sheet.bar}` : "",
-        base_price: sheet.price,
+        base_price: sheet.price4,
+        price_table_1: sheet.price1,
+        price_table_4: sheet.price4,
+        price_table_9: sheet.price9,
         category_id: catId,
         is_active: true,
         has_variants: false,
