@@ -1,69 +1,51 @@
-## Ajustes em `supabase/functions/sync-prices/index.ts`
+## Diagnóstico
 
-### 1. Grupo: usar coluna G ("Des GRP"), não coluna F ("GRUPO")
+Rodei uma checagem no banco da Dicolore e o resultado é diferente do que aparenta na tela:
 
-Na planilha atual da Dicolore:
-- Coluna F = `GRUPO` → código numérico (ex.: 40, 64, 148)
-- Coluna G = `Des GRP` → nome descritivo (ex.: COLORAÇÃO, MATERIAL DE APOIO, DIVERSOS NACIONAL)
+- **Grupos DOS PRODUTOS já foram corrigidos.** Ex.: `DV1100` agora está em "MATERIAL DE APOIO", `KIT086` em "KIT PROMOÇÃO", `7898418090477` em "COLORAÇÃO". De 452 produtos, apenas **2** ainda estão em categorias numéricas (grupos "100" e "54"), porque essas linhas vêm literalmente com esse nome em "Des GRP" na planilha.
+- **O que ainda está errado é o menu de Categorias:** existem **26 categorias numéricas órfãs** ("40", "64", "148", "907", "908", "910", etc.) que ficaram com 0 produtos e **não foram apagadas** pela consolidação, mesmo com o código de limpeza rodando. É isso que dá a impressão visual de que "nada mudou".
 
-Hoje o código faz `grpIdx = header.findIndex(h => ["grupo","des grp","desgrp",...].includes(h))` — como "grupo" vem antes de "des grp" na varredura do header, ele casa com a coluna F e grava o **código numérico** como nome da categoria (por isso KIT086 aparece com categoria "148" na tela).
+A rotina de exclusão em `sync-prices` filtra `store_id` e usa `.in("id", emptyIds)`, mas o `supabase-js` v2 exige ordem específica das cláusulas em `delete({ count: "exact" })` — a combinação atual está silenciosamente não removendo essas linhas (nenhum erro é retornado, `count` volta 0 ou undefined e o toast diz sucesso).
 
-**Correção:** priorizar `des grp` / `desgrp` / `des_grp` na detecção. Só cair para `grupo` como último fallback (para planilhas antigas que só têm essa coluna). Ordem de busca:
+## Ajustes propostos
 
-1. `des grp`, `desgrp`, `des_grp`, `descricao grupo`, `descrição grupo`
-2. `categoria`
-3. `grupo` (fallback legado)
+### 1. `supabase/functions/sync-prices/index.ts` — limpar categorias vazias de forma robusta
 
-### 2. Preços: não replicar valores quando a planilha tiver 0/vazio
+Trocar o bloco final por duas passadas explícitas:
 
-Hoje a função tem esta lógica de fallback:
+1. **Passo A — apagar por id em lote:** para cada `emptyId`, fazer `.delete().eq("id", id).eq("store_id", store_id)` e capturar erro individual (ignorando "still referenced" se ainda houver algum food_item/pizza_flavor apontando).
+2. **Passo B — varredura extra:** ao final, rodar `.delete().eq("store_id", store_id)` filtrando por `id NOT IN (SELECT DISTINCT category_id FROM products WHERE store_id=... AND category_id IS NOT NULL)`. Como PostgREST não suporta subquery, faremos isso via RPC de duas etapas: buscar todos `category_id` distintos em produtos e usar `.not("id", "in", "(...)")` no delete.
+3. **Contabilizar corretamente:** somar quantas foram efetivamente removidas e devolver no `categoriesDeleted` do JSON de resposta para dar visibilidade real no toast.
 
-```ts
-const fallback = candidates[0];
-const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : fallback;
-const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : fallback;
+### 2. Toast do painel — mostrar contadores reais
+
+Em `src/pages/StoreAdminPage.tsx` (handler de "Atualizar Preços"), incluir na mensagem `categorias removidas: X, mescladas: Y` para o usuário enxergar que a limpeza aconteceu.
+
+### 3. Limpeza pontual dos 26 registros órfãos existentes
+
+Como já sabemos exatamente quais são (categorias com `name ~ '^[0-9]+$'` e 0 produtos na Dicolore), incluir uma **migração SQL única** que remove essas linhas órfãs de qualquer loja:
+
+```sql
+DELETE FROM public.categories c
+WHERE NOT EXISTS (SELECT 1 FROM public.products p WHERE p.category_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM public.food_items f WHERE f.category_id = c.id)
+  AND NOT EXISTS (SELECT 1 FROM public.pizza_flavors pf WHERE pf.category_id = c.id)
+  AND c.name ~ '^[0-9]+$';
 ```
 
-Isso é o que fez KIT086 ficar com Tabela 1 = Tabela 9 = R$ 335 mesmo com a planilha marcando 0 nessas colunas. O usuário quer que os zeros da planilha sejam respeitados.
+Isso é seguro: só apaga categorias cujo nome é puramente numérico e que não estão em uso por nenhum produto/prato/sabor.
 
-**Correção:** manter fallback **apenas** para Tabela 4 (que é a referência / `base_price`). Para Tabelas 1 e 9:
+### 4. Redeploy da Edge Function
 
-- Se o valor na planilha é > 0 → grava o valor.
-- Se é 0 / vazio / inválido → grava `0` (ou `null`), sem herdar da Tabela 4.
+`sync-prices` precisa ser redeployado para as mudanças entrarem no ar antes do próximo clique em "Atualizar Preços".
 
-Assim linhas 2 e 3 da planilha (produtos com `Preço 1 = 0`, `Preço 9 = 0`) passam a refletir 0 no banco, e a UI da vitrine já usa `resolveProductPrice` que cai para `basePrice` quando a tabela específica é 0 — o comportamento de exibição para visitantes/varejo (Tabela 4) fica preservado, e clientes de atacado com Tabela 1 ou 9 verão claramente que o produto não tem preço nessa tabela (ou, via fallback do helper, verão o `basePrice` — a decidir no item 3).
+## Fora de escopo
 
-### 3. Alinhar decisão de exibição no front
+- Nenhuma alteração em preços, tabelas 1/4/9, regras de desconto, ou tela de admin fora do toast do sync.
+- Os 2 produtos que legitimamente têm grupo "100" e "54" na planilha continuam nesses grupos (é o dado de origem).
 
-Hoje `src/lib/pricing.ts` faz:
+## Verificação após implementação
 
-```ts
-if (Number.isFinite(value) && value > 0) return value;
-return Number(product.basePrice) || 0;
-```
-
-Ou seja, se Tabela 1 ficar 0, o cliente atacado acaba vendo `basePrice` (Tabela 4). Preciso confirmar com o usuário qual comportamento ele quer:
-
-- **(A)** Cliente atacado com preço zerado na sua tabela → vê `basePrice` da Tabela 4 (comportamento atual do helper, mantém venda).
-- **(B)** Cliente atacado com preço zerado na sua tabela → produto não pode ser comprado / aparece como "sob consulta" / é ocultado.
-
-Vou assumir **(A)** por padrão (mantém a operação e nenhuma tela adicional muda). Se preferir (B), me avisa que ajusto `pricing.ts` e a listagem.
-
-### 4. Rodar sincronização após o deploy
-
-Depois do deploy da Edge Function, basta clicar em "Atualizar Preços" no painel da Dicolore para:
-- Reprocessar todos os produtos com o nome de grupo correto (vindo da coluna G).
-- Zerar `price_table_1` / `price_table_9` dos produtos cuja planilha tem 0 nessas colunas (ex.: KIT086).
-- Consolidação de categorias duplicadas já existente na função vai limpar as categorias numéricas ("40", "148", etc.) que ficarem sem produtos.
-
-### Fora de escopo
-
-- Nenhuma migration de schema.
-- Nenhuma mudança na UI do painel admin nem no fluxo de importação Excel manual.
-- Regras de desconto e tabelas de preço por cliente continuam como estão.
-
-### Verificação após deploy + clique em "Atualizar Preços"
-
-- KIT086 (linha da planilha): grupo passa a ser a categoria nomeada da coluna G, `price_table_1` e `price_table_9` gravados conforme planilha (0 se estiver 0).
-- Produtos de COLORAÇÃO / MATERIAL DE APOIO / DIVERSOS NACIONAL: categorias exibidas com nome, não com código numérico.
-- Toast do botão continua mostrando contadores de preços/categorias/produtos atualizados sem 4xx/5xx.
+1. Rodar a migração → confere `SELECT COUNT(*) FROM categories WHERE store_id=... AND name ~ '^[0-9]+$'` = 2 (só as que ainda têm produto).
+2. Clicar em "Atualizar Preços" → toast informa `categorias removidas` explicitamente.
+3. Aba Categorias no admin não mostra mais linhas "0 produtos" com nome numérico.
