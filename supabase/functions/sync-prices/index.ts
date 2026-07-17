@@ -396,20 +396,47 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Elimina categorias sem produtos
+    // Elimina categorias sem produtos.
+    // Passo A: exclui por id individual (evita silenciar erros no lote e captura FK).
     const emptyIds: string[] = (allCats || [])
       .filter((c) => (productCountByCat.get(c.id) || 0) === 0)
       .map((c) => c.id);
 
-    if (emptyIds.length > 0) {
-      const { error: delErr, count } = await supabase
+    for (const cid of emptyIds) {
+      const { error: delErr } = await supabase
         .from("categories")
-        .delete({ count: "exact" })
-        .in("id", emptyIds)
+        .delete()
+        .eq("id", cid)
         .eq("store_id", store_id);
       if (!delErr) {
-        categoriesDeleted = count ?? emptyIds.length;
+        categoriesDeleted += 1;
+      } else {
+        console.warn(`Falha ao excluir categoria ${cid}:`, delErr.message);
       }
+    }
+
+    // Passo B: varredura extra — remove qualquer categoria remanescente da loja
+    // que não esteja referenciada por nenhum produto (defesa contra desvio no map).
+    const { data: prodCatsFresh } = await supabase
+      .from("products")
+      .select("category_id")
+      .eq("store_id", store_id)
+      .not("category_id", "is", null);
+    const usedIds = new Set<string>((prodCatsFresh || []).map((r: any) => r.category_id));
+    const { data: catsFresh } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("store_id", store_id);
+    const stillEmpty = (catsFresh || [])
+      .map((c: any) => c.id as string)
+      .filter((id) => !usedIds.has(id));
+    for (const cid of stillEmpty) {
+      const { error: delErr } = await supabase
+        .from("categories")
+        .delete()
+        .eq("id", cid)
+        .eq("store_id", store_id);
+      if (!delErr) categoriesDeleted += 1;
     }
 
     return new Response(
