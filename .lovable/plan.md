@@ -1,36 +1,69 @@
-## Corrigir sync-prices para a nova planilha (3 tabelas)
+## Ajustes em `supabase/functions/sync-prices/index.ts`
 
-### Causa do erro
-`supabase/functions/sync-prices/index.ts` procura a coluna `protabpre` no CSV. A nova planilha da Dicolore tem `Preço 1`, `Preço 4`, `Preço 9`, `Descrição PRoduto`, `GRUPO`. Header não encontrado → função retorna HTTP 400 → toast "Edge Function returned a non-2xx status code".
+### 1. Grupo: usar coluna G ("Des GRP"), não coluna F ("GRUPO")
 
-### Ajuste na Edge Function `sync-prices`
+Na planilha atual da Dicolore:
+- Coluna F = `GRUPO` → código numérico (ex.: 40, 64, 148)
+- Coluna G = `Des GRP` → nome descritivo (ex.: COLORAÇÃO, MATERIAL DE APOIO, DIVERSOS NACIONAL)
 
-1. **Novo mapeamento de header** (case-insensitive, aceita acento e espaço):
-   - `procod` (mantém)
-   - `preco 1` / `preço 1` / `tabela 1` → `price1Idx`
-   - `preco 4` / `preço 4` / `tabela 4` / `protabpre` (fallback legado) → `price4Idx`
-   - `preco 9` / `preço 9` / `tabela 9` → `price9Idx`
-   - `descrição produto` / `descricao produto` / `des_pro` / `pronom` / `nome` → `nameIdx`
-   - `grupo` / `des grp` / `desgrp` → `grpIdx`
-   - `procodbar` / `ean` / `barras` → `barIdx`
+Hoje o código faz `grpIdx = header.findIndex(h => ["grupo","des grp","desgrp",...].includes(h))` — como "grupo" vem antes de "des grp" na varredura do header, ele casa com a coluna F e grava o **código numérico** como nome da categoria (por isso KIT086 aparece com categoria "148" na tela).
 
-2. **Validação**: exigir `procod` + pelo menos uma das colunas de preço (`price1Idx`, `price4Idx` ou `price9Idx`). Mensagem de erro passa a listar exatamente quais colunas foram lidas, para facilitar diagnóstico futuro.
+**Correção:** priorizar `des grp` / `desgrp` / `des_grp` na detecção. Só cair para `grupo` como último fallback (para planilhas antigas que só têm essa coluna). Ordem de busca:
 
-3. **Parsing linha a linha**:
-   - `p1 = parse(price1Idx)`, `p4 = parse(price4Idx)`, `p9 = parse(price9Idx)`.
-   - Fallback: se alguma tabela vier vazia/0, usar o primeiro valor válido entre as três (garante retrocompatibilidade com planilhas antigas de tabela única).
-   - Considerar linha válida quando pelo menos um preço > 0.
+1. `des grp`, `desgrp`, `des_grp`, `descricao grupo`, `descrição grupo`
+2. `categoria`
+3. `grupo` (fallback legado)
 
-4. **Update de produtos existentes**: comparar e gravar `price_table_1`, `price_table_4`, `price_table_9`. Manter `base_price = p4` (fonte de verdade para storefronts não segmentados). Continuar registrando `priceUpdates` quando qualquer uma das três tabelas mudar (com detalhamento por tabela no retorno).
+### 2. Preços: não replicar valores quando a planilha tiver 0/vazio
 
-5. **Insert de produtos novos**: preencher `base_price = p4`, `price_table_1 = p1`, `price_table_4 = p4`, `price_table_9 = p9`.
+Hoje a função tem esta lógica de fallback:
 
-6. **Categorias e consolidação**: lógica atual preservada (usa `GRUPO`).
+```ts
+const fallback = candidates[0];
+const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : fallback;
+const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : fallback;
+```
+
+Isso é o que fez KIT086 ficar com Tabela 1 = Tabela 9 = R$ 335 mesmo com a planilha marcando 0 nessas colunas. O usuário quer que os zeros da planilha sejam respeitados.
+
+**Correção:** manter fallback **apenas** para Tabela 4 (que é a referência / `base_price`). Para Tabelas 1 e 9:
+
+- Se o valor na planilha é > 0 → grava o valor.
+- Se é 0 / vazio / inválido → grava `0` (ou `null`), sem herdar da Tabela 4.
+
+Assim linhas 2 e 3 da planilha (produtos com `Preço 1 = 0`, `Preço 9 = 0`) passam a refletir 0 no banco, e a UI da vitrine já usa `resolveProductPrice` que cai para `basePrice` quando a tabela específica é 0 — o comportamento de exibição para visitantes/varejo (Tabela 4) fica preservado, e clientes de atacado com Tabela 1 ou 9 verão claramente que o produto não tem preço nessa tabela (ou, via fallback do helper, verão o `basePrice` — a decidir no item 3).
+
+### 3. Alinhar decisão de exibição no front
+
+Hoje `src/lib/pricing.ts` faz:
+
+```ts
+if (Number.isFinite(value) && value > 0) return value;
+return Number(product.basePrice) || 0;
+```
+
+Ou seja, se Tabela 1 ficar 0, o cliente atacado acaba vendo `basePrice` (Tabela 4). Preciso confirmar com o usuário qual comportamento ele quer:
+
+- **(A)** Cliente atacado com preço zerado na sua tabela → vê `basePrice` da Tabela 4 (comportamento atual do helper, mantém venda).
+- **(B)** Cliente atacado com preço zerado na sua tabela → produto não pode ser comprado / aparece como "sob consulta" / é ocultado.
+
+Vou assumir **(A)** por padrão (mantém a operação e nenhuma tela adicional muda). Se preferir (B), me avisa que ajusto `pricing.ts` e a listagem.
+
+### 4. Rodar sincronização após o deploy
+
+Depois do deploy da Edge Function, basta clicar em "Atualizar Preços" no painel da Dicolore para:
+- Reprocessar todos os produtos com o nome de grupo correto (vindo da coluna G).
+- Zerar `price_table_1` / `price_table_9` dos produtos cuja planilha tem 0 nessas colunas (ex.: KIT086).
+- Consolidação de categorias duplicadas já existente na função vai limpar as categorias numéricas ("40", "148", etc.) que ficarem sem produtos.
 
 ### Fora de escopo
-- UI do botão "Atualizar Preços" e demais telas não mudam.
-- Nenhuma migration nova — colunas `price_table_*` já existem.
 
-### Verificação
-- Após a alteração, clicar em "Atualizar Preços" com o produto `7898418090477` deve gravar `price_table_1=13.90`, `price_table_4=25.00`, `price_table_9=14.90`, `base_price=25.00`.
-- Toast deve mostrar contadores de preços atualizados sem 4xx/5xx.
+- Nenhuma migration de schema.
+- Nenhuma mudança na UI do painel admin nem no fluxo de importação Excel manual.
+- Regras de desconto e tabelas de preço por cliente continuam como estão.
+
+### Verificação após deploy + clique em "Atualizar Preços"
+
+- KIT086 (linha da planilha): grupo passa a ser a categoria nomeada da coluna G, `price_table_1` e `price_table_9` gravados conforme planilha (0 se estiver 0).
+- Produtos de COLORAÇÃO / MATERIAL DE APOIO / DIVERSOS NACIONAL: categorias exibidas com nome, não com código numérico.
+- Toast do botão continua mostrando contadores de preços/categorias/produtos atualizados sem 4xx/5xx.

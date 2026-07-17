@@ -87,9 +87,22 @@ Deno.serve(async (req) => {
       ["preco 4", "preco4", "tabela 4", "tab 4", "protabpre", "preco"].includes(h)
     );
     const price9Idx = header.findIndex((h) => ["preco 9", "preco9", "tabela 9", "tab 9"].includes(h));
-    const grpIdx = header.findIndex((h) =>
-      ["grupo", "des grp", "desgrp", "des_grp", "categoria"].includes(h)
-    );
+    // Prioridade: coluna descritiva ("Des GRP" com nome do grupo) sobre "GRUPO" (código numérico).
+    const GRP_NAME_KEYS = [
+      "des grp",
+      "desgrp",
+      "des_grp",
+      "descricao grupo",
+      "descrição grupo",
+      "descricao do grupo",
+      "nome grupo",
+      "categoria",
+    ];
+    let grpIdx = header.findIndex((h) => GRP_NAME_KEYS.includes(h));
+    if (grpIdx === -1) {
+      // Fallback legado: planilhas antigas que só têm a coluna "GRUPO".
+      grpIdx = header.findIndex((h) => h === "grupo");
+    }
     const nameIdx = header.findIndex((h) =>
       [
         "pronom",
@@ -138,10 +151,11 @@ Deno.serve(async (req) => {
       const p9raw = price9Idx !== -1 ? parseFloat(cols[price9Idx]?.replace(",", ".")) : NaN;
       const candidates = [p4raw, p1raw, p9raw].filter((n) => Number.isFinite(n) && n > 0);
       if (candidates.length === 0) continue;
-      const fallback = candidates[0];
-      const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : fallback;
-      const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : fallback;
-      const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : fallback;
+      // Tabela 4 é a referência (base_price). Se vier vazia/0, herda do primeiro preço válido.
+      const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : candidates[0];
+      // Tabelas 1 e 9 respeitam o valor da planilha: 0/vazio grava 0 (não herda de outras tabelas).
+      const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : 0;
+      const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : 0;
       const category = grpIdx !== -1 ? cols[grpIdx]?.trim() || undefined : undefined;
       const name = nameIdx !== -1 ? cols[nameIdx]?.trim() || undefined : undefined;
       const bar = barIdx !== -1 ? cols[barIdx]?.trim() || undefined : undefined;
