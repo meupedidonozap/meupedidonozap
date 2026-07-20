@@ -740,7 +740,12 @@ export default function StoreAdminPage() {
               </Button>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-xl font-bold break-words line-clamp-2">{store.name}</h1>
-                <p className="text-xs sm:text-sm text-primary-foreground/80">Painel da Loja</p>
+                <p className="text-xs sm:text-sm text-primary-foreground/80">
+                  Painel da Loja
+                  {user?.email && (
+                    <span className="ml-2 opacity-90">· <span className="font-medium">{user.email}</span></span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 justify-end">
