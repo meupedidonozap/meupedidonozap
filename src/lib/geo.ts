@@ -35,9 +35,9 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Coords> {
   });
 }
 
-let mapsLoader: Promise<typeof google> | null = null;
+let mapsLoader: Promise<any> | null = null;
 
-export function loadGoogleMaps(): Promise<typeof google> {
+export function loadGoogleMaps(): Promise<any> {
   if (typeof window === 'undefined') return Promise.reject(new Error('SSR'));
   if ((window as any).google?.maps) return Promise.resolve((window as any).google);
   if (mapsLoader) return mapsLoader;
