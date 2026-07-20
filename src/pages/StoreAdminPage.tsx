@@ -41,6 +41,7 @@ import IngredientsTab from '@/components/IngredientsTab';
 import PizzaBordersTab from '@/components/PizzaBordersTab';
 import TablesTab from '@/components/TablesTab';
 import BusinessHoursTab from '@/components/BusinessHoursTab';
+import AtendimentoTab from '@/components/AtendimentoTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
