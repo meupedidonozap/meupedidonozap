@@ -811,6 +811,9 @@ export default function StoreAdminPage() {
                 {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
               </TabsTrigger>
             )}
+            {store.slug === 'dicolore' && (isAdmin || (userSellerCodes?.length || 0) > 0) && (
+              <TabsTrigger value="atendimento" className="gap-2"><MapPin className="h-4 w-4" /> Atendimento</TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
             )}
@@ -1631,6 +1634,17 @@ export default function StoreAdminPage() {
               )}
             </div>
           </TabsContent>
+
+          {/* Atendimento (Dicolore) */}
+          {store.slug === 'dicolore' && (isAdmin || (userSellerCodes?.length || 0) > 0) && (
+            <TabsContent value="atendimento" className="animate-fade-in">
+              <AtendimentoTab
+                storeId={store.id}
+                sellerCodes={userSellerCodes || []}
+                isAdmin={isAdmin}
+              />
+            </TabsContent>
+          )}
 
           {/* Settings */}
           <TabsContent value="settings" className="animate-fade-in">
