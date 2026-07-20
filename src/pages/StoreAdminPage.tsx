@@ -7,6 +7,7 @@ import {
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
   Scissors, Salad, Pizza, Grid3x3,
+  MapPin,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +41,7 @@ import IngredientsTab from '@/components/IngredientsTab';
 import PizzaBordersTab from '@/components/PizzaBordersTab';
 import TablesTab from '@/components/TablesTab';
 import BusinessHoursTab from '@/components/BusinessHoursTab';
+import AtendimentoTab from '@/components/AtendimentoTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -235,7 +237,11 @@ export default function StoreAdminPage() {
       navigate(`/${slug}/garcom`, { replace: true });
       return;
     }
-    if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
+    const isDicolore = store?.slug === 'dicolore';
+    const isSeller = !isAdmin && (userSellerCodes?.length || 0) > 0;
+    if (isDicolore && isSeller) {
+      setActiveTab('atendimento');
+    } else if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
       setActiveTab('service-orders');
     } else if (!isAdmin && (permissions.can_view_orders || permissions.can_manage_orders)) {
       setActiveTab('orders');
@@ -247,7 +253,7 @@ export default function StoreAdminPage() {
       setActiveTab('tables');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, [isAdmin, store?.slug, userSellerCodes?.length]);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [editingCategoryCommission, setEditingCategoryCommission] = useState<string>('');
@@ -734,7 +740,12 @@ export default function StoreAdminPage() {
               </Button>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-xl font-bold break-words line-clamp-2">{store.name}</h1>
-                <p className="text-xs sm:text-sm text-primary-foreground/80">Painel da Loja</p>
+                <p className="text-xs sm:text-sm text-primary-foreground/80">
+                  Painel da Loja
+                  {user?.email && (
+                    <span className="ml-2 opacity-90">· <span className="font-medium">{user.email}</span></span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 justify-end">
@@ -799,6 +810,9 @@ export default function StoreAdminPage() {
                 <ShoppingCart className="h-4 w-4" /> Pedidos
                 {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
               </TabsTrigger>
+            )}
+            {store.slug === 'dicolore' && (isAdmin || (userSellerCodes?.length || 0) > 0) && (
+              <TabsTrigger value="atendimento" className="gap-2"><MapPin className="h-4 w-4" /> Atendimento</TabsTrigger>
             )}
             {isAdmin && (
               <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
@@ -1620,6 +1634,17 @@ export default function StoreAdminPage() {
               )}
             </div>
           </TabsContent>
+
+          {/* Atendimento (Dicolore) */}
+          {store.slug === 'dicolore' && (isAdmin || (userSellerCodes?.length || 0) > 0) && (
+            <TabsContent value="atendimento" className="animate-fade-in">
+              <AtendimentoTab
+                storeId={store.id}
+                sellerCodes={userSellerCodes || []}
+                isAdmin={isAdmin}
+              />
+            </TabsContent>
+          )}
 
           {/* Settings */}
           <TabsContent value="settings" className="animate-fade-in">
