@@ -1,51 +1,63 @@
-## Diagnóstico
+## Contexto
 
-Rodei uma checagem no banco da Dicolore e o resultado é diferente do que aparenta na tela:
+Na loja **DICOLORE**, adicionar:
 
-- **Grupos DOS PRODUTOS já foram corrigidos.** Ex.: `DV1100` agora está em "MATERIAL DE APOIO", `KIT086` em "KIT PROMOÇÃO", `7898418090477` em "COLORAÇÃO". De 452 produtos, apenas **2** ainda estão em categorias numéricas (grupos "100" e "54"), porque essas linhas vêm literalmente com esse nome em "Des GRP" na planilha.
-- **O que ainda está errado é o menu de Categorias:** existem **26 categorias numéricas órfãs** ("40", "64", "148", "907", "908", "910", etc.) que ficaram com 0 produtos e **não foram apagadas** pela consolidação, mesmo com o código de limpeza rodando. É isso que dá a impressão visual de que "nada mudou".
+1. Exibir o nome do usuário logado no cabeçalho do painel administrativo.
+2. Nova aba **Atendimento** — visível para vendedores (usuários com `seller_codes` em `store_users`, sem permissões de admin). Admin/platform_admin não fará checkin , mas verá a aba,  e poderá ver os clientes que tiveram ou não checkin realizado, podendo exportar os dados de cliente com ou sem checkin.
+3. Vendedor vê apenas seus clientes (filtro por `seller_code`), com endereço e mini-mapa Google Maps.
+4. Botão **Check-in** habilitado só quando a geolocalização do vendedor está a ≤ 300 m do endereço do cliente. **Check-out** ao sair.
+5. Registrar `checked_in_at`, `checked_out_at`, `checkin_lat/lng`, `checkout_lat/lng`.
 
-A rotina de exclusão em `sync-prices` filtra `store_id` e usa `.in("id", emptyIds)`, mas o `supabase-js` v2 exige ordem específica das cláusulas em `delete({ count: "exact" })` — a combinação atual está silenciosamente não removendo essas linhas (nenhum erro é retornado, `count` volta 0 ou undefined e o toast diz sucesso).
+## Passos
 
-## Ajustes propostos
+**1. Banco de dados**
+Criar tabela `public.customer_visits`:
 
-### 1. `supabase/functions/sync-prices/index.ts` — limpar categorias vazias de forma robusta
+- `id`, `store_id`, `seller_user_id` (auth), `seller_code`, `customer_profile_id`
+- `checked_in_at`, `checked_out_at` (timestamptz)
+- `checkin_lat`, `checkin_lng`, `checkout_lat`, `checkout_lng` (numeric)
+- `distance_meters_at_checkin` (numeric)
+- `created_at`, `updated_at`
+- RLS: vendedor lê/insere/atualiza apenas suas próprias visitas; admin da loja lê todas.
+- GRANTs para `authenticated` e `service_role`. Trigger `update_updated_at`.
 
-Trocar o bloco final por duas passadas explícitas:
+**2. Conector Google Maps**
+Confirmar/vincular a conexão gerenciada do Google Maps Platform ao projeto (para geocoding via gateway e Maps JS API no browser via `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY`).
 
-1. **Passo A — apagar por id em lote:** para cada `emptyId`, fazer `.delete().eq("id", id).eq("store_id", store_id)` e capturar erro individual (ignorando "still referenced" se ainda houver algum food_item/pizza_flavor apontando).
-2. **Passo B — varredura extra:** ao final, rodar `.delete().eq("store_id", store_id)` filtrando por `id NOT IN (SELECT DISTINCT category_id FROM products WHERE store_id=... AND category_id IS NOT NULL)`. Como PostgREST não suporta subquery, faremos isso via RPC de duas etapas: buscar todos `category_id` distintos em produtos e usar `.not("id", "in", "(...)")` no delete.
-3. **Contabilizar corretamente:** somar quantas foram efetivamente removidas e devolver no `categoriesDeleted` do JSON de resposta para dar visibilidade real no toast.
+**3. Edge Function `geocode-address**`
+Recebe `{ address }`, chama `/maps/api/geocode/json` via connector gateway, retorna `{ lat, lng }`. Guarda o resultado em uma coluna nova em `customer_profiles` (`geo_lat`, `geo_lng`) para não geocodificar toda vez — migration adiciona essas colunas (nullable).
 
-### 2. Toast do painel — mostrar contadores reais
+**4. Header do painel — usuário logado**
+Em `StoreAdminPage.tsx`: mostrar email/nome do `user` do `useAuth` ao lado do botão "Sair" (substituir o campo em branco visível no print).
 
-Em `src/pages/StoreAdminPage.tsx` (handler de "Atualizar Preços"), incluir na mensagem `categorias removidas: X, mescladas: Y` para o usuário enxergar que a limpeza aconteceu.
+**5. Aba Atendimento (vendedor)**
 
-### 3. Limpeza pontual dos 26 registros órfãos existentes
+- Novo componente `AtendimentoTab.tsx` renderizado como aba adicional em `StoreAdminPage` quando `isStoreUser && sellerCodes.length > 0 && !isAdmin`.
+- Nesse caso, ocultar as demais abas administrativas e mostrar apenas **Atendimento** (vendedor não é admin operacional).
+- Lista clientes de `customer_profiles` filtrando `store_id` e `seller_code IN (sellerCodes)`, ordem alfabética.
+- Cada card mostra: nome, endereço completo, WhatsApp, botão "Ver mapa" que expande um `<div>` com Maps JS (`google.maps.Map` + `Marker`, sem `mapId`, `loading=async`, callback global).
+- Botão **Check-in**: pede `navigator.geolocation.getCurrentPosition`, calcula distância (Haversine) até `geo_lat/lng` do cliente. Se ≤ 300 m insere `customer_visits` com `checked_in_at=now()`. Caso contrário: toast informando distância atual.
+- Se já existe visita aberta (sem `checked_out_at`), mostra botão **Check-out** que atualiza `checked_out_at` e coords.
+- Histórico do dia visível abaixo da lista.
 
-Como já sabemos exatamente quais são (categorias com `name ~ '^[0-9]+$'` e 0 produtos na Dicolore), incluir uma **migração SQL única** que remove essas linhas órfãs de qualquer loja:
+**6. Restrição de acesso**
 
-```sql
-DELETE FROM public.categories c
-WHERE NOT EXISTS (SELECT 1 FROM public.products p WHERE p.category_id = c.id)
-  AND NOT EXISTS (SELECT 1 FROM public.food_items f WHERE f.category_id = c.id)
-  AND NOT EXISTS (SELECT 1 FROM public.pizza_flavors pf WHERE pf.category_id = c.id)
-  AND c.name ~ '^[0-9]+$';
-```
+- Aba Atendimento só aparece para vendedores (`isStoreUser && sellerCodes.length > 0`).
+- `useStoreAdmin.hasAccess` precisa aceitar vendedor com `seller_codes` mesmo sem outras permissões — ajuste mínimo para permitir entrar no painel apenas para ver Atendimento.
 
-Isso é seguro: só apaga categorias cujo nome é puramente numérico e que não estão em uso por nenhum produto/prato/sabor.
+**7. Restrito à DICOLORE**
 
-### 4. Redeploy da Edge Function
+- Renderização condicional da aba: só quando `store.slug === 'dicolore'`.
 
-`sync-prices` precisa ser redeployado para as mudanças entrarem no ar antes do próximo clique em "Atualizar Preços".
+## Detalhes técnicos
+
+- Distância Haversine em `src/lib/geo.ts`.
+- Geocoding lazy: quando o vendedor abre o card do cliente e `geo_lat` está nulo, chama a edge function e salva.
+- Maps JS carregado uma única vez via `useEffect` global; `channel` = `VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID`.
+- Timeout de geolocalização 15 s, `enableHighAccuracy: true`.
+- Realtime não necessário nesta versão.
 
 ## Fora de escopo
 
-- Nenhuma alteração em preços, tabelas 1/4/9, regras de desconto, ou tela de admin fora do toast do sync.
-- Os 2 produtos que legitimamente têm grupo "100" e "54" na planilha continuam nesses grupos (é o dado de origem).
-
-## Verificação após implementação
-
-1. Rodar a migração → confere `SELECT COUNT(*) FROM categories WHERE store_id=... AND name ~ '^[0-9]+$'` = 2 (só as que ainda têm produto).
-2. Clicar em "Atualizar Preços" → toast informa `categorias removidas` explicitamente.
-3. Aba Categorias no admin não mostra mais linhas "0 produtos" com nome numérico.
+- Rotas otimizadas, notas de visita, resultado da venda (usuário optou apenas por GPS + data/hora).
+- Não altera nada nas demais lojas.
