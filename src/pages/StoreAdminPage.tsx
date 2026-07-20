@@ -237,7 +237,11 @@ export default function StoreAdminPage() {
       navigate(`/${slug}/garcom`, { replace: true });
       return;
     }
-    if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
+    const isDicolore = store?.slug === 'dicolore';
+    const isSeller = !isAdmin && (userSellerCodes?.length || 0) > 0;
+    if (isDicolore && isSeller) {
+      setActiveTab('atendimento');
+    } else if (!isAdmin && (permissions.can_view_service_orders || permissions.can_manage_service_orders)) {
       setActiveTab('service-orders');
     } else if (!isAdmin && (permissions.can_view_orders || permissions.can_manage_orders)) {
       setActiveTab('orders');
@@ -249,7 +253,7 @@ export default function StoreAdminPage() {
       setActiveTab('tables');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+  }, [isAdmin, store?.slug, userSellerCodes?.length]);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [editingCategoryCommission, setEditingCategoryCommission] = useState<string>('');
