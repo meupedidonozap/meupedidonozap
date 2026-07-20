@@ -102,6 +102,8 @@ export type Database = {
           cpf_cnpj: string
           created_at: string
           customer_code: string
+          geo_lat: number | null
+          geo_lng: number | null
           id: string
           is_active: boolean
           name: string
@@ -124,6 +126,8 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          geo_lat?: number | null
+          geo_lng?: number | null
           id?: string
           is_active?: boolean
           name?: string
@@ -146,6 +150,8 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          geo_lat?: number | null
+          geo_lng?: number | null
           id?: string
           is_active?: boolean
           name?: string
@@ -163,6 +169,72 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customer_profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_visits: {
+        Row: {
+          checked_in_at: string
+          checked_out_at: string | null
+          checkin_lat: number | null
+          checkin_lng: number | null
+          checkout_lat: number | null
+          checkout_lng: number | null
+          created_at: string
+          customer_profile_id: string
+          distance_meters_at_checkin: number | null
+          id: string
+          seller_code: string | null
+          seller_user_id: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          checked_in_at?: string
+          checked_out_at?: string | null
+          checkin_lat?: number | null
+          checkin_lng?: number | null
+          checkout_lat?: number | null
+          checkout_lng?: number | null
+          created_at?: string
+          customer_profile_id: string
+          distance_meters_at_checkin?: number | null
+          id?: string
+          seller_code?: string | null
+          seller_user_id: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          checked_in_at?: string
+          checked_out_at?: string | null
+          checkin_lat?: number | null
+          checkin_lng?: number | null
+          checkout_lat?: number | null
+          checkout_lng?: number | null
+          created_at?: string
+          customer_profile_id?: string
+          distance_meters_at_checkin?: number | null
+          id?: string
+          seller_code?: string | null
+          seller_user_id?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_visits_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_visits_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
