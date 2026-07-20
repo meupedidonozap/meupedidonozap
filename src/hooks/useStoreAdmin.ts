@@ -69,6 +69,7 @@ export function useStoreAdmin(storeId: string | undefined) {
         .eq('is_active', true)
         .maybeSingle();
       if (storeUser) {
+        const sellerCodesArr = (((storeUser as any).seller_codes) ?? []) as string[];
         return {
           isAdmin: false,
           isStoreUser: true,
@@ -81,7 +82,7 @@ export function useStoreAdmin(storeId: string | undefined) {
             can_view_customers: !!storeUser.can_view_customers,
             can_manage_tables: !!(storeUser as any).can_manage_tables,
           },
-          sellerCodes: (((storeUser as any).seller_codes) ?? []) as string[],
+          sellerCodes: sellerCodesArr,
         };
       }
       return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
@@ -93,7 +94,7 @@ export function useStoreAdmin(storeId: string | undefined) {
   const access = data ?? { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
   // hasAccess = is admin OR is active store user with at least one permission
   const hasAnyPermission = Object.values(access.permissions).some(Boolean);
-  const hasAccess = access.isAdmin || (access.isStoreUser && hasAnyPermission);
+  const hasAccess = access.isAdmin || (access.isStoreUser && (hasAnyPermission || (access.sellerCodes?.length ?? 0) > 0));
 
   return {
     user,
