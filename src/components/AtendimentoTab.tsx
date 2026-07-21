@@ -427,19 +427,54 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
             </div>
 
             {selected.geo_lat == null || selected.geo_lng == null ? (
-              <div className="rounded-md border p-3 space-y-2 bg-muted/30">
-                <p className="text-sm">Endereço ainda não localizado no mapa.</p>
-                <Button
-                  size="sm"
-                  onClick={() => ensureCustomerGeo(selected)}
-                  disabled={geocodingId === selected.id}
-                >
-                  {geocodingId === selected.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
-                  Localizar endereço
-                </Button>
+              <div className="rounded-md border border-amber-500/40 p-3 space-y-2 bg-amber-50">
+                <p className="text-sm text-amber-900 flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  Endereço deste cliente ainda não foi localizado no mapa. Localize pelo endereço ou ajuste manualmente.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => ensureCustomerGeo(selected)}
+                    disabled={geocodingId === selected.id}
+                  >
+                    {geocodingId === selected.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
+                    Localizar pelo endereço
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => startManualEdit(selected)} disabled={geocodingId === selected.id}>
+                    <MapPinned className="h-4 w-4 mr-2" />
+                    Ajustar no mapa
+                  </Button>
+                </div>
               </div>
             ) : (
-              <MiniMap customer={selected} sellerCoords={sellerCoords} />
+              <>
+                <MiniMap
+                  customer={selected}
+                  sellerCoords={sellerCoords}
+                  editable={editingLocation}
+                  onPositionChange={setPendingPos}
+                />
+                {editingLocation ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-muted-foreground flex-1">
+                      Arraste o marcador ou clique no mapa para posicionar o cliente.
+                    </p>
+                    <Button size="sm" onClick={saveManualPosition} disabled={!pendingPos || savingPos}>
+                      {savingPos ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Confirmar posição
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setEditingLocation(false); setPendingPos(null); }}>
+                      Cancelar
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setEditingLocation(true)}>
+                    <MapPinned className="h-4 w-4 mr-2" />
+                    Ajustar posição no mapa
+                  </Button>
+                )}
+              </>
             )}
 
             {sellerCoords && selected.geo_lat != null && selected.geo_lng != null && (
