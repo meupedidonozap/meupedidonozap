@@ -153,6 +153,11 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
   const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [geocodingId, setGeocodingId] = useState<string | null>(null);
+  const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [pendingPos, setPendingPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [savingPos, setSavingPos] = useState(false);
 
   const { data: customers = [], isLoading, refetch } = useSellerCustomers(storeId, isAdmin ? [] : sellerCodes);
   const { data: visits = [] } = useCustomerVisits(storeId, {
