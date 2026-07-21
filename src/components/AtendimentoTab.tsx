@@ -383,6 +383,7 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
               const openVisit = openVisitByCustomer.get(c.id);
               const count = visitCountByCustomer.get(c.id) ?? 0;
               const active = c.id === selectedId;
+              const pending = c.geo_lat == null || c.geo_lng == null;
               return (
                 <button
                   key={c.id}
@@ -399,6 +400,7 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       {openVisit && <Badge className="bg-green-600">Em atendimento</Badge>}
+                      {pending && <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50 text-[10px]">Sem localização</Badge>}
                       {count > 0 && <span className="text-[10px] text-muted-foreground">{count} visita{count > 1 ? 's' : ''}</span>}
                     </div>
                   </div>
