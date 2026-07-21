@@ -57,12 +57,25 @@ function useSellerCustomers(storeId: string | undefined, sellerCodes: string[]) 
   });
 }
 
-function MiniMap({ customer, sellerCoords }: { customer: CustomerRow; sellerCoords: { lat: number; lng: number } | null }) {
+function MiniMap({
+  customer,
+  sellerCoords,
+  editable,
+  onPositionChange,
+}: {
+  customer: CustomerRow;
+  sellerCoords: { lat: number; lng: number } | null;
+  editable?: boolean;
+  onPositionChange?: (pos: { lat: number; lng: number }) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const off = onGoogleMapsAuthFailure(() => {
+      setErr('Google Maps não autorizou este domínio. Verifique a chave nas configurações do conector.');
+    });
     if (!ref.current || customer.geo_lat == null || customer.geo_lng == null) return;
     loadGoogleMaps()
       .then((g) => {
@@ -74,7 +87,22 @@ function MiniMap({ customer, sellerCoords }: { customer: CustomerRow; sellerCoor
           disableDefaultUI: true,
           zoomControl: true,
         });
-        new g.maps.Marker({ position: center, map, title: customer.name });
+        const marker = new g.maps.Marker({
+          position: center,
+          map,
+          title: customer.name,
+          draggable: !!editable,
+        });
+        if (editable) {
+          marker.addListener('dragend', () => {
+            const p = marker.getPosition();
+            if (p) onPositionChange?.({ lat: p.lat(), lng: p.lng() });
+          });
+          map.addListener('click', (e: any) => {
+            marker.setPosition(e.latLng);
+            onPositionChange?.({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+          });
+        }
         if (sellerCoords) {
           new g.maps.Marker({
             position: sellerCoords,
@@ -98,10 +126,23 @@ function MiniMap({ customer, sellerCoords }: { customer: CustomerRow; sellerCoor
       .catch((e) => setErr(e.message));
     return () => {
       cancelled = true;
+      off();
     };
-  }, [customer.id, customer.geo_lat, customer.geo_lng, sellerCoords?.lat, sellerCoords?.lng]);
+  }, [customer.id, customer.geo_lat, customer.geo_lng, sellerCoords?.lat, sellerCoords?.lng, editable]);
 
-  if (err) return <div className="text-xs text-destructive">Mapa indisponível: {err}</div>;
+  if (err) return (
+    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive space-y-2">
+      <p className="flex items-center gap-1 font-semibold"><AlertTriangle className="h-4 w-4" /> Mapa indisponível</p>
+      <p>{err}</p>
+      {customer.geo_lat != null && customer.geo_lng != null && (
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${customer.geo_lat},${customer.geo_lng}`}
+          target="_blank" rel="noreferrer"
+          className="underline text-primary"
+        >Abrir no Google Maps</a>
+      )}
+    </div>
+  );
   return <div ref={ref} className="h-56 w-full rounded-md border bg-muted" />;
 }
 
