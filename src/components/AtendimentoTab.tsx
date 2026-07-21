@@ -183,18 +183,85 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
   }, [visits]);
 
   const filtered = useMemo(() => {
+    let base = customers;
+    if (showOnlyPending) base = base.filter((c) => c.geo_lat == null || c.geo_lng == null);
     const q = search.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
+    if (!q) return base;
+    return base.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.address || '').toLowerCase().includes(q) ||
         (c.city || '').toLowerCase().includes(q) ||
         (c.whatsapp || '').includes(q),
     );
-  }, [customers, search]);
+  }, [customers, search, showOnlyPending]);
+
+  const pendingCount = useMemo(
+    () => customers.filter((c) => c.geo_lat == null || c.geo_lng == null).length,
+    [customers],
+  );
 
   const selected = customers.find((c) => c.id === selectedId) || null;
+
+  useEffect(() => {
+    setEditingLocation(false);
+    setPendingPos(null);
+  }, [selectedId]);
+
+  async function handleBulkGeocode() {
+    setBulkRunning(true);
+    try {
+      toast.info('Localizando clientes... Isso pode levar alguns minutos.');
+      const { data, error } = await supabase.functions.invoke('bulk-geocode-customers', {
+        body: { storeId },
+      });
+      if (error) throw error;
+      const d = data as { total: number; ok: number; failed: number; skipped: number };
+      toast.success(`Concluído: ${d.ok} localizados, ${d.failed} falharam, ${d.skipped} sem endereço.`);
+      await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao localizar em lote.');
+    } finally {
+      setBulkRunning(false);
+    }
+  }
+
+  async function saveManualPosition() {
+    if (!selected || !pendingPos) return;
+    setSavingPos(true);
+    try {
+      await saveCustomerGeo(selected.id, pendingPos.lat, pendingPos.lng);
+      await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+      toast.success('Localização atualizada.');
+      setEditingLocation(false);
+      setPendingPos(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao salvar localização.');
+    } finally {
+      setSavingPos(false);
+    }
+  }
+
+  async function startManualEdit(c: CustomerRow) {
+    if (c.geo_lat == null || c.geo_lng == null) {
+      setGeocodingId(c.id);
+      try {
+        const seed = await geocodeAddress(
+          [c.cep, c.city, c.uf, 'Brasil'].filter(Boolean).join(', '),
+        );
+        if (seed) {
+          await saveCustomerGeo(c.id, seed.lat, seed.lng);
+          await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+        } else {
+          toast.error('Não foi possível estimar um ponto inicial.');
+          return;
+        }
+      } finally {
+        setGeocodingId(null);
+      }
+    }
+    setEditingLocation(true);
+  }
 
   async function acquireLocation() {
     setLocating(true);
