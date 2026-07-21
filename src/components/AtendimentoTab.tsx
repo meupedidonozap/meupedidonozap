@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, MapPin, LogIn as LogInIcon, LogOut as LogOutIcon, Navigation, Search, RefreshCw } from 'lucide-react';
+import { Loader2, MapPin, LogIn as LogInIcon, LogOut as LogOutIcon, Navigation, Search, RefreshCw, AlertTriangle, MapPinned, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDateTime } from '@/lib/formatters';
-import { haversineMeters, getCurrentPosition, loadGoogleMaps } from '@/lib/geo';
+import { haversineMeters, getCurrentPosition, loadGoogleMaps, onGoogleMapsAuthFailure } from '@/lib/geo';
 import { useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo, type CustomerVisit } from '@/hooks/useCustomerVisits';
 
 const MAX_CHECKIN_METERS = 300;
