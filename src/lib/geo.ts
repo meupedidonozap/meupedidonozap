@@ -36,6 +36,18 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Coords> {
 }
 
 let mapsLoader: Promise<any> | null = null;
+let mapsAuthFailed = false;
+const authFailureListeners = new Set<() => void>();
+
+export function isGoogleMapsAuthFailed(): boolean {
+  return mapsAuthFailed;
+}
+
+export function onGoogleMapsAuthFailure(cb: () => void): () => void {
+  authFailureListeners.add(cb);
+  if (mapsAuthFailed) cb();
+  return () => authFailureListeners.delete(cb);
+}
 
 export function loadGoogleMaps(): Promise<any> {
   if (typeof window === 'undefined') return Promise.reject(new Error('SSR'));
@@ -44,6 +56,12 @@ export function loadGoogleMaps(): Promise<any> {
   const key = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
   const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
   if (!key) return Promise.reject(new Error('Google Maps não configurado.'));
+  (window as any).gm_authFailure = () => {
+    mapsAuthFailed = true;
+    authFailureListeners.forEach((cb) => {
+      try { cb(); } catch {}
+    });
+  };
   mapsLoader = new Promise((resolve, reject) => {
     const cbName = '__lovableInitGmaps';
     (window as any)[cbName] = () => resolve((window as any).google);
@@ -52,6 +70,7 @@ export function loadGoogleMaps(): Promise<any> {
       key,
       loading: 'async',
       callback: cbName,
+      libraries: 'places',
     });
     if (channel) params.set('channel', channel);
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
