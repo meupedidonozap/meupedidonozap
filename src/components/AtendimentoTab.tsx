@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, MapPin, LogIn as LogInIcon, LogOut as LogOutIcon, Navigation, Search, RefreshCw } from 'lucide-react';
+import { Loader2, MapPin, LogIn as LogInIcon, LogOut as LogOutIcon, Navigation, Search, RefreshCw, AlertTriangle, MapPinned, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDateTime } from '@/lib/formatters';
-import { haversineMeters, getCurrentPosition, loadGoogleMaps } from '@/lib/geo';
+import { haversineMeters, getCurrentPosition, loadGoogleMaps, onGoogleMapsAuthFailure } from '@/lib/geo';
 import { useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo, type CustomerVisit } from '@/hooks/useCustomerVisits';
 
 const MAX_CHECKIN_METERS = 300;
@@ -57,12 +57,25 @@ function useSellerCustomers(storeId: string | undefined, sellerCodes: string[]) 
   });
 }
 
-function MiniMap({ customer, sellerCoords }: { customer: CustomerRow; sellerCoords: { lat: number; lng: number } | null }) {
+function MiniMap({
+  customer,
+  sellerCoords,
+  editable,
+  onPositionChange,
+}: {
+  customer: CustomerRow;
+  sellerCoords: { lat: number; lng: number } | null;
+  editable?: boolean;
+  onPositionChange?: (pos: { lat: number; lng: number }) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const off = onGoogleMapsAuthFailure(() => {
+      setErr('Google Maps não autorizou este domínio. Verifique a chave nas configurações do conector.');
+    });
     if (!ref.current || customer.geo_lat == null || customer.geo_lng == null) return;
     loadGoogleMaps()
       .then((g) => {
@@ -74,7 +87,22 @@ function MiniMap({ customer, sellerCoords }: { customer: CustomerRow; sellerCoor
           disableDefaultUI: true,
           zoomControl: true,
         });
-        new g.maps.Marker({ position: center, map, title: customer.name });
+        const marker = new g.maps.Marker({
+          position: center,
+          map,
+          title: customer.name,
+          draggable: !!editable,
+        });
+        if (editable) {
+          marker.addListener('dragend', () => {
+            const p = marker.getPosition();
+            if (p) onPositionChange?.({ lat: p.lat(), lng: p.lng() });
+          });
+          map.addListener('click', (e: any) => {
+            marker.setPosition(e.latLng);
+            onPositionChange?.({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+          });
+        }
         if (sellerCoords) {
           new g.maps.Marker({
             position: sellerCoords,
@@ -98,10 +126,23 @@ function MiniMap({ customer, sellerCoords }: { customer: CustomerRow; sellerCoor
       .catch((e) => setErr(e.message));
     return () => {
       cancelled = true;
+      off();
     };
-  }, [customer.id, customer.geo_lat, customer.geo_lng, sellerCoords?.lat, sellerCoords?.lng]);
+  }, [customer.id, customer.geo_lat, customer.geo_lng, sellerCoords?.lat, sellerCoords?.lng, editable]);
 
-  if (err) return <div className="text-xs text-destructive">Mapa indisponível: {err}</div>;
+  if (err) return (
+    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive space-y-2">
+      <p className="flex items-center gap-1 font-semibold"><AlertTriangle className="h-4 w-4" /> Mapa indisponível</p>
+      <p>{err}</p>
+      {customer.geo_lat != null && customer.geo_lng != null && (
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${customer.geo_lat},${customer.geo_lng}`}
+          target="_blank" rel="noreferrer"
+          className="underline text-primary"
+        >Abrir no Google Maps</a>
+      )}
+    </div>
+  );
   return <div ref={ref} className="h-56 w-full rounded-md border bg-muted" />;
 }
 
@@ -112,6 +153,11 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
   const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [geocodingId, setGeocodingId] = useState<string | null>(null);
+  const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [pendingPos, setPendingPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [savingPos, setSavingPos] = useState(false);
 
   const { data: customers = [], isLoading, refetch } = useSellerCustomers(storeId, isAdmin ? [] : sellerCodes);
   const { data: visits = [] } = useCustomerVisits(storeId, {
@@ -137,18 +183,85 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
   }, [visits]);
 
   const filtered = useMemo(() => {
+    let base = customers;
+    if (showOnlyPending) base = base.filter((c) => c.geo_lat == null || c.geo_lng == null);
     const q = search.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
+    if (!q) return base;
+    return base.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.address || '').toLowerCase().includes(q) ||
         (c.city || '').toLowerCase().includes(q) ||
         (c.whatsapp || '').includes(q),
     );
-  }, [customers, search]);
+  }, [customers, search, showOnlyPending]);
+
+  const pendingCount = useMemo(
+    () => customers.filter((c) => c.geo_lat == null || c.geo_lng == null).length,
+    [customers],
+  );
 
   const selected = customers.find((c) => c.id === selectedId) || null;
+
+  useEffect(() => {
+    setEditingLocation(false);
+    setPendingPos(null);
+  }, [selectedId]);
+
+  async function handleBulkGeocode() {
+    setBulkRunning(true);
+    try {
+      toast.info('Localizando clientes... Isso pode levar alguns minutos.');
+      const { data, error } = await supabase.functions.invoke('bulk-geocode-customers', {
+        body: { storeId },
+      });
+      if (error) throw error;
+      const d = data as { total: number; ok: number; failed: number; skipped: number };
+      toast.success(`Concluído: ${d.ok} localizados, ${d.failed} falharam, ${d.skipped} sem endereço.`);
+      await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao localizar em lote.');
+    } finally {
+      setBulkRunning(false);
+    }
+  }
+
+  async function saveManualPosition() {
+    if (!selected || !pendingPos) return;
+    setSavingPos(true);
+    try {
+      await saveCustomerGeo(selected.id, pendingPos.lat, pendingPos.lng);
+      await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+      toast.success('Localização atualizada.');
+      setEditingLocation(false);
+      setPendingPos(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao salvar localização.');
+    } finally {
+      setSavingPos(false);
+    }
+  }
+
+  async function startManualEdit(c: CustomerRow) {
+    if (c.geo_lat == null || c.geo_lng == null) {
+      setGeocodingId(c.id);
+      try {
+        const seed = await geocodeAddress(
+          [c.cep, c.city, c.uf, 'Brasil'].filter(Boolean).join(', '),
+        );
+        if (seed) {
+          await saveCustomerGeo(c.id, seed.lat, seed.lng);
+          await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+        } else {
+          toast.error('Não foi possível estimar um ponto inicial.');
+          return;
+        }
+      } finally {
+        setGeocodingId(null);
+      }
+    }
+    setEditingLocation(true);
+  }
 
   async function acquireLocation() {
     setLocating(true);
@@ -221,6 +334,23 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       {/* Lista */}
       <Card className="p-3 space-y-3">
+        {isAdmin && pendingCount > 0 && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-50 p-2 text-xs space-y-2">
+            <p className="flex items-center gap-1 text-amber-900 font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              {pendingCount} cliente{pendingCount > 1 ? 's' : ''} sem localização
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={handleBulkGeocode} disabled={bulkRunning}>
+                {bulkRunning ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <MapPinned className="h-3 w-3 mr-1" />}
+                Localizar todos
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowOnlyPending((v) => !v)}>
+                {showOnlyPending ? 'Mostrar todos' : 'Ver só pendentes'}
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -253,6 +383,7 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
               const openVisit = openVisitByCustomer.get(c.id);
               const count = visitCountByCustomer.get(c.id) ?? 0;
               const active = c.id === selectedId;
+              const pending = c.geo_lat == null || c.geo_lng == null;
               return (
                 <button
                   key={c.id}
@@ -269,6 +400,7 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       {openVisit && <Badge className="bg-green-600">Em atendimento</Badge>}
+                      {pending && <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50 text-[10px]">Sem localização</Badge>}
                       {count > 0 && <span className="text-[10px] text-muted-foreground">{count} visita{count > 1 ? 's' : ''}</span>}
                     </div>
                   </div>
@@ -295,19 +427,54 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
             </div>
 
             {selected.geo_lat == null || selected.geo_lng == null ? (
-              <div className="rounded-md border p-3 space-y-2 bg-muted/30">
-                <p className="text-sm">Endereço ainda não localizado no mapa.</p>
-                <Button
-                  size="sm"
-                  onClick={() => ensureCustomerGeo(selected)}
-                  disabled={geocodingId === selected.id}
-                >
-                  {geocodingId === selected.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
-                  Localizar endereço
-                </Button>
+              <div className="rounded-md border border-amber-500/40 p-3 space-y-2 bg-amber-50">
+                <p className="text-sm text-amber-900 flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  Endereço deste cliente ainda não foi localizado no mapa. Localize pelo endereço ou ajuste manualmente.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => ensureCustomerGeo(selected)}
+                    disabled={geocodingId === selected.id}
+                  >
+                    {geocodingId === selected.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
+                    Localizar pelo endereço
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => startManualEdit(selected)} disabled={geocodingId === selected.id}>
+                    <MapPinned className="h-4 w-4 mr-2" />
+                    Ajustar no mapa
+                  </Button>
+                </div>
               </div>
             ) : (
-              <MiniMap customer={selected} sellerCoords={sellerCoords} />
+              <>
+                <MiniMap
+                  customer={selected}
+                  sellerCoords={sellerCoords}
+                  editable={editingLocation}
+                  onPositionChange={setPendingPos}
+                />
+                {editingLocation ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-muted-foreground flex-1">
+                      Arraste o marcador ou clique no mapa para posicionar o cliente.
+                    </p>
+                    <Button size="sm" onClick={saveManualPosition} disabled={!pendingPos || savingPos}>
+                      {savingPos ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Confirmar posição
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setEditingLocation(false); setPendingPos(null); }}>
+                      Cancelar
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setEditingLocation(true)}>
+                    <MapPinned className="h-4 w-4 mr-2" />
+                    Ajustar posição no mapa
+                  </Button>
+                )}
+              </>
             )}
 
             {sellerCoords && selected.geo_lat != null && selected.geo_lng != null && (
