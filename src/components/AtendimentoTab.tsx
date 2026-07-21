@@ -334,6 +334,23 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
       {/* Lista */}
       <Card className="p-3 space-y-3">
+        {isAdmin && pendingCount > 0 && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-50 p-2 text-xs space-y-2">
+            <p className="flex items-center gap-1 text-amber-900 font-medium">
+              <AlertTriangle className="h-4 w-4" />
+              {pendingCount} cliente{pendingCount > 1 ? 's' : ''} sem localização
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={handleBulkGeocode} disabled={bulkRunning}>
+                {bulkRunning ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <MapPinned className="h-3 w-3 mr-1" />}
+                Localizar todos
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowOnlyPending((v) => !v)}>
+                {showOnlyPending ? 'Mostrar todos' : 'Ver só pendentes'}
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
