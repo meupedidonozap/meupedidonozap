@@ -81,20 +81,37 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
     const wb = XLSX.read(buf);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
-    const parsed: RowInput[] = json.map((r) => ({
-      codigo: String(r.codigo ?? r.Codigo ?? r.CODIGO ?? '').trim(),
-      nome: String(r.nome ?? r.Nome ?? r.NOME ?? '').trim(),
-      cpf_cnpj: String(r.cpf_cnpj ?? r['CPF/CNPJ'] ?? r.cpf ?? r.cnpj ?? '').trim(),
-      whatsapp: String(r.whatsapp ?? r.Whatsapp ?? r.WHATSAPP ?? r.telefone ?? '').trim(),
-      cep: String(r.cep ?? r.CEP ?? '').trim(),
-      uf: String(r.uf ?? r.UF ?? '').trim(),
-      cidade: String(r.cidade ?? r.Cidade ?? r.CIDADE ?? '').trim(),
-      bairro: String(r.bairro ?? r.Bairro ?? '').trim(),
-      endereco: String(r.endereco ?? r['endereço'] ?? r.Endereco ?? '').trim(),
-      numero: String(r.numero ?? r['número'] ?? r.Numero ?? '').trim(),
-      complemento: String(r.complemento ?? r.Complemento ?? '').trim(),
-      codigo_vendedor: String(r.codigo_vendedor ?? r['código_vendedor'] ?? r.vendedor ?? '').trim(),
-    })).filter(r => r.codigo || r.nome);
+    const normKey = (k: string) =>
+      String(k || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    const pick = (norm: Record<string, any>, ...keys: string[]) => {
+      for (const k of keys) {
+        const v = norm[normKey(k)];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+      }
+      return '';
+    };
+    const parsed: RowInput[] = json.map((r) => {
+      const norm: Record<string, any> = {};
+      for (const k of Object.keys(r)) norm[normKey(k)] = r[k];
+      return {
+        codigo: pick(norm, 'codigo'),
+        nome: pick(norm, 'nome'),
+        cpf_cnpj: pick(norm, 'cpf_cnpj', 'cpfcnpj', 'cpf', 'cnpj'),
+        whatsapp: pick(norm, 'whatsapp', 'telefone', 'celular', 'fone'),
+        cep: pick(norm, 'cep'),
+        uf: pick(norm, 'uf', 'estado'),
+        cidade: pick(norm, 'cidade'),
+        bairro: pick(norm, 'bairro'),
+        endereco: pick(norm, 'endereco', 'endereço', 'logradouro', 'rua'),
+        numero: pick(norm, 'numero', 'número', 'num'),
+        complemento: pick(norm, 'complemento'),
+        codigo_vendedor: pick(norm, 'codigo_vendedor', 'codigovendedor', 'vendedor', 'representante', 'codrepres', 'codigorepresentante'),
+      };
+    }).filter(r => r.codigo || r.nome);
     setRows(parsed);
     setResults(null);
   };
