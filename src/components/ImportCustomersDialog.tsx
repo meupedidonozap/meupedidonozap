@@ -109,9 +109,23 @@ export default function ImportCustomersDialog({ open, onOpenChange, storeId, mod
         endereco: pick(norm, 'endereco', 'endereço', 'logradouro', 'rua'),
         numero: pick(norm, 'numero', 'número', 'num'),
         complemento: pick(norm, 'complemento'),
-        codigo_vendedor: pick(norm, 'codigo_vendedor', 'codigovendedor', 'vendedor', 'representante', 'codrepres', 'codigorepresentante'),
+        codigo_vendedor: pick(
+          norm,
+          'codigo_vendedor', 'codigovendedor', 'codvendedor', 'codvend',
+          'vendedor', 'vend',
+          'representante', 'repres', 'codrepres', 'codigorepresentante',
+          'codrepresentante',
+        ),
       };
     }).filter(r => r.codigo || r.nome);
+    if (json.length > 0) {
+      // Ajuda a diagnosticar cabeçalhos não reconhecidos
+      // (aparece no console do navegador ao selecionar a planilha)
+      // eslint-disable-next-line no-console
+      console.log('[ImportCustomers] Cabeçalhos da planilha:', Object.keys(json[0]));
+      // eslint-disable-next-line no-console
+      console.log('[ImportCustomers] Primeira linha normalizada:', parsed[0]);
+    }
     setRows(parsed);
     setResults(null);
   };
