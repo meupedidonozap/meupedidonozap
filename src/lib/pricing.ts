@@ -11,28 +11,42 @@ export function normalizePriceTable(value: unknown): PriceTable {
   return DEFAULT_PRICE_TABLE;
 }
 
-/** Resolve a product's price for a given price table, falling back to basePrice. */
-export function resolveProductPrice(product: Product | null | undefined, table?: PriceTable): number {
-  if (!product) return 0;
-  const t = normalizePriceTable(table);
-  const candidate =
-    t === 1 ? product.priceTable1
-    : t === 9 ? product.priceTable9
-    : product.priceTable4;
-  const value = Number(candidate);
-  if (Number.isFinite(value) && value > 0) return value;
-  return Number(product.basePrice) || 0;
+function positive(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** Resolve a variant's price for a given price table, falling back to its regular price. */
-export function resolveVariantPrice(variant: ProductVariant | null | undefined, table?: PriceTable): number {
-  if (!variant) return 0;
+/**
+ * Price of a product for a given table, or null when unavailable.
+ * Zero/empty on tables 1 and 9 means "not sold for this table" (no fallback).
+ * Table 4 (default for every other store type) still falls back to basePrice
+ * when the column was never filled — an explicit 0 keeps it unavailable.
+ */
+export function getProductPriceOrNull(product: Product | null | undefined, table?: PriceTable): number | null {
+  if (!product) return null;
   const t = normalizePriceTable(table);
-  const candidate =
-    t === 1 ? variant.priceTable1
-    : t === 9 ? variant.priceTable9
-    : variant.priceTable4;
-  const value = Number(candidate);
-  if (Number.isFinite(value) && value > 0) return value;
-  return Number(variant.price) || 0;
+  if (t === 1) return positive(product.priceTable1);
+  if (t === 9) return positive(product.priceTable9);
+  if (product.priceTable4 == null) return positive(product.basePrice);
+  return positive(product.priceTable4);
+}
+
+/** Price of a variant for a given table, or null when unavailable. */
+export function getVariantPriceOrNull(variant: ProductVariant | null | undefined, table?: PriceTable): number | null {
+  if (!variant) return null;
+  const t = normalizePriceTable(table);
+  if (t === 1) return positive(variant.priceTable1);
+  if (t === 9) return positive(variant.priceTable9);
+  if (variant.priceTable4 == null) return positive(variant.price);
+  return positive(variant.priceTable4);
+}
+
+/** Resolve a product's price for a given price table (0 when unavailable). */
+export function resolveProductPrice(product: Product | null | undefined, table?: PriceTable): number {
+  return getProductPriceOrNull(product, table) ?? 0;
+}
+
+/** Resolve a variant's price for a given price table (0 when unavailable). */
+export function resolveVariantPrice(variant: ProductVariant | null | undefined, table?: PriceTable): number {
+  return getVariantPriceOrNull(variant, table) ?? 0;
 }
