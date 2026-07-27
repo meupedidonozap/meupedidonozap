@@ -33,7 +33,12 @@ import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
-import { resolveProductPrice, resolveVariantPrice } from '@/lib/pricing';
+import {
+  resolveProductPrice,
+  resolveVariantPrice,
+  getProductPriceOrNull,
+  getVariantPriceOrNull,
+} from '@/lib/pricing';
 
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -69,6 +74,24 @@ export default function ProductStorePage() {
     setCustomerPriceTable(activePriceTable);
   }, [activePriceTable, setCustomerPriceTable]);
 
+  // Somente produtos com preço válido (> 0) na tabela do cliente.
+  // Produtos com variação mantêm apenas as variações com preço válido.
+  const purchasableProducts = useMemo(() => {
+    const result: Product[] = [];
+    for (const product of allProducts) {
+      if (!product.isActive) continue;
+      if (product.hasVariants && product.variants && product.variants.length > 0) {
+        const variants = product.variants.filter(v => getVariantPriceOrNull(v, activePriceTable) !== null);
+        if (variants.length === 0) continue;
+        result.push(variants.length === product.variants.length ? product : { ...product, variants });
+      } else {
+        if (getProductPriceOrNull(product, activePriceTable) === null) continue;
+        result.push(product);
+      }
+    }
+    return result;
+  }, [allProducts, activePriceTable]);
+
   // Mapa id->nome de categoria (permite consolidar categorias duplicadas por nome)
   const categoryNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -76,16 +99,26 @@ export default function ProductStorePage() {
     return m;
   }, [categories]);
 
+  // Categorias que realmente possuem produtos disponíveis para este cliente
+  const categoryNamesWithProducts = useMemo(() => {
+    const s = new Set<string>();
+    purchasableProducts.forEach(p => {
+      const name = (categoryNameById.get(p.categoryId) || '').trim().toLowerCase();
+      if (name) s.add(name);
+    });
+    return s;
+  }, [purchasableProducts, categoryNameById]);
+
   // Lista de categorias única por nome (evita duplicatas no menu)
   const uniqueCategories = useMemo(() => {
     const seen = new Set<string>();
     return categories.filter(c => {
       const key = (c.name || '').trim().toLowerCase();
-      if (!key || seen.has(key)) return false;
+      if (!key || seen.has(key) || !categoryNamesWithProducts.has(key)) return false;
       seen.add(key);
       return true;
     });
-  }, [categories]);
+  }, [categories, categoryNamesWithProducts]);
 
   const selectedCategoryName = useMemo(() => {
     if (selectedCategory === 'all') return null;
@@ -93,18 +126,32 @@ export default function ProductStorePage() {
   }, [selectedCategory, categoryNameById]);
 
   const filteredProducts = useMemo(() => {
-    return allProducts.filter(product => {
+    return purchasableProducts.filter(product => {
       const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase());
       const prodCatName = (categoryNameById.get(product.categoryId) || '').trim().toLowerCase();
       const matchesCategory = !selectedCategoryName || prodCatName === selectedCategoryName;
-      return matchesSearch && matchesCategory && product.isActive;
+      return matchesSearch && matchesCategory;
     });
-  }, [allProducts, searchTerm, selectedCategoryName, categoryNameById]);
+  }, [purchasableProducts, searchTerm, selectedCategoryName, categoryNameById]);
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Remove do carrinho itens que deixaram de ter preço na tabela atual do cliente
+  useEffect(() => {
+    if (!allProducts.length || !cart.items.length) return;
+    const invalid = cart.items.filter(item => {
+      const product = purchasableProducts.find(p => p.id === item.productId);
+      if (!product) return true;
+      if (item.variantId) return !product.variants?.some(v => v.id === item.variantId);
+      return false;
+    });
+    if (invalid.length === 0) return;
+    invalid.forEach(item => removeItem(item.productId, item.variantId));
+    toast.warning('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos.');
+  }, [purchasableProducts, allProducts.length, cart.items, removeItem]);
 
   const handleAddToCart = (product: Product, variant?: { color?: string; size?: string }) => {
     const variantData = variant && product.hasVariants
@@ -114,8 +161,12 @@ export default function ProductStorePage() {
     const category = categories.find(c => c.id === product.categoryId);
     const resolvedGroupId = product.groupId || category?.name || undefined;
     const unitPrice = variantData
-      ? resolveVariantPrice(variantData, activePriceTable)
-      : resolveProductPrice(product, activePriceTable);
+      ? getVariantPriceOrNull(variantData, activePriceTable)
+      : getProductPriceOrNull(product, activePriceTable);
+    if (unitPrice === null) {
+      toast.error('Este item não está disponível para a sua tabela de preço.');
+      return;
+    }
     const check = wouldExceedMaterialApoio(
       cart.items,
       product.id,
