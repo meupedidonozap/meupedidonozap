@@ -147,8 +147,12 @@ export default function ProductStorePage() {
     const category = categories.find(c => c.id === product.categoryId);
     const resolvedGroupId = product.groupId || category?.name || undefined;
     const unitPrice = variantData
-      ? resolveVariantPrice(variantData, activePriceTable)
-      : resolveProductPrice(product, activePriceTable);
+      ? getVariantPriceOrNull(variantData, activePriceTable)
+      : getProductPriceOrNull(product, activePriceTable);
+    if (unitPrice === null) {
+      toast.error('Este item não está disponível para a sua tabela de preço.');
+      return;
+    }
     const check = wouldExceedMaterialApoio(
       cart.items,
       product.id,
