@@ -139,6 +139,20 @@ export default function ProductStorePage() {
 
   const totalItems = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Remove do carrinho itens que deixaram de ter preço na tabela atual do cliente
+  useEffect(() => {
+    if (!allProducts.length || !cart.items.length) return;
+    const invalid = cart.items.filter(item => {
+      const product = purchasableProducts.find(p => p.id === item.productId);
+      if (!product) return true;
+      if (item.variantId) return !product.variants?.some(v => v.id === item.variantId);
+      return false;
+    });
+    if (invalid.length === 0) return;
+    invalid.forEach(item => removeItem(item.productId, item.variantId));
+    toast.warning('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos.');
+  }, [purchasableProducts, allProducts.length, cart.items, removeItem]);
+
   const handleAddToCart = (product: Product, variant?: { color?: string; size?: string }) => {
     const variantData = variant && product.hasVariants
       ? product.variants?.find(v => v.color === variant.color && v.size === variant.size)
