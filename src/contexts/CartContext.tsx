@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { CartItem, Cart, DiscountRule } from '@/types';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { getProductPriceOrNull, getVariantPriceOrNull, type PriceTable } from '@/lib/pricing';
+import { toast } from 'sonner';
 
 /**
  * Composite key for grouping cart items. Two items only stack if their
@@ -29,6 +31,8 @@ interface CartContextType {
   setStoreId: (storeId: string) => void;
   setDiscountRules: (rules: DiscountRule[]) => void;
   setCustomerPriceTable: (table: 1 | 4 | 9) => void;
+  /** Remove/reprecifica itens sem preço válido na tabela do cliente. */
+  revalidatePrices: (catalog: { id: string; [k: string]: any }[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -90,6 +94,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setCustomerPriceTable = useCallback((table: 1 | 4 | 9) => {
     setCustomerPriceTableState((prev) => (prev === table ? prev : table));
   }, []);
+
+  const revalidatePrices = useCallback((catalog: { id: string; [k: string]: any }[]) => {
+    if (!Array.isArray(catalog) || catalog.length === 0) return;
+    const table = customerPriceTable as PriceTable;
+    setCart(prev => {
+      if (prev.items.length === 0) return prev;
+      let removed = 0;
+      let changed = false;
+      const next: CartItem[] = [];
+      for (const it of prev.items) {
+        const product: any = catalog.find(p => p.id === it.productId);
+        if (!product) { next.push(it); continue; }
+        const price = it.variantId
+          ? getVariantPriceOrNull((product.variants || []).find((v: any) => v.id === it.variantId), table)
+          : getProductPriceOrNull(product as any, table);
+        if (price === null) { removed++; changed = true; continue; }
+        if (price !== it.price) { changed = true; next.push({ ...it, price }); }
+        else next.push(it);
+      }
+      if (!changed) return prev;
+      if (removed > 0) {
+        toast.error('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos');
+      }
+      const { subtotal, total } = calculateTotals(next, prev.couponDiscount, prev.quantityDiscount);
+      return { ...prev, items: next, subtotal, total };
+    });
+  }, [customerPriceTable]);
 
   const setStoreId = useCallback((storeId: string) => {
     setCart(prev => {
@@ -230,6 +261,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setStoreId,
         setDiscountRules,
         setCustomerPriceTable,
+        revalidatePrices,
       }}
     >
       {children}
