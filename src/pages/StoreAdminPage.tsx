@@ -2526,6 +2526,16 @@ export default function StoreAdminPage() {
         categories={categories}
         materialApoio={store?.settings.materialApoio}
         store={store}
+        priceTable={(() => {
+          if (!editingOrder) return 4;
+          const ouid = (editingOrder as any).userId;
+          const cleanWa = (editingOrder.customer?.whatsapp || '').replace(/\D/g, '').slice(-8);
+          const cp: any = (customerProfiles as any[]).find((c: any) =>
+            (ouid && c.userId === ouid) ||
+            (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
+          );
+          return (cp?.priceTable === 1 || cp?.priceTable === 9) ? cp.priceTable : 4;
+        })()}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
         <DialogContent className="max-w-sm">
