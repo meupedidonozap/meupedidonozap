@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Minus, Trash2, Search, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { useCreateOrder } from '@/hooks/useOrders';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { getProductPriceOrNull, getVariantPriceOrNull, DEFAULT_PRICE_TABLE, normalizePriceTable, type PriceTable } from '@/lib/pricing';
 
 interface CustomerProfile {
   id: string;
@@ -29,6 +30,7 @@ interface CustomerProfile {
   address?: string;
   number?: string;
   complement?: string;
+  priceTable?: 1 | 4 | 9;
 }
 
 interface NewOrderDialogProps {
@@ -87,8 +89,37 @@ export default function NewOrderDialog({
     );
   }, [customerProfiles, customerSearch]);
 
+  /** Tabela de preço do cliente selecionado (novo cliente = padrão). */
+  const activeTable: PriceTable = useMemo(() => {
+    if (customerMode !== 'existing') return DEFAULT_PRICE_TABLE;
+    const cp = customerProfiles.find(c => c.id === selectedCustomerId);
+    return normalizePriceTable(cp?.priceTable);
+  }, [customerMode, selectedCustomerId, customerProfiles]);
+
+  /** Preço do produto para a tabela ativa (null = não vendável). */
+  const priceOf = (p: any): number | null => {
+    if (isFood) {
+      const n = Number(p?.price);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    return getProductPriceOrNull(p, activeTable);
+  };
+
+  /** Variações com preço válido na tabela ativa. */
+  const sellableVariants = (p: any): any[] =>
+    (Array.isArray(p?.variants) ? p.variants : []).filter((v: any) => getVariantPriceOrNull(v, activeTable) !== null);
+
   const filteredProducts = useMemo(() => {
     let items = catalogItems.filter((p: any) => p.isActive !== false);
+    if (!isFood) {
+      items = items.filter((p: any) => {
+        const hasVariants = p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
+        if (hasVariants) return p.variants.some((v: any) => getVariantPriceOrNull(v, activeTable) !== null);
+        return getProductPriceOrNull(p, activeTable) !== null;
+      });
+    } else {
+      items = items.filter((p: any) => Number(p.price) > 0);
+    }
     if (selectedCategory !== 'all') {
       items = items.filter((p: any) => p.categoryId === selectedCategory);
     }
@@ -97,14 +128,41 @@ export default function NewOrderDialog({
       items = items.filter((p: any) => p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q));
     }
     return items;
-  }, [catalogItems, selectedCategory, productSearch]);
+  }, [catalogItems, selectedCategory, productSearch, activeTable, isFood]);
+
+  // Ao trocar de cliente (tabela de preço), remove/reprecifica itens já escolhidos.
+  useEffect(() => {
+    setOrderItems(prev => {
+      if (prev.length === 0) return prev;
+      let removed = 0;
+      const next: CartItem[] = [];
+      for (const it of prev) {
+        const product: any = catalogItems.find((p: any) => p.id === it.productId);
+        if (!product) { next.push(it); continue; }
+        let price: number | null;
+        if (it.variantId) {
+          const v = (product.variants || []).find((x: any) => x.id === it.variantId);
+          price = getVariantPriceOrNull(v, activeTable);
+        } else {
+          price = priceOf(product);
+        }
+        if (price === null) { removed++; continue; }
+        next.push(price === it.price ? it : { ...it, price });
+      }
+      if (removed > 0) {
+        toast.error(`${removed} item(ns) sem preço na tabela ${activeTable} foram removidos do pedido.`);
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTable]);
 
   // Totals
   const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const deliveryFee = offersDelivery ? (store.settings.deliveryFee || 0) : 0;
   const { quantityDiscount, itemDiscounts } = useMemo(
-    () => computeGroupDiscounts(orderItems, store.settings.discountRules || []),
-    [orderItems, store.settings.discountRules],
+    () => computeGroupDiscounts(orderItems, store.settings.discountRules || [], activeTable),
+    [orderItems, store.settings.discountRules, activeTable],
   );
   const total = Math.max(0, subtotal - quantityDiscount) + deliveryFee;
 
@@ -130,7 +188,11 @@ export default function NewOrderDialog({
       setVariantPicker({ product });
       return;
     }
-    const unitPrice = isFood ? product.price : product.basePrice;
+    const unitPrice = priceOf(product);
+    if (unitPrice === null) {
+      toast.error(`Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
+      return;
+    }
     const check = wouldExceedMaterialApoio(orderItems, product.id, unitPrice, catalogItems as any, store.settings.materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     const existing = orderItems.find(i => i.productId === product.id && !i.variantId);
@@ -143,7 +205,7 @@ export default function NewOrderDialog({
         productId: product.id,
         name: product.name,
         code: isFood ? '' : (product.code || ''),
-        price: isFood ? product.price : product.basePrice,
+        price: unitPrice,
         quantity: 1,
         image: isFood ? product.image : product.image,
       }]);
@@ -153,7 +215,7 @@ export default function NewOrderDialog({
   const addVariantToOrder = () => {
     if (!variantPicker) return;
     const { product, color, size } = variantPicker;
-    const variants: any[] = product.variants || [];
+    const variants: any[] = sellableVariants(product);
     const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
     const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
     if (uniqueColors.length > 0 && !color) { toast.error('Selecione a cor'); return; }
@@ -163,7 +225,12 @@ export default function NewOrderDialog({
       (uniqueSizes.length === 0 || v.size === size)
     );
     if (!variant) { toast.error('Variante indisponível'); return; }
-    const check = wouldExceedMaterialApoio(orderItems, product.id, variant.price, catalogItems as any, store.settings.materialApoio);
+    const variantPrice = getVariantPriceOrNull(variant, activeTable);
+    if (variantPrice === null) {
+      toast.error(`Variação sem preço na tabela ${activeTable} do cliente.`);
+      return;
+    }
+    const check = wouldExceedMaterialApoio(orderItems, product.id, variantPrice, catalogItems as any, store.settings.materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     const existing = orderItems.find(i => i.productId === product.id && i.variantId === variant.id);
     if (existing) {
@@ -178,7 +245,7 @@ export default function NewOrderDialog({
         code: product.code || '',
         color: variant.color,
         size: variant.size,
-        price: Number(variant.price),
+        price: variantPrice,
         quantity: 1,
         image: product.image,
       }]);
@@ -209,6 +276,10 @@ export default function NewOrderDialog({
     const customer = getCustomerInfo();
     if (!customer.name.trim()) { toast.error('Informe o nome do cliente'); return; }
     if (orderItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
+    if (orderItems.some(i => !(Number(i.price) > 0))) {
+      toast.error(`Há itens sem preço válido na tabela ${activeTable}. Remova-os antes de salvar.`);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -339,6 +410,12 @@ export default function NewOrderDialog({
           {/* Step 2: Items */}
           {step === 'items' && (
             <div className="space-y-4">
+              {!isFood && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">Tabela de preço {activeTable}</Badge>
+                  <span>Somente produtos com preço nesta tabela podem ser vendidos.</span>
+                </div>
+              )}
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -361,10 +438,12 @@ export default function NewOrderDialog({
                 ) : (
                   <div className="divide-y">
                     {filteredProducts.map((p: any) => {
-                      const hasVariants = !isFood && p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
+                      const hasVariants = !isFood && p.hasVariants && Array.isArray(p.variants) && sellableVariants(p).length > 0;
                       const inCart = !hasVariants ? orderItems.find(i => i.productId === p.id && !i.variantId) : null;
-                      const variantPrices = hasVariants ? (p.variants as any[]).map(v => Number(v.price)) : [];
-                      const minPrice = hasVariants ? Math.min(...variantPrices) : (isFood ? p.price : p.basePrice);
+                      const variantPrices = hasVariants
+                        ? sellableVariants(p).map(v => getVariantPriceOrNull(v, activeTable) as number)
+                        : [];
+                      const minPrice = hasVariants ? Math.min(...variantPrices) : (priceOf(p) ?? 0);
                       return (
                         <div key={p.id} className="flex items-center justify-between p-3 hover:bg-muted/50">
                           <div className="min-w-0 flex-1">
@@ -506,7 +585,8 @@ export default function NewOrderDialog({
           <DialogTitle className="text-base">{variantPicker?.product.name}</DialogTitle>
         </DialogHeader>
         {variantPicker && (() => {
-          const variants: any[] = variantPicker.product.variants || [];
+          const variants: any[] = sellableVariants(variantPicker.product);
+          const priceOfVariant = (v: any) => getVariantPriceOrNull(v, activeTable) ?? 0;
           const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean))) as string[];
           const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean))) as string[];
           const matching = variants.find(v =>
@@ -525,7 +605,7 @@ export default function NewOrderDialog({
                         <Button key={c} type="button" size="sm"
                           variant={variantPicker.color === c ? 'default' : 'outline'}
                           onClick={() => setVariantPicker(p => p ? { ...p, color: c, size: undefined } : p)}>
-                          {c}{uniqueSizes.length === 0 && v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                          {c}{uniqueSizes.length === 0 && v ? ` · ${formatCurrency(priceOfVariant(v))}` : ''}
                         </Button>
                       );
                     })}
@@ -545,7 +625,7 @@ export default function NewOrderDialog({
                         <Button key={s} type="button" size="sm" disabled={disabled || !v}
                           variant={variantPicker.size === s ? 'default' : 'outline'}
                           onClick={() => setVariantPicker(p => p ? { ...p, size: s } : p)}>
-                          {s}{v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                          {s}{v ? ` · ${formatCurrency(priceOfVariant(v))}` : ''}
                         </Button>
                       );
                     })}
@@ -554,7 +634,7 @@ export default function NewOrderDialog({
               )}
               <div className="flex items-center justify-between border-t pt-3">
                 <span className="text-sm font-semibold">
-                  {matching ? formatCurrency(Number(matching.price)) : '—'}
+                  {matching ? formatCurrency(priceOfVariant(matching)) : '—'}
                 </span>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => setVariantPicker(null)}>Cancelar</Button>

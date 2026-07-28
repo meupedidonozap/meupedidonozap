@@ -1,34 +1,32 @@
-## Objetivo
+## Situação verificada
 
-Nenhum produto (ou variação) sem preço válido na tabela do cliente pode aparecer ou ser comprado.
+A regra "sem preço na tabela do cliente = não vende" hoje só existe na vitrine (`ProductStorePage`), que filtra produtos/variações usando `getProductPriceOrNull`. Os demais caminhos de pedido ignoram a tabela do cliente:
 
-Regra aprovada: para a tabela ativa do cliente (1, 4 ou 9), o preço só é válido se for maior que zero. Se estiver zerado **ou vazio**, o item não aparece — sem herdar preço de outra tabela. Em produtos com variações, some apenas a variação sem preço; se nenhuma variação tiver preço, o produto inteiro some.
+- **Pedido manual no admin (`NewOrderDialog`)**: usa `product.basePrice` e `variant.price` direto, sem olhar a tabela do cliente selecionado — permite vender por outra tabela.
+- **Editar pedido (`EditOrderDialog`)**: mesma coisa, adiciona itens por `p.basePrice`.
+- **Carrinho (`CartContext`)**: não remove itens quando a tabela de preço muda (login/logout/troca de cliente); o carrinho salvo no navegador pode conter item indisponível.
+- **Checkout (`CheckoutPage`)**: usa a tabela só para desconto, não revalida os preços dos itens antes de gravar o pedido.
 
 ## O que muda
 
-**1. Regra de preço (`src/lib/pricing.ts`)**
-- Novas funções `getProductPriceOrNull` / `getVariantPriceOrNull`: retornam o valor da tabela ativa apenas se for número > 0, senão `null`.
-- Exceção de compatibilidade: para a tabela 4 (padrão de todas as outras lojas), se a coluna T4 estiver vazia, continua usando o preço base — isso evita quebrar lojas de COMIDA/PIZZARIA/SALÃO que nunca preencheram tabelas. Zero explícito continua ocultando.
-- As funções atuais `resolveProductPrice` / `resolveVariantPrice` passam a usar a nova base e retornam 0 quando indisponível.
+**1. Pedido manual (`src/components/NewOrderDialog.tsx`)**
+- Ao selecionar um cliente existente, ler o `priceTable` dele (já disponível em `CustomerProfile`); cliente novo = tabela 4.
+- A lista de produtos passa a mostrar apenas itens com preço válido (> 0) nessa tabela; produtos com variações só listam as variações com preço, e somem se nenhuma tiver.
+- O preço adicionado ao pedido vem de `getProductPriceOrNull` / `getVariantPriceOrNull`, nunca de `basePrice`/`variant.price`.
+- Mostrar a tabela ativa no cabeçalho da etapa de itens ("Tabela 1/4/9") e bloquear com aviso se o item não tiver preço.
+- Ao trocar o cliente depois de já ter itens, revalidar os itens já adicionados e avisar/remover os que ficarem sem preço.
 
-**2. Vitrine (`src/pages/ProductStorePage.tsx`)**
-- Antes de montar a lista, calcular a lista de produtos "compráveis": produtos sem variações precisam de preço > 0 na tabela ativa; produtos com variações mantêm só as variações com preço > 0 e são descartados se sobrarem zero.
-- Esse resultado alimenta a busca, os cards/lista, o contador e o seletor de variações (variações sem preço não aparecem).
-- O menu de categorias passa a considerar somente esses produtos, então categorias que ficarem vazias para aquele cliente desaparecem do menu.
-- `handleAddToCart` valida o preço antes de adicionar; se vier inválido, mostra aviso e não adiciona.
+**2. Editar pedido (`src/components/EditOrderDialog.tsx`)**
+- Mesma regra: resolver a tabela pelo cliente do pedido e só permitir adicionar produtos com preço válido, usando o preço da tabela.
 
-**3. Diálogo de variação (`src/components/VariantDialog.tsx`)**
-- Recebe a tabela ativa e lista apenas cor/tamanho com preço válido, evitando seleção de combinação sem preço.
+**3. Carrinho (`src/contexts/CartContext.tsx`)**
+- Quando `customerPriceTable` mudar, remover itens sem preço válido na nova tabela e reprecificar os que continuarem válidos, com aviso: "Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos".
 
-**4. Carrinho / Checkout (`src/contexts/CartContext.tsx`, `src/pages/CheckoutPage.tsx`)**
-- Ao trocar a tabela de preço do cliente (login/logout), itens do carrinho que ficaram sem preço válido são removidos automaticamente com um aviso: "Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos".
-- Isso evita fechar pedido com item indevido vindo do carrinho salvo no navegador.
-
-**5. Painel admin**
-- Sem mudança de regra: o admin continua vendo e editando todos os produtos, inclusive os zerados (necessário para corrigi-los).
+**4. Checkout (`src/pages/CheckoutPage.tsx`)**
+- Antes de gravar o pedido, revalidar cada item contra a tabela do cliente; se algum estiver sem preço, bloquear o envio com mensagem clara e mandar o cliente revisar o carrinho.
 
 ## Detalhes técnicos
 
-- Nenhuma alteração de banco de dados nem de Edge Function; a regra é aplicada na camada de apresentação/carrinho.
-- Visitantes não logados seguem na tabela 4, então passam a não ver produtos com T4 zerado.
-- A importação de planilha continua gravando 0,00 quando a coluna vier zerada — é exatamente esse valor que passa a ocultar o item.
+- Nenhuma mudança de banco nem de Edge Function; a validação é feita na camada de UI/carrinho reaproveitando `src/lib/pricing.ts`.
+- Regra de validade mantida: tabela 1 e 9 exigem valor > 0 (sem herança); tabela 4 cai para `basePrice` só quando a coluna nunca foi preenchida (zero explícito continua ocultando).
+- O painel admin de cadastro de produtos continua mostrando/editando todos os preços, inclusive zerados.
