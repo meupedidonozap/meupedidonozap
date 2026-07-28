@@ -428,10 +428,12 @@ export default function NewOrderDialog({
                 ) : (
                   <div className="divide-y">
                     {filteredProducts.map((p: any) => {
-                      const hasVariants = !isFood && p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
+                      const hasVariants = !isFood && p.hasVariants && Array.isArray(p.variants) && sellableVariants(p).length > 0;
                       const inCart = !hasVariants ? orderItems.find(i => i.productId === p.id && !i.variantId) : null;
-                      const variantPrices = hasVariants ? (p.variants as any[]).map(v => Number(v.price)) : [];
-                      const minPrice = hasVariants ? Math.min(...variantPrices) : (isFood ? p.price : p.basePrice);
+                      const variantPrices = hasVariants
+                        ? sellableVariants(p).map(v => getVariantPriceOrNull(v, activeTable) as number)
+                        : [];
+                      const minPrice = hasVariants ? Math.min(...variantPrices) : (priceOf(p) ?? 0);
                       return (
                         <div key={p.id} className="flex items-center justify-between p-3 hover:bg-muted/50">
                           <div className="min-w-0 flex-1">
