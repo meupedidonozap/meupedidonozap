@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Minus, Trash2, Search, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { useCreateOrder } from '@/hooks/useOrders';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { getProductPriceOrNull, getVariantPriceOrNull, DEFAULT_PRICE_TABLE, normalizePriceTable, type PriceTable } from '@/lib/pricing';
 
 interface CustomerProfile {
   id: string;
@@ -29,6 +30,7 @@ interface CustomerProfile {
   address?: string;
   number?: string;
   complement?: string;
+  priceTable?: 1 | 4 | 9;
 }
 
 interface NewOrderDialogProps {
