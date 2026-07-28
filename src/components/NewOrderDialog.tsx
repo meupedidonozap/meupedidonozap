@@ -161,8 +161,8 @@ export default function NewOrderDialog({
   const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const deliveryFee = offersDelivery ? (store.settings.deliveryFee || 0) : 0;
   const { quantityDiscount, itemDiscounts } = useMemo(
-    () => computeGroupDiscounts(orderItems, store.settings.discountRules || []),
-    [orderItems, store.settings.discountRules],
+    () => computeGroupDiscounts(orderItems, store.settings.discountRules || [], activeTable),
+    [orderItems, store.settings.discountRules, activeTable],
   );
   const total = Math.max(0, subtotal - quantityDiscount) + deliveryFee;
 
@@ -276,6 +276,10 @@ export default function NewOrderDialog({
     const customer = getCustomerInfo();
     if (!customer.name.trim()) { toast.error('Informe o nome do cliente'); return; }
     if (orderItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
+    if (orderItems.some(i => !(Number(i.price) > 0))) {
+      toast.error(`Há itens sem preço válido na tabela ${activeTable}. Remova-os antes de salvar.`);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
