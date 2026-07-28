@@ -45,7 +45,7 @@ export default function ProductStorePage() {
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allProducts = [] } = useProducts(store?.id);
-  const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable } = useCart();
+  const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
 
