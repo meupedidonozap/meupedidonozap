@@ -581,7 +581,8 @@ export default function NewOrderDialog({
           <DialogTitle className="text-base">{variantPicker?.product.name}</DialogTitle>
         </DialogHeader>
         {variantPicker && (() => {
-          const variants: any[] = variantPicker.product.variants || [];
+          const variants: any[] = sellableVariants(variantPicker.product);
+          const priceOfVariant = (v: any) => getVariantPriceOrNull(v, activeTable) ?? 0;
           const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean))) as string[];
           const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean))) as string[];
           const matching = variants.find(v =>
@@ -600,7 +601,7 @@ export default function NewOrderDialog({
                         <Button key={c} type="button" size="sm"
                           variant={variantPicker.color === c ? 'default' : 'outline'}
                           onClick={() => setVariantPicker(p => p ? { ...p, color: c, size: undefined } : p)}>
-                          {c}{uniqueSizes.length === 0 && v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                          {c}{uniqueSizes.length === 0 && v ? ` · ${formatCurrency(priceOfVariant(v))}` : ''}
                         </Button>
                       );
                     })}
@@ -620,7 +621,7 @@ export default function NewOrderDialog({
                         <Button key={s} type="button" size="sm" disabled={disabled || !v}
                           variant={variantPicker.size === s ? 'default' : 'outline'}
                           onClick={() => setVariantPicker(p => p ? { ...p, size: s } : p)}>
-                          {s}{v ? ` · ${formatCurrency(Number(v.price))}` : ''}
+                          {s}{v ? ` · ${formatCurrency(priceOfVariant(v))}` : ''}
                         </Button>
                       );
                     })}
@@ -629,7 +630,7 @@ export default function NewOrderDialog({
               )}
               <div className="flex items-center justify-between border-t pt-3">
                 <span className="text-sm font-semibold">
-                  {matching ? formatCurrency(Number(matching.price)) : '—'}
+                  {matching ? formatCurrency(priceOfVariant(matching)) : '—'}
                 </span>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => setVariantPicker(null)}>Cancelar</Button>
