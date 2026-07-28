@@ -188,7 +188,11 @@ export default function NewOrderDialog({
       setVariantPicker({ product });
       return;
     }
-    const unitPrice = isFood ? product.price : product.basePrice;
+    const unitPrice = priceOf(product);
+    if (unitPrice === null) {
+      toast.error(`Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
+      return;
+    }
     const check = wouldExceedMaterialApoio(orderItems, product.id, unitPrice, catalogItems as any, store.settings.materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     const existing = orderItems.find(i => i.productId === product.id && !i.variantId);
@@ -201,7 +205,7 @@ export default function NewOrderDialog({
         productId: product.id,
         name: product.name,
         code: isFood ? '' : (product.code || ''),
-        price: isFood ? product.price : product.basePrice,
+        price: unitPrice,
         quantity: 1,
         image: isFood ? product.image : product.image,
       }]);
@@ -211,7 +215,7 @@ export default function NewOrderDialog({
   const addVariantToOrder = () => {
     if (!variantPicker) return;
     const { product, color, size } = variantPicker;
-    const variants: any[] = product.variants || [];
+    const variants: any[] = sellableVariants(product);
     const uniqueColors = Array.from(new Set(variants.map(v => v.color).filter(Boolean)));
     const uniqueSizes = Array.from(new Set(variants.map(v => v.size).filter(Boolean)));
     if (uniqueColors.length > 0 && !color) { toast.error('Selecione a cor'); return; }
@@ -221,7 +225,12 @@ export default function NewOrderDialog({
       (uniqueSizes.length === 0 || v.size === size)
     );
     if (!variant) { toast.error('Variante indisponível'); return; }
-    const check = wouldExceedMaterialApoio(orderItems, product.id, variant.price, catalogItems as any, store.settings.materialApoio);
+    const variantPrice = getVariantPriceOrNull(variant, activeTable);
+    if (variantPrice === null) {
+      toast.error(`Variação sem preço na tabela ${activeTable} do cliente.`);
+      return;
+    }
+    const check = wouldExceedMaterialApoio(orderItems, product.id, variantPrice, catalogItems as any, store.settings.materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     const existing = orderItems.find(i => i.productId === product.id && i.variantId === variant.id);
     if (existing) {
@@ -236,7 +245,7 @@ export default function NewOrderDialog({
         code: product.code || '',
         color: variant.color,
         size: variant.size,
-        price: Number(variant.price),
+        price: variantPrice,
         quantity: 1,
         image: product.image,
       }]);
