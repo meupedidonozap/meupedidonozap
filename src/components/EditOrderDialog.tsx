@@ -11,6 +11,7 @@ import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG, type MaterialApoioConfig } from '@/lib/materialApoio';
 import type { Order, Product, CartItem, DiscountRule, Category, CustomerInfo } from '@/types';
 import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
+import { getProductPriceOrNull, normalizePriceTable, type PriceTable } from '@/lib/pricing';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
@@ -23,9 +24,12 @@ interface EditOrderDialogProps {
   categories?: Category[];
   materialApoio?: MaterialApoioConfig;
   store?: { slug?: string; settings?: any } | null;
+  /** Tabela de preço do cliente do pedido (1, 4 ou 9). */
+  priceTable?: 1 | 4 | 9;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {
+  const activeTable: PriceTable = normalizePriceTable(priceTable);
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -69,13 +73,13 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   // quantityDiscount with current rules to back out the coupon portion.
   const originalCouponDiscount = useMemo(() => {
     if (!order) return 0;
-    const { quantityDiscount: origQty } = computeGroupDiscounts(order.items, discountRules);
+    const { quantityDiscount: origQty } = computeGroupDiscounts(order.items, discountRules, activeTable);
     return Math.max(0, (order.discount || 0) - origQty);
-  }, [order, discountRules]);
+  }, [order, discountRules, activeTable]);
 
   const { quantityDiscount, itemDiscounts } = useMemo(
-    () => computeGroupDiscounts(items, discountRules),
-    [items, discountRules]
+    () => computeGroupDiscounts(items, discountRules, activeTable),
+    [items, discountRules, activeTable]
   );
 
   const discount = quantityDiscount + originalCouponDiscount;
@@ -83,17 +87,24 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = products.filter((p: any) => p.isActive !== false);
+    const list = products.filter((p: any) =>
+      p.isActive !== false && getProductPriceOrNull(p, activeTable) !== null
+    );
     if (!q) return list.slice(0, 30);
     return list.filter((p: any) =>
       p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q)
     ).slice(0, 50);
-  }, [products, search]);
+  }, [products, search, activeTable]);
 
   const addProduct = (p: any) => {
     const category = categories.find((c: any) => c.id === p.categoryId);
     const resolvedGroupId = p.groupId || category?.name || undefined;
-    const check = wouldExceedMaterialApoio(items, p.id, p.basePrice, products, materialApoio);
+    const unitPrice = getProductPriceOrNull(p, activeTable);
+    if (unitPrice === null) {
+      toast.error(`Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
+      return;
+    }
+    const check = wouldExceedMaterialApoio(items, p.id, unitPrice, products, materialApoio);
     if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
     setItems(prev => {
       const existing = prev.find(i => i.productId === p.id);
@@ -104,7 +115,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         productId: p.id,
         name: p.name,
         code: p.code || '',
-        price: p.basePrice,
+        price: unitPrice,
         quantity: 1,
         image: p.image,
         groupId: resolvedGroupId,
@@ -260,7 +271,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{p.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(p.basePrice)} {p.code ? `• ${p.code}` : ''}
+                          {formatCurrency(getProductPriceOrNull(p, activeTable) ?? 0)} {p.code ? `• ${p.code}` : ''}
                         </p>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => addProduct(p)}>
