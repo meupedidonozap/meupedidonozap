@@ -302,6 +302,11 @@ export default function CheckoutPage() {
 
   const handleSendWhatsApp = async () => {
     if (!validateForm()) return;
+    // Nenhum item pode ser fechado sem preço válido na tabela do cliente.
+    if (cart.items.some(i => !(Number(i.price) > 0))) {
+      toast.error('Alguns itens não têm preço para a sua tabela. Remova-os para continuar.');
+      return;
+    }
     if (!storeOpenStatus.open) {
       toast.error(`Loja fechada${storeOpenStatus.message ? ` — ${storeOpenStatus.message}` : ''}. Pedidos só dentro do horário.`);
       return;
