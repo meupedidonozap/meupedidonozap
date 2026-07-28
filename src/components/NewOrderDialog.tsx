@@ -89,8 +89,37 @@ export default function NewOrderDialog({
     );
   }, [customerProfiles, customerSearch]);
 
+  /** Tabela de preço do cliente selecionado (novo cliente = padrão). */
+  const activeTable: PriceTable = useMemo(() => {
+    if (customerMode !== 'existing') return DEFAULT_PRICE_TABLE;
+    const cp = customerProfiles.find(c => c.id === selectedCustomerId);
+    return normalizePriceTable(cp?.priceTable);
+  }, [customerMode, selectedCustomerId, customerProfiles]);
+
+  /** Preço do produto para a tabela ativa (null = não vendável). */
+  const priceOf = (p: any): number | null => {
+    if (isFood) {
+      const n = Number(p?.price);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    return getProductPriceOrNull(p, activeTable);
+  };
+
+  /** Variações com preço válido na tabela ativa. */
+  const sellableVariants = (p: any): any[] =>
+    (Array.isArray(p?.variants) ? p.variants : []).filter((v: any) => getVariantPriceOrNull(v, activeTable) !== null);
+
   const filteredProducts = useMemo(() => {
     let items = catalogItems.filter((p: any) => p.isActive !== false);
+    if (!isFood) {
+      items = items.filter((p: any) => {
+        const hasVariants = p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
+        if (hasVariants) return p.variants.some((v: any) => getVariantPriceOrNull(v, activeTable) !== null);
+        return getProductPriceOrNull(p, activeTable) !== null;
+      });
+    } else {
+      items = items.filter((p: any) => Number(p.price) > 0);
+    }
     if (selectedCategory !== 'all') {
       items = items.filter((p: any) => p.categoryId === selectedCategory);
     }
@@ -99,7 +128,34 @@ export default function NewOrderDialog({
       items = items.filter((p: any) => p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q));
     }
     return items;
-  }, [catalogItems, selectedCategory, productSearch]);
+  }, [catalogItems, selectedCategory, productSearch, activeTable, isFood]);
+
+  // Ao trocar de cliente (tabela de preço), remove/reprecifica itens já escolhidos.
+  useEffect(() => {
+    setOrderItems(prev => {
+      if (prev.length === 0) return prev;
+      let removed = 0;
+      const next: CartItem[] = [];
+      for (const it of prev) {
+        const product: any = catalogItems.find((p: any) => p.id === it.productId);
+        if (!product) { next.push(it); continue; }
+        let price: number | null;
+        if (it.variantId) {
+          const v = (product.variants || []).find((x: any) => x.id === it.variantId);
+          price = getVariantPriceOrNull(v, activeTable);
+        } else {
+          price = priceOf(product);
+        }
+        if (price === null) { removed++; continue; }
+        next.push(price === it.price ? it : { ...it, price });
+      }
+      if (removed > 0) {
+        toast.error(`${removed} item(ns) sem preço na tabela ${activeTable} foram removidos do pedido.`);
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTable]);
 
   // Totals
   const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
