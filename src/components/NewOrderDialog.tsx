@@ -406,6 +406,12 @@ export default function NewOrderDialog({
           {/* Step 2: Items */}
           {step === 'items' && (
             <div className="space-y-4">
+              {!isFood && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">Tabela de preço {activeTable}</Badge>
+                  <span>Somente produtos com preço nesta tabela podem ser vendidos.</span>
+                </div>
+              )}
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
