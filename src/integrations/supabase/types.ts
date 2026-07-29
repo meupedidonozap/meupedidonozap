@@ -662,6 +662,7 @@ export type Database = {
           price_table_1: number
           price_table_4: number
           price_table_9: number
+          price_table_res: number | null
           product_id: string
           size: string | null
           sku: string
@@ -674,6 +675,7 @@ export type Database = {
           price_table_1?: number
           price_table_4?: number
           price_table_9?: number
+          price_table_res?: number | null
           product_id: string
           size?: string | null
           sku?: string
@@ -686,6 +688,7 @@ export type Database = {
           price_table_1?: number
           price_table_4?: number
           price_table_9?: number
+          price_table_res?: number | null
           product_id?: string
           size?: string | null
           sku?: string
@@ -718,6 +721,7 @@ export type Database = {
           price_table_1: number
           price_table_4: number
           price_table_9: number
+          price_table_res: number | null
           store_id: string
         }
         Insert: {
@@ -736,6 +740,7 @@ export type Database = {
           price_table_1?: number
           price_table_4?: number
           price_table_9?: number
+          price_table_res?: number | null
           store_id: string
         }
         Update: {
@@ -754,6 +759,7 @@ export type Database = {
           price_table_1?: number
           price_table_4?: number
           price_table_9?: number
+          price_table_res?: number | null
           store_id?: string
         }
         Relationships: [
