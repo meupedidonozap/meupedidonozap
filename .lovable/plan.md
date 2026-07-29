@@ -1,32 +1,46 @@
-## Situação verificada
+## Objetivo
 
-A regra "sem preço na tabela do cliente = não vende" hoje só existe na vitrine (`ProductStorePage`), que filtra produtos/variações usando `getProductPriceOrNull`. Os demais caminhos de pedido ignoram a tabela do cliente:
+Deixar a rotina "Atualizar Produtos/Preços" da DiColore 100% alinhada à planilha nova (CODIGO / DESCRIÇÃO / GRUPO / PREÇOS 1-4-9), atualizando tudo que estiver diferente e já preparando uma 4ª tabela de preço reservada.
 
-- **Pedido manual no admin (`NewOrderDialog`)**: usa `product.basePrice` e `variant.price` direto, sem olhar a tabela do cliente selecionado — permite vender por outra tabela.
-- **Editar pedido (`EditOrderDialog`)**: mesma coisa, adiciona itens por `p.basePrice`.
-- **Carrinho (`CartContext`)**: não remove itens quando a tabela de preço muda (login/logout/troca de cliente); o carrinho salvo no navegador pode conter item indisponível.
-- **Checkout (`CheckoutPage`)**: usa a tabela só para desconto, não revalida os preços dos itens antes de gravar o pedido.
+## O que verifiquei
 
-## O que muda
+- A rotina atual (`sync-prices`) lê uma planilha **publicada antiga** com URL fixa no código — não a planilha nova que você enviou. Testei o download da nova: ela não está acessível publicamente (retorna tela de login), então hoje ela não seria lida.
+- Hoje a rotina **só atualiza preços e categoria**. Nome e descrição só são gravados quando o produto é criado — produto existente com nome diferente na planilha nunca é corrigido.
+- Produtos que somem da planilha continuam ativos na loja.
+- No banco existem apenas `price_table_1`, `price_table_4`, `price_table_9` (produtos e variações). Não há campo reservado para uma futura tabela.
 
-**1. Pedido manual (`src/components/NewOrderDialog.tsx`)**
-- Ao selecionar um cliente existente, ler o `priceTable` dele (já disponível em `CustomerProfile`); cliente novo = tabela 4.
-- A lista de produtos passa a mostrar apenas itens com preço válido (> 0) nessa tabela; produtos com variações só listam as variações com preço, e somem se nenhuma tiver.
-- O preço adicionado ao pedido vem de `getProductPriceOrNull` / `getVariantPriceOrNull`, nunca de `basePrice`/`variant.price`.
-- Mostrar a tabela ativa no cabeçalho da etapa de itens ("Tabela 1/4/9") e bloquear com aviso se o item não tiver preço.
-- Ao trocar o cliente depois de já ter itens, revalidar os itens já adicionados e avisar/remover os que ficarem sem preço.
+## Plano
 
-**2. Editar pedido (`src/components/EditOrderDialog.tsx`)**
-- Mesma regra: resolver a tabela pelo cliente do pedido e só permitir adicionar produtos com preço válido, usando o preço da tabela.
+### 1. Acesso à planilha nova
+Conectar o Google Sheets como conector do projeto e fazer a Edge Function ler a planilha `1u6a579_...` pela API autenticada (sem depender de "publicar na web"). Vou abrir o card de conexão para você autorizar a conta Google dona da planilha. Como alternativa de segurança, mantenho a leitura via CSV publicado caso a conexão falhe.
 
-**3. Carrinho (`src/contexts/CartContext.tsx`)**
-- Quando `customerPriceTable` mudar, remover itens sem preço válido na nova tabela e reprecificar os que continuarem válidos, com aviso: "Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos".
+### 2. Reconhecimento das colunas
+Detecção tolerante a acento/maiúsculas para:
+- `procod` → código
+- `Descrição PRoduto` → nome
+- `Preço 1` / `Preço 4` / `Preço 9` → tabelas de preço
+- `Des GRP` (prioritária) e `GRUPO` (fallback) → categoria
+- coluna reservada futura (após Preço 9) → detectada mas **ignorada** por enquanto
 
-**4. Checkout (`src/pages/CheckoutPage.tsx`)**
-- Antes de gravar o pedido, revalidar cada item contra a tabela do cliente; se algum estiver sem preço, bloquear o envio com mensagem clara e mandar o cliente revisar o carrinho.
+### 3. Regras de atualização (produto existente)
+Compara e atualiza somente o que estiver diferente:
+- **Nome/descrição**: sempre sobrescrito pelo da planilha (fonte da verdade).
+- **Categoria**: pelo nome de `Des GRP`, criando a categoria se não existir (comissão 1,00%).
+- **Preços**: T1, T4, T9 conforme planilha; T4 também alimenta o `base_price`. Valor zerado/vazio nas tabelas 1 e 9 grava **0** (produto fica indisponível para aquela tabela, sem herdar preço de outra).
+
+### 4. Produtos novos e ausentes
+- Código na planilha e não no banco → cria o produto ativo, com nome, categoria e as três tabelas.
+- Código no banco e não na planilha → **marca como inativo** (`is_active = false`), sem excluir; se voltar à planilha, é reativado automaticamente.
+
+### 5. Tabela de preço reservada
+Migração adicionando `price_table_res` (numérico, nulo) em `products` e `product_variants`, logo após a tabela 9. A rotina **não grava nada** nesse campo agora e o front continua trabalhando só com 1/4/9 — fica pronto para quando a planilha passar a enviar a nova coluna.
+
+### 6. Relatório do resultado
+O aviso no painel passa a mostrar, além de preços: nomes atualizados, grupos atualizados, produtos criados, produtos inativados e reativados.
 
 ## Detalhes técnicos
 
-- Nenhuma mudança de banco nem de Edge Function; a validação é feita na camada de UI/carrinho reaproveitando `src/lib/pricing.ts`.
-- Regra de validade mantida: tabela 1 e 9 exigem valor > 0 (sem herança); tabela 4 cai para `basePrice` só quando a coluna nunca foi preenchida (zero explícito continua ocultando).
-- O painel admin de cadastro de produtos continua mostrando/editando todos os preços, inclusive zerados.
+- `supabase/functions/sync-prices/index.ts`: leitura via gateway do conector Google Sheets (`/v4/spreadsheets/{id}/values/A:Z`) com fallback CSV; parser de cabeçalho normalizado; diff de nome/categoria/preços; update em lote; passo de inativação/reativação por diferença de conjunto de códigos; limpeza/merge de categorias vazias mantida como está.
+- Migração: `ALTER TABLE public.products ADD COLUMN price_table_res numeric NULL;` e igual em `product_variants`.
+- `src/pages/StoreAdminPage.tsx`: toast com os novos contadores.
+- `src/lib/pricing.ts`: sem mudança funcional agora (a tabela reservada só entra quando ativada).
