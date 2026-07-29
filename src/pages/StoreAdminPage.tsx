@@ -491,9 +491,12 @@ export default function StoreAdminPage() {
       if (error) throw error;
       const parts: string[] = [];
       if (data?.updated_prices > 0) parts.push(`${data.updated_prices} preço(s)`);
+      if (data?.updated_names > 0) parts.push(`${data.updated_names} nome(s)`);
       if (data?.updated_categories > 0) parts.push(`${data.updated_categories} categoria(s)`);
       if (data?.created_categories > 0) parts.push(`${data.created_categories} categoria(s) criada(s)`);
       if (data?.created_products > 0) parts.push(`${data.created_products} produto(s) criado(s)`);
+      if (data?.deactivated_products > 0) parts.push(`${data.deactivated_products} produto(s) inativado(s)`);
+      if (data?.reactivated_products > 0) parts.push(`${data.reactivated_products} produto(s) reativado(s)`);
       if (data?.categories_merged > 0) parts.push(`${data.categories_merged} categoria(s) mesclada(s)`);
       if (data?.categories_deleted > 0) parts.push(`${data.categories_deleted} categoria(s) removida(s)`);
       if (parts.length > 0) {

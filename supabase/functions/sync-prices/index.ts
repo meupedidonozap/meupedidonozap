@@ -5,6 +5,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+/** Planilha oficial de produtos/preços (Google Sheets). */
+const SPREADSHEET_ID = "1u6a579_NTt24Y93BrbkdRCPlP-JlFNJ0JcW00F2p3Zg";
+/** Fallback: CSV publicado (usado se o conector Google Sheets falhar). */
+const FALLBACK_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiEn32ibtrbsQQf4UAjNo3gJk13p7g4olYSWl2IRSNvkowpT1etqnS887s-mEAF2vrEAXnGMY96OKD/pub?output=csv";
+
 /** RFC 4180 CSV parser – handles quoted fields with commas and escaped quotes */
 function parseCSVLine(line: string): string[] {
   const fields: string[] = [];
@@ -24,18 +30,55 @@ function parseCSVLine(line: string): string[] {
         current += ch;
       }
     } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ",") {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ",") {
         fields.push(current.trim());
         current = "";
-      } else {
-        current += ch;
-      }
+      } else current += ch;
     }
   }
   fields.push(current.trim());
   return fields;
+}
+
+const normalizeHeader = (h: string) =>
+  String(h ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Lê a planilha pelo conector Google Sheets. Retorna matriz de linhas. */
+async function readFromGoogleSheets(): Promise<string[][] | null> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const sheetsKey = Deno.env.get("GOOGLE_SHEETS_API_KEY");
+  if (!lovableKey || !sheetsKey) return null;
+  const url = `https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/${SPREADSHEET_ID}/values/A:Z`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${lovableKey}`,
+      "X-Connection-Api-Key": sheetsKey,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`Google Sheets gateway falhou [${res.status}]: ${body}`);
+    return null;
+  }
+  const json = await res.json();
+  const values = json?.values;
+  return Array.isArray(values) && values.length > 1 ? (values as string[][]) : null;
+}
+
+/** Fallback CSV publicado. */
+async function readFromCSV(): Promise<string[][] | null> {
+  const res = await fetch(FALLBACK_CSV_URL);
+  if (!res.ok) return null;
+  const text = await res.text();
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2) return null;
+  return lines.map((l) => parseCSVLine(l));
 }
 
 Deno.serve(async (req) => {
@@ -52,69 +95,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch CSV from Google Sheets
-    const csvUrl =
-      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTiEn32ibtrbsQQf4UAjNo3gJk13p7g4olYSWl2IRSNvkowpT1etqnS887s-mEAF2vrEAXnGMY96OKD/pub?output=csv";
-    const csvRes = await fetch(csvUrl);
-    if (!csvRes.ok) {
-      return new Response(JSON.stringify({ error: "Failed to fetch spreadsheet" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let rows = await readFromGoogleSheets();
+    let source = "google_sheets";
+    if (!rows) {
+      rows = await readFromCSV();
+      source = "csv_publicado";
+    }
+    if (!rows) {
+      return new Response(
+        JSON.stringify({ error: "Não foi possível ler a planilha (conector e CSV indisponíveis)." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const csvText = await csvRes.text();
-    const lines = csvText.split("\n").map((l) => l.trim()).filter(Boolean);
-    if (lines.length < 2) {
-      return new Response(JSON.stringify({ error: "Empty spreadsheet" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Parse header using RFC parser. Normalize: lowercase + strip accents + collapse spaces.
-    const normalizeHeader = (h: string) =>
-      h
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    const header = parseCSVLine(lines[0]).map(normalizeHeader);
-    const codeIdx = header.indexOf("procod");
+    const header = rows[0].map(normalizeHeader);
+    const codeIdx = header.findIndex((h) => ["procod", "codigo", "cod", "code"].includes(h));
     const price1Idx = header.findIndex((h) => ["preco 1", "preco1", "tabela 1", "tab 1"].includes(h));
     const price4Idx = header.findIndex((h) =>
       ["preco 4", "preco4", "tabela 4", "tab 4", "protabpre", "preco"].includes(h)
     );
     const price9Idx = header.findIndex((h) => ["preco 9", "preco9", "tabela 9", "tab 9"].includes(h));
-    // Prioridade: coluna descritiva ("Des GRP" com nome do grupo) sobre "GRUPO" (código numérico).
+    // Coluna reservada para a futura tabela de preço: detectada, porém IGNORADA.
+    const priceResIdx = header.findIndex((h) =>
+      ["preco reservado", "reservado", "preco futuro", "tabela reservada", "preco res"].includes(h)
+    );
+
     const GRP_NAME_KEYS = [
       "des grp",
       "desgrp",
       "des_grp",
       "descricao grupo",
-      "descrição grupo",
       "descricao do grupo",
       "nome grupo",
       "categoria",
     ];
     let grpIdx = header.findIndex((h) => GRP_NAME_KEYS.includes(h));
-    if (grpIdx === -1) {
-      // Fallback legado: planilhas antigas que só têm a coluna "GRUPO".
-      grpIdx = header.findIndex((h) => h === "grupo");
-    }
+    if (grpIdx === -1) grpIdx = header.findIndex((h) => h === "grupo");
+
     const nameIdx = header.findIndex((h) =>
-      [
-        "pronom",
-        "descricao",
-        "descricao produto",
-        "descricao pRoduto".toLowerCase(),
-        "des pro",
-        "des_pro",
-        "despro",
-        "produto",
-        "nome",
-      ].includes(h)
+      ["descricao produto", "descricao", "pronom", "des pro", "des_pro", "despro", "produto", "nome"].includes(h)
     );
     const barIdx = header.findIndex((h) => ["procodbar", "codbar", "ean", "barras"].includes(h));
 
@@ -129,49 +148,41 @@ Deno.serve(async (req) => {
       );
     }
 
-    const parseNum = (raw: string | undefined): number => {
-      if (!raw) return NaN;
-      const n = parseFloat(String(raw).replace(/\./g, "").replace(",", "."));
-      // If value contains no comma and no dot-decimal, fallback:
-      if (isNaN(n)) return parseFloat(String(raw).replace(",", "."));
-      return n;
+    const num = (raw: string | undefined): number => {
+      if (raw == null || String(raw).trim() === "") return NaN;
+      return parseFloat(String(raw).trim().replace(/\s/g, "").replace(",", "."));
     };
 
-    // Build price + category map from spreadsheet
     const sheetData: Record<
       string,
       { price1: number; price4: number; price9: number; category?: string; name?: string; bar?: string }
     > = {};
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCSVLine(lines[i]);
-      const code = cols[codeIdx];
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i] || [];
+      const code = String(cols[codeIdx] ?? "").trim();
       if (!code) continue;
-      const p1raw = price1Idx !== -1 ? parseFloat(cols[price1Idx]?.replace(",", ".")) : NaN;
-      const p4raw = price4Idx !== -1 ? parseFloat(cols[price4Idx]?.replace(",", ".")) : NaN;
-      const p9raw = price9Idx !== -1 ? parseFloat(cols[price9Idx]?.replace(",", ".")) : NaN;
+      const p1raw = price1Idx !== -1 ? num(cols[price1Idx]) : NaN;
+      const p4raw = price4Idx !== -1 ? num(cols[price4Idx]) : NaN;
+      const p9raw = price9Idx !== -1 ? num(cols[price9Idx]) : NaN;
       const candidates = [p4raw, p1raw, p9raw].filter((n) => Number.isFinite(n) && n > 0);
       if (candidates.length === 0) continue;
-      // Tabela 4 é a referência (base_price). Se vier vazia/0, herda do primeiro preço válido.
       const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : candidates[0];
-      // Tabelas 1 e 9 respeitam o valor da planilha: 0/vazio grava 0 (não herda de outras tabelas).
       const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : 0;
       const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : 0;
-      const category = grpIdx !== -1 ? cols[grpIdx]?.trim() || undefined : undefined;
-      const name = nameIdx !== -1 ? cols[nameIdx]?.trim() || undefined : undefined;
-      const bar = barIdx !== -1 ? cols[barIdx]?.trim() || undefined : undefined;
+      const category = grpIdx !== -1 ? String(cols[grpIdx] ?? "").trim() || undefined : undefined;
+      const name = nameIdx !== -1 ? String(cols[nameIdx] ?? "").trim() || undefined : undefined;
+      const bar = barIdx !== -1 ? String(cols[barIdx] ?? "").trim() || undefined : undefined;
       sheetData[code] = { price1, price4, price9, category, name, bar };
     }
 
-    // Supabase client with service role
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch products from DB
     const { data: products, error: pErr } = await supabase
       .from("products")
-      .select("id, code, base_price, price_table_1, price_table_4, price_table_9, category_id")
+      .select("id, code, name, base_price, price_table_1, price_table_4, price_table_9, category_id, is_active")
       .eq("store_id", store_id);
 
     if (pErr) {
@@ -181,19 +192,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch existing categories for this store
     const { data: existingCategories } = await supabase
       .from("categories")
       .select("id, name")
       .eq("store_id", store_id);
 
-    // Build a name→id map (case-insensitive)
     const catMap = new Map<string, string>();
+    const catNameById = new Map<string, string>();
     for (const cat of existingCategories || []) {
       catMap.set(cat.name.toLowerCase(), cat.id);
+      catNameById.set(cat.id, cat.name);
     }
 
-    // Track results
+    const ensureCategory = async (name: string): Promise<string | null> => {
+      const key = name.toLowerCase();
+      const existing = catMap.get(key);
+      if (existing) return existing;
+      const { data: newCat, error: catErr } = await supabase
+        .from("categories")
+        .insert({ store_id, name, sort_order: 0, commission_percent: 1.0 })
+        .select("id")
+        .single();
+      if (catErr || !newCat) return null;
+      catMap.set(key, newCat.id);
+      catNameById.set(newCat.id, name);
+      categoriesCreated.push(name);
+      return newCat.id;
+    };
+
     const priceUpdates: {
       code: string;
       old_price: number;
@@ -203,14 +229,25 @@ Deno.serve(async (req) => {
       t9?: { old: number; new: number };
     }[] = [];
     const categoryUpdates: { code: string; old_cat: string | null; new_cat: string }[] = [];
+    const nameUpdates: { code: string; old_name: string; new_name: string }[] = [];
     const categoriesCreated: string[] = [];
     const productsCreated: { code: string; name: string }[] = [];
+    const productsDeactivated: string[] = [];
+    const productsReactivated: string[] = [];
 
     const existingCodes = new Set((products || []).map((p) => p.code));
 
     for (const product of products || []) {
       const sheet = sheetData[product.code];
-      if (!sheet) continue;
+
+      // Produto que não está mais na planilha → inativar.
+      if (!sheet) {
+        if (product.is_active) {
+          await supabase.from("products").update({ is_active: false }).eq("id", product.id);
+          productsDeactivated.push(product.code);
+        }
+        continue;
+      }
 
       const updates: Record<string, unknown> = {};
 
@@ -240,68 +277,41 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Category check (only if sheet has Des GRP column)
+      // Nome: planilha é a fonte da verdade.
+      if (sheet.name && sheet.name !== product.name) {
+        updates.name = sheet.name;
+        nameUpdates.push({ code: product.code, old_name: product.name, new_name: sheet.name });
+      }
+
+      // Categoria pelo nome do grupo.
       if (sheet.category && grpIdx !== -1) {
-        const catKey = sheet.category.toLowerCase();
-        let catId = catMap.get(catKey);
-
-        // Create category if it doesn't exist
-        if (!catId) {
-          const { data: newCat, error: catErr } = await supabase
-            .from("categories")
-            .insert({ store_id, name: sheet.category, sort_order: 0, commission_percent: 1.00 })
-            .select("id")
-            .single();
-          if (!catErr && newCat) {
-            catId = newCat.id;
-            catMap.set(catKey, catId as string);
-            categoriesCreated.push(sheet.category);
-          }
-        }
-
+        const catId = await ensureCategory(sheet.category);
         if (catId && catId !== product.category_id) {
           updates.category_id = catId;
-          // Find old category name
-          const oldCatName = product.category_id
-            ? [...catMap.entries()].find(([, v]) => v === product.category_id)?.[0] || null
-            : null;
           categoryUpdates.push({
             code: product.code,
-            old_cat: oldCatName,
+            old_cat: product.category_id ? catNameById.get(product.category_id) || null : null,
             new_cat: sheet.category,
           });
         }
       }
 
-      // Apply updates if any
+      // Reativar produto que voltou para a planilha.
+      if (!product.is_active) {
+        updates.is_active = true;
+        productsReactivated.push(product.code);
+      }
+
       if (Object.keys(updates).length > 0) {
         await supabase.from("products").update(updates).eq("id", product.id);
       }
     }
 
-    // Insert products that exist in the sheet but not in the DB
+    // Produtos novos
     const toInsert: Array<Record<string, unknown>> = [];
     for (const [code, sheet] of Object.entries(sheetData)) {
       if (existingCodes.has(code)) continue;
-
-      let catId: string | null = null;
-      if (sheet.category) {
-        const catKey = sheet.category.toLowerCase();
-        catId = catMap.get(catKey) || null;
-        if (!catId) {
-          const { data: newCat, error: catErr } = await supabase
-            .from("categories")
-            .insert({ store_id, name: sheet.category, sort_order: 0, commission_percent: 1.00 })
-            .select("id")
-            .single();
-          if (!catErr && newCat) {
-            catId = newCat.id;
-            catMap.set(catKey, catId as string);
-            categoriesCreated.push(sheet.category);
-          }
-        }
-      }
-
+      const catId = sheet.category ? await ensureCategory(sheet.category) : null;
       const productName = sheet.name || `Produto ${code}`;
       toInsert.push({
         store_id,
@@ -320,7 +330,6 @@ Deno.serve(async (req) => {
     }
 
     if (toInsert.length > 0) {
-      // Batch insert to avoid payload limits
       const BATCH = 200;
       for (let i = 0; i < toInsert.length; i += BATCH) {
         const batch = toInsert.slice(i, i + BATCH);
@@ -340,19 +349,16 @@ Deno.serve(async (req) => {
     let categoriesMerged = 0;
     let categoriesDeleted = 0;
 
-    // Recarrega categorias (com created_at para escolher canônica)
     const { data: allCats } = await supabase
       .from("categories")
       .select("id, name, created_at")
       .eq("store_id", store_id);
 
-    // Recarrega produtos para saber quais categorias têm uso
     const { data: allProducts } = await supabase
       .from("products")
       .select("id, category_id")
       .eq("store_id", store_id);
 
-    // Agrupa categorias por nome normalizado
     const byName = new Map<string, Array<{ id: string; created_at: string }>>();
     for (const c of allCats || []) {
       const key = (c.name || "").trim().toLowerCase();
@@ -362,14 +368,12 @@ Deno.serve(async (req) => {
       byName.set(key, arr);
     }
 
-    // Contagem de produtos por category_id
     const productCountByCat = new Map<string, number>();
     for (const p of allProducts || []) {
       if (!p.category_id) continue;
       productCountByCat.set(p.category_id, (productCountByCat.get(p.category_id) || 0) + 1);
     }
 
-    // Consolidar duplicadas: escolhe a com mais produtos; empate → mais antiga
     for (const [, group] of byName.entries()) {
       if (group.length < 2) continue;
       const sorted = [...group].sort((a, b) => {
@@ -380,13 +384,11 @@ Deno.serve(async (req) => {
       });
       const canonical = sorted[0];
       const dupIds = sorted.slice(1).map((c) => c.id);
-      // Move produtos das duplicadas para a canônica
       const { error: mvErr } = await supabase
         .from("products")
         .update({ category_id: canonical.id })
         .in("category_id", dupIds);
       if (!mvErr) {
-        // Atualiza contagem local para etapa de exclusão
         for (const dId of dupIds) {
           const moved = productCountByCat.get(dId) || 0;
           productCountByCat.set(canonical.id, (productCountByCat.get(canonical.id) || 0) + moved);
@@ -396,27 +398,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Elimina categorias sem produtos.
-    // Passo A: exclui por id individual (evita silenciar erros no lote e captura FK).
-    const emptyIds: string[] = (allCats || [])
-      .filter((c) => (productCountByCat.get(c.id) || 0) === 0)
-      .map((c) => c.id);
-
-    for (const cid of emptyIds) {
-      const { error: delErr } = await supabase
-        .from("categories")
-        .delete()
-        .eq("id", cid)
-        .eq("store_id", store_id);
-      if (!delErr) {
-        categoriesDeleted += 1;
-      } else {
-        console.warn(`Falha ao excluir categoria ${cid}:`, delErr.message);
-      }
-    }
-
-    // Passo B: varredura extra — remove qualquer categoria remanescente da loja
-    // que não esteja referenciada por nenhum produto (defesa contra desvio no map).
     const { data: prodCatsFresh } = await supabase
       .from("products")
       .select("category_id")
@@ -437,29 +418,39 @@ Deno.serve(async (req) => {
         .eq("id", cid)
         .eq("store_id", store_id);
       if (!delErr) categoriesDeleted += 1;
+      else console.warn(`Falha ao excluir categoria ${cid}:`, delErr.message);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
+        source,
         updated_prices: priceUpdates.length,
+        updated_names: nameUpdates.length,
         updated_categories: categoryUpdates.length,
         created_categories: categoriesCreated.length,
         created_products: productsCreated.length,
+        deactivated_products: productsDeactivated.length,
+        reactivated_products: productsReactivated.length,
         categories_merged: categoriesMerged,
         categories_deleted: categoriesDeleted,
         total_sheet_codes: Object.keys(sheetData).length,
         total_products: (products || []).length,
         has_category_column: grpIdx !== -1,
         has_name_column: nameIdx !== -1,
+        has_reserved_price_column: priceResIdx !== -1,
         price_updates: priceUpdates,
+        name_updates: nameUpdates,
         category_updates: categoryUpdates,
         categories_created: categoriesCreated,
         products_created: productsCreated,
+        products_deactivated: productsDeactivated,
+        products_reactivated: productsReactivated,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    console.error("sync-prices erro:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
