@@ -7,7 +7,7 @@ import {
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
   Scissors, Salad, Pizza, Grid3x3,
-  MapPin,
+  MapPin, Search,
 } from 'lucide-react';
 import { useStoreBySlug, useUpdateStore } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
@@ -232,6 +232,25 @@ export default function StoreAdminPage() {
     if (!restrictBySeller) return customerProfiles as any[];
     return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
   }, [customerProfiles, restrictBySeller, sellerCodeSet]);
+
+  const [customerSearch, setCustomerSearch] = useState('');
+  const filteredCustomerProfiles = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase();
+    if (!term) return scopedCustomerProfiles;
+    const digits = term.replace(/\D/g, '');
+    return scopedCustomerProfiles.filter((cp: any) => {
+      const haystack = [
+        cp.name, cp.customerCode, cp.cpfCnpj, cp.whatsapp,
+        cp.address, cp.number, cp.neighborhood, cp.city, cp.uf, cp.cep, cp.complement,
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (haystack.includes(term)) return true;
+      if (digits.length >= 3) {
+        const onlyDigits = haystack.replace(/\D/g, '');
+        if (onlyDigits.includes(digits)) return true;
+      }
+      return false;
+    });
+  }, [scopedCustomerProfiles, customerSearch]);
   const scopedOrders = useMemo(() => {
     if (!restrictBySeller) return orders;
     return orders.filter((o: any) => {
@@ -2232,6 +2251,23 @@ export default function StoreAdminPage() {
                 </Button>
               </div>
             </div>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="relative w-full max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Pesquisar por nome, código, CPF/CNPJ, endereço, cidade ou WhatsApp"
+                  className="pl-9"
+                />
+              </div>
+              {customerSearch.trim() && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => setCustomerSearch('')}>Limpar</Button>
+                  <span className="text-sm text-muted-foreground">{filteredCustomerProfiles.length} resultado(s)</span>
+                </>
+              )}
+            </div>
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -2243,7 +2279,7 @@ export default function StoreAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {scopedCustomerProfiles.map(cp => (
+                    {filteredCustomerProfiles.map(cp => (
                       <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
                         <TableCell className="font-medium">{cp.name || '—'}</TableCell>
                         <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
@@ -2318,8 +2354,10 @@ export default function StoreAdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {scopedCustomerProfiles.length === 0 && (
-                      <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
+                    {filteredCustomerProfiles.length === 0 && (
+                      <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                        {customerSearch.trim() ? 'Nenhum cliente encontrado para a pesquisa' : 'Nenhum cliente cadastrado ainda'}
+                      </TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
