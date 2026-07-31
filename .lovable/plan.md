@@ -1,46 +1,35 @@
 ## Objetivo
 
-Deixar a rotina "Atualizar Produtos/Preços" da DiColore 100% alinhada à planilha nova (CODIGO / DESCRIÇÃO / GRUPO / PREÇOS 1-4-9), atualizando tudo que estiver diferente e já preparando uma 4ª tabela de preço reservada.
+Permitir informar o **Código do Cliente** (o mesmo código do ERP) ao criar/editar um cliente no painel, e — ao criar com código — já gerar o acesso do cliente seguindo a regra existente: entra pela aba **Código**, usando o código como usuário e como senha.
 
-## O que verifiquei
+## Como funciona hoje (verificado)
 
-- A rotina atual (`sync-prices`) lê uma planilha **publicada antiga** com URL fixa no código — não a planilha nova que você enviou. Testei o download da nova: ela não está acessível publicamente (retorna tela de login), então hoje ela não seria lida.
-- Hoje a rotina **só atualiza preços e categoria**. Nome e descrição só são gravados quando o produto é criado — produto existente com nome diferente na planilha nunca é corrigido.
-- Produtos que somem da planilha continuam ativos na loja.
-- No banco existem apenas `price_table_1`, `price_table_4`, `price_table_9` (produtos e variações). Não há campo reservado para uma futura tabela.
+- A tabela `customer_profiles` já tem a coluna `customer_code`, e a lista de clientes já mostra a coluna "Código" — mas os diálogos "Novo Cliente" e "Editar Cliente" não têm esse campo.
+- O login por código já existe (`CustomerAuthDialog`): converte o código em `codigo@slug.cliente.local` e faz login com a senha digitada.
+- A função `import-customers` (modo `import`) já cria exatamente esse acesso: cria o usuário com e-mail `codigo@slug.cliente.local`, senha = código, e-mail confirmado, e vincula o `user_id` ao perfil.
 
-## Plano
+## O que será feito
 
-### 1. Acesso à planilha nova
-Conectar o Google Sheets como conector do projeto e fazer a Edge Function ler a planilha `1u6a579_...` pela API autenticada (sem depender de "publicar na web"). Vou abrir o card de conexão para você autorizar a conta Google dona da planilha. Como alternativa de segurança, mantenho a leitura via CSV publicado caso a conexão falhe.
+1. **Campo no formulário** (`src/pages/StoreAdminPage.tsx`)
+   - Adicionar "Código do Cliente" nos diálogos Novo Cliente e Editar Cliente (ao lado de CPF/CNPJ), com dica: "Usado como login e senha inicial do cliente".
+   - Incluir `customerCode` no estado `customerForm` e no preenchimento ao editar.
 
-### 2. Reconhecimento das colunas
-Detecção tolerante a acento/maiúsculas para:
-- `procod` → código
-- `Descrição PRoduto` → nome
-- `Preço 1` / `Preço 4` / `Preço 9` → tabelas de preço
-- `Des GRP` (prioritária) e `GRUPO` (fallback) → categoria
-- coluna reservada futura (após Preço 9) → detectada mas **ignorada** por enquanto
+2. **Criação com código = cria acesso**
+   - No botão Salvar do "Novo Cliente":
+     - Sem código: mantém o comportamento atual (insert direto, sem conta de acesso).
+     - Com código: valida que o código ainda não existe na loja; se existir, avisa e não duplica. Caso contrário, chama a função `import-customers` (modo `import`) com uma única linha contendo os dados do formulário, o que cria o perfil **e** a conta de acesso (login = código, senha = código).
+   - Ao concluir, mostrar aviso com o código/senha inicial para repassar ao cliente e atualizar a lista.
 
-### 3. Regras de atualização (produto existente)
-Compara e atualiza somente o que estiver diferente:
-- **Nome/descrição**: sempre sobrescrito pelo da planilha (fonte da verdade).
-- **Categoria**: pelo nome de `Des GRP`, criando a categoria se não existir (comissão 1,00%).
-- **Preços**: T1, T4, T9 conforme planilha; T4 também alimenta o `base_price`. Valor zerado/vazio nas tabelas 1 e 9 grava **0** (produto fica indisponível para aquela tabela, sem herdar preço de outra).
+3. **Edição**
+   - Permitir preencher/corrigir o código de um cliente já existente (grava em `customer_code`, com validação de duplicidade na loja).
+   - Se o cliente ainda não tiver conta de acesso e um código for informado na edição, oferecer a criação do acesso pelo mesmo caminho (mesma regra: senha = código). Se já tiver conta, o código só é atualizado no cadastro — a troca de senha continua pelo botão de chave já existente.
 
-### 4. Produtos novos e ausentes
-- Código na planilha e não no banco → cria o produto ativo, com nome, categoria e as três tabelas.
-- Código no banco e não na planilha → **marca como inativo** (`is_active = false`), sem excluir; se voltar à planilha, é reativado automaticamente.
-
-### 5. Tabela de preço reservada
-Migração adicionando `price_table_res` (numérico, nulo) em `products` e `product_variants`, logo após a tabela 9. A rotina **não grava nada** nesse campo agora e o front continua trabalhando só com 1/4/9 — fica pronto para quando a planilha passar a enviar a nova coluna.
-
-### 6. Relatório do resultado
-O aviso no painel passa a mostrar, além de preços: nomes atualizados, grupos atualizados, produtos criados, produtos inativados e reativados.
+4. **Hooks** (`src/hooks/useCustomerProfiles.ts`)
+   - Aceitar `customerCode` em criar/atualizar cliente, gravando na coluna `customer_code`.
 
 ## Detalhes técnicos
 
-- `supabase/functions/sync-prices/index.ts`: leitura via gateway do conector Google Sheets (`/v4/spreadsheets/{id}/values/A:Z`) com fallback CSV; parser de cabeçalho normalizado; diff de nome/categoria/preços; update em lote; passo de inativação/reativação por diferença de conjunto de códigos; limpeza/merge de categorias vazias mantida como está.
-- Migração: `ALTER TABLE public.products ADD COLUMN price_table_res numeric NULL;` e igual em `product_variants`.
-- `src/pages/StoreAdminPage.tsx`: toast com os novos contadores.
-- `src/lib/pricing.ts`: sem mudança funcional agora (a tabela reservada só entra quando ativada).
+- Nenhuma migração de banco necessária: `customer_profiles.customer_code` já existe.
+- Normalização do código: `trim`; o e-mail de acesso usa o mesmo saneamento já aplicado hoje (`minúsculas`, só letras/números), garantindo compatibilidade com a tela de login por código.
+- Senha inicial precisa ter 6+ caracteres para o Auth; se o código for menor, será aplicado o mesmo tratamento já usado na importação (verificar `buildPassword` e reutilizá-lo — sem inventar regra nova).
+- Reuso da edge function existente `import-customers`, sem criar nova função.

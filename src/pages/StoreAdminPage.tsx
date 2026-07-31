@@ -137,6 +137,46 @@ export default function StoreAdminPage() {
   const toggleCustomerActive = useToggleCustomerActive();
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
+  // Senha inicial de acesso por código (mesma regra da importação de clientes)
+  const initialCodePassword = (codigo: string) => {
+    const c = (codigo || '').trim();
+    return c.length >= 6 ? c : `dico${c}`;
+  };
+
+  // Cria (ou vincula) o acesso do cliente pelo código: login = código, senha = código
+  const createCustomerAccess = async (params: { storeId: string; codigo: string; form: typeof customerForm }) => {
+    const { form } = params;
+    const { data, error } = await supabase.functions.invoke('import-customers', {
+      body: {
+        storeId: params.storeId,
+        mode: 'import',
+        rows: [{
+          codigo: params.codigo,
+          nome: form.name.trim(),
+          cpf_cnpj: form.cpfCnpj,
+          whatsapp: form.whatsapp,
+          cep: form.cep,
+          uf: form.uf,
+          cidade: form.city,
+          bairro: form.neighborhood,
+          endereco: form.address,
+          numero: form.number,
+          complemento: form.complement,
+          codigo_vendedor: form.sellerCode,
+        }],
+      },
+    });
+    if (error) throw error;
+    const first = (data as any)?.results?.[0];
+    if (first?.status === 'error') throw new Error(first.erro || 'Falha ao criar acesso');
+    // campos que a rotina de importação não trata
+    await supabase
+      .from('customer_profiles')
+      .update({ price_table: form.priceTable, transportadora: form.transportadora || null } as any)
+      .eq('store_id', params.storeId)
+      .eq('customer_code', params.codigo);
+  };
+
   // Sellers (Dicolore)
   const { data: sellers = [] } = useAllStoreSellers(isAdmin && store?.slug === 'dicolore' ? store?.id : undefined);
   const createSeller = useCreateStoreSeller();
@@ -288,7 +328,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 as 1 | 4 | 9 });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 as 1 | 4 | 9, customerCode: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -2186,7 +2226,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4, customerCode: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2227,6 +2267,7 @@ export default function StoreAdminPage() {
                               sellerCode: (cp as any).sellerCode || '',
                               transportadora: (cp as any).transportadora || '',
                               priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
+                              customerCode: (cp as any).customerCode || '',
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -2308,6 +2349,15 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Código do Cliente (ERP)</Label>
+                      <Input value={customerForm.customerCode} onChange={e => setCustomerForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="Ex.: 98216" />
+                      <p className="text-xs text-muted-foreground">
+                        {editingCustomer?.userId
+                          ? 'Este cliente já possui acesso. Para trocar a senha, use o botão de chave na lista.'
+                          : 'Ao salvar com código, o acesso do cliente é criado (login e senha = código).'}
+                      </p>
+                    </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Tabela de Preço</Label>
@@ -2328,8 +2378,21 @@ export default function StoreAdminPage() {
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
                     <Button onClick={async () => {
                       try {
+                        const codigo = customerForm.customerCode.trim();
+                        if (codigo) {
+                          const dup = (customerProfiles as any[]).find(
+                            (c) => String(c.customerCode || '').trim() === codigo && c.id !== editingCustomer.id
+                          );
+                          if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
+                        }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
-                        toast.success('Cliente atualizado!');
+                        if (codigo && !editingCustomer.userId) {
+                          await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
+                          toast.success(`Acesso criado! Código: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                        } else {
+                          toast.success('Cliente atualizado!');
+                        }
+                        qc.invalidateQueries({ queryKey: ['store-customer-profiles', editingCustomer.storeId] });
                         setEditingCustomer(null);
                       } catch { toast.error('Erro ao atualizar'); }
                     }}>Salvar</Button>
@@ -2360,6 +2423,11 @@ export default function StoreAdminPage() {
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                   </div>
                   <div className="grid gap-1">
+                    <Label className="text-sm">Código do Cliente (ERP)</Label>
+                    <Input value={customerForm.customerCode} onChange={e => setCustomerForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="Ex.: 98216" />
+                    <p className="text-xs text-muted-foreground">Se informado, o acesso é criado automaticamente: login e senha = código.</p>
+                  </div>
+                  <div className="grid gap-1">
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
                       value={String(customerForm.priceTable)}
@@ -2378,8 +2446,17 @@ export default function StoreAdminPage() {
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
                   <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
                     try {
-                      await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
-                      toast.success('Cliente criado!');
+                      const codigo = customerForm.customerCode.trim();
+                      if (codigo) {
+                        const dup = (customerProfiles as any[]).find((c) => String(c.customerCode || '').trim() === codigo);
+                        if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
+                        await createCustomerAccess({ storeId: store.id, codigo, form: customerForm });
+                        toast.success(`Cliente criado! Login: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                      } else {
+                        await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
+                        toast.success('Cliente criado!');
+                      }
+                      qc.invalidateQueries({ queryKey: ['store-customer-profiles', store.id] });
                       setCreatingCustomer(false);
                     } catch { toast.error('Erro ao criar cliente'); }
                   }}>
