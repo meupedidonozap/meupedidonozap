@@ -232,6 +232,25 @@ export default function StoreAdminPage() {
     if (!restrictBySeller) return customerProfiles as any[];
     return (customerProfiles as any[]).filter((cp: any) => sellerCodeSet.has(String(cp.sellerCode || '').trim()));
   }, [customerProfiles, restrictBySeller, sellerCodeSet]);
+
+  const [customerSearch, setCustomerSearch] = useState('');
+  const filteredCustomerProfiles = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase();
+    if (!term) return scopedCustomerProfiles;
+    const digits = term.replace(/\D/g, '');
+    return scopedCustomerProfiles.filter((cp: any) => {
+      const haystack = [
+        cp.name, cp.customerCode, cp.cpfCnpj, cp.whatsapp,
+        cp.address, cp.number, cp.neighborhood, cp.city, cp.uf, cp.cep, cp.complement,
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (haystack.includes(term)) return true;
+      if (digits.length >= 3) {
+        const onlyDigits = haystack.replace(/\D/g, '');
+        if (onlyDigits.includes(digits)) return true;
+      }
+      return false;
+    });
+  }, [scopedCustomerProfiles, customerSearch]);
   const scopedOrders = useMemo(() => {
     if (!restrictBySeller) return orders;
     return orders.filter((o: any) => {
