@@ -2262,7 +2262,7 @@ export default function StoreAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {scopedCustomerProfiles.map(cp => (
+                    {filteredCustomerProfiles.map(cp => (
                       <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
                         <TableCell className="font-medium">{cp.name || '—'}</TableCell>
                         <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
