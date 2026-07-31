@@ -2378,8 +2378,21 @@ export default function StoreAdminPage() {
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
                     <Button onClick={async () => {
                       try {
+                        const codigo = customerForm.customerCode.trim();
+                        if (codigo) {
+                          const dup = (customerProfiles as any[]).find(
+                            (c) => String(c.customerCode || '').trim() === codigo && c.id !== editingCustomer.id
+                          );
+                          if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
+                        }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
-                        toast.success('Cliente atualizado!');
+                        if (codigo && !editingCustomer.userId) {
+                          await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
+                          toast.success(`Acesso criado! Código: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                        } else {
+                          toast.success('Cliente atualizado!');
+                        }
+                        qc.invalidateQueries({ queryKey: ['store-customer-profiles', editingCustomer.storeId] });
                         setEditingCustomer(null);
                       } catch { toast.error('Erro ao atualizar'); }
                     }}>Salvar</Button>
