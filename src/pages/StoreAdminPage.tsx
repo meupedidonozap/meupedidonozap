@@ -137,6 +137,46 @@ export default function StoreAdminPage() {
   const toggleCustomerActive = useToggleCustomerActive();
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
+  // Senha inicial de acesso por código (mesma regra da importação de clientes)
+  const initialCodePassword = (codigo: string) => {
+    const c = (codigo || '').trim();
+    return c.length >= 6 ? c : `dico${c}`;
+  };
+
+  // Cria (ou vincula) o acesso do cliente pelo código: login = código, senha = código
+  const createCustomerAccess = async (params: { storeId: string; codigo: string; form: typeof customerForm }) => {
+    const { form } = params;
+    const { data, error } = await supabase.functions.invoke('import-customers', {
+      body: {
+        storeId: params.storeId,
+        mode: 'import',
+        rows: [{
+          codigo: params.codigo,
+          nome: form.name.trim(),
+          cpf_cnpj: form.cpfCnpj,
+          whatsapp: form.whatsapp,
+          cep: form.cep,
+          uf: form.uf,
+          cidade: form.city,
+          bairro: form.neighborhood,
+          endereco: form.address,
+          numero: form.number,
+          complemento: form.complement,
+          codigo_vendedor: form.sellerCode,
+        }],
+      },
+    });
+    if (error) throw error;
+    const first = (data as any)?.results?.[0];
+    if (first?.status === 'error') throw new Error(first.erro || 'Falha ao criar acesso');
+    // campos que a rotina de importação não trata
+    await supabase
+      .from('customer_profiles')
+      .update({ price_table: form.priceTable, transportadora: form.transportadora || null } as any)
+      .eq('store_id', params.storeId)
+      .eq('customer_code', params.codigo);
+  };
+
   // Sellers (Dicolore)
   const { data: sellers = [] } = useAllStoreSellers(isAdmin && store?.slug === 'dicolore' ? store?.id : undefined);
   const createSeller = useCreateStoreSeller();
