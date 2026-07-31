@@ -2337,8 +2337,10 @@ export default function StoreAdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {scopedCustomerProfiles.length === 0 && (
-                      <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum cliente cadastrado ainda</TableCell></TableRow>
+                    {filteredCustomerProfiles.length === 0 && (
+                      <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                        {customerSearch.trim() ? 'Nenhum cliente encontrado para a pesquisa' : 'Nenhum cliente cadastrado ainda'}
+                      </TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
