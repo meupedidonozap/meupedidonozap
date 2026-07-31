@@ -2309,6 +2309,15 @@ export default function StoreAdminPage() {
                       <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} placeholder="Apenas números ou formatado" /></div>
                       <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     </div>
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Código do Cliente (ERP)</Label>
+                      <Input value={customerForm.customerCode} onChange={e => setCustomerForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="Ex.: 98216" />
+                      <p className="text-xs text-muted-foreground">
+                        {editingCustomer?.userId
+                          ? 'Este cliente já possui acesso. Para trocar a senha, use o botão de chave na lista.'
+                          : 'Ao salvar com código, o acesso do cliente é criado (login e senha = código).'}
+                      </p>
+                    </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Tabela de Preço</Label>
