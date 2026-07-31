@@ -2423,6 +2423,11 @@ export default function StoreAdminPage() {
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                   </div>
                   <div className="grid gap-1">
+                    <Label className="text-sm">Código do Cliente (ERP)</Label>
+                    <Input value={customerForm.customerCode} onChange={e => setCustomerForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="Ex.: 98216" />
+                    <p className="text-xs text-muted-foreground">Se informado, o acesso é criado automaticamente: login e senha = código.</p>
+                  </div>
+                  <div className="grid gap-1">
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
                       value={String(customerForm.priceTable)}
@@ -2441,8 +2446,17 @@ export default function StoreAdminPage() {
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
                   <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
                     try {
-                      await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
-                      toast.success('Cliente criado!');
+                      const codigo = customerForm.customerCode.trim();
+                      if (codigo) {
+                        const dup = (customerProfiles as any[]).find((c) => String(c.customerCode || '').trim() === codigo);
+                        if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
+                        await createCustomerAccess({ storeId: store.id, codigo, form: customerForm });
+                        toast.success(`Cliente criado! Login: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                      } else {
+                        await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
+                        toast.success('Cliente criado!');
+                      }
+                      qc.invalidateQueries({ queryKey: ['store-customer-profiles', store.id] });
                       setCreatingCustomer(false);
                     } catch { toast.error('Erro ao criar cliente'); }
                   }}>
