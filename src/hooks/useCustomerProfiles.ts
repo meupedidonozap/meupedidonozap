@@ -70,6 +70,7 @@ export function useCreateCustomerProfileAdmin() {
       sellerCode?: string;
       transportadora?: string;
       priceTable?: 1 | 4 | 9;
+      customerCode?: string;
     }) => {
       const { error } = await supabase
         .from('customer_profiles')
@@ -88,6 +89,7 @@ export function useCreateCustomerProfileAdmin() {
           seller_code: params.sellerCode || '',
           transportadora: params.transportadora || null,
           price_table: params.priceTable ?? 4,
+          customer_code: params.customerCode?.trim() || '',
         } as any);
       if (error) throw error;
     },
@@ -116,6 +118,7 @@ export function useUpdateCustomerProfileAdmin() {
       sellerCode?: string;
       transportadora?: string;
       priceTable?: 1 | 4 | 9;
+      customerCode?: string;
     }) => {
       const update: any = {};
       if (params.name !== undefined) update.name = params.name;
@@ -131,6 +134,7 @@ export function useUpdateCustomerProfileAdmin() {
       if (params.sellerCode !== undefined) update.seller_code = params.sellerCode;
       if (params.transportadora !== undefined) update.transportadora = params.transportadora || null;
       if (params.priceTable !== undefined) update.price_table = params.priceTable;
+      if (params.customerCode !== undefined) update.customer_code = params.customerCode.trim();
 
       const { error } = await supabase
         .from('customer_profiles')
