@@ -278,13 +278,38 @@ export default function StoreAdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   // Pagination for Orders tab
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderSellerFilter, setOrderSellerFilter] = useState('all');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const filteredOrders = useMemo(() => {
+    const term = orderSearch.trim().toLowerCase();
+    const digits = term.replace(/\D/g, '');
+    return scopedOrders.filter((o: any) => {
+      if (orderStatusFilter !== 'all' && o.status !== orderStatusFilter) return false;
+      if (orderSellerFilter !== 'all') {
+        const code = whatsappToSellerCode.get(last8(o?.customer?.whatsapp || '')) || '';
+        if (orderSellerFilter === 'none') {
+          if (code) return false;
+        } else if (code.trim() !== orderSellerFilter) return false;
+      }
+      if (!term) return true;
+      const sellerName = resolveOrderSellerName(o.customer) || '';
+      const haystack = [
+        `#${o.orderNumber}`, String(o.orderNumber), o.customer?.name, o.customer?.whatsapp,
+        resolveCustomerCode(o.customer), sellerName,
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (haystack.includes(term)) return true;
+      if (digits.length >= 3 && haystack.replace(/\D/g, '').includes(digits)) return true;
+      return false;
+    });
+  }, [scopedOrders, orderSearch, orderSellerFilter, orderStatusFilter, whatsappToSellerCode, customerCodeLookup, sellerByCode]);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPageSize, setOrdersPageSize] = useState(20);
-  const ordersTotalPages = Math.max(1, Math.ceil(scopedOrders.length / ordersPageSize));
-  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, scopedOrders.length]);
+  const ordersTotalPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize));
+  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, filteredOrders.length, orderSearch, orderSellerFilter, orderStatusFilter]);
   const pagedOrders = useMemo(
-    () => scopedOrders.slice((ordersPage - 1) * ordersPageSize, ordersPage * ordersPageSize),
-    [scopedOrders, ordersPage, ordersPageSize],
+    () => filteredOrders.slice((ordersPage - 1) * ordersPageSize, ordersPage * ordersPageSize),
+    [filteredOrders, ordersPage, ordersPageSize],
   );
 
   // Auto-select default tab for restricted users
