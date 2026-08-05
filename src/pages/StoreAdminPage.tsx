@@ -281,7 +281,7 @@ export default function StoreAdminPage() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderSellerFilter, setOrderSellerFilter] = useState('all');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
-  const filteredOrders = useMemo(() => {
+  const searchedOrders = useMemo(() => {
     const term = orderSearch.trim().toLowerCase();
     const digits = term.replace(/\D/g, '');
     return scopedOrders.filter((o: any) => {
@@ -305,11 +305,11 @@ export default function StoreAdminPage() {
   }, [scopedOrders, orderSearch, orderSellerFilter, orderStatusFilter, whatsappToSellerCode, customerCodeLookup, sellerByCode]);
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPageSize, setOrdersPageSize] = useState(20);
-  const ordersTotalPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize));
-  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, filteredOrders.length, orderSearch, orderSellerFilter, orderStatusFilter]);
+  const ordersTotalPages = Math.max(1, Math.ceil(searchedOrders.length / ordersPageSize));
+  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, searchedOrders.length, orderSearch, orderSellerFilter, orderStatusFilter]);
   const pagedOrders = useMemo(
-    () => filteredOrders.slice((ordersPage - 1) * ordersPageSize, ordersPage * ordersPageSize),
-    [filteredOrders, ordersPage, ordersPageSize],
+    () => searchedOrders.slice((ordersPage - 1) * ordersPageSize, ordersPage * ordersPageSize),
+    [searchedOrders, ordersPage, ordersPageSize],
   );
 
   // Auto-select default tab for restricted users
