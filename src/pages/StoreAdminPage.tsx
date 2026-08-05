@@ -1082,6 +1082,46 @@ export default function StoreAdminPage() {
             </div>
             <Card>
               <CardContent className="p-0">
+                <div className="flex flex-col gap-2 border-b p-3 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="pl-8"
+                      placeholder="Pesquisar por nº do pedido, cliente, código ou WhatsApp"
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    className="h-10 rounded-md border bg-background px-2 text-sm"
+                    value={orderSellerFilter}
+                    onChange={(e) => setOrderSellerFilter(e.target.value)}
+                  >
+                    <option value="all">Todos os representantes</option>
+                    <option value="none">Sem representante</option>
+                    {sellers.map((s: any) => (
+                      <option key={s.id} value={String(s.code || '').trim()}>{s.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="h-10 rounded-md border bg-background px-2 text-sm"
+                    value={orderStatusFilter}
+                    onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  >
+                    <option value="all">Todos os status</option>
+                    {Object.entries(statusConfig).map(([key, cfg]) => (
+                      <option key={key} value={key}>{cfg.label}</option>
+                    ))}
+                  </select>
+                  {(orderSearch.trim() || orderSellerFilter !== 'all' || orderStatusFilter !== 'all') && (
+                    <div className="flex items-center gap-2">
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">{searchedOrders.length} encontrado(s)</span>
+                      <Button variant="ghost" size="sm" onClick={() => { setOrderSearch(''); setOrderSellerFilter('all'); setOrderStatusFilter('all'); }}>
+                        Limpar
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1478,10 +1518,10 @@ export default function StoreAdminPage() {
                   </TableBody>
                 </Table>
               </CardContent>
-                {scopedOrders.length > ordersPageSize && (
+                {searchedOrders.length > ordersPageSize && (
                   <div className="flex flex-col gap-2 border-t p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-muted-foreground">
-                      Mostrando {(ordersPage - 1) * ordersPageSize + 1}–{Math.min(ordersPage * ordersPageSize, scopedOrders.length)} de {scopedOrders.length} pedidos
+                      Mostrando {(ordersPage - 1) * ordersPageSize + 1}–{Math.min(ordersPage * ordersPageSize, searchedOrders.length)} de {searchedOrders.length} pedidos
                     </div>
                     <div className="flex items-center gap-2">
                       <select
