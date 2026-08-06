@@ -1227,6 +1227,7 @@ export default function StoreAdminPage() {
                     <TableRow>
                       <TableHead>Pedido</TableHead><TableHead>Cliente</TableHead><TableHead>Itens</TableHead>
                       <TableHead>Total</TableHead><TableHead>Pagamento</TableHead><TableHead>Status</TableHead>
+                      <TableHead>Total</TableHead><TableHead>Pagamento</TableHead><TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
