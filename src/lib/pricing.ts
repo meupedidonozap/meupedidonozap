@@ -59,8 +59,10 @@ export function resolveVariantPrice(variant: ProductVariant | null | undefined, 
 export function hasStock(
   product: Product | null | undefined,
   variant?: ProductVariant | null,
+  enabled: boolean = true,
 ): boolean {
   if (!product) return false;
+  if (!enabled) return true;
   if (variant) return Number(variant.stock ?? 0) > 0;
   if (product.stock == null) return true;
   return Number(product.stock) > 0;
