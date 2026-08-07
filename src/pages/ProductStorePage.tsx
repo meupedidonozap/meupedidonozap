@@ -82,7 +82,9 @@ export default function ProductStorePage() {
     for (const product of allProducts) {
       if (!product.isActive) continue;
       if (product.hasVariants && product.variants && product.variants.length > 0) {
-        const variants = product.variants.filter(v => getVariantPriceOrNull(v, activePriceTable) !== null);
+        const variants = product.variants.filter(
+          v => getVariantPriceOrNull(v, activePriceTable) !== null && Number(v.stock ?? 0) > 0,
+        );
         if (variants.length === 0) continue;
         result.push(variants.length === product.variants.length ? product : { ...product, variants });
       } else {
