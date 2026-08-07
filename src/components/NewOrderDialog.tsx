@@ -117,7 +117,7 @@ export default function NewOrderDialog({
       items = items.filter((p: any) => {
         const hasVariants = p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
         if (hasVariants) return sellableVariants(p).length > 0;
-        return getProductPriceOrNull(p, activeTable) !== null && hasStock(p);
+        return getProductPriceOrNull(p, activeTable) !== null && hasStock(p, null, stockEnabled);
       });
     } else {
       items = items.filter((p: any) => Number(p.price) > 0);
