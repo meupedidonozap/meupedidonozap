@@ -30,6 +30,7 @@ interface EditOrderDialogProps {
 
 export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {
   const activeTable: PriceTable = normalizePriceTable(priceTable);
+  const stockEnabled = store?.settings?.useStockIntegration === true;
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
