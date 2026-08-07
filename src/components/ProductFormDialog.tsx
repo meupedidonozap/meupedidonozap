@@ -104,6 +104,7 @@ export default function ProductFormDialog({
   const [basePrice, setBasePrice] = useState('');
   const [priceTable1, setPriceTable1] = useState('');
   const [priceTable9, setPriceTable9] = useState('');
+  const [stock, setStock] = useState('0');
   const [isActive, setIsActive] = useState(true);
   const [hasVariants, setHasVariants] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export default function ProductFormDialog({
       setBasePrice(String(product.basePrice));
       setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : String(product.basePrice));
       setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : String(product.basePrice));
+      setStock(String(product.stock ?? 0));
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
@@ -177,6 +179,7 @@ export default function ProductFormDialog({
       setBasePrice('');
       setPriceTable1('');
       setPriceTable9('');
+      setStock('0');
       setIsActive(true);
       setHasVariants(false);
       setImagePreview(null);
@@ -315,6 +318,7 @@ export default function ProductFormDialog({
           priceTable9: Number(priceTable9) || Number(basePrice) || 0,
           imageUrl: imageUrl,
           isActive,
+          stock: Math.trunc(Number(stock) || 0),
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
@@ -345,6 +349,7 @@ export default function ProductFormDialog({
           priceTable9: Number(priceTable9) || Number(basePrice) || 0,
           imageUrl: imageUrl || undefined,
           isActive,
+          stock: Math.trunc(Number(stock) || 0),
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
@@ -489,6 +494,23 @@ export default function ProductFormDialog({
               </div>
               <p className="col-span-2 text-xs text-muted-foreground">
                 A Tabela 4 é preenchida pelo campo "Preço" acima. Se deixar em branco, todas as tabelas usam o mesmo valor.
+              </p>
+            </div>
+          )}
+
+          {!isSalon && !hasVariants && (
+            <div className="grid gap-2">
+              <Label htmlFor="stock">Estoque</Label>
+              <Input
+                id="stock"
+                type="number"
+                step="1"
+                value={stock}
+                onChange={e => setStock(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                Com estoque 0 o produto aparece como ESGOTADO e não pode ser comprado.
               </p>
             </div>
           )}
