@@ -262,6 +262,8 @@ export interface Product {
   image?: string;
   isActive: boolean;
   hasVariants: boolean;
+  /** Saldo de estoque (sincronizado por planilha na DiColore). */
+  stock?: number;
   variants?: ProductVariant[];
   images?: ProductImage[];
   durationMinutes?: number;

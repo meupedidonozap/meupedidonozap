@@ -11,7 +11,7 @@ import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG, type MaterialApoioConfig } from '@/lib/materialApoio';
 import type { Order, Product, CartItem, DiscountRule, Category, CustomerInfo } from '@/types';
 import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
-import { getProductPriceOrNull, normalizePriceTable, type PriceTable } from '@/lib/pricing';
+import { getProductPriceOrNull, hasStock, normalizePriceTable, type PriceTable } from '@/lib/pricing';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
@@ -88,7 +88,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = products.filter((p: any) =>
-      p.isActive !== false && getProductPriceOrNull(p, activeTable) !== null
+      p.isActive !== false && getProductPriceOrNull(p, activeTable) !== null && hasStock(p)
     );
     if (!q) return list.slice(0, 30);
     return list.filter((p: any) =>

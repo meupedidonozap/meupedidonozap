@@ -50,3 +50,18 @@ export function resolveProductPrice(product: Product | null | undefined, table?:
 export function resolveVariantPrice(variant: ProductVariant | null | undefined, table?: PriceTable): number {
   return getVariantPriceOrNull(variant, table) ?? 0;
 }
+
+/**
+ * Estoque disponível do item. Produtos com variação usam o estoque da
+ * variação; os demais usam o estoque do próprio produto.
+ * Produtos sem controle de estoque (campo ausente) são considerados disponíveis.
+ */
+export function hasStock(
+  product: Product | null | undefined,
+  variant?: ProductVariant | null,
+): boolean {
+  if (!product) return false;
+  if (variant) return Number(variant.stock ?? 0) > 0;
+  if (product.stock == null) return true;
+  return Number(product.stock) > 0;
+}

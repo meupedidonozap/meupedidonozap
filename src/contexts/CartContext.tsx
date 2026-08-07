@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { CartItem, Cart, DiscountRule } from '@/types';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
-import { getProductPriceOrNull, getVariantPriceOrNull, type PriceTable } from '@/lib/pricing';
+import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, type PriceTable } from '@/lib/pricing';
 import { toast } from 'sonner';
 
 /**
@@ -101,6 +101,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart(prev => {
       if (prev.items.length === 0) return prev;
       let removed = 0;
+      let outOfStock = 0;
       let changed = false;
       const next: CartItem[] = [];
       for (const it of prev.items) {
@@ -110,12 +111,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
           ? getVariantPriceOrNull((product.variants || []).find((v: any) => v.id === it.variantId), table)
           : getProductPriceOrNull(product as any, table);
         if (price === null) { removed++; changed = true; continue; }
+        const variant = it.variantId
+          ? (product.variants || []).find((v: any) => v.id === it.variantId)
+          : null;
+        if (!hasStock(product as any, variant)) { outOfStock++; changed = true; continue; }
         if (price !== it.price) { changed = true; next.push({ ...it, price }); }
         else next.push(it);
       }
       if (!changed) return prev;
       if (removed > 0) {
         toast.error('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos');
+      }
+      if (outOfStock > 0) {
+        toast.error('Alguns itens ficaram sem estoque e foram removidos do carrinho');
       }
       const { subtotal, total } = calculateTotals(next, prev.couponDiscount, prev.quantityDiscount);
       return { ...prev, items: next, subtotal, total };

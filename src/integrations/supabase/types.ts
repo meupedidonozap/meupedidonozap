@@ -722,6 +722,7 @@ export type Database = {
           price_table_4: number
           price_table_9: number
           price_table_res: number | null
+          stock: number
           store_id: string
         }
         Insert: {
@@ -741,6 +742,7 @@ export type Database = {
           price_table_4?: number
           price_table_9?: number
           price_table_res?: number | null
+          stock?: number
           store_id: string
         }
         Update: {
@@ -760,6 +762,7 @@ export type Database = {
           price_table_4?: number
           price_table_9?: number
           price_table_res?: number | null
+          stock?: number
           store_id?: string
         }
         Relationships: [
