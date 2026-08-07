@@ -35,6 +35,7 @@ function mapProduct(row: any): Product {
     categoryId: row.category_id || '',
     groupId: row.group_id || undefined,
     basePrice: Number(row.base_price),
+    stock: row.stock != null ? Number(row.stock) : 0,
     priceTable1: row.price_table_1 != null ? Number(row.price_table_1) : undefined,
     priceTable4: row.price_table_4 != null ? Number(row.price_table_4) : undefined,
     priceTable9: row.price_table_9 != null ? Number(row.price_table_9) : undefined,
@@ -99,6 +100,7 @@ export function useCreateProduct() {
       priceTable1?: number;
       priceTable4?: number;
       priceTable9?: number;
+      stock?: number;
       imageUrl?: string;
       isActive: boolean;
       hasVariants: boolean;
@@ -122,6 +124,7 @@ export function useCreateProduct() {
         price_table_1: product.priceTable1 ?? product.basePrice,
         price_table_4: product.priceTable4 ?? product.basePrice,
         price_table_9: product.priceTable9 ?? product.basePrice,
+        stock: product.stock ?? 0,
         image_url: product.imageUrl || null,
         is_active: product.isActive,
         has_variants: product.hasVariants,
@@ -185,6 +188,7 @@ export function useUpdateProduct() {
       priceTable1?: number;
       priceTable4?: number;
       priceTable9?: number;
+      stock?: number;
       imageUrl?: string | null;
       isActive?: boolean;
       hasVariants?: boolean;
@@ -203,6 +207,7 @@ export function useUpdateProduct() {
       if (product.priceTable1 !== undefined) updates.price_table_1 = product.priceTable1;
       if (product.priceTable4 !== undefined) updates.price_table_4 = product.priceTable4;
       if (product.priceTable9 !== undefined) updates.price_table_9 = product.priceTable9;
+      if (product.stock !== undefined) updates.stock = product.stock;
       if (product.imageUrl !== undefined) updates.image_url = product.imageUrl;
       if (product.isActive !== undefined) updates.is_active = product.isActive;
       if (product.hasVariants !== undefined) updates.has_variants = product.hasVariants;
