@@ -32,7 +32,7 @@ interface CartContextType {
   setDiscountRules: (rules: DiscountRule[]) => void;
   setCustomerPriceTable: (table: 1 | 4 | 9) => void;
   /** Remove/reprecifica itens sem preço válido na tabela do cliente. */
-  revalidatePrices: (catalog: { id: string; [k: string]: any }[]) => void;
+  revalidatePrices: (catalog: { id: string; [k: string]: any }[], stockEnabled?: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -95,7 +95,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCustomerPriceTableState((prev) => (prev === table ? prev : table));
   }, []);
 
-  const revalidatePrices = useCallback((catalog: { id: string; [k: string]: any }[]) => {
+  const revalidatePrices = useCallback((catalog: { id: string; [k: string]: any }[], stockEnabled = false) => {
     if (!Array.isArray(catalog) || catalog.length === 0) return;
     const table = customerPriceTable as PriceTable;
     setCart(prev => {
@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const variant = it.variantId
           ? (product.variants || []).find((v: any) => v.id === it.variantId)
           : null;
-        if (!hasStock(product as any, variant)) { outOfStock++; changed = true; continue; }
+        if (!hasStock(product as any, variant, stockEnabled)) { outOfStock++; changed = true; continue; }
         if (price !== it.price) { changed = true; next.push({ ...it, price }); }
         else next.push(it);
       }

@@ -47,6 +47,7 @@ export default function NewOrderDialog({
   open, onOpenChange, store, products, foodItems, customerProfiles, categories,
 }: NewOrderDialogProps) {
   const createOrder = useCreateOrder();
+  const stockEnabled = (store as any)?.settings?.useStockIntegration === true;
   // Algumas lojas COMIDA (ex.: Pastelaria RM) cadastram itens em `products`.
   // Caímos para `products` quando não há registros em `food_items`.
   const useFoodCatalog = store.type === 'COMIDA' && foodItems.length > 0;
@@ -108,7 +109,7 @@ export default function NewOrderDialog({
   /** Variações com preço válido na tabela ativa. */
   const sellableVariants = (p: any): any[] =>
     (Array.isArray(p?.variants) ? p.variants : []).filter(
-      (v: any) => getVariantPriceOrNull(v, activeTable) !== null && Number(v.stock ?? 0) > 0,
+      (v: any) => getVariantPriceOrNull(v, activeTable) !== null && (!stockEnabled || Number(v.stock ?? 0) > 0),
     );
 
   const filteredProducts = useMemo(() => {
@@ -117,7 +118,7 @@ export default function NewOrderDialog({
       items = items.filter((p: any) => {
         const hasVariants = p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
         if (hasVariants) return sellableVariants(p).length > 0;
-        return getProductPriceOrNull(p, activeTable) !== null && hasStock(p);
+        return getProductPriceOrNull(p, activeTable) !== null && hasStock(p, null, stockEnabled);
       });
     } else {
       items = items.filter((p: any) => Number(p.price) > 0);

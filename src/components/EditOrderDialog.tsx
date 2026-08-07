@@ -30,6 +30,7 @@ interface EditOrderDialogProps {
 
 export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {
   const activeTable: PriceTable = normalizePriceTable(priceTable);
+  const stockEnabled = store?.settings?.useStockIntegration === true;
   const updateOrder = useUpdateOrder();
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -88,7 +89,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = products.filter((p: any) =>
-      p.isActive !== false && getProductPriceOrNull(p, activeTable) !== null && hasStock(p)
+      p.isActive !== false && getProductPriceOrNull(p, activeTable) !== null && hasStock(p, null, stockEnabled)
     );
     if (!q) return list.slice(0, 30);
     return list.filter((p: any) =>

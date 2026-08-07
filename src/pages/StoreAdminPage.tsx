@@ -398,6 +398,7 @@ export default function StoreAdminPage() {
   const [settingsLogo, setSettingsLogo] = useState('');
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
+  const [useStockIntegration, setUseStockIntegration] = useState(false);
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -448,6 +449,7 @@ export default function StoreAdminPage() {
     setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
+    setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
     setSettingsInitialized(true);
   }
 
@@ -731,6 +733,7 @@ export default function StoreAdminPage() {
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
+          useStockIntegration,
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
@@ -1073,7 +1076,7 @@ export default function StoreAdminPage() {
                 <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
                   {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
                 </Button>
-                {store.slug === 'dicolore' && (
+                {store.slug === 'dicolore' && (store.settings as any)?.useStockIntegration === true && (
                   <Button variant="outline" className="gap-2" onClick={handleSyncStock} disabled={syncingStock}>
                     {syncingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Estoque
                   </Button>
@@ -1884,6 +1887,25 @@ export default function StoreAdminPage() {
                   <p className="text-xs text-muted-foreground">
                     Quando <strong>desligado</strong>, o checkout pede apenas <strong>nome e WhatsApp</strong> do cliente —
                     sem endereço, bairro ou taxa de entrega.
+                  </p>
+                </div>
+                <div className="grid gap-2 rounded-md border p-3 sm:max-w-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="cursor-pointer" onClick={() => setUseStockIntegration(!useStockIntegration)}>
+                      Usa integração de estoque?
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setUseStockIntegration(!useStockIntegration)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Alternar integração de estoque"
+                    >
+                      {useStockIntegration ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>{useStockIntegration ? 'SIM' : 'NÃO'}</strong> — quando desligado, o botão "Atualizar Estoque" fica oculto e
+                    produtos com estoque zerado continuam disponíveis para compra normalmente.
                   </p>
                 </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>

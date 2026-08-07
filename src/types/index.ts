@@ -134,6 +134,8 @@ export interface StoreSettings {
   materialApoio?: MaterialApoioSettings;
   deliveryNeighborhoods?: DeliveryNeighborhood[];
   offersDelivery?: boolean;
+  /** DiColore: liga/desliga a integração de estoque via planilha. */
+  useStockIntegration?: boolean;
   cnpj?: string;
 }
 
