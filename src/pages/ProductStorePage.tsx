@@ -49,6 +49,7 @@ export default function ProductStorePage() {
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const stockEnabled = (store?.settings as any)?.useStockIntegration === true;
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,7 +84,7 @@ export default function ProductStorePage() {
       if (!product.isActive) continue;
       if (product.hasVariants && product.variants && product.variants.length > 0) {
         const variants = product.variants.filter(
-          v => getVariantPriceOrNull(v, activePriceTable) !== null && Number(v.stock ?? 0) > 0,
+          v => getVariantPriceOrNull(v, activePriceTable) !== null && (!stockEnabled || Number(v.stock ?? 0) > 0),
         );
         if (variants.length === 0) continue;
         result.push(variants.length === product.variants.length ? product : { ...product, variants });
@@ -153,7 +154,7 @@ export default function ProductStorePage() {
     });
     if (invalid.length === 0) {
       // Reprecifica itens salvos no navegador com a tabela atual do cliente
-      revalidatePrices(allProducts as any);
+      revalidatePrices(allProducts as any, stockEnabled);
       return;
     }
     invalid.forEach(item => removeItem(item.productId, item.variantId));
