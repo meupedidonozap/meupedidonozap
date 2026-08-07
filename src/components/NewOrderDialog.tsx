@@ -16,7 +16,7 @@ import { useCreateOrder } from '@/hooks/useOrders';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
-import { getProductPriceOrNull, getVariantPriceOrNull, DEFAULT_PRICE_TABLE, normalizePriceTable, type PriceTable } from '@/lib/pricing';
+import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, DEFAULT_PRICE_TABLE, normalizePriceTable, type PriceTable } from '@/lib/pricing';
 
 interface CustomerProfile {
   id: string;
@@ -107,15 +107,17 @@ export default function NewOrderDialog({
 
   /** Variações com preço válido na tabela ativa. */
   const sellableVariants = (p: any): any[] =>
-    (Array.isArray(p?.variants) ? p.variants : []).filter((v: any) => getVariantPriceOrNull(v, activeTable) !== null);
+    (Array.isArray(p?.variants) ? p.variants : []).filter(
+      (v: any) => getVariantPriceOrNull(v, activeTable) !== null && Number(v.stock ?? 0) > 0,
+    );
 
   const filteredProducts = useMemo(() => {
     let items = catalogItems.filter((p: any) => p.isActive !== false);
     if (!isFood) {
       items = items.filter((p: any) => {
         const hasVariants = p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0;
-        if (hasVariants) return p.variants.some((v: any) => getVariantPriceOrNull(v, activeTable) !== null);
-        return getProductPriceOrNull(p, activeTable) !== null;
+        if (hasVariants) return sellableVariants(p).length > 0;
+        return getProductPriceOrNull(p, activeTable) !== null && hasStock(p);
       });
     } else {
       items = items.filter((p: any) => Number(p.price) > 0);
