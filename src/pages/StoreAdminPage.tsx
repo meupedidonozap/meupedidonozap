@@ -360,6 +360,7 @@ export default function StoreAdminPage() {
   const hasProductFilter = !!(filterCode || filterName || filterCategoryId !== 'all');
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
+  const [syncingStock, setSyncingStock] = useState(false);
   const [syncingCustomers, setSyncingCustomers] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -594,6 +595,34 @@ export default function StoreAdminPage() {
       toast.error('Erro ao sincronizar preços: ' + (err.message || err));
     } finally {
       setSyncingPrices(false);
+    }
+  };
+
+  const handleSyncStock = async () => {
+    if (!store) return;
+    setSyncingStock(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-stock', {
+        body: { store_id: store.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const base = `Planilha: ${data?.total_sheet_codes || 0} códigos / Banco: ${data?.total_products || 0} produtos`;
+      if ((data?.updated_stock || 0) > 0) {
+        const extra: string[] = [];
+        if (data.zeroed_products > 0) extra.push(`${data.zeroed_products} zerado(s)`);
+        if (data.not_found > 0) extra.push(`${data.not_found} código(s) não encontrado(s)`);
+        toast.success(
+          `Estoque atualizado: ${data.updated_stock} produto(s)${extra.length ? ` (${extra.join(', ')})` : ''}. ${base}`
+        );
+        qc.invalidateQueries({ queryKey: ['products'] });
+      } else {
+        toast.info(`Nenhuma alteração de estoque. ${base}`);
+      }
+    } catch (err: any) {
+      toast.error('Erro ao sincronizar estoque: ' + (err.message || err));
+    } finally {
+      setSyncingStock(false);
     }
   };
 
