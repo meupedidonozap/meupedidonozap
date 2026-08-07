@@ -398,6 +398,7 @@ export default function StoreAdminPage() {
   const [settingsLogo, setSettingsLogo] = useState('');
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
+  const [useStockIntegration, setUseStockIntegration] = useState(false);
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -448,6 +449,7 @@ export default function StoreAdminPage() {
     setSettingsMinOrder(String(store.settings?.minOrderValue ?? 0));
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
+    setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
     setSettingsInitialized(true);
   }
 
@@ -731,6 +733,7 @@ export default function StoreAdminPage() {
           minOrderValue: Math.max(0, parseFloat(settingsMinOrder.replace(',', '.')) || 0),
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
+          useStockIntegration,
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
@@ -1073,7 +1076,7 @@ export default function StoreAdminPage() {
                 <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
                   {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
                 </Button>
-                {store.slug === 'dicolore' && (
+                {store.slug === 'dicolore' && (store.settings as any)?.useStockIntegration === true && (
                   <Button variant="outline" className="gap-2" onClick={handleSyncStock} disabled={syncingStock}>
                     {syncingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Estoque
                   </Button>
