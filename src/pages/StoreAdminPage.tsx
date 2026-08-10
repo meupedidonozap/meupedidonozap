@@ -1076,7 +1076,7 @@ export default function StoreAdminPage() {
                 <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
                   {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
                 </Button>
-                {store.slug === 'dicolore' && (store.settings as any)?.useStockIntegration === true && (
+                {store.slug === 'dicolore' && (
                   <Button variant="outline" className="gap-2" onClick={handleSyncStock} disabled={syncingStock}>
                     {syncingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Estoque
                   </Button>
@@ -1822,6 +1822,34 @@ export default function StoreAdminPage() {
           <TabsContent value="settings" className="animate-fade-in">
             <div className="space-y-6">
             <ChangePasswordCard />
+            {store.slug === 'dicolore' && (
+              <Card className="border-accent">
+                <CardHeader><CardTitle>Integração de Estoque</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
+                    <Label className="cursor-pointer" onClick={() => setUseStockIntegration(!useStockIntegration)}>
+                      Usa integração de estoque? <strong>{useStockIntegration ? 'SIM' : 'NÃO'}</strong>
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setUseStockIntegration(!useStockIntegration)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Alternar integração de estoque"
+                    >
+                      {useStockIntegration ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Quando <strong>desligado</strong>, produtos com estoque zerado continuam disponíveis para compra e a coluna
+                    Estoque fica oculta. O botão "Atualizar Estoque" fica sempre disponível na aba Produtos.
+                  </p>
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             <OrderErrorsDiagnosticsCard storeId={store.id} />
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
@@ -1887,25 +1915,6 @@ export default function StoreAdminPage() {
                   <p className="text-xs text-muted-foreground">
                     Quando <strong>desligado</strong>, o checkout pede apenas <strong>nome e WhatsApp</strong> do cliente —
                     sem endereço, bairro ou taxa de entrega.
-                  </p>
-                </div>
-                <div className="grid gap-2 rounded-md border p-3 sm:max-w-md">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="cursor-pointer" onClick={() => setUseStockIntegration(!useStockIntegration)}>
-                      Usa integração de estoque?
-                    </Label>
-                    <button
-                      type="button"
-                      onClick={() => setUseStockIntegration(!useStockIntegration)}
-                      className="text-muted-foreground hover:text-foreground"
-                      aria-label="Alternar integração de estoque"
-                    >
-                      {useStockIntegration ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    <strong>{useStockIntegration ? 'SIM' : 'NÃO'}</strong> — quando desligado, o botão "Atualizar Estoque" fica oculto e
-                    produtos com estoque zerado continuam disponíveis para compra normalmente.
                   </p>
                 </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
