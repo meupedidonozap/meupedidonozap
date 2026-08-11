@@ -654,6 +654,51 @@ export type Database = {
           },
         ]
       }
+      product_kit_items: {
+        Row: {
+          component_product_id: string
+          created_at: string
+          id: string
+          kit_product_id: string
+          quantity: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          component_product_id: string
+          created_at?: string
+          id?: string
+          kit_product_id: string
+          quantity?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          component_product_id?: string
+          created_at?: string
+          id?: string
+          kit_product_id?: string
+          quantity?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_kit_items_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_kit_items_kit_product_id_fkey"
+            columns: ["kit_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           color: string | null
@@ -717,6 +762,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          is_kit: boolean
           name: string
           price_table_1: number
           price_table_4: number
@@ -737,6 +783,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_kit?: boolean
           name: string
           price_table_1?: number
           price_table_4?: number
@@ -757,6 +804,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_kit?: boolean
           name?: string
           price_table_1?: number
           price_table_4?: number
