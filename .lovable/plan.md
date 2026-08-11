@@ -1,24 +1,45 @@
-# Cadastro de vendedores na Dicolore SENSES
+# Produtos KIT: transmissão explodida em componentes
 
-## Causa confirmada
+## Objetivo
 
-O card "Vendedores (WhatsApp)" já existe no código para a SENSES, mas ele fica na aba **Configurações**, que só aparece para o **admin principal da loja**.
+Permitir marcar um produto como KIT e definir quais produtos da loja o compõem (com quantidade). O cliente compra e vê o KIT normalmente, mas na hora de gerar o pedido os componentes é que aparecem — nunca o código do KIT.
 
-Consulta ao banco: a Dicolore SENSES tem **0 admins principais** cadastrados. Só existe 1 usuário na loja (`jorge@senses.com.br`, perfil "vendedor"), que não é admin. Por isso a aba Configurações — e com ela o cadastro de vendedores — não aparece.
+Exemplo: KITS001 vendido a R$ 143,68, composto por 3 itens de R$ 59,90 (soma cheia R$ 179,70). Na transmissão saem os 3 códigos, com o valor do kit rateado proporcionalmente ao preço cheio de cada um. Comprando 2 kits, todas as quantidades dobram; se o kit tem 3x o mesmo item e o cliente leva 3 kits, saem 9 peças desse item.
 
-A loja também tem **0 vendedores** cadastrados, o que explica o checkout ainda não mostrar a escolha de representante.
+## Cadastro (painel)
 
-## O que fazer
+- No modal de produto, novo bloco "Este produto é um KIT".
+- Ao ligar: busca de produtos da loja por código/nome, adiciona componentes com quantidade por kit, permite remover e editar quantidade.
+- Mostra a soma dos preços cheios dos componentes e o preço de venda do kit, para conferência.
+- Disponível em todas as lojas.
 
-1. **Definir o admin principal da SENSES**: cadastrar um administrador da loja (e-mail e senha) com acesso total ao painel. Com isso as abas Configurações, Usuários e Horários passam a aparecer, incluindo o card "Vendedores (WhatsApp)".
-2. **Cadastrar os vendedores** da SENSES pelo card (nome, código, WhatsApp).
-3. **Publicar** o app, para que a alteração já feita no painel também valhas no site publicado.
+## Onde o KIT é explodido
 
-Alternativa, se preferir não criar um novo login: promover o usuário Jorge a admin principal da loja — ele passa a enxergar todo o painel da SENSES.
+- Arquivo de transmissão do pedido (XML e TXT).
+- Mensagem de WhatsApp do pedido.
+- Impressão / PDF do pedido.
+- Tela de detalhe do pedido no painel.
+
+Carrinho, vitrine e checkout continuam exibindo o KIT como um único item — a explosão acontece na geração de cada saída.
+
+## Regra de rateio
+
+Rateio proporcional ao preço cheio de cada componente:
+
+```text
+peso_i   = preco_cheio_i x qtd_no_kit_i
+valor_i  = preco_kit x (peso_i / soma_dos_pesos)
+unitario = valor_i / qtd_no_kit_i, com 2 casas
+```
+
+A sobra de centavos do arredondamento é lançada no último componente, de modo que a soma dos componentes bata exatamente com o valor do kit vendido. Se algum componente estiver sem preço cheio, o rateio para esse kit cai para divisão igual entre os componentes.
+
+Quantidade transmitida de cada componente = quantidade no kit x quantidade de kits comprados. Componentes repetidos dentro do mesmo kit são somados numa única linha.
 
 ## Detalhes técnicos
 
-- `src/pages/StoreAdminPage.tsx`: `usesSellerRule` (linha ~181) já inclui `dicoloresenses`; o card está dentro de `<TabsContent value="settings">`, cujo gatilho é condicionado a `isAdmin`.
-- `isAdmin` vem de `store_admins` (via `is_store_admin`). A criação do admin é feita pela Edge Function `create-store-admin` (service_role), acionada pelo painel de superadmin em `/admin`.
-- RLS de `store_sellers` já permite gestão por `is_store_admin(auth.uid(), store_id)` e leitura pública dos ativos — nenhuma alteração de banco é necessária.
-- Nenhuma mudança de código é necessária, a menos que você queira liberar o card de vendedores também para usuários não-admin (não recomendado por segurança).
+- Nova tabela `product_kit_items` (produto kit, produto componente, quantidade), com GRANTs, RLS de gestão por admin da loja e leitura pública alinhada à leitura de produtos.
+- `products` ganha flag `is_kit`.
+- Novo hook de leitura/gravação da composição, consumido pelo `ProductFormDialog`.
+- Novo helper `src/lib/kitExpansion.ts` com `expandKitItems(items, kitMap)` devolvendo linhas já rateadas e agregadas; usado por `src/lib/exportOrder.ts` (XML e TXT), pela geração da mensagem de WhatsApp em `CheckoutPage.tsx`, por `src/lib/printOrder.ts` e pelo detalhe de pedido em `StoreAdminPage.tsx`.
+- Pedidos antigos, sem composição cadastrada, continuam saindo com o próprio código do kit (comportamento atual preservado).
