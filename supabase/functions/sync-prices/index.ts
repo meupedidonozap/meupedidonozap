@@ -164,9 +164,8 @@ Deno.serve(async (req) => {
       const p1raw = price1Idx !== -1 ? num(cols[price1Idx]) : NaN;
       const p4raw = price4Idx !== -1 ? num(cols[price4Idx]) : NaN;
       const p9raw = price9Idx !== -1 ? num(cols[price9Idx]) : NaN;
-      const candidates = [p4raw, p1raw, p9raw].filter((n) => Number.isFinite(n) && n > 0);
-      if (candidates.length === 0) continue;
-      const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : candidates[0];
+      // Zero é zero: cada tabela recebe exatamente o valor da sua coluna.
+      const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : 0;
       const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : 0;
       const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : 0;
       const category = grpIdx !== -1 ? String(cols[grpIdx] ?? "").trim() || undefined : undefined;
