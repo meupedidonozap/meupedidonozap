@@ -177,8 +177,9 @@ export default function StoreAdminPage() {
       .eq('customer_code', params.codigo);
   };
 
-  // Sellers (Dicolore)
-  const { data: sellers = [] } = useAllStoreSellers(isAdmin && store?.slug === 'dicolore' ? store?.id : undefined);
+  // Sellers (Dicolore / Dicolore SENSES)
+  const usesSellerRule = ['dicolore', 'dicoloresenses'].includes(store?.slug || '');
+  const { data: sellers = [] } = useAllStoreSellers(isAdmin && usesSellerRule ? store?.id : undefined);
   const createSeller = useCreateStoreSeller();
   const updateSeller = useUpdateStoreSeller();
   const deleteSeller = useDeleteStoreSeller();
@@ -2134,8 +2135,8 @@ export default function StoreAdminPage() {
               <DicolorePaymentCodesTab store={store} />
             )}
 
-            {/* Sellers management - Dicolore only */}
-            {store.slug === 'dicolore' && (
+            {/* Sellers management - Dicolore / Dicolore SENSES */}
+            {usesSellerRule && (
               <Card className="mt-6">
                 <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
