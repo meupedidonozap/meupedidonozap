@@ -1,10 +1,13 @@
 import type { Order, ServiceOrderExtraItem, DiscountRule } from '@/types';
 import { formatCurrency, formatDateTime, formatCPFCNPJ, formatPhone } from '@/lib/formatters';
 import { ensureItemDiscountPercents } from '@/lib/groupDiscounts';
+import { expandKitItems, type KitMap } from '@/lib/kitExpansion';
 
 interface PrintOptions {
   extraItems?: ServiceOrderExtraItem[];
   discountRules?: DiscountRule[];
+  /** Composição dos KITs: kit id -> componentes (kits são explodidos na impressão). */
+  kitMap?: KitMap;
 }
 
 const paymentMap: Record<string, string> = {
@@ -29,7 +32,10 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
   const addressLine2 = [customer.complement, customer.neighborhood].filter(Boolean).join(' - ');
   const addressLine3 = [customer.city, customer.uf].filter(Boolean).join('/') + (customer.cep ? ` - ${customer.cep}` : '');
 
-  const itemsForRender = ensureItemDiscountPercents(order.items as any, options?.discountRules);
+  const itemsForRender = expandKitItems(
+    ensureItemDiscountPercents(order.items as any, options?.discountRules) as any,
+    options?.kitMap,
+  );
   const itemsHTML = itemsForRender
     .map((item, i) => {
       const discPct = (item as any).discountPercent || 0;
@@ -154,7 +160,10 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
   const addressLine2 = [customer.complement, customer.neighborhood].filter(Boolean).join(' - ');
   const addressLine3 = [customer.city, customer.uf].filter(Boolean).join('/') + (customer.cep ? ` - ${customer.cep}` : '');
 
-  const itemsForRender = ensureItemDiscountPercents(order.items as any, options?.discountRules);
+  const itemsForRender = expandKitItems(
+    ensureItemDiscountPercents(order.items as any, options?.discountRules) as any,
+    options?.kitMap,
+  );
   const itemsRows = itemsForRender
     .map((item, i) => {
       const discPct = (item as any).discountPercent || 0;
