@@ -55,6 +55,7 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
+  const { data: kitMap = {} } = useStoreKitMap(store?.id, customerProfile?.priceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
   // Otherwise fall back to all active sellers.
