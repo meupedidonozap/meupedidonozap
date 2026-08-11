@@ -66,6 +66,8 @@ import {
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { printOrder } from '@/lib/printOrder';
 import { downloadOrderFile } from '@/lib/exportOrder';
+import { expandKitItems } from '@/lib/kitExpansion';
+import { useStoreKitMap } from '@/hooks/useProductKits';
 import { uploadProductImage, recompressExistingImage } from '@/lib/storage';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
@@ -123,6 +125,7 @@ export default function StoreAdminPage() {
   const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
   const { data: products = [] } = useProducts(store?.id);
+  const { data: kitMap = {} } = useStoreKitMap(store?.id);
   const { data: foodItems = [] } = useFoodItems(store?.id);
   const { data: orders = [] } = useOrders(hasAccess && (isAdmin || permissions.can_view_orders) ? store?.id : undefined);
   const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
@@ -1036,9 +1039,12 @@ export default function StoreAdminPage() {
                         <TableCell>{order.customer.name}</TableCell>
                          <TableCell>
                             <div className="space-y-0.5">
-                              {order.items.map((item: any, i: number) => (
+                              {expandKitItems(order.items as any, kitMap).map((item: any, i: number) => (
                                 <div key={i} className="text-xs text-muted-foreground">
                                   <span className="font-medium text-foreground">{item.quantity}x</span> {item.name}
+                                  {item.kitParentName && (
+                                    <span className="ml-1 opacity-70">(KIT: {item.kitParentName})</span>
+                                  )}
                                   {(item.size || item.color) && (
                                     <span className="ml-1 opacity-70">— {[item.size, item.color].filter(Boolean).join(' / ')}</span>
                                   )}
@@ -1343,9 +1349,12 @@ export default function StoreAdminPage() {
                         </TableCell>
                          <TableCell>
                             <div className="space-y-0.5 min-w-[180px]">
-                              {order.items.map((item: any, i: number) => (
+                              {expandKitItems(order.items as any, kitMap).map((item: any, i: number) => (
                                 <div key={i} className="text-xs text-muted-foreground">
                                   <span className="font-medium text-foreground">{item.quantity}x</span> {item.name}
+                                  {item.kitParentName && (
+                                    <span className="ml-1 opacity-70">(KIT: {item.kitParentName})</span>
+                                  )}
                                   {(item.size || item.color) && (
                                     <span className="ml-1 opacity-70">— {[item.size, item.color].filter(Boolean).join(' / ')}</span>
                                   )}
@@ -1522,13 +1531,13 @@ export default function StoreAdminPage() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => {
                                   const so = serviceOrders.find(s => s.orderId === order.id);
-                                  printOrder(order, store.name, 'thermal', { extraItems: so?.extraItems, discountRules: store?.settings?.discountRules });
+                                  printOrder(order, store.name, 'thermal', { extraItems: so?.extraItems, discountRules: store?.settings?.discountRules, kitMap });
                                 }}>
                                   Impressora Térmica (80mm)
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                   const so = serviceOrders.find(s => s.orderId === order.id);
-                                  printOrder(order, store.name, 'a4', { extraItems: so?.extraItems, discountRules: store?.settings?.discountRules });
+                                  printOrder(order, store.name, 'a4', { extraItems: so?.extraItems, discountRules: store?.settings?.discountRules, kitMap });
                                 }}>
                                   Folha A4
                                 </DropdownMenuItem>
@@ -2842,6 +2851,7 @@ export default function StoreAdminPage() {
                 cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
                 sellerCode: cp?.sellerCode || '',
                 isTelevendas: downloadTelevendas,
+                kitMap,
                 transportadora: cp?.transportadora || '',
                 productCommission: Object.fromEntries(
                   products.map(p => {
