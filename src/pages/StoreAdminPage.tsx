@@ -177,8 +177,9 @@ export default function StoreAdminPage() {
       .eq('customer_code', params.codigo);
   };
 
-  // Sellers (Dicolore)
-  const { data: sellers = [] } = useAllStoreSellers(isAdmin && store?.slug === 'dicolore' ? store?.id : undefined);
+  // Sellers (Dicolore / Dicolore SENSES)
+  const usesSellerRule = ['dicolore', 'dicoloresenses'].includes(store?.slug || '');
+  const { data: sellers = [] } = useAllStoreSellers(isAdmin && usesSellerRule ? store?.id : undefined);
   const createSeller = useCreateStoreSeller();
   const updateSeller = useUpdateStoreSeller();
   const deleteSeller = useDeleteStoreSeller();
