@@ -10,6 +10,8 @@ import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { expandKitItems } from '@/lib/kitExpansion';
+import { useStoreKitMap } from '@/hooks/useProductKits';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
   generateWhatsAppMessage, openWhatsApp, downloadTxt,
@@ -53,6 +55,7 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
   const { data: sellers = [] } = useStoreSellers(store?.id);
+  const { data: kitMap = {} } = useStoreKitMap(store?.id, customerProfile?.priceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
   // Otherwise fall back to all active sellers.
@@ -274,17 +277,23 @@ export default function CheckoutPage() {
         address: `${formData.address}, ${formData.number}`,
         neighborhood: formData.neighborhood, city: formData.city, uf: formData.uf, cep: formData.cep,
       },
-      items: cart.items.map(item => ({
+      items: expandKitItems(
+        cart.items.map(item => ({
+          ...item,
+          discountPercent:
+            liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            0,
+        })) as any,
+        kitMap,
+      ).map((item: any) => ({
         code: item.code,
         name: item.name,
         quantity: item.quantity,
         price: item.price,
         size: item.size,
         color: item.color,
-        discountPercent:
-          liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
-          itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
-          0,
+        discountPercent: item.discountPercent || 0,
       })),
       subtotal: cart.subtotal,
       discount: cart.couponDiscount + liveQtyDiscount,

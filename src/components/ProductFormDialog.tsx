@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Upload, Image as ImageIcon, GripVertical, Clock } from 'lucide-react';
 import type { Product, ProductVariant, Category, StoreType, AssemblyMode } from '@/types';
-import { useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
+import { useCreateProduct, useUpdateProduct, useProducts } from '@/hooks/useProducts';
+import { useKitItems, useSaveKitItems } from '@/hooks/useProductKits';
 import { useSalonProfessionals } from '@/hooks/useSalon';
 import { useIngredients } from '@/hooks/useIngredients';
 import { useProductAssemblies, useUpsertProductAssembly } from '@/hooks/useProductAssembly';
@@ -115,6 +116,14 @@ export default function ProductFormDialog({
   const [durationMinutes, setDurationMinutes] = useState('30');
   const [professionalIds, setProfessionalIds] = useState<string[]>([]);
 
+  // KIT state
+  const [isKit, setIsKit] = useState(false);
+  const [kitItems, setKitItems] = useState<{ componentProductId: string; quantity: number }[]>([]);
+  const [kitSearch, setKitSearch] = useState('');
+  const { data: allProducts = [] } = useProducts(open ? storeId : undefined);
+  const { data: existingKitItems } = useKitItems(open && product?.id ? product.id : undefined);
+  const saveKit = useSaveKitItems();
+
   // Food assembly state
   const [assemblyMode, setAssemblyMode] = useState<AssemblyMode>('fixed');
   const [allowObservation, setAllowObservation] = useState(false);
@@ -138,6 +147,8 @@ export default function ProductFormDialog({
       setImageFile(null);
       setDurationMinutes(String(product.durationMinutes ?? 30));
       setProfessionalIds(product.professionalIds || []);
+      setIsKit(!!product.isKit);
+      setKitSearch('');
       setVariants(
         product.variants?.map(v => ({
           color: v.color || '',
@@ -188,6 +199,9 @@ export default function ProductFormDialog({
       setProductImages([]);
       setDurationMinutes('30');
       setProfessionalIds([]);
+      setIsKit(false);
+      setKitItems([]);
+      setKitSearch('');
       setAssemblyMode('fixed');
       setAllowObservation(false);
       setAllowBorder(false);
@@ -198,6 +212,12 @@ export default function ProductFormDialog({
     // fresh `[]` each render which would cause an infinite update loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id, open]);
+
+  useEffect(() => {
+    if (!open || !product?.id) return;
+    if (!existingKitItems) return;
+    setKitItems(existingKitItems.map(k => ({ componentProductId: k.componentProductId, quantity: k.quantity })));
+  }, [existingKitItems, product?.id, open]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -335,6 +355,11 @@ export default function ProductFormDialog({
             limitsByVariant,
           });
         }
+        await saveKit.mutateAsync({
+          kitProductId: product.id,
+          isKit,
+          items: kitItems.filter(k => k.componentProductId && k.quantity > 0),
+        });
         toast.success('Produto atualizado!');
       } else {
         const created = await createProduct.mutateAsync({
@@ -364,6 +389,13 @@ export default function ProductFormDialog({
             allowBorder,
             defaultIngredientIds,
             limitsByVariant,
+          });
+        }
+        if (created?.id && isKit) {
+          await saveKit.mutateAsync({
+            kitProductId: created.id,
+            isKit,
+            items: kitItems.filter(k => k.componentProductId && k.quantity > 0),
           });
         }
         toast.success('Produto criado!');
@@ -568,6 +600,107 @@ export default function ProductFormDialog({
             </div>
             <Switch checked={hasVariants} onCheckedChange={setHasVariants} />
           </div>
+          )}
+
+          {!isSalon && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Produto KIT</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Composto por outros produtos. No pedido, o kit é transmitido pelos itens que o compõem.
+                  </p>
+                </div>
+                <Switch checked={isKit} onCheckedChange={setIsKit} />
+              </div>
+
+              {isKit && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    {kitItems.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Nenhum item no kit ainda.</p>
+                    )}
+                    {kitItems.map((k, i) => {
+                      const p = allProducts.find(x => x.id === k.componentProductId);
+                      return (
+                        <div key={`${k.componentProductId}-${i}`} className="flex items-center gap-2 rounded border p-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{p?.name || 'Produto removido'}</p>
+                            <p className="truncate text-xs text-muted-foreground">{p?.code}</p>
+                          </div>
+                          <Input
+                            type="number"
+                            min={1}
+                            className="w-20"
+                            value={k.quantity}
+                            onChange={e =>
+                              setKitItems(prev =>
+                                prev.map((x, idx) =>
+                                  idx === i ? { ...x, quantity: Math.max(1, Number(e.target.value) || 1) } : x
+                                )
+                              )
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setKitItems(prev => prev.filter((_, idx) => idx !== i))}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Adicionar item ao kit</Label>
+                    <Input
+                      placeholder="Buscar por código ou nome..."
+                      value={kitSearch}
+                      onChange={e => setKitSearch(e.target.value)}
+                    />
+                    {kitSearch.trim().length >= 2 && (
+                      <div className="max-h-48 space-y-1 overflow-y-auto rounded border p-2">
+                        {allProducts
+                          .filter(p => p.id !== product?.id && !p.isKit)
+                          .filter(p => {
+                            const q = kitSearch.trim().toLowerCase();
+                            return (
+                              p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q)
+                            );
+                          })
+                          .slice(0, 30)
+                          .map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-muted"
+                              onClick={() => {
+                                setKitItems(prev => {
+                                  const found = prev.findIndex(x => x.componentProductId === p.id);
+                                  if (found >= 0) {
+                                    return prev.map((x, i) => (i === found ? { ...x, quantity: x.quantity + 1 } : x));
+                                  }
+                                  return [...prev, { componentProductId: p.id, quantity: 1 }];
+                                });
+                                setKitSearch('');
+                              }}
+                            >
+                              <Plus className="h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {p.code ? `${p.code} - ` : ''}
+                                {p.name}
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Multi-Image Upload (shown when has variants) */}

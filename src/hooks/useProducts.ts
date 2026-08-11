@@ -42,6 +42,7 @@ function mapProduct(row: any): Product {
     image: row.image_url || undefined,
     isActive: row.is_active,
     hasVariants: row.has_variants,
+    isKit: !!row.is_kit,
     variants: row.product_variants?.map(mapVariant) || [],
     images: row.product_images?.map(mapImage) || [],
     durationMinutes: row.duration_minutes ?? 30,

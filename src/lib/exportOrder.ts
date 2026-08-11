@@ -1,6 +1,7 @@
 import type { Order, CartItem, DiscountRule } from '@/types';
 import { isDicoloreFlow } from './dicolorePayments';
 import { ensureItemDiscountPercents } from './groupDiscounts';
+import { expandKitItems, type KitMap } from './kitExpansion';
 
 const PAYMENT_CODE: Record<string, string> = {
   pix: '1',
@@ -64,6 +65,8 @@ export interface CustomerExtra {
   transportadora?: string;
   /** Map productId -> commission percent (Dicolore <perCom>). */
   productCommission?: Record<string, number>;
+  /** Composição dos KITs: kit id -> componentes (kits são explodidos na saída). */
+  kitMap?: KitMap;
 }
 
 export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
@@ -89,7 +92,10 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const transportadora = extra.transportadora || '';
 
   const rules = extra.discountRules ?? s.discountRules;
-  const itemsForExport = ensureItemDiscountPercents(order.items as any, rules);
+  const itemsForExport = expandKitItems(
+    ensureItemDiscountPercents(order.items as any, rules) as any,
+    extra.kitMap,
+  );
   const itensXml = itemsForExport
     .map((item: CartItem) => {
       const discPct = (item as any).discountPercent || 0;
@@ -154,7 +160,10 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
 
   const s = store.settings || {};
   const rules = extra.discountRules ?? s.discountRules;
-  const itemsForExport = ensureItemDiscountPercents(order.items as any, rules);
+  const itemsForExport = expandKitItems(
+    ensureItemDiscountPercents(order.items as any, rules) as any,
+    extra.kitMap,
+  );
   const lines = itemsForExport.map((item) => {
     const discPct = (item as any).discountPercent || 0;
     const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;

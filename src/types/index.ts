@@ -264,6 +264,8 @@ export interface Product {
   image?: string;
   isActive: boolean;
   hasVariants: boolean;
+  /** Produto composto por outros produtos (KIT). */
+  isKit?: boolean;
   /** Saldo de estoque (sincronizado por planilha na DiColore). */
   stock?: number;
   variants?: ProductVariant[];
@@ -310,6 +312,9 @@ export interface CartItem {
   removedIngredients?: { id: string; name: string }[];
   border?: { id: string; name: string; price: number };
   observation?: string;
+  /** Preenchido quando o item veio da explosão de um KIT. */
+  kitParentCode?: string;
+  kitParentName?: string;
 }
 
 export interface Cart {
