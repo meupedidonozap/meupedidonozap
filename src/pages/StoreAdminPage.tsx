@@ -379,7 +379,7 @@ export default function StoreAdminPage() {
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 as 1 | 4 | 9, customerCode: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
-  const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt'>('xml');
+  const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
   const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
@@ -2855,11 +2855,14 @@ export default function StoreAdminPage() {
           <div className="grid gap-4 py-2">
             <div className="grid gap-1">
               <Label className="text-sm">Formato</Label>
-              <Select value={downloadFormat} onValueChange={(v) => setDownloadFormat(v as 'xml' | 'txt')}>
+              <Select value={downloadFormat} onValueChange={(v) => setDownloadFormat(v as 'xml' | 'txt' | 'bling')}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="xml">XML (Tinturaria)</SelectItem>
                   <SelectItem value="txt">TXT</SelectItem>
+                  {store?.slug === 'dicoloresenses' && (
+                    <SelectItem value="bling">XML (Bling)</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
