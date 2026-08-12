@@ -193,6 +193,7 @@ export default function ProductFormDialog({
       setPriceTable1('');
       setPriceTable9('');
       setStock('0');
+      setUnit('Un');
       setIsActive(true);
       setHasVariants(false);
       setImagePreview(null);
