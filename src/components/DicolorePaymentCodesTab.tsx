@@ -20,6 +20,7 @@ interface Props {
 
 export default function DicolorePaymentCodesTab({ store }: Props) {
   const updateStore = useUpdateStore();
+  const senses = store?.slug === 'dicoloresenses';
   const [formas, setFormas] = useState<PaymentForma[]>([]);
   const [condicoes, setCondicoes] = useState<PaymentCondicao[]>([]);
   const [init, setInit] = useState(false);
@@ -130,18 +131,18 @@ export default function DicolorePaymentCodesTab({ store }: Props) {
     <div>
       {renderList<PaymentForma>(
         formas, setFormas as any, DEFAULT_DICOLORE_FORMAS,
-        'Formas de Pagamento (ERP)',
+        senses ? 'Condição de Pagamento (ERP)' : 'Formas de Pagamento (ERP)',
         'Códigos do ERP usados no XML de integração e exibidos ao cliente no checkout.',
       )}
       {renderList<PaymentCondicao>(
         condicoes, setCondicoes as any, DEFAULT_DICOLORE_CONDICOES,
-        'Condições de Pagamento (ERP)',
+        senses ? 'Prazo de Pagamento (ERP)' : 'Condições de Pagamento (ERP)',
         'Códigos do ERP enviados no XML como condicaoPagamento.',
       )}
       <div className="mt-4">
         <Button onClick={save} disabled={updateStore.isPending}>
           {updateStore.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-          Salvar Formas e Condições
+          {senses ? 'Salvar Condições e Prazos' : 'Salvar Formas e Condições'}
         </Button>
       </div>
     </div>
