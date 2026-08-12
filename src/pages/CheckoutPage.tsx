@@ -692,25 +692,14 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                         <div className="mt-2 flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-7 w-7"
-                              onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-7 w-7"
-                              onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
+                           <QuantityStepper
+                             value={item.quantity}
+                             buttonVariant="outline"
+                             decrementDisabled={item.quantity === 0}
+                             onChange={(n) => updateQuantity(item.productId, n, item.variantId)}
+                             onDecrement={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
+                             onIncrement={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
+                           />
                           <span className="text-xs text-muted-foreground">{formatCurrency(discountedPrice)} un.</span>
                         </div>
                       </div>
