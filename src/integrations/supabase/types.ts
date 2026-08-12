@@ -105,6 +105,7 @@ export type Database = {
           geo_lat: number | null
           geo_lng: number | null
           id: string
+          ie: string | null
           is_active: boolean
           name: string
           neighborhood: string
@@ -129,6 +130,7 @@ export type Database = {
           geo_lat?: number | null
           geo_lng?: number | null
           id?: string
+          ie?: string | null
           is_active?: boolean
           name?: string
           neighborhood?: string
@@ -153,6 +155,7 @@ export type Database = {
           geo_lat?: number | null
           geo_lng?: number | null
           id?: string
+          ie?: string | null
           is_active?: boolean
           name?: string
           neighborhood?: string
@@ -770,6 +773,7 @@ export type Database = {
           price_table_res: number | null
           stock: number
           store_id: string
+          unit: string
         }
         Insert: {
           base_price?: number
@@ -791,6 +795,7 @@ export type Database = {
           price_table_res?: number | null
           stock?: number
           store_id: string
+          unit?: string
         }
         Update: {
           base_price?: number
@@ -812,6 +817,7 @@ export type Database = {
           price_table_res?: number | null
           stock?: number
           store_id?: string
+          unit?: string
         }
         Relationships: [
           {

@@ -17,6 +17,7 @@ export interface CustomerProfile {
   complement?: string;
   sellerCode?: string;
   transportadora?: string;
+  ie?: string;
   /** 1 = atacado, 4 = varejo (default), 9 = atacado. */
   priceTable?: 1 | 4 | 9;
 }

@@ -43,6 +43,7 @@ function mapProduct(row: any): Product {
     isActive: row.is_active,
     hasVariants: row.has_variants,
     isKit: !!row.is_kit,
+    unit: row.unit || 'Un',
     variants: row.product_variants?.map(mapVariant) || [],
     images: row.product_images?.map(mapImage) || [],
     durationMinutes: row.duration_minutes ?? 30,
@@ -102,6 +103,7 @@ export function useCreateProduct() {
       priceTable4?: number;
       priceTable9?: number;
       stock?: number;
+      unit?: string;
       imageUrl?: string;
       isActive: boolean;
       hasVariants: boolean;
@@ -126,6 +128,7 @@ export function useCreateProduct() {
         price_table_4: product.priceTable4 ?? product.basePrice,
         price_table_9: product.priceTable9 ?? product.basePrice,
         stock: product.stock ?? 0,
+        unit: product.unit || 'Un',
         image_url: product.imageUrl || null,
         is_active: product.isActive,
         has_variants: product.hasVariants,
@@ -190,6 +193,7 @@ export function useUpdateProduct() {
       priceTable4?: number;
       priceTable9?: number;
       stock?: number;
+      unit?: string;
       imageUrl?: string | null;
       isActive?: boolean;
       hasVariants?: boolean;
@@ -209,6 +213,7 @@ export function useUpdateProduct() {
       if (product.priceTable4 !== undefined) updates.price_table_4 = product.priceTable4;
       if (product.priceTable9 !== undefined) updates.price_table_9 = product.priceTable9;
       if (product.stock !== undefined) updates.stock = product.stock;
+      if (product.unit !== undefined) updates.unit = product.unit || 'Un';
       if (product.imageUrl !== undefined) updates.image_url = product.imageUrl;
       if (product.isActive !== undefined) updates.is_active = product.isActive;
       if (product.hasVariants !== undefined) updates.has_variants = product.hasVariants;

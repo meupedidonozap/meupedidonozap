@@ -270,6 +270,8 @@ export interface Product {
   isKit?: boolean;
   /** Saldo de estoque (sincronizado por planilha na DiColore). */
   stock?: number;
+  /** Unidade de medida (usada na exportação Bling). Padrão "Un". */
+  unit?: string;
   variants?: ProductVariant[];
   images?: ProductImage[];
   durationMinutes?: number;

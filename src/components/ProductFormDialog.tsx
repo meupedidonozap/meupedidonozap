@@ -106,6 +106,7 @@ export default function ProductFormDialog({
   const [priceTable1, setPriceTable1] = useState('');
   const [priceTable9, setPriceTable9] = useState('');
   const [stock, setStock] = useState('0');
+  const [unit, setUnit] = useState('Un');
   const [isActive, setIsActive] = useState(true);
   const [hasVariants, setHasVariants] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -141,6 +142,7 @@ export default function ProductFormDialog({
       setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : String(product.basePrice));
       setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : String(product.basePrice));
       setStock(String(product.stock ?? 0));
+      setUnit((product as any).unit || 'Un');
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
@@ -191,6 +193,7 @@ export default function ProductFormDialog({
       setPriceTable1('');
       setPriceTable9('');
       setStock('0');
+      setUnit('Un');
       setIsActive(true);
       setHasVariants(false);
       setImagePreview(null);
@@ -339,6 +342,7 @@ export default function ProductFormDialog({
           imageUrl: imageUrl,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
+          unit: unit.trim() || 'Un',
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
@@ -375,6 +379,7 @@ export default function ProductFormDialog({
           imageUrl: imageUrl || undefined,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
+          unit: unit.trim() || 'Un',
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
@@ -526,6 +531,16 @@ export default function ProductFormDialog({
               </div>
               <p className="col-span-2 text-xs text-muted-foreground">
                 A Tabela 4 é preenchida pelo campo "Preço" acima. Se deixar em branco, todas as tabelas usam o mesmo valor.
+              </p>
+            </div>
+          )}
+
+          {!isSalon && (
+            <div className="grid gap-2">
+              <Label htmlFor="unit">Unidade</Label>
+              <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} placeholder="Un" />
+              <p className="text-xs text-muted-foreground">
+                Usada na exportação para o Bling (ex.: Un, Pç, Cx, Lt).
               </p>
             </div>
           )}
