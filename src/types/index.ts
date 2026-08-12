@@ -137,6 +137,8 @@ export interface StoreSettings {
   /** DiColore: liga/desliga a integração de estoque via planilha. */
   useStockIntegration?: boolean;
   cnpj?: string;
+  /** Modos de visualização do catálogo habilitados na vitrine. */
+  catalogViewModes?: { list: boolean; grid: boolean };
 }
 
 export interface DeliveryNeighborhood {

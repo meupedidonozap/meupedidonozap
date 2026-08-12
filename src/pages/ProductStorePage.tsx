@@ -52,6 +52,13 @@ export default function ProductStorePage() {
   const stockEnabled = (store?.settings as any)?.useStockIntegration === true;
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const allowList = (store?.settings as any)?.catalogViewModes?.list !== false;
+  const allowGrid = (store?.settings as any)?.catalogViewModes?.grid !== false;
+  const bothModes = allowList && allowGrid;
+  useEffect(() => {
+    if (!allowList && viewMode === 'list') setViewMode('grid');
+    else if (!allowGrid && viewMode === 'grid') setViewMode('list');
+  }, [allowList, allowGrid, viewMode]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -514,24 +521,28 @@ export default function ProductStorePage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Buscar produto ou código..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <Button
-              variant="outline"
-              aria-label="Visualizar em lista"
-              onClick={() => setViewMode('list')}
-              className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <List className="h-4 w-4" />
-              LISTA
-            </Button>
-            <Button
-              variant="outline"
-              aria-label="Visualizar em quadros"
-              onClick={() => setViewMode('grid')}
-              className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <Grid className="h-4 w-4" />
-              QUADRO
-            </Button>
+            {bothModes && (
+              <>
+                <Button
+                  variant="outline"
+                  aria-label="Visualizar em lista"
+                  onClick={() => setViewMode('list')}
+                  className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : ''}`}
+                >
+                  <List className="h-4 w-4" />
+                  LISTA
+                </Button>
+                <Button
+                  variant="outline"
+                  aria-label="Visualizar em quadros"
+                  onClick={() => setViewMode('grid')}
+                  className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}`}
+                >
+                  <Grid className="h-4 w-4" />
+                  QUADRO
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -584,12 +595,41 @@ export default function ProductStorePage() {
                   {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
                     <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
                   )}
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
-                    {(product.hasVariants || hasStock(product, null, stockEnabled)) && (
-                      <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-4 w-4" /></Button>
-                    )}
-                  </div>
+                  {(() => {
+                    const cartQty = product.hasVariants
+                      ? 0
+                      : cart.items.filter(i => i.productId === product.id && !i.variantId).reduce((s, i) => s + i.quantity, 0);
+                    return (
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
+                        {!product.hasVariants && cartQty > 0 ? (
+                          <div className="flex items-center gap-1 rounded-md border">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              aria-label="Diminuir quantidade"
+                              onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartQty - 1); }}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="min-w-[1.5rem] text-center text-sm font-semibold">{cartQty}</span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              aria-label="Aumentar quantidade"
+                              onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartQty + 1); }}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (product.hasVariants || hasStock(product, null, stockEnabled)) ? (
+                          <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-4 w-4" /></Button>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             ))}
