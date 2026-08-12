@@ -50,7 +50,7 @@ export function getStoreCondicoes(settings: any): PaymentCondicao[] {
 }
 
 export function isDicoloreFlow(slug?: string | null, settings?: any): boolean {
-  if (slug === 'dicolore') return true;
+  if (slug === 'dicolore' || slug === 'dicoloresenses') return true;
   const f = settings?.formasPagamento;
   const c = settings?.condicoesPagamento;
   return Array.isArray(f) && f.length > 0 && Array.isArray(c) && c.length > 0;
