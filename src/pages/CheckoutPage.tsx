@@ -593,7 +593,7 @@ export default function CheckoutPage() {
                   {dicolore ? (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="grid gap-1">
-                        <Label className="text-xs">Forma de Pagamento (ERP)</Label>
+                        <Label className="text-xs">{store.slug === 'dicoloresenses' ? 'Condição de Pagamento' : 'Forma de Pagamento (ERP)'}</Label>
                         <Select value={paymentFormaCodigo} onValueChange={setPaymentFormaCodigo}>
                           <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent className="max-h-[40vh]">
@@ -604,7 +604,7 @@ export default function CheckoutPage() {
                         </Select>
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-xs">Condição de Pagamento (ERP)</Label>
+                        <Label className="text-xs">{store.slug === 'dicoloresenses' ? 'Prazo de Pagamento' : 'Condição de Pagamento (ERP)'}</Label>
                         <Select value={paymentCondicaoCodigo} onValueChange={setPaymentCondicaoCodigo}>
                           <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent className="max-h-[40vh]">
