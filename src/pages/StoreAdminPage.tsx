@@ -1837,6 +1837,45 @@ export default function StoreAdminPage() {
           <TabsContent value="settings" className="animate-fade-in">
             <div className="space-y-6">
             <ChangePasswordCard />
+            <Card>
+              <CardHeader><CardTitle>Visualização do catálogo</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
+                  <Label className="cursor-pointer" onClick={() => { if (viewModeList) { if (!viewModeGrid) return; setViewModeList(false); } else setViewModeList(true); }}>
+                    Modo LISTA: <strong>{viewModeList ? 'ATIVO' : 'INATIVO'}</strong>
+                  </Label>
+                  <button
+                    type="button"
+                    aria-label="Alternar modo lista"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => { if (viewModeList) { if (!viewModeGrid) { setViewModeGrid(true); } setViewModeList(false); } else setViewModeList(true); }}
+                  >
+                    {viewModeList ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
+                  <Label className="cursor-pointer" onClick={() => { if (viewModeGrid) { if (!viewModeList) { setViewModeList(true); } setViewModeGrid(false); } else setViewModeGrid(true); }}>
+                    Modo QUADRO: <strong>{viewModeGrid ? 'ATIVO' : 'INATIVO'}</strong>
+                  </Label>
+                  <button
+                    type="button"
+                    aria-label="Alternar modo quadro"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => { if (viewModeGrid) { if (!viewModeList) { setViewModeList(true); } setViewModeGrid(false); } else setViewModeGrid(true); }}
+                  >
+                    {viewModeGrid ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Se apenas um modo estiver ativo, a loja abre sempre nele e os botões LISTA/QUADRO ficam ocultos.
+                  Pelo menos um modo permanece sempre ativo.
+                </p>
+                <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                  {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Salvar
+                </Button>
+              </CardContent>
+            </Card>
             {store.slug === 'dicolore' && (
               <Card className="border-accent">
                 <CardHeader><CardTitle>Integração de Estoque</CardTitle></CardHeader>
