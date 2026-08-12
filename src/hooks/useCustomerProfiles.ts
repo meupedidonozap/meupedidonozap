@@ -70,6 +70,7 @@ export function useCreateCustomerProfileAdmin() {
       cpfCnpj?: string;
       sellerCode?: string;
       transportadora?: string;
+      ie?: string;
       priceTable?: 1 | 4 | 9;
       customerCode?: string;
     }) => {
@@ -119,6 +120,7 @@ export function useUpdateCustomerProfileAdmin() {
       cpfCnpj?: string;
       sellerCode?: string;
       transportadora?: string;
+      ie?: string;
       priceTable?: 1 | 4 | 9;
       customerCode?: string;
     }) => {
