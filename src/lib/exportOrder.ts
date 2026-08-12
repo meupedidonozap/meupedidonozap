@@ -63,6 +63,12 @@ export interface CustomerExtra {
   isTelevendas?: boolean;
   discountRules?: DiscountRule[];
   transportadora?: string;
+  /** Inscrição estadual do cliente (Bling <ie>). */
+  ie?: string;
+  /** Unidade de medida por productId (Bling <un>). */
+  productUnit?: Record<string, string>;
+  /** Unidade de medida por código de produto (usada nos itens de KIT). */
+  productUnitByCode?: Record<string, string>;
   /** Map productId -> commission percent (Dicolore <perCom>). */
   productCommission?: Record<string, number>;
   /** Composição dos KITs: kit id -> componentes (kits são explodidos na saída). */
@@ -183,6 +189,44 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
 }
 
 /** Exportação no layout de importação de pedidos do Bling. */
+/**
+ * Interpreta a descrição do prazo/condição de pagamento e devolve os dias de
+ * vencimento de cada parcela. Ex.: "30/60/90 S/J" -> [30,60,90];
+ * "7 DIAS S/J" -> [7]; "A VISTA" -> [0]. Devolve [] quando não reconhecer.
+ */
+export function parseCondicaoDias(descricao?: string): number[] {
+  const d = (descricao || '').toUpperCase().trim();
+  if (!d) return [];
+  if (/A\s*VISTA/.test(d)) return [0];
+  const seq = d.match(/\d+(?:\s*\/\s*\d+)+/);
+  if (seq) return seq[0].split('/').map(x => parseInt(x.trim(), 10)).filter(n => !isNaN(n));
+  const dias = d.match(/(\d+)\s*DIAS?/);
+  if (dias) return [parseInt(dias[1], 10)];
+  const single = d.match(/^(\d+)\b/);
+  if (single) return [parseInt(single[1], 10)];
+  return [];
+}
+
+function buildBlingParcelas(order: Order, condicaoDescricao?: string): string {
+  const dias = parseCondicaoDias(condicaoDescricao);
+  if (dias.length === 0) return '';
+  const total = Math.round(Number(order.total || 0) * 100);
+  if (total <= 0) return '';
+  const base = Math.floor(total / dias.length);
+  const created = new Date(order.createdAt);
+  const parcelas = dias.map((dd, idx) => {
+    const cents = idx === dias.length - 1 ? total - base * (dias.length - 1) : base;
+    const venc = new Date(created);
+    venc.setDate(venc.getDate() + dd);
+    return `    <parcela>
+      <data>${formatDateBR(venc)}</data>
+      <vlr>${(cents / 100).toFixed(2)}</vlr>
+      <obs>${escapeXml(condicaoDescricao || '')}</obs>
+    </parcela>`;
+  });
+  return `  <parcelas>\n${parcelas.join('\n')}\n  </parcelas>\n`;
+}
+
 export function exportOrderBlingXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
   const s = store.settings || {};
   const c = order.customer;
@@ -200,10 +244,14 @@ export function exportOrderBlingXml(order: Order, store: StoreLike, extra: Custo
     .map((item: CartItem) => {
       const discPct = (item as any).discountPercent || 0;
       const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+      const un =
+        extra.productUnit?.[item.productId] ||
+        extra.productUnitByCode?.[String(item.code || '')] ||
+        'Un';
       return `    <item>
       <codigo>${escapeXml(item.code)}</codigo>
       <descricao>${escapeXml(item.name)}</descricao>
-      <un>Un</un>
+      <un>${escapeXml(un)}</un>
       <qtde>${item.quantity}</qtde>
       <vlr_unit>${unitPrice.toFixed(2)}</vlr_unit>
     </item>`;
@@ -228,7 +276,7 @@ export function exportOrderBlingXml(order: Order, store: StoreLike, extra: Custo
     <tipoPessoa>${tipoPessoa}</tipoPessoa>
     <endereco>${escapeXml(c.address || '')}</endereco>
     <cpf_cnpj>${escapeXml(formatCgc(cpfCnpj))}</cpf_cnpj>
-    <ie></ie>
+    <ie>${escapeXml(extra.ie || '')}</ie>
     <numero>${escapeXml(c.number || '')}</numero>
     <complemento>${escapeXml(c.complement || '')}</complemento>
     <bairro>${escapeXml(c.neighborhood || '')}</bairro>
@@ -253,7 +301,7 @@ ${enderecoBloco}
   <itens>
 ${itensXml}
   </itens>
-  <vlr_frete>${Number(order.deliveryFee || 0).toFixed(2)}</vlr_frete>
+${buildBlingParcelas(order, (c as any).paymentCondicaoDescricao)}  <vlr_frete>${Number(order.deliveryFee || 0).toFixed(2)}</vlr_frete>
   <vlr_desconto>${Number(order.discount || 0).toFixed(2)}</vlr_desconto>
   <obs>${escapeXml(order.observations || '')}</obs>
   <obs_internas>${escapeXml(obsInternas)}</obs_internas>
