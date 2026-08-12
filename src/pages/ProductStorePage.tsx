@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import ClosedBanner from '@/components/ClosedBanner';
+import QuantityStepper from '@/components/QuantityStepper';
 import { getWaiterSession } from '@/components/WaiterModeFAB';
 import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
