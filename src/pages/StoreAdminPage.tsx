@@ -2183,8 +2183,8 @@ export default function StoreAdminPage() {
               </CardContent>
             </Card>
 
-            {/* Sellers management - Dicolore only */}
-            {store.slug === 'dicolore' && (
+            {/* Códigos de pagamento - Dicolore / Dicolore SENSES */}
+            {['dicolore', 'dicoloresenses'].includes(store.slug) && (
               <DicolorePaymentCodesTab store={store} />
             )}
 

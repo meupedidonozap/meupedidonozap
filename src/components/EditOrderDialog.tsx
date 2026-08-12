@@ -292,7 +292,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
               <p className="text-sm font-semibold">Pagamento (ERP)</p>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="grid gap-1">
-                  <Label className="text-xs">Forma de Pagamento</Label>
+                  <Label className="text-xs">{store?.slug === 'dicoloresenses' ? 'Condição de Pagamento' : 'Forma de Pagamento'}</Label>
                   <Select value={formaCodigo} onValueChange={setFormaCodigo}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent className="max-h-[40vh]">
@@ -303,7 +303,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
                   </Select>
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">Condição de Pagamento</Label>
+                  <Label className="text-xs">{store?.slug === 'dicoloresenses' ? 'Prazo de Pagamento' : 'Condição de Pagamento'}</Label>
                   <Select value={condicaoCodigo} onValueChange={setCondicaoCodigo}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent className="max-h-[40vh]">
