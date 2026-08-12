@@ -2900,6 +2900,9 @@ export default function StoreAdminPage() {
                 isTelevendas: downloadTelevendas,
                 kitMap,
                 transportadora: cp?.transportadora || '',
+                ie: cp?.ie || '',
+                productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
+                productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
                 productCommission: Object.fromEntries(
                   products.map(p => {
                     const cat = categories.find(c => c.id === p.categoryId);
