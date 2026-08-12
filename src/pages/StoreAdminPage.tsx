@@ -377,7 +377,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4 as 1 | 4 | 9, customerCode: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9, customerCode: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -2437,7 +2437,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', priceTable: 4, customerCode: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4, customerCode: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2494,6 +2494,7 @@ export default function StoreAdminPage() {
                               cpfCnpj: cp.cpfCnpj || '',
                               sellerCode: (cp as any).sellerCode || '',
                               transportadora: (cp as any).transportadora || '',
+                              ie: (cp as any).ie || '',
                               priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
                               customerCode: (cp as any).customerCode || '',
                             });
@@ -2589,6 +2590,7 @@ export default function StoreAdminPage() {
                       </p>
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                    <div className="grid gap-1"><Label className="text-sm">Inscrição Estadual</Label><Input value={customerForm.ie} onChange={e => setCustomerForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE ou ISENTO" /></div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
@@ -2651,6 +2653,7 @@ export default function StoreAdminPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="grid gap-1"><Label className="text-sm">Código Vendedor</Label><Input value={customerForm.sellerCode} onChange={e => setCustomerForm(f => ({ ...f, sellerCode: e.target.value }))} placeholder="Ex.: 4" /></div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
+                    <div className="grid gap-1"><Label className="text-sm">Inscrição Estadual</Label><Input value={customerForm.ie} onChange={e => setCustomerForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE ou ISENTO" /></div>
                   </div>
                   <div className="grid gap-1">
                     <Label className="text-sm">Código do Cliente (ERP)</Label>
