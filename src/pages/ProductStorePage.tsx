@@ -595,12 +595,41 @@ export default function ProductStorePage() {
                   {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
                     <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
                   )}
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
-                    {(product.hasVariants || hasStock(product, null, stockEnabled)) && (
-                      <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-4 w-4" /></Button>
-                    )}
-                  </div>
+                  {(() => {
+                    const cartQty = product.hasVariants
+                      ? 0
+                      : cart.items.filter(i => i.productId === product.id && !i.variantId).reduce((s, i) => s + i.quantity, 0);
+                    return (
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
+                        {!product.hasVariants && cartQty > 0 ? (
+                          <div className="flex items-center gap-1 rounded-md border">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              aria-label="Diminuir quantidade"
+                              onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartQty - 1); }}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="min-w-[1.5rem] text-center text-sm font-semibold">{cartQty}</span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              aria-label="Aumentar quantidade"
+                              onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartQty + 1); }}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (product.hasVariants || hasStock(product, null, stockEnabled)) ? (
+                          <Button size="icon" className="h-8 w-8 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-4 w-4" /></Button>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             ))}
