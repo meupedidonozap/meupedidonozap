@@ -521,24 +521,28 @@ export default function ProductStorePage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Buscar produto ou código..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <Button
-              variant="outline"
-              aria-label="Visualizar em lista"
-              onClick={() => setViewMode('list')}
-              className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <List className="h-4 w-4" />
-              LISTA
-            </Button>
-            <Button
-              variant="outline"
-              aria-label="Visualizar em quadros"
-              onClick={() => setViewMode('grid')}
-              className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <Grid className="h-4 w-4" />
-              QUADRO
-            </Button>
+            {bothModes && (
+              <>
+                <Button
+                  variant="outline"
+                  aria-label="Visualizar em lista"
+                  onClick={() => setViewMode('list')}
+                  className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : ''}`}
+                >
+                  <List className="h-4 w-4" />
+                  LISTA
+                </Button>
+                <Button
+                  variant="outline"
+                  aria-label="Visualizar em quadros"
+                  onClick={() => setViewMode('grid')}
+                  className={`shrink-0 gap-1.5 px-2.5 text-xs font-semibold ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}`}
+                >
+                  <Grid className="h-4 w-4" />
+                  QUADRO
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
