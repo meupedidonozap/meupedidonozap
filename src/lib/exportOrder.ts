@@ -182,13 +182,98 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
   return [header, ...lines].join('\n') + '\n';
 }
 
-export function downloadOrderFile(order: Order, store: StoreLike, format: 'xml' | 'txt', extra: CustomerExtra = {}) {
-  const content = format === 'xml' ? exportOrderXml(order, store, extra) : exportOrderTxt(order, store, extra);
-  const mime = format === 'xml' ? 'application/xml' : 'text/plain';
+/** Exportação no layout de importação de pedidos do Bling. */
+export function exportOrderBlingXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
+  const s = store.settings || {};
+  const c = order.customer;
+  const cpfCnpj = extra.cpfCnpj || c.cpfCnpj || '';
+  const digits = onlyDigits(cpfCnpj);
+  const tipoPessoa = digits.length === 14 ? 'J' : 'F';
+
+  const rules = extra.discountRules ?? s.discountRules;
+  const itemsForExport = expandKitItems(
+    ensureItemDiscountPercents(order.items as any, rules) as any,
+    extra.kitMap,
+  );
+
+  const itensXml = itemsForExport
+    .map((item: CartItem) => {
+      const discPct = (item as any).discountPercent || 0;
+      const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
+      return `    <item>
+      <codigo>${escapeXml(item.code)}</codigo>
+      <descricao>${escapeXml(item.name)}</descricao>
+      <un>Un</un>
+      <qtde>${item.quantity}</qtde>
+      <vlr_unit>${unitPrice.toFixed(2)}</vlr_unit>
+    </item>`;
+    })
+    .join('\n');
+
+  const enderecoBloco = `      <endereco>${escapeXml(c.address || '')}</endereco>
+      <numero>${escapeXml(c.number || '')}</numero>
+      <complemento>${escapeXml(c.complement || '')}</complemento>`;
+
+  const obsInternas = [
+    `Pedido #${pad(order.orderNumber, 9)}`,
+    (c as any).paymentFormaDescricao ? `Forma: ${(c as any).paymentFormaDescricao}` : '',
+    (c as any).paymentCondicaoDescricao ? `Condicao: ${(c as any).paymentCondicaoDescricao}` : '',
+    extra.sellerCode ? `Vendedor: ${extra.sellerCode}` : '',
+  ].filter(Boolean).join(' | ');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<pedido>
+  <cliente>
+    <nome>${escapeXml(c.name)}</nome>
+    <tipoPessoa>${tipoPessoa}</tipoPessoa>
+    <endereco>${escapeXml(c.address || '')}</endereco>
+    <cpf_cnpj>${escapeXml(formatCgc(cpfCnpj))}</cpf_cnpj>
+    <ie></ie>
+    <numero>${escapeXml(c.number || '')}</numero>
+    <complemento>${escapeXml(c.complement || '')}</complemento>
+    <bairro>${escapeXml(c.neighborhood || '')}</bairro>
+    <cep>${escapeXml(c.cep || '')}</cep>
+    <cidade>${escapeXml(c.city || '')}</cidade>
+    <uf>${escapeXml(c.uf || '')}</uf>
+    <fone>${escapeXml(onlyDigits(c.whatsapp))}</fone>
+    <email>${escapeXml((c as any).email || '')}</email>
+  </cliente>
+  <transporte>
+    <transportadora>${escapeXml(extra.transportadora || '')}</transportadora>
+    <tipo_frete>R</tipo_frete>
+    <dados_etiqueta>
+      <nome>${escapeXml(c.name)}</nome>
+${enderecoBloco}
+      <municipio>${escapeXml(c.city || '')}</municipio>
+      <uf>${escapeXml(c.uf || '')}</uf>
+      <cep>${escapeXml(c.cep || '')}</cep>
+      <bairro>${escapeXml(c.neighborhood || '')}</bairro>
+    </dados_etiqueta>
+  </transporte>
+  <itens>
+${itensXml}
+  </itens>
+  <vlr_frete>${Number(order.deliveryFee || 0).toFixed(2)}</vlr_frete>
+  <vlr_desconto>${Number(order.discount || 0).toFixed(2)}</vlr_desconto>
+  <obs>${escapeXml(order.observations || '')}</obs>
+  <obs_internas>${escapeXml(obsInternas)}</obs_internas>
+</pedido>
+`;
+}
+
+export function downloadOrderFile(order: Order, store: StoreLike, format: 'xml' | 'txt' | 'bling', extra: CustomerExtra = {}) {
+  const content = format === 'txt'
+    ? exportOrderTxt(order, store, extra)
+    : format === 'bling'
+      ? exportOrderBlingXml(order, store, extra)
+      : exportOrderXml(order, store, extra);
+  const mime = format === 'txt' ? 'text/plain' : 'application/xml';
   const created = new Date(order.createdAt);
   const dt = `${pad(created.getDate(), 2)}${pad(created.getMonth() + 1, 2)}${created.getFullYear()}`;
   const tm = `${pad(created.getHours(), 2)}${pad(created.getMinutes(), 2)}${pad(created.getSeconds(), 2)}`;
-  const filename = `pedido_${pad(order.orderNumber, 9)}_${dt}_${tm}.${format}`;
+  const prefix = format === 'bling' ? 'pedido_bling' : 'pedido';
+  const ext = format === 'txt' ? 'txt' : 'xml';
+  const filename = `${prefix}_${pad(order.orderNumber, 9)}_${dt}_${tm}.${ext}`;
 
   const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
