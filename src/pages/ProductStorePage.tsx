@@ -52,6 +52,13 @@ export default function ProductStorePage() {
   const stockEnabled = (store?.settings as any)?.useStockIntegration === true;
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const allowList = (store?.settings as any)?.catalogViewModes?.list !== false;
+  const allowGrid = (store?.settings as any)?.catalogViewModes?.grid !== false;
+  const bothModes = allowList && allowGrid;
+  useEffect(() => {
+    if (!allowList && viewMode === 'list') setViewMode('grid');
+    else if (!allowGrid && viewMode === 'grid') setViewMode('list');
+  }, [allowList, allowGrid, viewMode]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
