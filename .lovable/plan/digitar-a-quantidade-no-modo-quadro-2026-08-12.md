@@ -1,6 +1,6 @@
 # Digitar a quantidade no modo QUADRO
 
-No modo QUADRO, o número entre os botões "−" e "+" passa a ser um campo editável, para permitir quantidades grandes (ex.: 24) sem ficar clicando várias vezes.
+No modo QUADRO, o número entre os botões "−" e "+" passa a ser um campo editável, para permitir quantidades grandes (ex.: 24) sem ficar clicando várias vezes. Tanto no Quadro quanto no CARRINHO
 
 ## Comportamento
 

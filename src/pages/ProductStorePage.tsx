@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import ClosedBanner from '@/components/ClosedBanner';
+import QuantityStepper from '@/components/QuantityStepper';
 import { getWaiterSession } from '@/components/WaiterModeFAB';
 import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
@@ -608,33 +609,26 @@ export default function ProductStorePage() {
                             : cartQty;
                           const buyable = product.hasVariants || hasStock(product, null, stockEnabled);
                           return (
-                            <div className="flex items-center gap-1 rounded-md border">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7"
-                                aria-label="Diminuir quantidade"
-                                disabled={product.hasVariants || cartQty === 0}
-                                onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, cartQty - 1); }}
-                              >
-                                <Minus className="h-3.5 w-3.5" />
-                              </Button>
-                              <span className="min-w-[1.5rem] text-center text-sm font-semibold">{variantQty}</span>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7"
-                                aria-label="Aumentar quantidade"
-                                disabled={!buyable}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (product.hasVariants || cartQty === 0) handleProductClick(product);
-                                  else updateQuantity(product.id, cartQty + 1);
-                                }}
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
+                            <QuantityStepper
+                              value={variantQty}
+                              inputReadOnly={product.hasVariants || !buyable}
+                              decrementDisabled={product.hasVariants || cartQty === 0}
+                              incrementDisabled={!buyable}
+                              onChange={(n) => {
+                                if (product.hasVariants || !buyable) return;
+                                if (cartQty === 0 && n > 0) {
+                                  handleAddToCart(product);
+                                  if (n > 1) updateQuantity(product.id, n);
+                                } else {
+                                  updateQuantity(product.id, n);
+                                }
+                              }}
+                              onIncrement={() => {
+                                if (product.hasVariants || cartQty === 0) handleProductClick(product);
+                                else updateQuantity(product.id, cartQty + 1);
+                              }}
+                              onDecrement={() => updateQuantity(product.id, cartQty - 1)}
+                            />
                           );
                         })()}
                       </div>
