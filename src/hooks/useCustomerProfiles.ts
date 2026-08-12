@@ -21,6 +21,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCo
     isActive: row.is_active ?? true,
     customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
+    ie: row.ie || '',
     priceTable: (row.price_table === 1 || row.price_table === 9 ? row.price_table : 4) as 1 | 4 | 9,
   };
 }
@@ -88,6 +89,7 @@ export function useCreateCustomerProfileAdmin() {
           cpf_cnpj: params.cpfCnpj || '',
           seller_code: params.sellerCode || '',
           transportadora: params.transportadora || null,
+          ie: params.ie || null,
           price_table: params.priceTable ?? 4,
           customer_code: params.customerCode?.trim() || '',
         } as any);
@@ -133,6 +135,7 @@ export function useUpdateCustomerProfileAdmin() {
       if (params.cpfCnpj !== undefined) update.cpf_cnpj = params.cpfCnpj;
       if (params.sellerCode !== undefined) update.seller_code = params.sellerCode;
       if (params.transportadora !== undefined) update.transportadora = params.transportadora || null;
+      if (params.ie !== undefined) update.ie = params.ie || null;
       if (params.priceTable !== undefined) update.price_table = params.priceTable;
       if (params.customerCode !== undefined) update.customer_code = params.customerCode.trim();
 
