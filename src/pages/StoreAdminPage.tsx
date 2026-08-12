@@ -403,6 +403,8 @@ export default function StoreAdminPage() {
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
+  const [viewModeList, setViewModeList] = useState(true);
+  const [viewModeGrid, setViewModeGrid] = useState(true);
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -454,6 +456,8 @@ export default function StoreAdminPage() {
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
+    setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
+    setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
     setSettingsInitialized(true);
   }
 
@@ -738,6 +742,7 @@ export default function StoreAdminPage() {
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
+          catalogViewModes: { list: viewModeList, grid: viewModeGrid },
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
