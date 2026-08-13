@@ -1103,9 +1103,11 @@ export default function StoreAdminPage() {
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Produtos</h3>
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
-                  {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
-                </Button>
+                {store.slug !== 'dicoloresenses' && (
+                  <Button variant="outline" className="gap-2" onClick={handleSyncPrices} disabled={syncingPrices}>
+                    {syncingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Preços
+                  </Button>
+                )}
                 {store.slug === 'dicolore' && (
                   <Button variant="outline" className="gap-2" onClick={handleSyncStock} disabled={syncingStock}>
                     {syncingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Atualizar Estoque
