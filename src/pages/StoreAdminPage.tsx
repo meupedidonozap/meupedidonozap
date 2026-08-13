@@ -83,6 +83,8 @@ import { buildRenewalLink } from '@/lib/supportContact';
 import { AlertTriangle } from 'lucide-react';
 import ChangePasswordCard from '@/components/ChangePasswordCard';
 import { PushNotificationsCard } from '@/components/PushNotificationsCard';
+import DynamicManifest from '@/components/DynamicManifest';
+import InstallAppCard from '@/components/InstallAppCard';
 import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard';
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -915,6 +917,17 @@ export default function StoreAdminPage() {
       </header>
 
       <main className="container py-6">
+        <DynamicManifest
+          name={`${store.name} — Admin`}
+          shortName={store.name}
+          startUrl={`/${store.slug}/admin`}
+          scope={`/${store.slug}`}
+          icon={store.logo}
+          description={`Painel administrativo de ${store.name}`}
+        />
+        <div className="mb-4">
+          <InstallAppCard label={`o painel de ${store.name}`} />
+        </div>
         <div className="mb-4">
           <PushNotificationsCard storeId={store.id} />
         </div>
