@@ -820,7 +820,7 @@ export default function CheckoutPage() {
                     disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
-                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'dicoloresenses' ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp'))}
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp'))}
                   </Button>
                 </div>
               </CardContent>
