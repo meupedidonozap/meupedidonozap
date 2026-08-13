@@ -6,6 +6,8 @@ import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVers
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
+import SellerCustomerDialog from '@/components/SellerCustomerDialog';
 import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
@@ -54,7 +56,14 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
-  const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const {
+    profile: customerProfile,
+    isSellerMode,
+    selectedCustomer,
+    selectCustomer,
+    seller,
+  } = useActiveCustomerProfile(store?.id);
+  const sellerOrder = isSellerMode && !!selectedCustomer;
   const { data: sellers = [] } = useStoreSellers(store?.id);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, customerProfile?.priceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
@@ -80,6 +89,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+  const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
 
   // Dicolore ERP payment codes
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
