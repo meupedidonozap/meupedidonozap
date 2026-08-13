@@ -284,6 +284,65 @@ function downloadTemplate(isAccessories: boolean) {
   XLSX.writeFile(wb, 'modelo_importacao_produtos.xlsx');
 }
 
+// ── Export current products ──
+
+async function downloadCurrentProducts(storeId: string, categories: Category[], isAccessories: boolean) {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, product_variants(*)')
+    .eq('store_id', storeId)
+    .order('code', { ascending: true });
+
+  if (error) {
+    toast.error('Erro ao buscar produtos: ' + error.message);
+    return;
+  }
+  if (!data?.length) {
+    toast.error('Nenhum produto cadastrado nesta loja.');
+    return;
+  }
+
+  const catName = new Map(categories.map(c => [c.id, c.name]));
+
+  const base = (p: any) => ({
+    Codigo: p.code || '',
+    Nome: p.name || '',
+    Descricao: p.description || '',
+    Categoria: p.category_id ? (catName.get(p.category_id) || '') : '',
+    Grupo: p.group_id || '',
+    Unidade: p.unit || 'Un',
+    Preco1: Number(p.price_table_1 ?? 0),
+    Preco: Number(p.price_table_4 ?? p.base_price ?? 0),
+    Preco9: Number(p.price_table_9 ?? 0),
+    PrecoRes: p.price_table_res != null ? Number(p.price_table_res) : 0,
+    Estoque: Number(p.stock ?? 0),
+    Ativo: p.is_active ? 'Sim' : 'Nao',
+    Kit: p.is_kit ? 'Sim' : 'Nao',
+  });
+
+  const rows: any[] = [];
+  for (const p of data) {
+    const variants = (p as any).product_variants || [];
+    if (isAccessories && variants.length > 0) {
+      for (const v of variants) {
+        rows.push({ ...base(p), Cor: v.color || '', Tamanho: v.size || '', SKU: v.sku || '', Estoque: Number(v.stock ?? 0), Preco: Number(v.price ?? 0) });
+      }
+    } else if (isAccessories) {
+      rows.push({ ...base(p), Cor: '', Tamanho: '', SKU: '' });
+    } else {
+      rows.push(base(p));
+    }
+  }
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length + 2, 14) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `produtos_salvos_${stamp}.xlsx`);
+  toast.success(`${rows.length} linha(s) exportada(s).`);
+}
+
 // ── Main component ──
 
 export default function ImportProductsDialog({ open, onOpenChange, storeId, categories, storeType }: ImportProductsDialogProps) {
