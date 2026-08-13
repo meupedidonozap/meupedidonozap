@@ -566,6 +566,9 @@ export default function ProductStorePage() {
       </header>
 
       <ClosedBanner store={store} />
+      <div className="container mt-3">
+        <PendingOrdersCard storeId={store?.id} />
+      </div>
       {isSellerMode && store && (
         <SellerModeBar
           storeId={store.id}
