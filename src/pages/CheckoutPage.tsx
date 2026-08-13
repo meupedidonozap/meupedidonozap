@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
+import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
+import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
@@ -348,9 +350,10 @@ export default function CheckoutPage() {
     }
     setIsSubmitting(true);
     try {
+      const offline = !isOnline();
       // Bloqueia a finalização se o catálogo/preços foram atualizados pela loja
       // enquanto o cliente estava com o navegador aberto.
-      if (slug && store?.id) {
+      if (!offline && slug && store?.id) {
         const wasStale = await ensureLatestDataVersion(slug, store.id);
         if (wasStale) {
           toast.error('Os preços foram atualizados pela loja. Revise seu pedido antes de finalizar.');
@@ -373,7 +376,7 @@ export default function CheckoutPage() {
 
       // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes).
       // No Modo Vendedor não sobrescrevemos o cadastro do cliente escolhido.
-      if (!sellerOrder) try {
+      if (!sellerOrder && !offline) try {
         await upsertProfile.mutateAsync({
           userId: user.id,
           storeId: store.id,
@@ -393,7 +396,7 @@ export default function CheckoutPage() {
         console.warn('[checkout] upsertProfile falhou:', profileErr);
       }
 
-      await createOrder.mutateAsync({
+      const orderPayload: any = {
         storeId: store.id,
         customer: {
           name: formData.name, cpfCnpj: formData.cpfCnpj, whatsapp: formData.whatsapp,
@@ -432,7 +435,23 @@ export default function CheckoutPage() {
         observations: observationsFinal || undefined,
         status: 'pendente',
         ...(sellerOrder ? { origem: 'vendedor' } : {}),
-      } as any);
+      };
+
+      if (offline) {
+        await enqueueOrder({
+          id: newClientOrderId(),
+          storeId: store.id,
+          storeSlug: store.slug,
+          customerName: formData.name,
+          total: liveTotal,
+          payload: orderPayload,
+        });
+        toast.warning('Você está OFFLINE. Pedido salvo na fila e será enviado automaticamente quando a conexão voltar.', { duration: 6000 });
+        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+        return;
+      }
+
+      await createOrder.mutateAsync(orderPayload);
 
       if (sellerOrder) {
         toast.success(`Pedido registrado para ${formData.name}`);
@@ -466,6 +485,10 @@ export default function CheckoutPage() {
       </header>
 
       <ClosedBanner store={store} />
+
+      <div className="container mt-3">
+        <PendingOrdersCard storeId={store.id} />
+      </div>
 
       {isSellerMode && (
         <div className="border-b border-primary/30 bg-primary/10">
