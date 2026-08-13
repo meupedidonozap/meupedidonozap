@@ -1,7 +1,7 @@
 import type { Order, CartItem, DiscountRule } from '@/types';
 import { isDicoloreFlow } from './dicolorePayments';
 import { ensureItemDiscountPercents } from './groupDiscounts';
-import { expandKitItems, type KitMap } from './kitExpansion';
+import { expandKitItems, mergeItemsByCode, type KitMap } from './kitExpansion';
 
 const PAYMENT_CODE: Record<string, string> = {
   pix: '1',
@@ -98,10 +98,10 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const transportadora = extra.transportadora || '';
 
   const rules = extra.discountRules ?? s.discountRules;
-  const itemsForExport = expandKitItems(
+  const itemsForExport = mergeItemsByCode(expandKitItems(
     ensureItemDiscountPercents(order.items as any, rules) as any,
     extra.kitMap,
-  );
+  ));
   const itensXml = itemsForExport
     .map((item: CartItem) => {
       const discPct = (item as any).discountPercent || 0;
@@ -166,10 +166,10 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
 
   const s = store.settings || {};
   const rules = extra.discountRules ?? s.discountRules;
-  const itemsForExport = expandKitItems(
+  const itemsForExport = mergeItemsByCode(expandKitItems(
     ensureItemDiscountPercents(order.items as any, rules) as any,
     extra.kitMap,
-  );
+  ));
   const lines = itemsForExport.map((item) => {
     const discPct = (item as any).discountPercent || 0;
     const unitPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
@@ -235,10 +235,10 @@ export function exportOrderBlingXml(order: Order, store: StoreLike, extra: Custo
   const tipoPessoa = digits.length === 14 ? 'J' : 'F';
 
   const rules = extra.discountRules ?? s.discountRules;
-  const itemsForExport = expandKitItems(
+  const itemsForExport = mergeItemsByCode(expandKitItems(
     ensureItemDiscountPercents(order.items as any, rules) as any,
     extra.kitMap,
-  );
+  ));
 
   const itensXml = itemsForExport
     .map((item: CartItem) => {
