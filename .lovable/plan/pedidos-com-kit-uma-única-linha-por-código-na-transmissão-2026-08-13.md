@@ -2,7 +2,11 @@
 
 ## Problema
 
-Quando dois KITs diferentes (ou o mesmo KIT em linhas separadas) contêm o mesmo produto, o arquivo de transmissão sai com duas linhas do mesmo código com preços diferentes (ex.: DVSENSES033 com 1x 3,33 e 1x 3,49). Como o código é chave primária no ERP/Bling, a importação e a emissão da NF falham.
+Quando dois KITs diferentes (ou o mesmo KIT em linhas separadas) contêm o mesmo produto, o arquivo de transmissão sai com duas linhas do mesmo código com preços diferentes (ex.: DVSENSES033 com 1x 3,33 e 1x 3,49). Como o código é chave primária no ERP/Bling, a importação e a emissão da NF falham.  
+  
+Quando tiver Mais de 1 KIT o sistema deve VARRER todos os kits e SOMAR todos os produtos que tiverem o mesmo produto e fazer o calculo da media para o preço e trazer o total de peças, o valor unitario e recalcular o total para este somatorios  
+  
+6 KITS produto A, 6 KITS produto B, 6 KITS produto C, 6 KITS produto D. No pedido, todos os KITS tem o item DVSENSES033 = 6 peças do A + 6 peças do B + 6 peças do C + 6 peças do D = TOTAL 24 peças do DVSENSES033
 
 ## Solução
 
