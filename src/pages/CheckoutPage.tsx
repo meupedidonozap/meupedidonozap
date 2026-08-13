@@ -634,7 +634,7 @@ export default function CheckoutPage() {
                     </RadioGroup>
                   )}
                 </div>
-                {recipientOptions.length > 0 && (
+                {recipientOptions.length > 0 && !sellerOrder && (
                   <div className="rounded-lg border-2 border-primary/60 bg-primary/5 p-4 space-y-3">
                     <Label className="text-base font-bold flex items-center gap-2">
                       📱 Enviar pedido para <span className="text-destructive">*</span>
