@@ -2696,9 +2696,9 @@ export default function StoreAdminPage() {
             )}
             {/* Create customer dialog */}
             <Dialog open={creatingCustomer} onOpenChange={setCreatingCustomer}>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
                 <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
-                <div className="grid gap-3 py-2">
+                <div className="grid gap-3 py-2 overflow-y-auto pr-1 flex-1">
                   <div className="grid gap-1"><Label className="text-sm">Nome</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
                   <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
                   <div className="grid grid-cols-2 gap-2">
@@ -2722,6 +2722,31 @@ export default function StoreAdminPage() {
                     <Input value={customerForm.customerCode} onChange={e => setCustomerForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="Ex.: 98216" />
                     <p className="text-xs text-muted-foreground">Se informado, o acesso é criado automaticamente: login e senha = código.</p>
                   </div>
+                  <div className="grid gap-2 pt-2 border-t">
+                    <Label className="text-sm font-semibold">Acesso do Cliente</Label>
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Usuário</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={customerForm.loginUser}
+                          onChange={e => setCustomerForm(f => ({ ...f, loginUser: e.target.value }))}
+                          placeholder="ex.: ervadoce"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{storeLoginSuffix}</span>
+                      </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Senha (mín. 6)</Label>
+                      <Input
+                        value={customerForm.loginPassword}
+                        onChange={e => setCustomerForm(f => ({ ...f, loginPassword: e.target.value }))}
+                        placeholder="mínimo 6 caracteres"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Informe estes dados ao cliente. Ele acessa a loja pela aba "Código ou Usuário" e o pedido já sai vinculado ao representante deste cadastro.
+                    </p>
+                  </div>
                   <div className="grid gap-1">
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
@@ -2737,16 +2762,25 @@ export default function StoreAdminPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
                   <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
                     try {
                       const codigo = customerForm.customerCode.trim();
-                      if (codigo) {
+                      const login = sanitizeLogin(customerForm.loginUser);
+                      const senha = customerForm.loginPassword.trim();
+                      if (login || senha) {
+                        if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                        if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                      }
+                      if (codigo || login) {
                         const dup = (customerProfiles as any[]).find((c) => String(c.customerCode || '').trim() === codigo);
-                        if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
+                        if (codigo && dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         await createCustomerAccess({ storeId: store.id, codigo, form: customerForm });
-                        toast.success(`Cliente criado! Login: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                        toast.success(
+                          `Cliente criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                          { duration: 10000 },
+                        );
                       } else {
                         await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
                         toast.success('Cliente criado!');
