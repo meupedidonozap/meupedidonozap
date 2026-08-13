@@ -367,8 +367,9 @@ export default function CheckoutPage() {
         formData.observations || '',
       ].filter(Boolean).join(' ').trim();
 
-      // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes)
-      try {
+      // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes).
+      // No Modo Vendedor não sobrescrevemos o cadastro do cliente escolhido.
+      if (!sellerOrder) try {
         await upsertProfile.mutateAsync({
           userId: user.id,
           storeId: store.id,
@@ -397,6 +398,13 @@ export default function CheckoutPage() {
           address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
+          ...(sellerOrder ? {
+            customerCode: selectedCustomer?.customerCode || undefined,
+            sellerCode: selectedCustomer?.sellerCode || undefined,
+            ie: selectedCustomer?.ie || undefined,
+            transportadora: selectedCustomer?.transportadora || undefined,
+            sellerUserName: seller.sellerName || undefined,
+          } : {}),
           ...(dicolore ? {
             paymentFormaCodigo: paymentFormaCodigo || undefined,
             paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
@@ -419,7 +427,14 @@ export default function CheckoutPage() {
         deliveryShift: formData.deliveryShift,
         observations: observationsFinal || undefined,
         status: 'pendente',
-      });
+        ...(sellerOrder ? { origem: 'vendedor' } : {}),
+      } as any);
+
+      if (sellerOrder) {
+        toast.success(`Pedido registrado para ${formData.name}`);
+        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1200);
+        return;
+      }
 
       const targetWhatsapp = recipientOptions.length > 0 && selectedSellerId
         ? (recipientOptions.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
