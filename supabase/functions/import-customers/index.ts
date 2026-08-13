@@ -18,6 +18,10 @@ interface RowInput {
   numero?: string;
   complemento?: string;
   codigo_vendedor?: string;
+  /** Login personalizado (usuário) — quando informado substitui o código no e-mail interno */
+  login?: string;
+  /** Senha personalizada (mínimo 6) */
+  senha?: string;
 }
 
 function buildEmail(codigo: string, slug: string) {
