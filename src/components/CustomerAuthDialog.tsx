@@ -228,18 +228,18 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         {step === 'auth' && (
           <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
             <TabsList className={`grid w-full ${showCodeTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
-              {showCodeTab && <TabsTrigger value="code">Código</TabsTrigger>}
+              {showCodeTab && <TabsTrigger value="code">Código/Usuário</TabsTrigger>}
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
             </TabsList>
             {showCodeTab && <TabsContent value="code">
               <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
                 <p className="text-xs text-muted-foreground">
-                  Já é cliente? Entre com o <strong>código</strong> e <strong>senha</strong> que seu representante enviou.
+                  Já é cliente? Entre com o <strong>código ou usuário</strong> e a <strong>senha</strong> que seu representante enviou.
                 </p>
                 <div className="grid gap-2">
-                  <Label htmlFor="code-login">Código de cliente</Label>
-                  <Input id="code-login" autoFocus value={codeLoginData.codigo} onChange={e => setCodeLoginData(p => ({ ...p, codigo: e.target.value }))} placeholder="Ex: 96133" />
+                  <Label htmlFor="code-login">Código ou usuário</Label>
+                  <Input id="code-login" autoFocus value={codeLoginData.codigo} onChange={e => setCodeLoginData(p => ({ ...p, codigo: e.target.value }))} placeholder="Ex: 96133 ou ervadoce" />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="code-pwd">Senha</Label>
@@ -252,7 +252,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Entrar com código
+                  Entrar
                 </Button>
               </form>
             </TabsContent>}
