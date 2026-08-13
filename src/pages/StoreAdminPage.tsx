@@ -146,9 +146,15 @@ export default function StoreAdminPage() {
     return c.length >= 6 ? c : `dico${c}`;
   };
 
-  // Cria (ou vincula) o acesso do cliente pelo código: login = código, senha = código
+  // Normaliza o usuário informado no cadastro (somente letras/números)
+  const sanitizeLogin = (v: string) => (v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const storeLoginSuffix = `@${(store?.slug || 'loja').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+  // Cria (ou vincula) o acesso do cliente: login = usuário informado (ou código), senha = informada (ou código)
   const createCustomerAccess = async (params: { storeId: string; codigo: string; form: typeof customerForm }) => {
     const { form } = params;
+    const login = sanitizeLogin(form.loginUser);
+    const senha = (form.loginPassword || '').trim();
     const { data, error } = await supabase.functions.invoke('import-customers', {
       body: {
         storeId: params.storeId,
@@ -166,6 +172,8 @@ export default function StoreAdminPage() {
           numero: form.number,
           complemento: form.complement,
           codigo_vendedor: form.sellerCode,
+          login: login || undefined,
+          senha: senha || undefined,
         }],
       },
     });
@@ -173,11 +181,21 @@ export default function StoreAdminPage() {
     const first = (data as any)?.results?.[0];
     if (first?.status === 'error') throw new Error(first.erro || 'Falha ao criar acesso');
     // campos que a rotina de importação não trata
-    await supabase
-      .from('customer_profiles')
-      .update({ price_table: form.priceTable, transportadora: form.transportadora || null } as any)
-      .eq('store_id', params.storeId)
-      .eq('customer_code', params.codigo);
+    const extras = { price_table: form.priceTable, transportadora: form.transportadora || null, ie: form.ie || null } as any;
+    if (params.codigo) {
+      await supabase
+        .from('customer_profiles')
+        .update(extras)
+        .eq('store_id', params.storeId)
+        .eq('customer_code', params.codigo);
+    } else if (first?.user_id) {
+      await supabase
+        .from('customer_profiles')
+        .update(extras)
+        .eq('store_id', params.storeId)
+        .eq('user_id', first.user_id);
+    }
+    return { email: first?.email as string | undefined, senha: first?.senha as string | undefined };
   };
 
   // Sellers (Dicolore / Dicolore SENSES)
