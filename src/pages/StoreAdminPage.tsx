@@ -146,9 +146,15 @@ export default function StoreAdminPage() {
     return c.length >= 6 ? c : `dico${c}`;
   };
 
-  // Cria (ou vincula) o acesso do cliente pelo código: login = código, senha = código
+  // Normaliza o usuário informado no cadastro (somente letras/números)
+  const sanitizeLogin = (v: string) => (v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const storeLoginSuffix = `@${(store?.slug || 'loja').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+  // Cria (ou vincula) o acesso do cliente: login = usuário informado (ou código), senha = informada (ou código)
   const createCustomerAccess = async (params: { storeId: string; codigo: string; form: typeof customerForm }) => {
     const { form } = params;
+    const login = sanitizeLogin(form.loginUser);
+    const senha = (form.loginPassword || '').trim();
     const { data, error } = await supabase.functions.invoke('import-customers', {
       body: {
         storeId: params.storeId,
@@ -166,6 +172,8 @@ export default function StoreAdminPage() {
           numero: form.number,
           complemento: form.complement,
           codigo_vendedor: form.sellerCode,
+          login: login || undefined,
+          senha: senha || undefined,
         }],
       },
     });
@@ -173,11 +181,21 @@ export default function StoreAdminPage() {
     const first = (data as any)?.results?.[0];
     if (first?.status === 'error') throw new Error(first.erro || 'Falha ao criar acesso');
     // campos que a rotina de importação não trata
-    await supabase
-      .from('customer_profiles')
-      .update({ price_table: form.priceTable, transportadora: form.transportadora || null } as any)
-      .eq('store_id', params.storeId)
-      .eq('customer_code', params.codigo);
+    const extras = { price_table: form.priceTable, transportadora: form.transportadora || null, ie: form.ie || null } as any;
+    if (params.codigo) {
+      await supabase
+        .from('customer_profiles')
+        .update(extras)
+        .eq('store_id', params.storeId)
+        .eq('customer_code', params.codigo);
+    } else if (first?.user_id) {
+      await supabase
+        .from('customer_profiles')
+        .update(extras)
+        .eq('store_id', params.storeId)
+        .eq('user_id', first.user_id);
+    }
+    return { email: first?.email as string | undefined, senha: first?.senha as string | undefined };
   };
 
   // Sellers (Dicolore / Dicolore SENSES)
@@ -377,7 +395,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9, customerCode: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9, customerCode: '', loginUser: '', loginPassword: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -2437,7 +2455,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4, customerCode: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4, customerCode: '', loginUser: '', loginPassword: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2497,6 +2515,8 @@ export default function StoreAdminPage() {
                               ie: (cp as any).ie || '',
                               priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
                               customerCode: (cp as any).customerCode || '',
+                              loginUser: '',
+                              loginPassword: '',
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
@@ -2560,9 +2580,9 @@ export default function StoreAdminPage() {
             {/* Edit customer dialog */}
             {editingCustomer && (
               <Dialog open={!!editingCustomer} onOpenChange={(v) => { if (!v) setEditingCustomer(null); }}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
                   <DialogHeader><DialogTitle>Editar Cliente</DialogTitle></DialogHeader>
-                  <div className="grid gap-3 py-2">
+                  <div className="grid gap-3 py-2 overflow-y-auto pr-1 flex-1">
                     <div className="grid gap-1"><Label className="text-sm">Nome</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
                     <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
                     <div className="grid grid-cols-2 gap-2">
@@ -2591,6 +2611,39 @@ export default function StoreAdminPage() {
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                     <div className="grid gap-1"><Label className="text-sm">Inscrição Estadual</Label><Input value={customerForm.ie} onChange={e => setCustomerForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE ou ISENTO" /></div>
+                    <div className="grid gap-2 pt-2 border-t">
+                      <Label className="text-sm font-semibold">Acesso do Cliente</Label>
+                      {editingCustomer?.userId ? (
+                        <p className="text-xs text-muted-foreground">
+                          Este cliente já possui acesso. Para trocar a senha, use o botão de chave na lista.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Usuário</Label>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={customerForm.loginUser}
+                                onChange={e => setCustomerForm(f => ({ ...f, loginUser: e.target.value }))}
+                                placeholder="ex.: ervadoce"
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{storeLoginSuffix}</span>
+                            </div>
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Senha (mín. 6)</Label>
+                            <Input
+                              value={customerForm.loginPassword}
+                              onChange={e => setCustomerForm(f => ({ ...f, loginPassword: e.target.value }))}
+                              placeholder="mínimo 6 caracteres"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Informe estes dados ao cliente. Ele acessa a loja pela aba "Código ou Usuário" e o pedido já sai vinculado ao representante deste cadastro.
+                          </p>
+                        </>
+                      )}
+                    </div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
@@ -2606,11 +2659,17 @@ export default function StoreAdminPage() {
                       </Select>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
                     <Button onClick={async () => {
                       try {
                         const codigo = customerForm.customerCode.trim();
+                        const login = sanitizeLogin(customerForm.loginUser);
+                        const senha = customerForm.loginPassword.trim();
+                        if (!editingCustomer.userId && (login || senha)) {
+                          if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                          if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                        }
                         if (codigo) {
                           const dup = (customerProfiles as any[]).find(
                             (c) => String(c.customerCode || '').trim() === codigo && c.id !== editingCustomer.id
@@ -2618,9 +2677,12 @@ export default function StoreAdminPage() {
                           if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
-                        if (codigo && !editingCustomer.userId) {
+                        if (!editingCustomer.userId && (codigo || login)) {
                           await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
-                          toast.success(`Acesso criado! Código: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                          toast.success(
+                            `Acesso criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                            { duration: 10000 },
+                          );
                         } else {
                           toast.success('Cliente atualizado!');
                         }
@@ -2634,9 +2696,9 @@ export default function StoreAdminPage() {
             )}
             {/* Create customer dialog */}
             <Dialog open={creatingCustomer} onOpenChange={setCreatingCustomer}>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
                 <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
-                <div className="grid gap-3 py-2">
+                <div className="grid gap-3 py-2 overflow-y-auto pr-1 flex-1">
                   <div className="grid gap-1"><Label className="text-sm">Nome</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
                   <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
                   <div className="grid grid-cols-2 gap-2">
@@ -2660,6 +2722,31 @@ export default function StoreAdminPage() {
                     <Input value={customerForm.customerCode} onChange={e => setCustomerForm(f => ({ ...f, customerCode: e.target.value }))} placeholder="Ex.: 98216" />
                     <p className="text-xs text-muted-foreground">Se informado, o acesso é criado automaticamente: login e senha = código.</p>
                   </div>
+                  <div className="grid gap-2 pt-2 border-t">
+                    <Label className="text-sm font-semibold">Acesso do Cliente</Label>
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Usuário</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={customerForm.loginUser}
+                          onChange={e => setCustomerForm(f => ({ ...f, loginUser: e.target.value }))}
+                          placeholder="ex.: ervadoce"
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">{storeLoginSuffix}</span>
+                      </div>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs">Senha (mín. 6)</Label>
+                      <Input
+                        value={customerForm.loginPassword}
+                        onChange={e => setCustomerForm(f => ({ ...f, loginPassword: e.target.value }))}
+                        placeholder="mínimo 6 caracteres"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Informe estes dados ao cliente. Ele acessa a loja pela aba "Código ou Usuário" e o pedido já sai vinculado ao representante deste cadastro.
+                    </p>
+                  </div>
                   <div className="grid gap-1">
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
@@ -2675,16 +2762,25 @@ export default function StoreAdminPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
                   <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
                     try {
                       const codigo = customerForm.customerCode.trim();
-                      if (codigo) {
+                      const login = sanitizeLogin(customerForm.loginUser);
+                      const senha = customerForm.loginPassword.trim();
+                      if (login || senha) {
+                        if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                        if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                      }
+                      if (codigo || login) {
                         const dup = (customerProfiles as any[]).find((c) => String(c.customerCode || '').trim() === codigo);
-                        if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
+                        if (codigo && dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         await createCustomerAccess({ storeId: store.id, codigo, form: customerForm });
-                        toast.success(`Cliente criado! Login: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                        toast.success(
+                          `Cliente criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                          { duration: 10000 },
+                        );
                       } else {
                         await createCustomerProfile.mutateAsync({ storeId: store.id, ...customerForm });
                         toast.success('Cliente criado!');

@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => ({
         // Mantém as notificações push (handlers movidos para /push-sw.js)
         importScripts: ["/push-sw.js"],
         globPatterns: ["**/*.{js,css,ico,png,svg,woff2}", "index.html"],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/~oauth/],
         cleanupOutdatedCaches: true,

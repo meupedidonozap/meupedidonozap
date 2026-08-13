@@ -18,6 +18,10 @@ interface RowInput {
   numero?: string;
   complemento?: string;
   codigo_vendedor?: string;
+  /** Login personalizado (usuário) — quando informado substitui o código no e-mail interno */
+  login?: string;
+  /** Senha personalizada (mínimo 6) */
+  senha?: string;
 }
 
 function buildEmail(codigo: string, slug: string) {
@@ -88,6 +92,7 @@ Deno.serve(async (req) => {
       status: 'created' | 'updated' | 'skipped' | 'error';
       senha?: string;
       email?: string;
+      user_id?: string | null;
       erro?: string;
     }> = [];
 
@@ -97,28 +102,39 @@ Deno.serve(async (req) => {
       try {
         const codigo = String(row.codigo || '').trim();
         const nome = String(row.nome || '').trim();
-        if (!codigo) {
-          results.push({ codigo: '', nome, status: 'error', erro: 'Código vazio' });
+        const loginRaw = String(row.login || '').trim();
+        const senhaRaw = String(row.senha || '').trim();
+        if (!codigo && !loginRaw) {
+          results.push({ codigo: '', nome, status: 'error', erro: 'Código ou usuário obrigatório' });
           continue;
         }
         if (!nome) {
           results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
           continue;
         }
+        if (senhaRaw && senhaRaw.length < 6) {
+          results.push({ codigo, nome, status: 'error', erro: 'Senha deve ter no mínimo 6 caracteres' });
+          continue;
+        }
 
-        const email = buildEmail(codigo, slug);
-        const password = buildPassword(codigo);
+        const identity = loginRaw || codigo;
+        const email = buildEmail(identity, slug);
+        const password = senhaRaw || buildPassword(identity);
 
       let userId: string | null = null;
       let action: 'created' | 'updated' = 'created';
 
       // 1) try by customer_code
-      let { data: existingProfile } = await admin
-        .from('customer_profiles')
-        .select('id, user_id, customer_code, cpf_cnpj')
-        .eq('store_id', storeId)
-        .eq('customer_code', codigo)
-        .maybeSingle();
+      let existingProfile: any = null;
+      if (codigo) {
+        const { data: byCode } = await admin
+          .from('customer_profiles')
+          .select('id, user_id, customer_code, cpf_cnpj')
+          .eq('store_id', storeId)
+          .eq('customer_code', codigo)
+          .maybeSingle();
+        existingProfile = byCode;
+      }
 
       // 2) fallback: by cpf_cnpj (digits) when not found
       const rowCpfDigits = onlyDigits(String(row.cpf_cnpj || ''));
@@ -142,13 +158,16 @@ Deno.serve(async (req) => {
       } else if (existingProfile?.user_id) {
         userId = existingProfile.user_id;
         action = 'updated';
+        if (senhaRaw) {
+          await admin.auth.admin.updateUserById(userId!, { password: senhaRaw });
+        }
       } else {
         // try create auth user
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
           email,
           password,
           email_confirm: true,
-          user_metadata: { customer_code: codigo, store_id: storeId },
+          user_metadata: { customer_code: codigo, login: loginRaw || undefined, store_id: storeId },
         });
         if (createErr) {
           const msg = (createErr.message || '').toLowerCase();
@@ -162,6 +181,10 @@ Deno.serve(async (req) => {
             }
             if (!found) {
               results.push({ codigo, nome, status: 'error', erro: 'Usuário existe mas não foi localizado' });
+              continue;
+            }
+            if (loginRaw) {
+              results.push({ codigo, nome, status: 'error', erro: 'Este usuário já está em uso. Escolha outro.' });
               continue;
             }
             userId = found.id;
@@ -181,10 +204,10 @@ Deno.serve(async (req) => {
         action = 'updated';
         const updatePayload: Record<string, any> = {
           user_id: userId,
-          customer_code: codigo,
           name: nome,
           is_active: true,
         };
+        if (codigo) updatePayload.customer_code = codigo;
         const setIf = (key: string, val: any) => {
           if (val !== undefined && val !== null && String(val).trim() !== '') {
             updatePayload[key] = String(val);
@@ -215,7 +238,7 @@ Deno.serve(async (req) => {
         const profilePayload = {
           store_id: storeId,
           user_id: userId,
-          customer_code: codigo,
+          customer_code: codigo || '',
           name: nome,
           cpf_cnpj: row.cpf_cnpj?.toString() || '',
           whatsapp: row.whatsapp?.toString() || '',
@@ -238,7 +261,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      results.push({ codigo, nome, status: action, email, senha: password });
+      results.push({ codigo, nome, status: action, email, senha: password, user_id: userId });
 
       // Propagar dados do ERP para qualquer cadastro "irmão" no mesmo telefone
       // Pulado em modo update (não afetar clientes existentes).
