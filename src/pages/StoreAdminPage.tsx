@@ -2580,9 +2580,9 @@ export default function StoreAdminPage() {
             {/* Edit customer dialog */}
             {editingCustomer && (
               <Dialog open={!!editingCustomer} onOpenChange={(v) => { if (!v) setEditingCustomer(null); }}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
                   <DialogHeader><DialogTitle>Editar Cliente</DialogTitle></DialogHeader>
-                  <div className="grid gap-3 py-2">
+                  <div className="grid gap-3 py-2 overflow-y-auto pr-1 flex-1">
                     <div className="grid gap-1"><Label className="text-sm">Nome</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
                     <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
                     <div className="grid grid-cols-2 gap-2">
@@ -2611,6 +2611,39 @@ export default function StoreAdminPage() {
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                     <div className="grid gap-1"><Label className="text-sm">Inscrição Estadual</Label><Input value={customerForm.ie} onChange={e => setCustomerForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE ou ISENTO" /></div>
+                    <div className="grid gap-2 pt-2 border-t">
+                      <Label className="text-sm font-semibold">Acesso do Cliente</Label>
+                      {editingCustomer?.userId ? (
+                        <p className="text-xs text-muted-foreground">
+                          Este cliente já possui acesso. Para trocar a senha, use o botão de chave na lista.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Usuário</Label>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={customerForm.loginUser}
+                                onChange={e => setCustomerForm(f => ({ ...f, loginUser: e.target.value }))}
+                                placeholder="ex.: ervadoce"
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{storeLoginSuffix}</span>
+                            </div>
+                          </div>
+                          <div className="grid gap-1">
+                            <Label className="text-xs">Senha (mín. 6)</Label>
+                            <Input
+                              value={customerForm.loginPassword}
+                              onChange={e => setCustomerForm(f => ({ ...f, loginPassword: e.target.value }))}
+                              placeholder="mínimo 6 caracteres"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Informe estes dados ao cliente. Ele acessa a loja pela aba "Código ou Usuário" e o pedido já sai vinculado ao representante deste cadastro.
+                          </p>
+                        </>
+                      )}
+                    </div>
                     <div className="grid gap-1">
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
@@ -2626,11 +2659,17 @@ export default function StoreAdminPage() {
                       </Select>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
                     <Button onClick={async () => {
                       try {
                         const codigo = customerForm.customerCode.trim();
+                        const login = sanitizeLogin(customerForm.loginUser);
+                        const senha = customerForm.loginPassword.trim();
+                        if (!editingCustomer.userId && (login || senha)) {
+                          if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                          if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                        }
                         if (codigo) {
                           const dup = (customerProfiles as any[]).find(
                             (c) => String(c.customerCode || '').trim() === codigo && c.id !== editingCustomer.id
@@ -2638,9 +2677,12 @@ export default function StoreAdminPage() {
                           if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
-                        if (codigo && !editingCustomer.userId) {
-                          await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
-                          toast.success(`Acesso criado! Código: ${codigo} · Senha: ${initialCodePassword(codigo)}`, { duration: 10000 });
+                        if (!editingCustomer.userId && (codigo || login)) {
+                          const res = await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
+                          toast.success(
+                            `Acesso criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                            { duration: 10000 },
+                          );
                         } else {
                           toast.success('Cliente atualizado!');
                         }
