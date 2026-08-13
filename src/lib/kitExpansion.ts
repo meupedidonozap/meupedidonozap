@@ -92,3 +92,35 @@ export function expandKitItems(items: CartItem[], kitMap: KitMap | undefined | n
   }
   return out;
 }
+
+/**
+ * Agrupa linhas com o mesmo código (mesma cor/tamanho) numa única linha:
+ * soma as quantidades e usa a média ponderada dos preços efetivos.
+ * O preço unitário é ajustado para preservar o total somado.
+ * Usado apenas nas saídas de transmissão (XML/TXT/Bling).
+ */
+export function mergeItemsByCode(items: CartItem[]): CartItem[] {
+  if (!items?.length) return items || [];
+  const map = new Map<string, { item: CartItem; qty: number; totalCents: number }>();
+  const order: string[] = [];
+  for (const item of items) {
+    const discPct = Number((item as any).discountPercent) || 0;
+    const unit = discPct > 0 ? (Number(item.price) || 0) * (1 - discPct / 100) : (Number(item.price) || 0);
+    const qty = Number(item.quantity) || 0;
+    const key = `${item.code || ''}|${item.color || ''}|${item.size || ''}`;
+    const cents = Math.round(unit * qty * 100);
+    const found = map.get(key);
+    if (found) {
+      found.qty += qty;
+      found.totalCents += cents;
+    } else {
+      map.set(key, { item, qty, totalCents: cents });
+      order.push(key);
+    }
+  }
+  return order.map(key => {
+    const { item, qty, totalCents } = map.get(key)!;
+    const unit = qty > 0 ? round2(totalCents / 100 / qty) : 0;
+    return { ...item, price: unit, quantity: qty, discountPercent: 0 } as CartItem;
+  });
+}
