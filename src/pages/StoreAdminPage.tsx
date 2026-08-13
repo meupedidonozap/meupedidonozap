@@ -2437,7 +2437,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4, customerCode: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4, customerCode: '', loginUser: '', loginPassword: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2497,6 +2497,8 @@ export default function StoreAdminPage() {
                               ie: (cp as any).ie || '',
                               priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
                               customerCode: (cp as any).customerCode || '',
+                              loginUser: '',
+                              loginPassword: '',
                             });
                           }}>
                             <Edit2 className="h-4 w-4" />
