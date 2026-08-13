@@ -194,6 +194,10 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    if (isSellerMode && !selectedCustomer) {
+      toast.error('Selecione o cliente antes de finalizar o pedido');
+      return false;
+    }
     const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
     const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
