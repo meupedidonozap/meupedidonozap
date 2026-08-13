@@ -183,6 +183,10 @@ Deno.serve(async (req) => {
               results.push({ codigo, nome, status: 'error', erro: 'Usuário existe mas não foi localizado' });
               continue;
             }
+            if (loginRaw) {
+              results.push({ codigo, nome, status: 'error', erro: 'Este usuário já está em uso. Escolha outro.' });
+              continue;
+            }
             userId = found.id;
             action = 'updated';
             await admin.auth.admin.updateUserById(userId!, { password });
