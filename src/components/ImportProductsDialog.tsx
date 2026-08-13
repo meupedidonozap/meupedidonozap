@@ -521,17 +521,22 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
     const total = validRows.length;
     let processed = 0;
 
+    const has = (f: string) => presentFields.has(f);
+
     for (const r of updates) {
-      const { error } = await supabase.from('products').update({
-        name: r.name,
-        description: r.description,
-        category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
-        base_price: r.price,
-        price_table_1: r.price1,
-        price_table_4: r.price,
-        price_table_9: r.price9,
-        is_active: r.active,
-      }).eq('id', r.existingId!);
+      const patch: Record<string, unknown> = { name: r.name };
+      if (has('description')) patch.description = r.description;
+      if (has('category')) patch.category_id = categoryMap.get(r.category.toLowerCase().trim()) || null;
+      if (has('group')) patch.group_id = r.group || null;
+      if (has('unit')) patch.unit = r.unit || 'Un';
+      if (has('price')) { patch.base_price = r.price; patch.price_table_4 = r.price; }
+      if (has('price1')) patch.price_table_1 = r.price1;
+      if (has('price9')) patch.price_table_9 = r.price9;
+      if (has('priceRes')) patch.price_table_res = r.priceRes;
+      if (has('stock')) patch.stock = r.stock;
+      if (has('active')) patch.is_active = r.active;
+
+      const { error } = await supabase.from('products').update(patch).eq('id', r.existingId!);
 
       if (error) errors++; else updated++;
       processed++;
@@ -547,10 +552,14 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         name: r.name,
         description: r.description,
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
+        group_id: r.group || null,
+        unit: r.unit || 'Un',
         base_price: r.price,
         price_table_1: r.price1,
         price_table_4: r.price,
         price_table_9: r.price9,
+        price_table_res: has('priceRes') ? r.priceRes : null,
+        stock: r.stock,
         is_active: r.active,
         has_variants: false,
       }));
@@ -568,7 +577,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
     if (updated > 0) toast.success(`${updated} produto(s) atualizado(s)!`);
     if (inserted > 0) toast.success(`${inserted} produto(s) novo(s) importado(s)!`);
     if (errors > 0) toast.error(`${errors} produto(s) com erro.`);
-  }, [rows, categories, storeId, qc]);
+  }, [rows, categories, storeId, qc, presentFields]);
 
   const handleImport = isAccessories ? handleImportAccessories : handleImportSimple;
 
