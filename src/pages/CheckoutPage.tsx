@@ -5,7 +5,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerCustomerDialog from '@/components/SellerCustomerDialog';
 import { useStoreSellers } from '@/hooks/useStoreSellers';
