@@ -735,7 +735,7 @@ function SimplePreviewTable({ rows }: { rows: ParsedRow[] }) {
             <TableCell className="font-mono text-sm">{row.code || '-'}</TableCell>
             <TableCell>{row.name || <span className="text-destructive">Vazio</span>}</TableCell>
             <TableCell>{row.category || '-'}</TableCell>
-            <TableCell>{row.price > 0 ? formatCurrency(row.price) : <span className="text-destructive">Inválido</span>}</TableCell>
+            <TableCell>{formatCurrency(row.price)}</TableCell>
             <TableCell>{formatCurrency(row.price1)}</TableCell>
             <TableCell>{formatCurrency(row.price9)}</TableCell>
             <TableCell>{row.active ? 'Sim' : 'Não'}</TableCell>
