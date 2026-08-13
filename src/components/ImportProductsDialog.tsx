@@ -32,9 +32,13 @@ interface ParsedRow {
   name: string;
   description: string;
   category: string;
+  group: string;
+  unit: string;
   price: number;
   price1: number;
   price9: number;
+  priceRes: number;
+  stock: number;
   active: boolean;
   valid: boolean;
   error?: string;
@@ -88,6 +92,16 @@ const COLUMN_MAP: Record<string, string> = {
   'preco 9': 'price9',
   tabela9: 'price9',
   'tabela 9': 'price9',
+  precores: 'priceRes',
+  'preco res': 'priceRes',
+  'preco reservado': 'priceRes',
+  tabelares: 'priceRes',
+  'tabela res': 'priceRes',
+  grupo: 'group',
+  group: 'group',
+  unidade: 'unit',
+  unit: 'unit',
+  un: 'unit',
   ativo: 'active',
   active: 'active',
   cor: 'color',
@@ -212,7 +226,7 @@ function parseSimpleRows(
     const price9Raw = parsePrice(getField(row, headerMap, 'price9'));
     const price1 = price1Raw > 0 ? price1Raw : price;
     const price9 = price9Raw > 0 ? price9Raw : price;
-    const valid = !!name && price > 0;
+    const valid = !!name;
     const existingId = code ? codeMap.get(code.toLowerCase().trim()) : undefined;
 
     return {
@@ -220,12 +234,16 @@ function parseSimpleRows(
       name,
       description: String(getField(row, headerMap, 'description') || '').trim(),
       category: String(getField(row, headerMap, 'category') || '').trim(),
+      group: String(getField(row, headerMap, 'group') || '').trim(),
+      unit: String(getField(row, headerMap, 'unit') || '').trim(),
       price,
       price1,
       price9,
+      priceRes: parsePrice(getField(row, headerMap, 'priceRes')),
+      stock: parseStock(getField(row, headerMap, 'stock')),
       active: parseActive(getField(row, headerMap, 'active')),
       valid,
-      error: !name ? 'Nome obrigatório' : price <= 0 ? 'Preço inválido' : undefined,
+      error: !name ? 'Nome obrigatório' : undefined,
       action: existingId ? 'update' as const : 'insert' as const,
       existingId,
     };
@@ -266,6 +284,65 @@ function downloadTemplate(isAccessories: boolean) {
   XLSX.writeFile(wb, 'modelo_importacao_produtos.xlsx');
 }
 
+// ── Export current products ──
+
+async function downloadCurrentProducts(storeId: string, categories: Category[], isAccessories: boolean) {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, product_variants(*)')
+    .eq('store_id', storeId)
+    .order('code', { ascending: true });
+
+  if (error) {
+    toast.error('Erro ao buscar produtos: ' + error.message);
+    return;
+  }
+  if (!data?.length) {
+    toast.error('Nenhum produto cadastrado nesta loja.');
+    return;
+  }
+
+  const catName = new Map(categories.map(c => [c.id, c.name]));
+
+  const base = (p: any) => ({
+    Codigo: p.code || '',
+    Nome: p.name || '',
+    Descricao: p.description || '',
+    Categoria: p.category_id ? (catName.get(p.category_id) || '') : '',
+    Grupo: p.group_id || '',
+    Unidade: p.unit || 'Un',
+    Preco1: Number(p.price_table_1 ?? 0),
+    Preco: Number(p.price_table_4 ?? p.base_price ?? 0),
+    Preco9: Number(p.price_table_9 ?? 0),
+    PrecoRes: p.price_table_res != null ? Number(p.price_table_res) : 0,
+    Estoque: Number(p.stock ?? 0),
+    Ativo: p.is_active ? 'Sim' : 'Nao',
+    Kit: p.is_kit ? 'Sim' : 'Nao',
+  });
+
+  const rows: any[] = [];
+  for (const p of data) {
+    const variants = (p as any).product_variants || [];
+    if (isAccessories && variants.length > 0) {
+      for (const v of variants) {
+        rows.push({ ...base(p), Cor: v.color || '', Tamanho: v.size || '', SKU: v.sku || '', Estoque: Number(v.stock ?? 0), Preco: Number(v.price ?? 0) });
+      }
+    } else if (isAccessories) {
+      rows.push({ ...base(p), Cor: '', Tamanho: '', SKU: '' });
+    } else {
+      rows.push(base(p));
+    }
+  }
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length + 2, 14) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `produtos_salvos_${stamp}.xlsx`);
+  toast.success(`${rows.length} linha(s) exportada(s).`);
+}
+
 // ── Main component ──
 
 export default function ImportProductsDialog({ open, onOpenChange, storeId, categories, storeType }: ImportProductsDialogProps) {
@@ -279,6 +356,8 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [presentFields, setPresentFields] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
   const [result, setResult] = useState<{ updated: number; inserted: number; errors: number } | null>(null);
 
   const hasData = isAccessories ? groups.length > 0 : rows.length > 0;
@@ -288,6 +367,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
     setGroups([]);
     setImporting(false);
     setProgress(0);
+    setPresentFields(new Set());
     setResult(null);
   }, []);
 
@@ -322,6 +402,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         }
 
         const headerMap = buildHeaderMap(Object.keys(json[0]));
+        setPresentFields(new Set(Object.values(headerMap)));
 
         if (isAccessories) {
           setGroups(groupRowsIntoProducts(json, headerMap, codeMap));
@@ -440,17 +521,22 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
     const total = validRows.length;
     let processed = 0;
 
+    const has = (f: string) => presentFields.has(f);
+
     for (const r of updates) {
-      const { error } = await supabase.from('products').update({
-        name: r.name,
-        description: r.description,
-        category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
-        base_price: r.price,
-        price_table_1: r.price1,
-        price_table_4: r.price,
-        price_table_9: r.price9,
-        is_active: r.active,
-      }).eq('id', r.existingId!);
+      const patch: Record<string, unknown> = { name: r.name };
+      if (has('description')) patch.description = r.description;
+      if (has('category')) patch.category_id = categoryMap.get(r.category.toLowerCase().trim()) || null;
+      if (has('group')) patch.group_id = r.group || null;
+      if (has('unit')) patch.unit = r.unit || 'Un';
+      if (has('price')) { patch.base_price = r.price; patch.price_table_4 = r.price; }
+      if (has('price1')) patch.price_table_1 = r.price1;
+      if (has('price9')) patch.price_table_9 = r.price9;
+      if (has('priceRes')) patch.price_table_res = r.priceRes;
+      if (has('stock')) patch.stock = r.stock;
+      if (has('active')) patch.is_active = r.active;
+
+      const { error } = await supabase.from('products').update(patch).eq('id', r.existingId!);
 
       if (error) errors++; else updated++;
       processed++;
@@ -466,10 +552,14 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         name: r.name,
         description: r.description,
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
+        group_id: r.group || null,
+        unit: r.unit || 'Un',
         base_price: r.price,
         price_table_1: r.price1,
         price_table_4: r.price,
         price_table_9: r.price9,
+        price_table_res: has('priceRes') ? r.priceRes : null,
+        stock: r.stock,
         is_active: r.active,
         has_variants: false,
       }));
@@ -487,7 +577,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
     if (updated > 0) toast.success(`${updated} produto(s) atualizado(s)!`);
     if (inserted > 0) toast.success(`${inserted} produto(s) novo(s) importado(s)!`);
     if (errors > 0) toast.error(`${errors} produto(s) com erro.`);
-  }, [rows, categories, storeId, qc]);
+  }, [rows, categories, storeId, qc, presentFields]);
 
   const handleImport = isAccessories ? handleImportAccessories : handleImportSimple;
 
@@ -515,7 +605,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const description = isAccessories
     ? 'Colunas: Código, Nome, Descrição, Categoria, Preço, Cor, Tamanho, Estoque, SKU, Ativo. Linhas com o mesmo Código serão agrupadas como variantes.'
-    : 'Selecione um arquivo .xlsx ou .xls com as colunas: Código, Nome, Descrição, Categoria, Preço (tabela 4 - varejo), Preco1 (atacado), Preco9 (atacado), Ativo. Preco1 e Preco9 são opcionais — se vazios, usam o valor de Preço. Produtos com código existente serão atualizados automaticamente.';
+    : 'Estrutura completa: Codigo, Nome, Descricao, Categoria, Grupo, Unidade, Preco1, Preco (tabela 4), Preco9, PrecoRes, Estoque, Ativo, Kit. Colunas ausentes na planilha não alteram o valor atual do produto. Produtos com código existente são atualizados; códigos novos são criados. Use "Baixar Produtos Salvos" para editar em massa.';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) { onOpenChange(v); if (!v) reset(); } }}>
@@ -537,9 +627,15 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
               </p>
             </div>
             <DialogFooter className="flex justify-between items-center">
-              <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
-                <Download className="h-4 w-4" /> Baixar Modelo
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                  <Download className="h-4 w-4" /> Baixar Modelo
+                </Button>
+                <Button variant="outline" className="gap-1" disabled={exporting}
+                  onClick={async () => { setExporting(true); await downloadCurrentProducts(storeId, categories, isAccessories); setExporting(false); }}>
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Baixar Produtos Salvos
+                </Button>
+              </div>
               <Button onClick={() => { reset(); onOpenChange(false); }}>Fechar</Button>
             </DialogFooter>
           </>
@@ -585,9 +681,15 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
             )}
 
             <DialogFooter className="flex justify-between items-center">
-              <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
-                <Download className="h-4 w-4" /> Baixar Modelo
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                  <Download className="h-4 w-4" /> Baixar Modelo
+                </Button>
+                <Button variant="outline" className="gap-1" disabled={exporting}
+                  onClick={async () => { setExporting(true); await downloadCurrentProducts(storeId, categories, isAccessories); setExporting(false); }}>
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Baixar Produtos Salvos
+                </Button>
+              </div>
               {hasData && !importing && (
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={reset}>Trocar Arquivo</Button>
@@ -633,7 +735,7 @@ function SimplePreviewTable({ rows }: { rows: ParsedRow[] }) {
             <TableCell className="font-mono text-sm">{row.code || '-'}</TableCell>
             <TableCell>{row.name || <span className="text-destructive">Vazio</span>}</TableCell>
             <TableCell>{row.category || '-'}</TableCell>
-            <TableCell>{row.price > 0 ? formatCurrency(row.price) : <span className="text-destructive">Inválido</span>}</TableCell>
+            <TableCell>{formatCurrency(row.price)}</TableCell>
             <TableCell>{formatCurrency(row.price1)}</TableCell>
             <TableCell>{formatCurrency(row.price9)}</TableCell>
             <TableCell>{row.active ? 'Sim' : 'Não'}</TableCell>
