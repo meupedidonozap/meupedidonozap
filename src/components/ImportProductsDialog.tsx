@@ -356,6 +356,8 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [presentFields, setPresentFields] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
   const [result, setResult] = useState<{ updated: number; inserted: number; errors: number } | null>(null);
 
   const hasData = isAccessories ? groups.length > 0 : rows.length > 0;
@@ -365,6 +367,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
     setGroups([]);
     setImporting(false);
     setProgress(0);
+    setPresentFields(new Set());
     setResult(null);
   }, []);
 
@@ -399,6 +402,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         }
 
         const headerMap = buildHeaderMap(Object.keys(json[0]));
+        setPresentFields(new Set(Object.values(headerMap)));
 
         if (isAccessories) {
           setGroups(groupRowsIntoProducts(json, headerMap, codeMap));
