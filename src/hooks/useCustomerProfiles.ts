@@ -74,7 +74,7 @@ export function useCreateCustomerProfileAdmin() {
       priceTable?: 1 | 4 | 9;
       customerCode?: string;
     }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('customer_profiles')
         .insert({
           store_id: params.storeId,
@@ -93,8 +93,11 @@ export function useCreateCustomerProfileAdmin() {
           ie: params.ie || null,
           price_table: params.priceTable ?? 4,
           customer_code: params.customerCode?.trim() || '',
-        } as any);
+        } as any)
+        .select()
+        .single();
       if (error) throw error;
+      return mapProfile(data);
     },
     onSuccess: (_, params) => {
       qc.invalidateQueries({ queryKey: ['store-customer-profiles', params.storeId] });
