@@ -352,6 +352,12 @@ export interface CustomerInfo {
   paymentFormaDescricao?: string;
   paymentCondicaoCodigo?: string;
   paymentCondicaoDescricao?: string;
+  // Pedido emitido por vendedor em nome do cliente (Modo Vendedor)
+  customerCode?: string;
+  sellerCode?: string;
+  ie?: string;
+  transportadora?: string;
+  sellerUserName?: string;
 }
 
 export interface Order {
