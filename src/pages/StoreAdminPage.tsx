@@ -596,6 +596,10 @@ export default function StoreAdminPage() {
 
   const handleSyncPrices = async () => {
     if (!store) return;
+    if (store.slug === 'dicoloresenses') {
+      toast.error('Atualização de preços desabilitada para esta loja');
+      return;
+    }
     setSyncingPrices(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-prices', {
