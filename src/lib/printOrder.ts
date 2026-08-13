@@ -42,6 +42,9 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
       const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
       const itemTotal = discountedPrice * item.quantity;
       const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
+      const kitLine = (item as any).kitParentName
+        ? `<div style="padding-left:16px">KIT ${(item as any).kitParentCode || ''}${(item as any).kitParentCode ? ' - ' : ''}${(item as any).kitParentName}</div>`
+        : '';
       const variantParts: string[] = [];
       if (item.size) variantParts.push(`Tam: ${item.size}`);
       if (item.color) variantParts.push(`Cor: ${item.color}`);
@@ -68,6 +71,7 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
         <div style="margin-bottom:6px">
           <div><strong>${i + 1})</strong> ${item.name}</div>
           ${codeLine}
+          ${kitLine}
           ${variantLine}
           ${ingLine}
           ${remLine}
