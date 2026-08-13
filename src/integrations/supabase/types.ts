@@ -846,9 +846,10 @@ export type Database = {
           endpoint: string
           id: string
           is_active: boolean
+          kind: string
           last_used_at: string
           p256dh: string
-          seller_id: string
+          seller_id: string | null
           store_id: string
           user_agent: string | null
           user_id: string | null
@@ -859,9 +860,10 @@ export type Database = {
           endpoint: string
           id?: string
           is_active?: boolean
+          kind?: string
           last_used_at?: string
           p256dh: string
-          seller_id: string
+          seller_id?: string | null
           store_id: string
           user_agent?: string | null
           user_id?: string | null
@@ -872,9 +874,10 @@ export type Database = {
           endpoint?: string
           id?: string
           is_active?: boolean
+          kind?: string
           last_used_at?: string
           p256dh?: string
-          seller_id?: string
+          seller_id?: string | null
           store_id?: string
           user_agent?: string | null
           user_id?: string | null
@@ -1553,17 +1556,30 @@ export type Database = {
         Args: { _store_id: string; _user_id: string }
         Returns: boolean
       }
-      upsert_push_subscription: {
-        Args: {
-          p_auth: string
-          p_endpoint: string
-          p_p256dh: string
-          p_seller_id: string
-          p_store_id: string
-          p_user_agent: string
-        }
-        Returns: string
-      }
+      upsert_push_subscription:
+        | {
+            Args: {
+              p_auth: string
+              p_endpoint: string
+              p_p256dh: string
+              p_seller_id: string
+              p_store_id: string
+              p_user_agent: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_auth: string
+              p_endpoint: string
+              p_kind?: string
+              p_p256dh: string
+              p_seller_id: string
+              p_store_id: string
+              p_user_agent: string
+            }
+            Returns: string
+          }
       validate_coupon: {
         Args: { _code: string; _store_id: string; _subtotal: number }
         Returns: Json
