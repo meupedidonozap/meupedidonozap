@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
+import PendingOrdersCard from '@/components/PendingOrdersCard';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
