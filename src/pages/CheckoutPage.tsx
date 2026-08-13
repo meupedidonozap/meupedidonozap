@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
+import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
