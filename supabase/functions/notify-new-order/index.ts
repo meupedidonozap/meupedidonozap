@@ -63,30 +63,41 @@ Deno.serve(async (req) => {
       sellerCode = ((cps || []).find((c: any) => (c.seller_code || "").trim() !== "")?.seller_code || "").trim();
     }
 
-    if (!sellerCode) {
-      return new Response(JSON.stringify({ ok: true, skipped: "no seller_code" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Recipients (vendedor + televendas) quando houver seller_code
+    let sellerIds: string[] = [];
+    if (sellerCode) {
+      const { data: recipients, error: rErr } = await supabase.rpc("get_order_recipients", {
+        p_store_id: order.store_id,
+        p_seller_code: sellerCode,
+      });
+      if (rErr) throw rErr;
+      sellerIds = (recipients || []).map((r: any) => r.id);
     }
 
-    // Recipients (vendedor + televendas)
-    const { data: recipients, error: rErr } = await supabase.rpc("get_order_recipients", {
-      p_store_id: order.store_id,
-      p_seller_code: sellerCode,
-    });
-    if (rErr) throw rErr;
-    const sellerIds = (recipients || []).map((r: any) => r.id);
-    if (sellerIds.length === 0) {
-      return new Response(JSON.stringify({ ok: true, skipped: "no recipients" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Push subscriptions: vendedores da carteira + todos os admins da loja
+    const byEndpoint = new Map<string, any>();
+
+    if (sellerIds.length > 0) {
+      const { data: sellerSubs } = await supabase
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .eq("store_id", order.store_id)
+        .in("seller_id", sellerIds)
+        .eq("is_active", true);
+      for (const s of sellerSubs || []) byEndpoint.set((s as any).endpoint, s);
     }
 
-    // Push subscriptions
-    const { data: subs } = await supabase
+    const { data: adminSubs } = await supabase
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth")
       .eq("store_id", order.store_id)
-      .in("seller_id", sellerIds)
+      .eq("kind", "admin")
       .eq("is_active", true);
+    for (const s of adminSubs || []) byEndpoint.set((s as any).endpoint, s);
 
-    if (!subs || subs.length === 0) {
+    const subs = Array.from(byEndpoint.values());
+
+    if (subs.length === 0) {
       return new Response(JSON.stringify({ ok: true, recipients: sellerIds.length, sent: 0, skipped: "no subscriptions" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
