@@ -42,6 +42,9 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
       const discountedPrice = discPct > 0 ? item.price * (1 - discPct / 100) : item.price;
       const itemTotal = discountedPrice * item.quantity;
       const codeLine = item.code ? `<div style="padding-left:16px">Cod: ${item.code}</div>` : '';
+      const kitLine = (item as any).kitParentName
+        ? `<div style="padding-left:16px">KIT ${(item as any).kitParentCode || ''}${(item as any).kitParentCode ? ' - ' : ''}${(item as any).kitParentName}</div>`
+        : '';
       const variantParts: string[] = [];
       if (item.size) variantParts.push(`Tam: ${item.size}`);
       if (item.color) variantParts.push(`Cor: ${item.color}`);
@@ -68,6 +71,7 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
         <div style="margin-bottom:6px">
           <div><strong>${i + 1})</strong> ${item.name}</div>
           ${codeLine}
+          ${kitLine}
           ${variantLine}
           ${ingLine}
           ${remLine}
@@ -173,6 +177,9 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
         ? `<span style="text-decoration:line-through;color:#999;font-size:10px">${formatCurrency(item.price)}</span><br/><strong style="color:#e67e22">${formatCurrency(discountedPrice)} (-${discPct}%)</strong>`
         : formatCurrency(item.price);
       const extras: string[] = [];
+      const kitParentName = (item as any).kitParentName;
+      const kitParentCode = (item as any).kitParentCode;
+      if (kitParentName) extras.push(`KIT ${kitParentCode ? kitParentCode + ' - ' : ''}${kitParentName}`);
       if (item.size) extras.push('Tamanho: ' + item.size);
       if (item.color) extras.push('Cor: ' + item.color);
       if (item.ingredients?.length) extras.push('+ ' + item.ingredients.map(x => x.name).join(', '));
