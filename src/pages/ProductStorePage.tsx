@@ -30,7 +30,6 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
