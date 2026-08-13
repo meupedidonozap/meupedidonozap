@@ -226,7 +226,7 @@ function parseSimpleRows(
     const price9Raw = parsePrice(getField(row, headerMap, 'price9'));
     const price1 = price1Raw > 0 ? price1Raw : price;
     const price9 = price9Raw > 0 ? price9Raw : price;
-    const valid = !!name && price > 0;
+    const valid = !!name;
     const existingId = code ? codeMap.get(code.toLowerCase().trim()) : undefined;
 
     return {
@@ -234,12 +234,16 @@ function parseSimpleRows(
       name,
       description: String(getField(row, headerMap, 'description') || '').trim(),
       category: String(getField(row, headerMap, 'category') || '').trim(),
+      group: String(getField(row, headerMap, 'group') || '').trim(),
+      unit: String(getField(row, headerMap, 'unit') || '').trim(),
       price,
       price1,
       price9,
+      priceRes: parsePrice(getField(row, headerMap, 'priceRes')),
+      stock: parseStock(getField(row, headerMap, 'stock')),
       active: parseActive(getField(row, headerMap, 'active')),
       valid,
-      error: !name ? 'Nome obrigatório' : price <= 0 ? 'Preço inválido' : undefined,
+      error: !name ? 'Nome obrigatório' : undefined,
       action: existingId ? 'update' as const : 'insert' as const,
       existingId,
     };
