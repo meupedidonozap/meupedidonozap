@@ -5,7 +5,9 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomerProfile, useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
+import SellerCustomerDialog from '@/components/SellerCustomerDialog';
 import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
@@ -54,7 +56,14 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
-  const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const {
+    profile: customerProfile,
+    isSellerMode,
+    selectedCustomer,
+    selectCustomer,
+    seller,
+  } = useActiveCustomerProfile(store?.id);
+  const sellerOrder = isSellerMode && !!selectedCustomer;
   const { data: sellers = [] } = useStoreSellers(store?.id);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, customerProfile?.priceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
@@ -80,6 +89,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+  const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
 
   // Dicolore ERP payment codes
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
@@ -114,6 +124,11 @@ export default function CheckoutPage() {
       setProfileLoaded(true);
     }
   }, [customerProfile, profileLoaded]);
+
+  // Ao trocar o cliente no Modo Vendedor, recarrega os dados no formulário
+  useEffect(() => {
+    setProfileLoaded(false);
+  }, [selectedCustomer?.id]);
 
   // Auto-select the only available recipient (e.g. customer has just one linked seller)
   useEffect(() => {
@@ -179,6 +194,10 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    if (isSellerMode && !selectedCustomer) {
+      toast.error('Selecione o cliente antes de finalizar o pedido');
+      return false;
+    }
     const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
     const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
@@ -191,7 +210,7 @@ export default function CheckoutPage() {
       toast.error('Selecione o bairro de entrega');
       return false;
     }
-    if (recipientOptions.length > 0 && !selectedSellerId) {
+    if (recipientOptions.length > 0 && !sellerOrder && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
@@ -352,8 +371,9 @@ export default function CheckoutPage() {
         formData.observations || '',
       ].filter(Boolean).join(' ').trim();
 
-      // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes)
-      try {
+      // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes).
+      // No Modo Vendedor não sobrescrevemos o cadastro do cliente escolhido.
+      if (!sellerOrder) try {
         await upsertProfile.mutateAsync({
           userId: user.id,
           storeId: store.id,
@@ -382,6 +402,13 @@ export default function CheckoutPage() {
           address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
+          ...(sellerOrder ? {
+            customerCode: selectedCustomer?.customerCode || undefined,
+            sellerCode: selectedCustomer?.sellerCode || undefined,
+            ie: selectedCustomer?.ie || undefined,
+            transportadora: selectedCustomer?.transportadora || undefined,
+            sellerUserName: seller.sellerName || undefined,
+          } : {}),
           ...(dicolore ? {
             paymentFormaCodigo: paymentFormaCodigo || undefined,
             paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
@@ -404,7 +431,14 @@ export default function CheckoutPage() {
         deliveryShift: formData.deliveryShift,
         observations: observationsFinal || undefined,
         status: 'pendente',
-      });
+        ...(sellerOrder ? { origem: 'vendedor' } : {}),
+      } as any);
+
+      if (sellerOrder) {
+        toast.success(`Pedido registrado para ${formData.name}`);
+        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1200);
+        return;
+      }
 
       const targetWhatsapp = recipientOptions.length > 0 && selectedSellerId
         ? (recipientOptions.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
@@ -432,6 +466,32 @@ export default function CheckoutPage() {
       </header>
 
       <ClosedBanner store={store} />
+
+      {isSellerMode && (
+        <div className="border-b border-primary/30 bg-primary/10">
+          <div className="container flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+            <span>
+              <span className="font-semibold">Modo Vendedor</span>
+              {selectedCustomer
+                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {selectedCustomer.priceTable ?? 4}</>
+                : ' — selecione o cliente para finalizar'}
+            </span>
+            <Button size="sm" variant={selectedCustomer ? 'outline' : 'default'} onClick={() => setSellerCustomerDialogOpen(true)}>
+              {selectedCustomer ? 'Trocar cliente' : 'Selecionar cliente'}
+            </Button>
+          </div>
+          <SellerCustomerDialog
+            open={sellerCustomerDialogOpen}
+            onOpenChange={setSellerCustomerDialogOpen}
+            storeId={store.id}
+            sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
+            onSelected={(c) => {
+              if (selectedCustomer && selectedCustomer.id !== c.id) clearCart();
+              selectCustomer(c);
+            }}
+          />
+        </div>
+      )}
 
       <main className="container py-6">
         <div className="grid gap-6 lg:grid-cols-3">
@@ -624,7 +684,7 @@ export default function CheckoutPage() {
                     </RadioGroup>
                   )}
                 </div>
-                {recipientOptions.length > 0 && (
+                {recipientOptions.length > 0 && !sellerOrder && (
                   <div className="rounded-lg border-2 border-primary/60 bg-primary/5 p-4 space-y-3">
                     <Label className="text-base font-bold flex items-center gap-2">
                       📱 Enviar pedido para <span className="text-destructive">*</span>
@@ -760,7 +820,7 @@ export default function CheckoutPage() {
                     disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
-                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'dicoloresenses' ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp'))}
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp'))}
                   </Button>
                 </div>
               </CardContent>

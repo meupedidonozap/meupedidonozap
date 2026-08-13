@@ -2827,7 +2827,7 @@ export default function StoreAdminPage() {
         store={store}
         products={products}
         foodItems={foodItems}
-        customerProfiles={customerProfiles}
+        customerProfiles={scopedCustomerProfiles as any}
         categories={categories}
       />
       <EditOrderDialog

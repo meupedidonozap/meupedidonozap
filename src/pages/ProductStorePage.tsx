@@ -30,7 +30,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
+import SellerModeBar from '@/components/SellerModeBar';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
@@ -49,7 +50,13 @@ export default function ProductStorePage() {
   const { data: allProducts = [] } = useProducts(store?.id);
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
-  const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
+  const {
+    profile: customerProfile,
+    isSellerMode,
+    selectedCustomer,
+    selectCustomer,
+    seller,
+  } = useActiveCustomerProfile(store?.id);
   const stockEnabled = (store?.settings as any)?.useStockIntegration === true;
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -558,6 +565,15 @@ export default function ProductStorePage() {
       </header>
 
       <ClosedBanner store={store} />
+      {isSellerMode && store && (
+        <SellerModeBar
+          storeId={store.id}
+          sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
+          selectedCustomer={selectedCustomer}
+          onSelect={selectCustomer}
+          onChangeCustomer={clearCart}
+        />
+      )}
 
       <main className="container py-4">
         {viewMode === 'list' ? (
