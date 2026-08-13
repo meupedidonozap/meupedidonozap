@@ -605,7 +605,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const description = isAccessories
     ? 'Colunas: Código, Nome, Descrição, Categoria, Preço, Cor, Tamanho, Estoque, SKU, Ativo. Linhas com o mesmo Código serão agrupadas como variantes.'
-    : 'Selecione um arquivo .xlsx ou .xls com as colunas: Código, Nome, Descrição, Categoria, Preço (tabela 4 - varejo), Preco1 (atacado), Preco9 (atacado), Ativo. Preco1 e Preco9 são opcionais — se vazios, usam o valor de Preço. Produtos com código existente serão atualizados automaticamente.';
+    : 'Estrutura completa: Codigo, Nome, Descricao, Categoria, Grupo, Unidade, Preco1, Preco (tabela 4), Preco9, PrecoRes, Estoque, Ativo, Kit. Colunas ausentes na planilha não alteram o valor atual do produto. Produtos com código existente são atualizados; códigos novos são criados. Use "Baixar Produtos Salvos" para editar em massa.';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) { onOpenChange(v); if (!v) reset(); } }}>
@@ -627,9 +627,15 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
               </p>
             </div>
             <DialogFooter className="flex justify-between items-center">
-              <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
-                <Download className="h-4 w-4" /> Baixar Modelo
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                  <Download className="h-4 w-4" /> Baixar Modelo
+                </Button>
+                <Button variant="outline" className="gap-1" disabled={exporting}
+                  onClick={async () => { setExporting(true); await downloadCurrentProducts(storeId, categories, isAccessories); setExporting(false); }}>
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Baixar Produtos Salvos
+                </Button>
+              </div>
               <Button onClick={() => { reset(); onOpenChange(false); }}>Fechar</Button>
             </DialogFooter>
           </>
@@ -675,9 +681,15 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
             )}
 
             <DialogFooter className="flex justify-between items-center">
-              <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
-                <Download className="h-4 w-4" /> Baixar Modelo
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="ghost" className="gap-1" onClick={() => downloadTemplate(isAccessories)}>
+                  <Download className="h-4 w-4" /> Baixar Modelo
+                </Button>
+                <Button variant="outline" className="gap-1" disabled={exporting}
+                  onClick={async () => { setExporting(true); await downloadCurrentProducts(storeId, categories, isAccessories); setExporting(false); }}>
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Baixar Produtos Salvos
+                </Button>
+              </div>
               {hasData && !importing && (
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={reset}>Trocar Arquivo</Button>
