@@ -32,9 +32,13 @@ interface ParsedRow {
   name: string;
   description: string;
   category: string;
+  group: string;
+  unit: string;
   price: number;
   price1: number;
   price9: number;
+  priceRes: number;
+  stock: number;
   active: boolean;
   valid: boolean;
   error?: string;
@@ -88,6 +92,16 @@ const COLUMN_MAP: Record<string, string> = {
   'preco 9': 'price9',
   tabela9: 'price9',
   'tabela 9': 'price9',
+  precores: 'priceRes',
+  'preco res': 'priceRes',
+  'preco reservado': 'priceRes',
+  tabelares: 'priceRes',
+  'tabela res': 'priceRes',
+  grupo: 'group',
+  group: 'group',
+  unidade: 'unit',
+  unit: 'unit',
+  un: 'unit',
   ativo: 'active',
   active: 'active',
   cor: 'color',
