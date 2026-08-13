@@ -7,6 +7,7 @@ import {
   useDisablePush,
   useEnablePush,
   useMyPushSubscription,
+  useMyPushRole,
   useMySellerId,
 } from '@/hooks/usePushNotifications';
 
@@ -16,12 +17,15 @@ interface Props {
 
 export function PushNotificationsCard({ storeId }: Props) {
   const { data: sellerId, isLoading: loadingSeller } = useMySellerId(storeId);
-  const { data: status } = useMyPushSubscription(storeId, sellerId);
-  const enable = useEnablePush(storeId, sellerId);
-  const disable = useDisablePush(storeId, sellerId);
+  const { data: role, isLoading: loadingRole } = useMyPushRole(storeId);
+  const kind: 'seller' | 'admin' = sellerId ? 'seller' : 'admin';
+  const eligible = !!sellerId || role === 'admin';
+  const { data: status } = useMyPushSubscription(storeId, eligible);
+  const enable = useEnablePush(storeId, sellerId, kind);
+  const disable = useDisablePush();
 
-  if (loadingSeller) return null;
-  if (!sellerId) return null; // user is not a vendedor/televendas
+  if (loadingSeller || loadingRole) return null;
+  if (!eligible) return null; // nem vendedor nem admin
 
   const supported = pushSupported();
   const subscribed = !!status?.subscribed;
@@ -43,8 +47,12 @@ export function PushNotificationsCard({ storeId }: Props) {
               {!supported
                 ? 'Seu navegador não suporta notificações push. Use Chrome/Edge/Firefox ou instale o app na tela inicial.'
                 : subscribed
-                  ? 'Você será avisado neste dispositivo sempre que cair um pedido para o seu cliente.'
-                  : 'Ative para receber uma notificação no navegador/celular quando entrar um pedido pendente para o seu cliente.'}
+                  ? kind === 'admin'
+                    ? 'Você será avisado neste dispositivo de todos os pedidos pendentes desta loja.'
+                    : 'Você será avisado neste dispositivo sempre que cair um pedido para o seu cliente.'
+                  : kind === 'admin'
+                    ? 'Ative para receber uma notificação no computador/celular de todos os pedidos pendentes desta loja.'
+                    : 'Ative para receber uma notificação no navegador/celular quando entrar um pedido pendente para o seu cliente.'}
             </div>
           </div>
         </div>

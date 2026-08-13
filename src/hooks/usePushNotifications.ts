@@ -71,12 +71,37 @@ export function useMySellerId(storeId: string | undefined) {
   });
 }
 
-export function useMyPushSubscription(storeId: string | undefined, sellerId: string | null | undefined) {
+/** Papel do usuário para push: 'seller' (tem vendedor vinculado) ou 'admin' (admin da loja/plataforma). */
+export function useMyPushRole(storeId: string | undefined) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ['my-push-sub', storeId, sellerId, user?.id],
+    queryKey: ['my-push-role', storeId, user?.id],
     queryFn: async () => {
-      if (!storeId || !sellerId || !user) return { permission: 'default' as NotificationPermission, subscribed: false };
+      if (!storeId || !user) return null as 'admin' | null;
+      const { data: sa } = await supabase
+        .from('store_admins')
+        .select('id')
+        .eq('store_id', storeId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (sa) return 'admin' as const;
+      const { data: pa } = await supabase
+        .from('platform_admins')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return pa ? ('admin' as const) : null;
+    },
+    enabled: !!storeId && !!user,
+  });
+}
+
+export function useMyPushSubscription(storeId: string | undefined, enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['my-push-sub', storeId, user?.id],
+    queryFn: async () => {
+      if (!storeId || !user) return { permission: 'default' as NotificationPermission, subscribed: false };
       if (!pushSupported()) return { permission: 'denied' as NotificationPermission, subscribed: false };
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg ? await reg.pushManager.getSubscription() : null;
@@ -94,17 +119,22 @@ export function useMyPushSubscription(storeId: string | undefined, sellerId: str
         subscribed: !!sub && dbActive,
       };
     },
-    enabled: !!storeId && !!sellerId,
+    enabled: !!storeId && !!user && enabled,
   });
 }
 
-export function useEnablePush(storeId: string | undefined, sellerId: string | null | undefined) {
+export function useEnablePush(
+  storeId: string | undefined,
+  sellerId: string | null | undefined,
+  kind: 'seller' | 'admin' = 'seller',
+) {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
     mutationFn: async () => {
       if (!pushSupported()) throw new Error('Notificações push não são suportadas neste navegador.');
-      if (!storeId || !sellerId || !user) throw new Error('Usuário não está vinculado a um vendedor.');
+      if (!storeId || !user) throw new Error('Usuário não autenticado nesta loja.');
+      if (kind === 'seller' && !sellerId) throw new Error('Usuário não está vinculado a um vendedor.');
 
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') throw new Error('Permissão de notificações negada.');
@@ -131,12 +161,13 @@ export function useEnablePush(storeId: string | undefined, sellerId: string | nu
       // uma inscrição cadastrada por outro usuário e a RLS escondia a linha).
       const { error: rpcError } = await supabase.rpc('upsert_push_subscription', {
         p_store_id: storeId,
-        p_seller_id: sellerId,
+        p_seller_id: kind === 'seller' ? sellerId! : null,
+        p_kind: kind,
         p_endpoint: endpoint,
         p_p256dh: p256dh,
         p_auth: auth,
         p_user_agent: navigator.userAgent,
-      });
+      } as any);
       if (rpcError) {
         const msg = (rpcError.message || '').toLowerCase();
         if (msg.includes('duplicate') || msg.includes('unique')) {
@@ -149,7 +180,7 @@ export function useEnablePush(storeId: string | undefined, sellerId: string | nu
   });
 }
 
-export function useDisablePush(storeId: string | undefined, sellerId: string | null | undefined) {
+export function useDisablePush() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
