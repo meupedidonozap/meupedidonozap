@@ -9,6 +9,7 @@ import PizzaStorePage from './PizzaStorePage';
 import SalonStorePage from './SalonStorePage';
 import { Loader2 } from 'lucide-react';
 import WaiterModeFAB from '@/components/WaiterModeFAB';
+import DynamicManifest from '@/components/DynamicManifest';
 
 export default function StorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -38,5 +39,20 @@ export default function StorePage() {
     store?.type === 'PIZZARIA' ? <PizzaStorePage /> :
     store?.type === 'SALAO' ? <SalonStorePage /> :
     <ProductStorePage />;
-  return <>{inner}<WaiterModeFAB /></>;
+  return (
+    <>
+      {store && (
+        <DynamicManifest
+          name={storeName}
+          shortName={storeName}
+          startUrl={`/${store.slug}`}
+          scope={`/${store.slug}`}
+          icon={store.logo}
+          description={storeDesc}
+        />
+      )}
+      {inner}
+      <WaiterModeFAB />
+    </>
+  );
 }
