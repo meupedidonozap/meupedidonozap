@@ -59,7 +59,8 @@ export function useOfflineQueue(storeId: string | undefined) {
 
   useEffect(() => {
     void refresh();
-    return subscribeQueue(() => { void refresh(); });
+    const unsub = subscribeQueue(() => { void refresh(); });
+    return () => { unsub(); };
   }, [refresh]);
 
   const sync = useCallback(async () => {
