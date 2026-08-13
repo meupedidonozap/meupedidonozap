@@ -463,6 +463,32 @@ export default function CheckoutPage() {
 
       <ClosedBanner store={store} />
 
+      {isSellerMode && (
+        <div className="border-b border-primary/30 bg-primary/10">
+          <div className="container flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+            <span>
+              <span className="font-semibold">Modo Vendedor</span>
+              {selectedCustomer
+                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {selectedCustomer.priceTable ?? 4}</>
+                : ' — selecione o cliente para finalizar'}
+            </span>
+            <Button size="sm" variant={selectedCustomer ? 'outline' : 'default'} onClick={() => setSellerCustomerDialogOpen(true)}>
+              {selectedCustomer ? 'Trocar cliente' : 'Selecionar cliente'}
+            </Button>
+          </div>
+          <SellerCustomerDialog
+            open={sellerCustomerDialogOpen}
+            onOpenChange={setSellerCustomerDialogOpen}
+            storeId={store.id}
+            sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
+            onSelected={(c) => {
+              if (selectedCustomer && selectedCustomer.id !== c.id) clearCart();
+              selectCustomer(c);
+            }}
+          />
+        </div>
+      )}
+
       <main className="container py-6">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
