@@ -485,6 +485,10 @@ export default function CheckoutPage() {
 
       <ClosedBanner store={store} />
 
+      <div className="container mt-3">
+        <PendingOrdersCard storeId={store.id} />
+      </div>
+
       {isSellerMode && (
         <div className="border-b border-primary/30 bg-primary/10">
           <div className="container flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
