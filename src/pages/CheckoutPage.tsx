@@ -125,6 +125,11 @@ export default function CheckoutPage() {
     }
   }, [customerProfile, profileLoaded]);
 
+  // Ao trocar o cliente no Modo Vendedor, recarrega os dados no formulário
+  useEffect(() => {
+    setProfileLoaded(false);
+  }, [selectedCustomer?.id]);
+
   // Auto-select the only available recipient (e.g. customer has just one linked seller)
   useEffect(() => {
     if (!selectedSellerId && recipientOptions.length === 1) {
@@ -201,7 +206,7 @@ export default function CheckoutPage() {
       toast.error('Selecione o bairro de entrega');
       return false;
     }
-    if (recipientOptions.length > 0 && !selectedSellerId) {
+    if (recipientOptions.length > 0 && !sellerOrder && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
