@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
       status: 'created' | 'updated' | 'skipped' | 'error';
       senha?: string;
       email?: string;
+      user_id?: string | null;
       erro?: string;
     }> = [];
 
@@ -256,7 +257,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      results.push({ codigo, nome, status: action, email, senha: password });
+      results.push({ codigo, nome, status: action, email, senha: password, user_id: userId });
 
       // Propagar dados do ERP para qualquer cadastro "irmão" no mesmo telefone
       // Pulado em modo update (não afetar clientes existentes).
