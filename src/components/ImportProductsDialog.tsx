@@ -37,6 +37,7 @@ interface ParsedRow {
   price: number;
   price1: number;
   price9: number;
+  price11: number;
   priceRes: number;
   stock: number;
   active: boolean;
@@ -92,6 +93,11 @@ const COLUMN_MAP: Record<string, string> = {
   'preco 9': 'price9',
   tabela9: 'price9',
   'tabela 9': 'price9',
+  preco11: 'price11',
+  price11: 'price11',
+  'preco 11': 'price11',
+  tabela11: 'price11',
+  'tabela 11': 'price11',
   precores: 'priceRes',
   'preco res': 'priceRes',
   'preco reservado': 'priceRes',
@@ -224,8 +230,10 @@ function parseSimpleRows(
     const price = parsePrice(getField(row, headerMap, 'price'));
     const price1Raw = parsePrice(getField(row, headerMap, 'price1'));
     const price9Raw = parsePrice(getField(row, headerMap, 'price9'));
+    const price11Raw = parsePrice(getField(row, headerMap, 'price11'));
     const price1 = price1Raw > 0 ? price1Raw : price;
     const price9 = price9Raw > 0 ? price9Raw : price;
+    const price11 = price11Raw > 0 ? price11Raw : price;
     const valid = !!name;
     const existingId = code ? codeMap.get(code.toLowerCase().trim()) : undefined;
 
@@ -239,6 +247,7 @@ function parseSimpleRows(
       price,
       price1,
       price9,
+      price11,
       priceRes: parsePrice(getField(row, headerMap, 'priceRes')),
       stock: parseStock(getField(row, headerMap, 'stock')),
       active: parseActive(getField(row, headerMap, 'active')),
@@ -314,6 +323,7 @@ async function downloadCurrentProducts(storeId: string, categories: Category[], 
     Preco1: Number(p.price_table_1 ?? 0),
     Preco: Number(p.price_table_4 ?? p.base_price ?? 0),
     Preco9: Number(p.price_table_9 ?? 0),
+    Preco11: Number(p.price_table_11 ?? 0),
     PrecoRes: p.price_table_res != null ? Number(p.price_table_res) : 0,
     Estoque: Number(p.stock ?? 0),
     Ativo: p.is_active ? 'Sim' : 'Nao',
@@ -532,6 +542,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
       if (has('price')) { patch.base_price = r.price; patch.price_table_4 = r.price; }
       if (has('price1')) patch.price_table_1 = r.price1;
       if (has('price9')) patch.price_table_9 = r.price9;
+      if (has('price11')) patch.price_table_11 = r.price11;
       if (has('priceRes')) patch.price_table_res = r.priceRes;
       if (has('stock')) patch.stock = r.stock;
       if (has('active')) patch.is_active = r.active;
@@ -558,6 +569,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         price_table_1: r.price1,
         price_table_4: r.price,
         price_table_9: r.price9,
+        price_table_11: r.price11,
         price_table_res: has('priceRes') ? r.priceRes : null,
         stock: r.stock,
         is_active: r.active,
@@ -605,7 +617,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
 
   const description = isAccessories
     ? 'Colunas: Código, Nome, Descrição, Categoria, Preço, Cor, Tamanho, Estoque, SKU, Ativo. Linhas com o mesmo Código serão agrupadas como variantes.'
-    : 'Estrutura completa: Codigo, Nome, Descricao, Categoria, Grupo, Unidade, Preco1, Preco (tabela 4), Preco9, PrecoRes, Estoque, Ativo, Kit. Colunas ausentes na planilha não alteram o valor atual do produto. Produtos com código existente são atualizados; códigos novos são criados. Use "Baixar Produtos Salvos" para editar em massa.';
+    : 'Estrutura completa: Codigo, Nome, Descricao, Categoria, Grupo, Unidade, Preco1, Preco (tabela 4), Preco9, Preco11, PrecoRes, Estoque, Ativo, Kit. Colunas ausentes na planilha não alteram o valor atual do produto. Produtos com código existente são atualizados; códigos novos são criados. Use "Baixar Produtos Salvos" para editar em massa.';
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!importing) { onOpenChange(v); if (!v) reset(); } }}>
