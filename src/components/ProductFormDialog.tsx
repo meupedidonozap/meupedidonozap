@@ -47,6 +47,7 @@ interface VariantForm {
   priceTable1: number;
   priceTable4: number;
   priceTable9: number;
+  priceTable11: number;
 }
 
 interface ImageForm {
@@ -105,6 +106,7 @@ export default function ProductFormDialog({
   const [basePrice, setBasePrice] = useState('');
   const [priceTable1, setPriceTable1] = useState('');
   const [priceTable9, setPriceTable9] = useState('');
+  const [priceTable11, setPriceTable11] = useState('');
   const [stock, setStock] = useState('0');
   const [unit, setUnit] = useState('Un');
   const [isActive, setIsActive] = useState(true);
@@ -141,6 +143,7 @@ export default function ProductFormDialog({
       setBasePrice(String(product.basePrice));
       setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : String(product.basePrice));
       setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : String(product.basePrice));
+      setPriceTable11(product.priceTable11 != null && product.priceTable11 > 0 ? String(product.priceTable11) : String(product.basePrice));
       setStock(String(product.stock ?? 0));
       setUnit((product as any).unit || 'Un');
       setIsActive(product.isActive);
@@ -161,6 +164,7 @@ export default function ProductFormDialog({
           priceTable1: v.priceTable1 != null && v.priceTable1 > 0 ? v.priceTable1 : v.price,
           priceTable4: v.priceTable4 != null && v.priceTable4 > 0 ? v.priceTable4 : v.price,
           priceTable9: v.priceTable9 != null && v.priceTable9 > 0 ? v.priceTable9 : v.price,
+          priceTable11: (v as any).priceTable11 != null && (v as any).priceTable11 > 0 ? (v as any).priceTable11 : v.price,
         })) || []
       );
       setProductImages(
@@ -192,6 +196,7 @@ export default function ProductFormDialog({
       setBasePrice('');
       setPriceTable1('');
       setPriceTable9('');
+      setPriceTable11('');
       setStock('0');
       setUnit('Un');
       setIsActive(true);
@@ -261,9 +266,10 @@ export default function ProductFormDialog({
     const bp = Number(basePrice) || 0;
     const pt1 = Number(priceTable1) || bp;
     const pt9 = Number(priceTable9) || bp;
+    const pt11 = Number(priceTable11) || bp;
     setVariants(prev => [...prev, {
       color: '', size: '', price: bp, stock: 0, sku: '',
-      priceTable1: pt1, priceTable4: bp, priceTable9: pt9,
+      priceTable1: pt1, priceTable4: bp, priceTable9: pt9, priceTable11: pt11,
     }]);
   };
 
@@ -325,6 +331,7 @@ export default function ProductFormDialog({
             priceTable1: v.priceTable1 || v.priceTable4 || v.price,
             priceTable4: v.priceTable4 || v.price,
             priceTable9: v.priceTable9 || v.priceTable4 || v.price,
+            priceTable11: (v as any).priceTable11 || v.priceTable4 || v.price,
           }))
         : [];
 
@@ -339,6 +346,7 @@ export default function ProductFormDialog({
           priceTable1: Number(priceTable1) || Number(basePrice) || 0,
           priceTable4: Number(basePrice) || 0,
           priceTable9: Number(priceTable9) || Number(basePrice) || 0,
+          priceTable11: Number(priceTable11) || Number(basePrice) || 0,
           imageUrl: imageUrl,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
@@ -376,6 +384,7 @@ export default function ProductFormDialog({
           priceTable1: Number(priceTable1) || Number(basePrice) || 0,
           priceTable4: Number(basePrice) || 0,
           priceTable9: Number(priceTable9) || Number(basePrice) || 0,
+          priceTable11: Number(priceTable11) || Number(basePrice) || 0,
           imageUrl: imageUrl || undefined,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
@@ -526,6 +535,17 @@ export default function ProductFormDialog({
                   step="0.01"
                   value={priceTable9}
                   onChange={e => setPriceTable9(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="price-t11" className="text-xs">Tabela 11</Label>
+                <Input
+                  id="price-t11"
+                  type="number"
+                  step="0.01"
+                  value={priceTable11}
+                  onChange={e => setPriceTable11(e.target.value)}
                   placeholder="0.00"
                 />
               </div>
@@ -787,7 +807,7 @@ export default function ProductFormDialog({
                 </Button>
               </div>
               {variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-8 gap-2 items-end">
+                <div key={i} className="grid grid-cols-9 gap-2 items-end">
                   <div>
                     <Label className="text-xs">Cor</Label>
                     <Input value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Azul" />
@@ -807,6 +827,10 @@ export default function ProductFormDialog({
                   <div>
                     <Label className="text-xs">Tab. 9</Label>
                     <Input type="number" step="0.01" value={v.priceTable9} onChange={e => updateVariant(i, 'priceTable9', Number(e.target.value))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tab. 11</Label>
+                    <Input type="number" step="0.01" value={(v as any).priceTable11 ?? 0} onChange={e => updateVariant(i, 'priceTable11' as any, Number(e.target.value))} />
                   </div>
                   <div>
                     <Label className="text-xs">Estoque</Label>
