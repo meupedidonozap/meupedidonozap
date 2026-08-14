@@ -711,6 +711,7 @@ export type Database = {
           id: string
           price: number
           price_table_1: number
+          price_table_11: number
           price_table_4: number
           price_table_9: number
           price_table_res: number | null
@@ -724,6 +725,7 @@ export type Database = {
           id?: string
           price?: number
           price_table_1?: number
+          price_table_11?: number
           price_table_4?: number
           price_table_9?: number
           price_table_res?: number | null
@@ -737,6 +739,7 @@ export type Database = {
           id?: string
           price?: number
           price_table_1?: number
+          price_table_11?: number
           price_table_4?: number
           price_table_9?: number
           price_table_res?: number | null
@@ -771,6 +774,7 @@ export type Database = {
           is_kit: boolean
           name: string
           price_table_1: number
+          price_table_11: number
           price_table_4: number
           price_table_9: number
           price_table_res: number | null
@@ -793,6 +797,7 @@ export type Database = {
           is_kit?: boolean
           name: string
           price_table_1?: number
+          price_table_11?: number
           price_table_4?: number
           price_table_9?: number
           price_table_res?: number | null
@@ -815,6 +820,7 @@ export type Database = {
           is_kit?: boolean
           name?: string
           price_table_1?: number
+          price_table_11?: number
           price_table_4?: number
           price_table_9?: number
           price_table_res?: number | null
