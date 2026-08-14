@@ -1,4 +1,5 @@
 import type { CartItem, DiscountRule } from '@/types';
+import { normalizePriceTable, type PriceTable } from '@/lib/pricing';
 
 function normalizeGroupId(raw: string | undefined | null): string {
   const s = String(raw || '').trim();
@@ -15,11 +16,9 @@ function normalizeGroupId(raw: string | undefined | null): string {
 export function computeGroupDiscounts(
   items: CartItem[],
   rules: DiscountRule[],
-  customerPriceTable?: 1 | 4 | 9,
+  customerPriceTable?: PriceTable,
 ): { quantityDiscount: number; itemDiscounts: Record<string, number> } {
-  const effectiveTable: 1 | 4 | 9 = (customerPriceTable === 1 || customerPriceTable === 9 || customerPriceTable === 4)
-    ? customerPriceTable
-    : 4;
+  const effectiveTable: PriceTable = normalizePriceTable(customerPriceTable);
   const groupRules = rules.filter(r => {
     if (r.type !== 'group') return false;
     // Rules with no priceTable = universal. Otherwise must match the customer's table.
@@ -69,7 +68,7 @@ export function computeGroupDiscounts(
 export function ensureItemDiscountPercents<T extends CartItem & { discountPercent?: number }>(
   items: T[],
   rules: DiscountRule[] | undefined,
-  customerPriceTable?: 1 | 4 | 9,
+  customerPriceTable?: PriceTable,
 ): T[] {
   if (!rules || rules.length === 0) return items;
   const { itemDiscounts } = computeGroupDiscounts(items, rules, customerPriceTable);
