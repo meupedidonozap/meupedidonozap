@@ -85,9 +85,10 @@ export default function ProductStorePage() {
   }, [store, setStoreId, setDiscountRules]);
 
   // Sync the customer's price table into the cart (default 4 for visitors/unknown).
-  const activePriceTable: 1 | 4 | 9 = (customerProfile?.priceTable === 1 || customerProfile?.priceTable === 9)
-    ? customerProfile.priceTable
-    : 4;
+  const activePriceTable: PriceTable = normalizePriceTable(
+    customerProfile?.priceTable,
+    storeDefaultPriceTable(store?.slug),
+  );
   useEffect(() => {
     setCustomerPriceTable(activePriceTable);
   }, [activePriceTable, setCustomerPriceTable]);
