@@ -254,7 +254,6 @@ export function useUpdateProduct() {
               price_table_4: v.priceTable4 ?? v.price,
               price_table_9: v.priceTable9 ?? v.price,
               price_table_11: (v as any).priceTable11 ?? v.price,
-            price_table_11: (v as any).priceTable11 ?? v.price,
               stock: v.stock,
               sku: v.sku,
             }))
