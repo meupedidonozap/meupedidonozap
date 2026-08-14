@@ -423,6 +423,7 @@ export default function StoreAdminPage() {
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
+  const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
   const [settingsInitialized, setSettingsInitialized] = useState(false);
@@ -476,6 +477,7 @@ export default function StoreAdminPage() {
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
+    setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
     setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
     setSettingsInitialized(true);
@@ -766,6 +768,7 @@ export default function StoreAdminPage() {
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
+          erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           catalogViewModes: { list: viewModeList, grid: viewModeGrid },
           materialApoio: {
             enabled: maEnabled,
@@ -1913,6 +1916,30 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+            {(store.slug === 'dicolore' || store.slug === 'dicoloresenses') && (
+              <Card className="border-accent">
+                <CardHeader><CardTitle>Aviso de Transmissão (ERP)</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid gap-1 sm:max-w-md">
+                    <Label>WhatsApp para aviso de transmissão</Label>
+                    <Input
+                      value={erpWhatsapp}
+                      onChange={e => setErpWhatsapp(e.target.value)}
+                      placeholder="5547992491139"
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Número que recebe a mensagem quando um pedido é marcado como <strong>Liberado p/ Transmissão</strong>.
+                    Use DDI + DDD + número (ex.: 5547992491139). Se ficar vazio, o número padrão continua sendo usado.
+                  </p>
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             {store.slug === 'dicolore' && (
               <Card className="border-accent">
                 <CardHeader><CardTitle>Integração de Estoque</CardTitle></CardHeader>
@@ -3076,7 +3103,8 @@ export default function StoreAdminPage() {
                 // window.open é bloqueado silenciosamente. Por isso disparamos a janela
                 // primeiro e só depois atualizamos o status do pedido.
                 const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
-                const waUrl = `https://wa.me/5547992491139?text=${encodeURIComponent(text)}`;
+                const waNumber = String((store.settings as any)?.erpReleaseWhatsapp || '').replace(/\D/g, '') || '5547992491139';
+                const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
                 const waWin = window.open(waUrl, '_blank');
                 if (!waWin) {
                   // Fallback (PWA standalone): navega na própria janela

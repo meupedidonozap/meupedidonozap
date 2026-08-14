@@ -136,6 +136,8 @@ export interface StoreSettings {
   offersDelivery?: boolean;
   /** DiColore: liga/desliga a integração de estoque via planilha. */
   useStockIntegration?: boolean;
+  /** WhatsApp (DDI+DDD+numero) que recebe o aviso quando um pedido é liberado p/ transmissão (ERP). */
+  erpReleaseWhatsapp?: string;
   cnpj?: string;
   /** Modos de visualização do catálogo habilitados na vitrine. */
   catalogViewModes?: { list: boolean; grid: boolean };
