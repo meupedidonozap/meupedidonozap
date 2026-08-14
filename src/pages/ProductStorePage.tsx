@@ -42,6 +42,9 @@ import {
   getProductPriceOrNull,
   getVariantPriceOrNull,
   hasStock,
+  normalizePriceTable,
+  storeDefaultPriceTable,
+  type PriceTable,
 } from '@/lib/pricing';
 
 export default function ProductStorePage() {
