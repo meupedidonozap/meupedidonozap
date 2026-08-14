@@ -3103,7 +3103,8 @@ export default function StoreAdminPage() {
                 // window.open é bloqueado silenciosamente. Por isso disparamos a janela
                 // primeiro e só depois atualizamos o status do pedido.
                 const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
-                const waUrl = `https://wa.me/5547992491139?text=${encodeURIComponent(text)}`;
+                const waNumber = String((store.settings as any)?.erpReleaseWhatsapp || '').replace(/\D/g, '') || '5547992491139';
+                const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
                 const waWin = window.open(waUrl, '_blank');
                 if (!waWin) {
                   // Fallback (PWA standalone): navega na própria janela
