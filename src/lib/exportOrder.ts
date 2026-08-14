@@ -91,8 +91,8 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const isSenses = store.slug === 'dicoloresenses';
   const tabelaPrecos = isSenses
     ? '11'
-    : String(s.tabelaPrecos || extra.priceTable || (isDicolore ? '4' : ''));
-  const colunaTabelaPrecos = isDicolore ? 2 : 2;
+    : String(extra.priceTable || s.tabelaPrecos || (isDicolore ? '4' : ''));
+  const colunaTabelaPrecos = 2;
   const priceDecimals = isDicolore ? 3 : 2;
   const televendas = isDicolore
     ? (extra.isTelevendas ? 'S' : 'N')
