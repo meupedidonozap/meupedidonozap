@@ -2703,7 +2703,6 @@ export default function StoreAdminPage() {
                           <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
                           <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
-                          <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
