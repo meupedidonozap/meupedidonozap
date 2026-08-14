@@ -1477,7 +1477,7 @@ export default function StoreAdminPage() {
                             (isAdmin || permissions.can_manage_orders) ? (
                             <div className="flex items-center gap-1">
                               <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
-                                if (store.slug === 'dicolore' && value === 'liberado_transmissao') {
+                                if (['dicolore', 'dicoloresenses'].includes(store.slug) && value === 'liberado_transmissao') {
                                   setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber });
                                   return;
                                 }
