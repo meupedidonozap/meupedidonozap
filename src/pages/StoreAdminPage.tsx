@@ -423,6 +423,7 @@ export default function StoreAdminPage() {
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
+  const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
   const [settingsInitialized, setSettingsInitialized] = useState(false);
@@ -476,6 +477,7 @@ export default function StoreAdminPage() {
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
+    setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
     setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
     setSettingsInitialized(true);
@@ -766,6 +768,7 @@ export default function StoreAdminPage() {
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
+          erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           catalogViewModes: { list: viewModeList, grid: viewModeGrid },
           materialApoio: {
             enabled: maEnabled,
