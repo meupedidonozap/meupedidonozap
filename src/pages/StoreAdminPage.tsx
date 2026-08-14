@@ -397,7 +397,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9, customerCode: '', loginUser: '', loginPassword: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -410,7 +410,7 @@ export default function StoreAdminPage() {
   // Discount rules state
   const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
-  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' });
+  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' | '11' });
   const [savingRules, setSavingRules] = useState(false);
   const [importRulesOpen, setImportRulesOpen] = useState(false);
 
@@ -853,7 +853,7 @@ export default function StoreAdminPage() {
       minQuantity: Number(newRule.minQuantity),
       discountPercent: Number(newRule.discountPercent),
       description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
-      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 4 | 9),
+      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 4 | 9 | 11),
     };
     setDiscountRulesLocal(prev => [...prev, rule]);
     setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
@@ -1708,7 +1708,7 @@ export default function StoreAdminPage() {
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
                         value={newRule.priceTable}
-                        onValueChange={(v) => setNewRule(r => ({ ...r, priceTable: v as 'all' | '1' | '4' | '9' }))}
+                        onValueChange={(v) => setNewRule(r => ({ ...r, priceTable: v as 'all' | '1' | '4' | '9' | '11' }))}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -1716,6 +1716,7 @@ export default function StoreAdminPage() {
                           <SelectItem value="1">Tabela 1</SelectItem>
                           <SelectItem value="4">Tabela 4</SelectItem>
                           <SelectItem value="9">Tabela 9</SelectItem>
+                          <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2559,7 +2560,7 @@ export default function StoreAdminPage() {
                               sellerCode: (cp as any).sellerCode || '',
                               transportadora: (cp as any).transportadora || '',
                               ie: (cp as any).ie || '',
-                              priceTable: ((cp as any).priceTable === 1 || (cp as any).priceTable === 9 ? (cp as any).priceTable : 4) as 1 | 4 | 9,
+                              priceTable: normalizePriceTable((cp as any).priceTable, storeDefaultPriceTable(store?.slug)),
                               customerCode: (cp as any).customerCode || '',
                               loginUser: '',
                               loginPassword: '',
@@ -2694,13 +2695,15 @@ export default function StoreAdminPage() {
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
                         value={String(customerForm.priceTable)}
-                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 }))}
+                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 | 11 }))}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
                           <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
                           <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
+                        <SelectItem value="11">Tabela 11</SelectItem>
+                          <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -2797,13 +2800,14 @@ export default function StoreAdminPage() {
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
                       value={String(customerForm.priceTable)}
-                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 }))}
+                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 | 11 }))}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
                         <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
                         <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
+                        <SelectItem value="11">Tabela 11</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -2982,14 +2986,14 @@ export default function StoreAdminPage() {
         materialApoio={store?.settings.materialApoio}
         store={store}
         priceTable={(() => {
-          if (!editingOrder) return 4;
+          if (!editingOrder) return storeDefaultPriceTable(store?.slug);
           const ouid = (editingOrder as any).userId;
           const cleanWa = (editingOrder.customer?.whatsapp || '').replace(/\D/g, '').slice(-8);
           const cp: any = (customerProfiles as any[]).find((c: any) =>
             (ouid && c.userId === ouid) ||
             (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
           );
-          return (cp?.priceTable === 1 || cp?.priceTable === 9) ? cp.priceTable : 4;
+          return normalizePriceTable(cp?.priceTable, storeDefaultPriceTable(store?.slug));
         })()}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
