@@ -213,8 +213,8 @@ export interface DiscountRule {
   groupId?: string;
   discountPercent: number;
   description: string;
-  /** Optional price-table scope (1, 4 or 9). Undefined = applies to all tables. */
-  priceTable?: 1 | 4 | 9;
+  /** Optional price-table scope (1, 4, 9 ou 11). Undefined = applies to all tables. */
+  priceTable?: 1 | 4 | 9 | 11;
 }
 
 // Product types
@@ -244,6 +244,7 @@ export interface ProductVariant {
   priceTable1?: number;
   priceTable4?: number;
   priceTable9?: number;
+  priceTable11?: number;
 }
 
 export interface ProductImage {
@@ -265,6 +266,7 @@ export interface Product {
   priceTable1?: number;
   priceTable4?: number;
   priceTable9?: number;
+  priceTable11?: number;
   image?: string;
   isActive: boolean;
   hasVariants: boolean;
