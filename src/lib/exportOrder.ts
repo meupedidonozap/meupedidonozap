@@ -54,6 +54,7 @@ function formatCgc(s: string | undefined): string {
 
 interface StoreLike {
   name: string;
+  slug?: string;
   settings?: any;
 }
 
@@ -73,6 +74,8 @@ export interface CustomerExtra {
   productCommission?: Record<string, number>;
   /** Composição dos KITs: kit id -> componentes (kits são explodidos na saída). */
   kitMap?: KitMap;
+  /** Tabela de preço do cliente (1/4/9/11...) usada em <tabelaPrecos>. */
+  priceTable?: number | string;
 }
 
 export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerExtra = {}): string {
@@ -84,7 +87,12 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const rep = s.representante || {};
   const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const sellerCode = extra.sellerCode || rep.codigo || '';
-  const isDicolore = isDicoloreFlow(undefined, s);
+  const isDicolore = isDicoloreFlow(store.slug, s);
+  const isSenses = store.slug === 'dicoloresenses';
+  const tabelaPrecos = isSenses
+    ? '11'
+    : String(s.tabelaPrecos || extra.priceTable || (isDicolore ? '4' : ''));
+  const colunaTabelaPrecos = isDicolore ? 2 : 2;
   const priceDecimals = isDicolore ? 3 : 2;
   const televendas = isDicolore
     ? (extra.isTelevendas ? 'S' : 'N')
@@ -143,8 +151,8 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
 ${isDicolore ? `  <tipovenda>${escapeXml(condicaoCodigo)}</tipovenda>\n  <transportadora>${escapeXml(transportadora)}</transportadora>\n` : ''}\
   <prazoMedio>${s.prazoMedio ?? 0}</prazoMedio>
-  <tabelaPrecos>${escapeXml(s.tabelaPrecos || (isDicolore ? '4' : ''))}</tabelaPrecos>
-  <colunaTabelaPrecos>${isDicolore ? 3 : 2}</colunaTabelaPrecos>
+  <tabelaPrecos>${escapeXml(tabelaPrecos)}</tabelaPrecos>
+  <colunaTabelaPrecos>${colunaTabelaPrecos}</colunaTabelaPrecos>
 ${itensXml}
 </dadosGeraisPedido>
 `;
