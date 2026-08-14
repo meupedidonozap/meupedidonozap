@@ -141,9 +141,9 @@ export default function ProductFormDialog({
       setDescription(product.description);
       setCategoryId(product.categoryId || '');
       setBasePrice(String(product.basePrice));
-      setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : String(product.basePrice));
-      setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : String(product.basePrice));
-      setPriceTable11(product.priceTable11 != null && product.priceTable11 > 0 ? String(product.priceTable11) : String(product.basePrice));
+      setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : '');
+      setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : '');
+      setPriceTable11(product.priceTable11 != null && product.priceTable11 > 0 ? String(product.priceTable11) : '');
       setStock(String(product.stock ?? 0));
       setUnit((product as any).unit || 'Un');
       setIsActive(product.isActive);
@@ -550,7 +550,7 @@ export default function ProductFormDialog({
                 />
               </div>
               <p className="col-span-2 text-xs text-muted-foreground">
-                A Tabela 4 é preenchida pelo campo "Preço" acima. Se deixar em branco, todas as tabelas usam o mesmo valor.
+                A Tabela 4 é preenchida pelo campo "Preço" acima. Campo em branco significa que ainda não há preço gravado nessa tabela — ao salvar, ele fica igual ao "Preço".
               </p>
             </div>
           )}

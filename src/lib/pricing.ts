@@ -34,7 +34,12 @@ export function getProductPriceOrNull(product: Product | null | undefined, table
   const t = normalizePriceTable(table);
   if (t === 1) return positive(product.priceTable1);
   if (t === 9) return positive(product.priceTable9);
-  if (t === 11) return positive(product.priceTable11);
+  if (t === 11) {
+    if (product.priceTable11 == null) {
+      return positive(product.priceTable4) ?? positive(product.basePrice);
+    }
+    return positive(product.priceTable11);
+  }
   if (product.priceTable4 == null) return positive(product.basePrice);
   return positive(product.priceTable4);
 }
@@ -45,7 +50,12 @@ export function getVariantPriceOrNull(variant: ProductVariant | null | undefined
   const t = normalizePriceTable(table);
   if (t === 1) return positive(variant.priceTable1);
   if (t === 9) return positive(variant.priceTable9);
-  if (t === 11) return positive(variant.priceTable11);
+  if (t === 11) {
+    if (variant.priceTable11 == null) {
+      return positive(variant.priceTable4) ?? positive(variant.price);
+    }
+    return positive(variant.priceTable11);
+  }
   if (variant.priceTable4 == null) return positive(variant.price);
   return positive(variant.priceTable4);
 }
