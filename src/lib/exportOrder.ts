@@ -89,11 +89,11 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const sellerCode = extra.sellerCode || rep.codigo || '';
   const isDicolore = isDicoloreFlow(store.slug, s);
   const isSenses = store.slug === 'dicoloresenses';
-  const tabelaPrecos = isSenses
-    ? '11'
-    : String(extra.priceTable || s.tabelaPrecos || (isDicolore ? '4' : ''));
+  const tabelaPrecos = String(
+    extra.priceTable || s.tabelaPrecos || (isSenses ? '11' : isDicolore ? '4' : '')
+  );
   const colunaTabelaPrecos = 2;
-  const priceDecimals = isDicolore ? 3 : 2;
+  const priceDecimals = 2;
   const televendas = isDicolore
     ? (extra.isTelevendas ? 'S' : 'N')
     : (extra.isTelevendas ? 'Sim' : 'Nao');
