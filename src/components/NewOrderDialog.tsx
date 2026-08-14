@@ -30,7 +30,7 @@ interface CustomerProfile {
   address?: string;
   number?: string;
   complement?: string;
-  priceTable?: 1 | 4 | 9;
+  priceTable?: 1 | 4 | 9 | 11;
 }
 
 interface NewOrderDialogProps {
