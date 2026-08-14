@@ -20,7 +20,7 @@ interface CartContextType {
   cart: Cart;
   discountRules: DiscountRule[];
   itemDiscounts: Record<string, number>; // key: `${productId}-${variantId|''}` -> discountPercent
-  customerPriceTable: 1 | 4 | 9;
+  customerPriceTable: PriceTable;
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
@@ -30,7 +30,7 @@ interface CartContextType {
   removeCoupon: () => void;
   setStoreId: (storeId: string) => void;
   setDiscountRules: (rules: DiscountRule[]) => void;
-  setCustomerPriceTable: (table: 1 | 4 | 9) => void;
+  setCustomerPriceTable: (table: PriceTable) => void;
   /** Remove/reprecifica itens sem preço válido na tabela do cliente. */
   revalidatePrices: (catalog: { id: string; [k: string]: any }[], stockEnabled?: boolean) => void;
 }
@@ -61,7 +61,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart>(initialCart);
   const [discountRules, setDiscountRulesState] = useState<DiscountRule[]>([]);
   const [itemDiscounts, setItemDiscounts] = useState<Record<string, number>>({});
-  const [customerPriceTable, setCustomerPriceTableState] = useState<1 | 4 | 9>(4);
+  const [customerPriceTable, setCustomerPriceTableState] = useState<PriceTable>(4);
 
   // Persist cart to localStorage whenever it changes
   useEffect(() => {
@@ -91,7 +91,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setDiscountRulesState(rules);
   }, []);
 
-  const setCustomerPriceTable = useCallback((table: 1 | 4 | 9) => {
+  const setCustomerPriceTable = useCallback((table: PriceTable) => {
     setCustomerPriceTableState((prev) => (prev === table ? prev : table));
   }, []);
 
