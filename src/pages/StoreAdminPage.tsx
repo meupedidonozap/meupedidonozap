@@ -1920,6 +1920,9 @@ export default function StoreAdminPage() {
               <Card className="border-accent">
                 <CardHeader><CardTitle>Integração de Estoque</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
+                  <div className="hidden" />
+                </CardContent>
+                <CardContent className="space-y-3">
                   <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
                     <Label className="cursor-pointer" onClick={() => setUseStockIntegration(!useStockIntegration)}>
                       Usa integração de estoque? <strong>{useStockIntegration ? 'SIM' : 'NÃO'}</strong>
