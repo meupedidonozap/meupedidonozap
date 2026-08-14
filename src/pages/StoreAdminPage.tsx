@@ -1916,12 +1916,33 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+            {(store.slug === 'dicolore' || store.slug === 'dicoloresenses') && (
+              <Card className="border-accent">
+                <CardHeader><CardTitle>Aviso de Transmissão (ERP)</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid gap-1 sm:max-w-md">
+                    <Label>WhatsApp para aviso de transmissão</Label>
+                    <Input
+                      value={erpWhatsapp}
+                      onChange={e => setErpWhatsapp(e.target.value)}
+                      placeholder="5547992491139"
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Número que recebe a mensagem quando um pedido é marcado como <strong>Liberado p/ Transmissão</strong>.
+                    Use DDI + DDD + número (ex.: 5547992491139). Se ficar vazio, o número padrão continua sendo usado.
+                  </p>
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             {store.slug === 'dicolore' && (
               <Card className="border-accent">
                 <CardHeader><CardTitle>Integração de Estoque</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="hidden" />
-                </CardContent>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
                     <Label className="cursor-pointer" onClick={() => setUseStockIntegration(!useStockIntegration)}>
