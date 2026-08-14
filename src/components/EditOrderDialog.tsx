@@ -25,7 +25,7 @@ interface EditOrderDialogProps {
   materialApoio?: MaterialApoioConfig;
   store?: { slug?: string; settings?: any } | null;
   /** Tabela de preço do cliente do pedido (1, 4 ou 9). */
-  priceTable?: 1 | 4 | 9;
+  priceTable?: 1 | 4 | 9 | 11;
 }
 
 export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {

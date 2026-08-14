@@ -1,3 +1,4 @@
+import { normalizePriceTable } from '@/lib/pricing';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -19,7 +20,7 @@ export interface CustomerProfile {
   transportadora?: string;
   ie?: string;
   /** 1 = atacado, 4 = varejo (default), 9 = atacado. */
-  priceTable?: 1 | 4 | 9;
+  priceTable?: 1 | 4 | 9 | 11;
 }
 
 function mapProfile(row: any): CustomerProfile {
@@ -38,7 +39,7 @@ function mapProfile(row: any): CustomerProfile {
     number: row.number,
     complement: row.complement || undefined,
     sellerCode: row.seller_code || '',
-    priceTable: (row.price_table === 1 || row.price_table === 9 ? row.price_table : 4) as 1 | 4 | 9,
+    priceTable: normalizePriceTable(row.price_table),
   };
 }
 

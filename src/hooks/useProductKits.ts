@@ -15,6 +15,7 @@ export interface KitItemRow {
 function componentPrice(row: any, table: PriceTable): number {
   if (table === 1) return Number(row?.price_table_1) || 0;
   if (table === 9) return Number(row?.price_table_9) || 0;
+  if (table === 11) return Number(row?.price_table_11) || 0;
   const t4 = row?.price_table_4;
   if (t4 == null) return Number(row?.base_price) || 0;
   return Number(t4) || 0;
@@ -22,7 +23,7 @@ function componentPrice(row: any, table: PriceTable): number {
 
 const SELECT = `id, kit_product_id, component_product_id, quantity, sort_order,
   kit:products!product_kit_items_kit_product_id_fkey!inner(store_id),
-  component:products!product_kit_items_component_product_id_fkey(id, code, name, base_price, price_table_1, price_table_4, price_table_9)`;
+  component:products!product_kit_items_component_product_id_fkey(id, code, name, base_price, price_table_1, price_table_4, price_table_9, price_table_11)`;
 
 /** Mapa de composição dos kits da loja (id do kit -> componentes). */
 export function useStoreKitMap(storeId?: string, priceTable?: number) {
@@ -65,7 +66,7 @@ export function useKitItems(kitProductId?: string) {
       const { data, error } = await supabase
         .from('product_kit_items')
         .select(`id, component_product_id, quantity, sort_order,
-          component:products!product_kit_items_component_product_id_fkey(id, code, name, base_price, price_table_1, price_table_4, price_table_9)`)
+          component:products!product_kit_items_component_product_id_fkey(id, code, name, base_price, price_table_1, price_table_4, price_table_9, price_table_11)`)
         .eq('kit_product_id', kitProductId!)
         .order('sort_order', { ascending: true });
       if (error) throw error;

@@ -1,3 +1,4 @@
+import { normalizePriceTable } from '@/lib/pricing';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerProfile } from './useCustomerProfile';
@@ -22,7 +23,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCo
     customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
     ie: row.ie || '',
-    priceTable: (row.price_table === 1 || row.price_table === 9 ? row.price_table : 4) as 1 | 4 | 9,
+    priceTable: normalizePriceTable(row.price_table),
   };
 }
 
@@ -71,7 +72,7 @@ export function useCreateCustomerProfileAdmin() {
       sellerCode?: string;
       transportadora?: string;
       ie?: string;
-      priceTable?: 1 | 4 | 9;
+      priceTable?: 1 | 4 | 9 | 11;
       customerCode?: string;
     }) => {
       const { data, error } = await supabase
@@ -124,7 +125,7 @@ export function useUpdateCustomerProfileAdmin() {
       sellerCode?: string;
       transportadora?: string;
       ie?: string;
-      priceTable?: 1 | 4 | 9;
+      priceTable?: 1 | 4 | 9 | 11;
       customerCode?: string;
     }) => {
       const update: any = {};
