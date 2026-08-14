@@ -6,15 +6,17 @@ Ao gerar o XML no formato "XML (Tinturaria)", o sistema decide se usa o layout d
 
 Resultado: o arquivo da Senses saiu no layout genérico, e por isso o ERP recusou. Comparando os dois arquivos enviados:
 
-| Campo | DiColore (ok) | Senses (erro) |
-|---|---|---|
-| pedidoTelevendas | `N` | `Nao` |
-| tipovenda | presente | ausente |
-| transportadora | presente | ausente |
-| tabelaPrecos | `4` | vazio |
-| colunaTabelaPrecos | `3` | `2` |
-| perCom (por item) | presente | ausente |
-| precoUnitario | 3 casas | 2 casas |
+
+| Campo              | DiColore (ok) | Senses (erro) |
+| ------------------ | ------------- | ------------- |
+| pedidoTelevendas   | `N`           | `Nao`         |
+| tipovenda          | presente      | ausente       |
+| transportadora     | presente      | ausente       |
+| tabelaPrecos       | `4`           | vazio         |
+| colunaTabelaPrecos | `3`           | `2`           |
+| perCom (por item)  | presente      | ausente       |
+| precoUnitario      | 3 casas       | 2 casas       |
+
 
 ## Correção
 
@@ -30,4 +32,12 @@ Resultado: o arquivo da Senses saiu no layout genérico, e por isso o ERP recuso
 
 ## Confirmação necessária
 
-Na Senses, `tabelaPrecos` e `colunaTabelaPrecos` devem sair iguais aos da DiColore (`4` e `3`) ou com valores próprios?
+Na Senses, `tabelaPrecos` e `colunaTabelaPrecos` devem sair iguais aos da DiColore (`4` e `3`) ou com valores próprios?   
+  
+Para a SENSES =    
+<tabelaPrecos>11</tabelaPrecos>  
+<colunaTabelaPrecos>2</colunaTabelaPrecos>  
+  
+Para a DICOLORE =   
+<tabelaPrecos>4</tabelaPrecos> (ou conforme a tabela de preço do cadastro do cliente)  
+<colunaTabelaPrecos>2</colunaTabelaPrecos>  

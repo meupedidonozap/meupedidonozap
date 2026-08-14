@@ -3046,6 +3046,7 @@ export default function StoreAdminPage() {
                 kitMap,
                 transportadora: cp?.transportadora || '',
                 ie: cp?.ie || '',
+                priceTable: cp?.priceTable,
                 productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
                 productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
                 productCommission: Object.fromEntries(
