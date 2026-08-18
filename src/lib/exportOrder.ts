@@ -70,6 +70,10 @@ export interface CustomerExtra {
   productUnit?: Record<string, string>;
   /** Unidade de medida por código de produto (usada nos itens de KIT). */
   productUnitByCode?: Record<string, string>;
+  /** De-para do código Bling por productId. */
+  productBlingCode?: Record<string, string>;
+  /** De-para do código Bling por código de produto (itens de KIT). */
+  productBlingCodeByCode?: Record<string, string>;
   /** Map productId -> commission percent (Dicolore <perCom>). */
   productCommission?: Record<string, number>;
   /** Composição dos KITs: kit id -> componentes (kits são explodidos na saída). */
@@ -256,8 +260,12 @@ export function exportOrderBlingXml(order: Order, store: StoreLike, extra: Custo
         extra.productUnit?.[item.productId] ||
         extra.productUnitByCode?.[String(item.code || '')] ||
         'Un';
+      const codigo =
+        extra.productBlingCode?.[item.productId] ||
+        extra.productBlingCodeByCode?.[String(item.code || '')] ||
+        item.code;
       return `    <item>
-      <codigo>${escapeXml(item.code)}</codigo>
+      <codigo>${escapeXml(codigo)}</codigo>
       <descricao>${escapeXml(item.name)}</descricao>
       <un>${escapeXml(un)}</un>
       <qtde>${item.quantity}</qtde>
