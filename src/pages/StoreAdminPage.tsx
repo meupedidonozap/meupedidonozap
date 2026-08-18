@@ -424,6 +424,7 @@ export default function StoreAdminPage() {
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
+  const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
@@ -478,6 +479,7 @@ export default function StoreAdminPage() {
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
+    setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
     setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
@@ -769,6 +771,7 @@ export default function StoreAdminPage() {
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
+          useBlingIntegration,
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           catalogViewModes: { list: viewModeList, grid: viewModeGrid },
           materialApoio: {
@@ -3053,6 +3056,12 @@ export default function StoreAdminPage() {
                 priceTable: cp?.priceTable,
                 productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
                 productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
+                productBlingCode: Object.fromEntries(
+                  products.filter(p => (p as any).blingCode).map(p => [p.id, String((p as any).blingCode)])
+                ),
+                productBlingCodeByCode: Object.fromEntries(
+                  products.filter(p => (p as any).blingCode).map(p => [String(p.code || ''), String((p as any).blingCode)])
+                ),
                 productCommission: Object.fromEntries(
                   products.map(p => {
                     const cat = categories.find(c => c.id === p.categoryId);
