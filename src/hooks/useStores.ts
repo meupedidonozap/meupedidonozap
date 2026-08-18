@@ -118,15 +118,21 @@ export function useDeleteStore() {
   });
 }
 
-export function useSwapStoreOrder() {
+export function useReorderStores() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ a, b }: { a: { id: string; sort_order: number }; b: { id: string; sort_order: number } }) => {
-      // Two-step swap to avoid unique conflicts (no constraint, but safer)
-      const { error: e1 } = await supabase.from('stores').update({ sort_order: b.sort_order }).eq('id', a.id).select('id').single();
-      if (e1) throw e1;
-      const { error: e2 } = await supabase.from('stores').update({ sort_order: a.sort_order }).eq('id', b.id).select('id').single();
-      if (e2) throw e2;
+    // Recebe a lista de ids já na nova ordem e grava sort_order = índice.
+    // Evita empates (dois registros com o mesmo sort_order travavam a troca).
+    mutationFn: async (orderedIds: string[]) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        const { error } = await supabase
+          .from('stores')
+          .update({ sort_order: i })
+          .eq('id', orderedIds[i])
+          .select('id')
+          .single();
+        if (error) throw error;
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['stores'] }),
   });
