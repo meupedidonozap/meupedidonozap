@@ -761,6 +761,7 @@ export type Database = {
       products: {
         Row: {
           base_price: number
+          bling_code: string | null
           category_id: string | null
           code: string
           created_at: string
@@ -784,6 +785,7 @@ export type Database = {
         }
         Insert: {
           base_price?: number
+          bling_code?: string | null
           category_id?: string | null
           code?: string
           created_at?: string
@@ -807,6 +809,7 @@ export type Database = {
         }
         Update: {
           base_price?: number
+          bling_code?: string | null
           category_id?: string | null
           code?: string
           created_at?: string

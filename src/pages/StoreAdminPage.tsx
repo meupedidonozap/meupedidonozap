@@ -424,6 +424,7 @@ export default function StoreAdminPage() {
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
+  const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
@@ -478,6 +479,7 @@ export default function StoreAdminPage() {
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
+    setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
     setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
@@ -769,6 +771,7 @@ export default function StoreAdminPage() {
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
+          useBlingIntegration,
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           catalogViewModes: { list: viewModeList, grid: viewModeGrid },
           materialApoio: {
@@ -1971,6 +1974,33 @@ export default function StoreAdminPage() {
               </Card>
             )}
             <OrderErrorsDiagnosticsCard storeId={store.id} />
+            <Card className="border-accent">
+              <CardHeader><CardTitle>Integração Bling</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
+                  <Label className="cursor-pointer" onClick={() => setUseBlingIntegration(!useBlingIntegration)}>
+                    Trabalha com integração BLING? <strong>{useBlingIntegration ? 'SIM' : 'NÃO'}</strong>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setUseBlingIntegration(!useBlingIntegration)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Alternar integração Bling"
+                  >
+                    {useBlingIntegration ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quando <strong>ligado</strong>, o cadastro de produto ganha o campo <strong>Código BLING</strong> e o
+                  download do <strong>XML (Bling)</strong> passa a usar esse código no lugar do código do sistema.
+                  Sem código Bling cadastrado, sai o código do sistema. O XML Tinturaria e o TXT não mudam.
+                </p>
+                <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                  {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Salvar
+                </Button>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
               <CardContent className="space-y-6">
@@ -2921,6 +2951,7 @@ export default function StoreAdminPage() {
         categories={categories}
         product={editingProduct}
         storeType={store.type as StoreType}
+        useBlingIntegration={(store.settings as any)?.useBlingIntegration === true}
       />
       <ImportProductsDialog
         open={importDialogOpen}
@@ -3053,6 +3084,12 @@ export default function StoreAdminPage() {
                 priceTable: cp?.priceTable,
                 productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
                 productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
+                productBlingCode: Object.fromEntries(
+                  products.filter(p => (p as any).blingCode).map(p => [p.id, String((p as any).blingCode)])
+                ),
+                productBlingCodeByCode: Object.fromEntries(
+                  products.filter(p => (p as any).blingCode).map(p => [String(p.code || ''), String((p as any).blingCode)])
+                ),
                 productCommission: Object.fromEntries(
                   products.map(p => {
                     const cat = categories.find(c => c.id === p.categoryId);

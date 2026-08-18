@@ -34,6 +34,7 @@ interface ParsedRow {
   category: string;
   group: string;
   unit: string;
+  blingCode: string;
   price: number;
   price1: number;
   price9: number;
@@ -108,6 +109,12 @@ const COLUMN_MAP: Record<string, string> = {
   unidade: 'unit',
   unit: 'unit',
   un: 'unit',
+  'codigo bling': 'blingCode',
+  'cod bling': 'blingCode',
+  'codbling': 'blingCode',
+  bling: 'blingCode',
+  'bling code': 'blingCode',
+  bling_code: 'blingCode',
   ativo: 'active',
   active: 'active',
   cor: 'color',
@@ -244,6 +251,7 @@ function parseSimpleRows(
       category: String(getField(row, headerMap, 'category') || '').trim(),
       group: String(getField(row, headerMap, 'group') || '').trim(),
       unit: String(getField(row, headerMap, 'unit') || '').trim(),
+      blingCode: String(getField(row, headerMap, 'blingCode') || '').trim(),
       price,
       price1,
       price9,
@@ -320,6 +328,7 @@ async function downloadCurrentProducts(storeId: string, categories: Category[], 
     Categoria: p.category_id ? (catName.get(p.category_id) || '') : '',
     Grupo: p.group_id || '',
     Unidade: p.unit || 'Un',
+    'Codigo BLING': p.bling_code || '',
     Preco1: Number(p.price_table_1 ?? 0),
     Preco: Number(p.price_table_4 ?? p.base_price ?? 0),
     Preco9: Number(p.price_table_9 ?? 0),
@@ -539,6 +548,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
       if (has('category')) patch.category_id = categoryMap.get(r.category.toLowerCase().trim()) || null;
       if (has('group')) patch.group_id = r.group || null;
       if (has('unit')) patch.unit = r.unit || 'Un';
+      if (has('blingCode')) patch.bling_code = r.blingCode || null;
       if (has('price')) { patch.base_price = r.price; patch.price_table_4 = r.price; }
       if (has('price1')) patch.price_table_1 = r.price1;
       if (has('price9')) patch.price_table_9 = r.price9;
@@ -565,6 +575,7 @@ export default function ImportProductsDialog({ open, onOpenChange, storeId, cate
         category_id: categoryMap.get(r.category.toLowerCase().trim()) || null,
         group_id: r.group || null,
         unit: r.unit || 'Un',
+        bling_code: r.blingCode || null,
         base_price: r.price,
         price_table_1: r.price1,
         price_table_4: r.price,

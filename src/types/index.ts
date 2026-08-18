@@ -136,6 +136,8 @@ export interface StoreSettings {
   offersDelivery?: boolean;
   /** DiColore: liga/desliga a integração de estoque via planilha. */
   useStockIntegration?: boolean;
+  /** Loja trabalha com integração Bling (habilita o campo Código BLING e o de-para no XML Bling). */
+  useBlingIntegration?: boolean;
   /** WhatsApp (DDI+DDD+numero) que recebe o aviso quando um pedido é liberado p/ transmissão (ERP). */
   erpReleaseWhatsapp?: string;
   cnpj?: string;
@@ -276,6 +278,8 @@ export interface Product {
   stock?: number;
   /** Unidade de medida (usada na exportação Bling). Padrão "Un". */
   unit?: string;
+  /** Código do produto no Bling (de-para usado no XML Bling). */
+  blingCode?: string;
   variants?: ProductVariant[];
   images?: ProductImage[];
   durationMinutes?: number;
