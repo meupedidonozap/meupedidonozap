@@ -1974,6 +1974,33 @@ export default function StoreAdminPage() {
               </Card>
             )}
             <OrderErrorsDiagnosticsCard storeId={store.id} />
+            <Card className="border-accent">
+              <CardHeader><CardTitle>Integração Bling</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
+                  <Label className="cursor-pointer" onClick={() => setUseBlingIntegration(!useBlingIntegration)}>
+                    Trabalha com integração BLING? <strong>{useBlingIntegration ? 'SIM' : 'NÃO'}</strong>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setUseBlingIntegration(!useBlingIntegration)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Alternar integração Bling"
+                  >
+                    {useBlingIntegration ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Quando <strong>ligado</strong>, o cadastro de produto ganha o campo <strong>Código BLING</strong> e o
+                  download do <strong>XML (Bling)</strong> passa a usar esse código no lugar do código do sistema.
+                  Sem código Bling cadastrado, sai o código do sistema. O XML Tinturaria e o TXT não mudam.
+                </p>
+                <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                  {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Salvar
+                </Button>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader><CardTitle>Informações da Loja</CardTitle></CardHeader>
               <CardContent className="space-y-6">
@@ -2924,6 +2951,7 @@ export default function StoreAdminPage() {
         categories={categories}
         product={editingProduct}
         storeType={store.type as StoreType}
+        useBlingIntegration={(store.settings as any)?.useBlingIntegration === true}
       />
       <ImportProductsDialog
         open={importDialogOpen}
