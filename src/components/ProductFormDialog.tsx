@@ -396,6 +396,7 @@ export default function ProductFormDialog({
           isActive,
           stock: Math.trunc(Number(stock) || 0),
           unit: unit.trim() || 'Un',
+          blingCode: blingCode.trim(),
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
