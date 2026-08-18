@@ -276,6 +276,8 @@ export interface Product {
   stock?: number;
   /** Unidade de medida (usada na exportação Bling). Padrão "Un". */
   unit?: string;
+  /** Código do produto no Bling (de-para usado no XML Bling). */
+  blingCode?: string;
   variants?: ProductVariant[];
   images?: ProductImage[];
   durationMinutes?: number;
