@@ -46,6 +46,7 @@ function mapProduct(row: any): Product {
     hasVariants: row.has_variants,
     isKit: !!row.is_kit,
     unit: row.unit || 'Un',
+    blingCode: row.bling_code || undefined,
     variants: row.product_variants?.map(mapVariant) || [],
     images: row.product_images?.map(mapImage) || [],
     durationMinutes: row.duration_minutes ?? 30,
@@ -107,6 +108,7 @@ export function useCreateProduct() {
       priceTable11?: number;
       stock?: number;
       unit?: string;
+      blingCode?: string;
       imageUrl?: string;
       isActive: boolean;
       hasVariants: boolean;
@@ -133,6 +135,7 @@ export function useCreateProduct() {
         price_table_11: product.priceTable11 ?? product.basePrice,
         stock: product.stock ?? 0,
         unit: product.unit || 'Un',
+        bling_code: product.blingCode?.trim() || null,
         image_url: product.imageUrl || null,
         is_active: product.isActive,
         has_variants: product.hasVariants,
@@ -200,6 +203,7 @@ export function useUpdateProduct() {
       priceTable11?: number;
       stock?: number;
       unit?: string;
+      blingCode?: string | null;
       imageUrl?: string | null;
       isActive?: boolean;
       hasVariants?: boolean;
@@ -221,6 +225,7 @@ export function useUpdateProduct() {
       if (product.priceTable11 !== undefined) updates.price_table_11 = product.priceTable11;
       if (product.stock !== undefined) updates.stock = product.stock;
       if (product.unit !== undefined) updates.unit = product.unit || 'Un';
+      if (product.blingCode !== undefined) updates.bling_code = (product.blingCode || '').toString().trim() || null;
       if (product.imageUrl !== undefined) updates.image_url = product.imageUrl;
       if (product.isActive !== undefined) updates.is_active = product.isActive;
       if (product.hasVariants !== undefined) updates.has_variants = product.hasVariants;
