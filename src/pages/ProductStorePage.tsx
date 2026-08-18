@@ -625,7 +625,7 @@ export default function ProductStorePage() {
                       ? 0
                       : cart.items.filter(i => i.productId === product.id && !i.variantId).reduce((s, i) => s + i.quantity, 0);
                     return (
-                      <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
                         {(() => {
                           const variantQty = product.hasVariants
@@ -635,6 +635,7 @@ export default function ProductStorePage() {
                           return (
                             <QuantityStepper
                               value={variantQty}
+                              className="w-full justify-between sm:w-auto sm:justify-start"
                               inputReadOnly={product.hasVariants || !buyable}
                               decrementDisabled={product.hasVariants || cartQty === 0}
                               incrementDisabled={!buyable}
