@@ -366,6 +366,7 @@ export default function ProductFormDialog({
         if (isFood) {
           await upsertAssembly.mutateAsync({
             productId: product.id,
+            blingCode: blingCode.trim(),
             mode: assemblyMode,
             allowObservation,
             allowBorder,
