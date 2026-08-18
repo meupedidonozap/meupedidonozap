@@ -36,6 +36,8 @@ interface ProductFormDialogProps {
   categories: Category[];
   product?: Product | null;
   storeType?: StoreType;
+  /** Loja trabalha com integração Bling (mostra o campo Código BLING). */
+  useBlingIntegration?: boolean;
 }
 
 interface VariantForm {
@@ -87,6 +89,7 @@ export default function ProductFormDialog({
   categories,
   product,
   storeType,
+  useBlingIntegration,
 }: ProductFormDialogProps) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -109,6 +112,7 @@ export default function ProductFormDialog({
   const [priceTable11, setPriceTable11] = useState('');
   const [stock, setStock] = useState('0');
   const [unit, setUnit] = useState('Un');
+  const [blingCode, setBlingCode] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [hasVariants, setHasVariants] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -146,6 +150,7 @@ export default function ProductFormDialog({
       setPriceTable11(product.priceTable11 != null && product.priceTable11 > 0 ? String(product.priceTable11) : '');
       setStock(String(product.stock ?? 0));
       setUnit((product as any).unit || 'Un');
+      setBlingCode((product as any).blingCode || '');
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
@@ -199,6 +204,7 @@ export default function ProductFormDialog({
       setPriceTable11('');
       setStock('0');
       setUnit('Un');
+      setBlingCode('');
       setIsActive(true);
       setHasVariants(false);
       setImagePreview(null);
@@ -561,6 +567,21 @@ export default function ProductFormDialog({
               <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} placeholder="Un" />
               <p className="text-xs text-muted-foreground">
                 Usada na exportação para o Bling (ex.: Un, Pç, Cx, Lt).
+              </p>
+            </div>
+          )}
+
+          {useBlingIntegration && (
+            <div className="grid gap-2">
+              <Label htmlFor="blingCode">Código BLING</Label>
+              <Input
+                id="blingCode"
+                value={blingCode}
+                onChange={e => setBlingCode(e.target.value)}
+                placeholder="Ex.: KIT-SENSES-NUTRI"
+              />
+              <p className="text-xs text-muted-foreground">
+                Usado no lugar do código do sistema ao baixar o XML no formato Bling. Em branco, usa o código do sistema.
               </p>
             </div>
           )}
