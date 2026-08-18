@@ -357,6 +357,7 @@ export default function ProductFormDialog({
           isActive,
           stock: Math.trunc(Number(stock) || 0),
           unit: unit.trim() || 'Un',
+          blingCode: blingCode.trim(),
           hasVariants,
           variants: variantData,
           images: hasVariants ? uploadedImages : [],
@@ -366,7 +367,6 @@ export default function ProductFormDialog({
         if (isFood) {
           await upsertAssembly.mutateAsync({
             productId: product.id,
-            blingCode: blingCode.trim(),
             mode: assemblyMode,
             allowObservation,
             allowBorder,
