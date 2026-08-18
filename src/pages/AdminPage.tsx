@@ -424,7 +424,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                         const idx = stores.findIndex(s => s.id === store.id);
                         const isFirst = idx <= 0;
                         const isLast = idx >= stores.length - 1;
-                        const isPending = swapStoreOrder.isPending;
+                        const isPending = reorderStores.isPending;
                         return (
                           <div className="flex flex-col">
                             <button
