@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Store, Settings, Eye, ToggleLeft, ToggleRight, Search, Loader2, UserPlus, LogOut, ShieldAlert, ChevronUp, ChevronDown } from 'lucide-react';
-import { useStores, useCreateStore, useUpdateStore, useDeleteStore, useSwapStoreOrder } from '@/hooks/useStores';
+import { useStores, useCreateStore, useUpdateStore, useDeleteStore, useReorderStores } from '@/hooks/useStores';
 import { supabase } from '@/integrations/supabase/client';
 import type { Store as StoreType, StoreType as StoreTypeEnum } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -110,7 +110,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const createStore = useCreateStore();
   const updateStore = useUpdateStore();
   const deleteStore = useDeleteStore();
-  const swapStoreOrder = useSwapStoreOrder();
+  const reorderStores = useReorderStores();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -186,10 +186,10 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
     const a = stores[idx];
     const b = stores[neighborIdx];
     try {
-      await swapStoreOrder.mutateAsync({
-        a: { id: a.id, sort_order: a.sortOrder ?? 0 },
-        b: { id: b.id, sort_order: b.sortOrder ?? 0 },
-      });
+      const ids = stores.map(s => s.id);
+      ids[idx] = b.id;
+      ids[neighborIdx] = a.id;
+      await reorderStores.mutateAsync(ids);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao reordenar');
     }
