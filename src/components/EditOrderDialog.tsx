@@ -157,6 +157,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         const c = condicoes.find(x => x.codigo === condicaoCodigo);
         const newCustomer: CustomerInfo = {
           ...order.customer,
+          priceTable: activeTable,
           paymentFormaCodigo: formaCodigo || undefined,
           paymentFormaDescricao: f?.descricao,
           paymentCondicaoCodigo: condicaoCodigo || undefined,
