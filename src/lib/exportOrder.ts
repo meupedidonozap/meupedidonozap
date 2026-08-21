@@ -2,6 +2,8 @@ import type { Order, CartItem, DiscountRule } from '@/types';
 import { isDicoloreFlow } from './dicolorePayments';
 import { ensureItemDiscountPercents } from './groupDiscounts';
 import { expandKitItems, mergeItemsByCode, type KitMap } from './kitExpansion';
+import { storeDefaultPriceTable } from './pricing';
+
 
 const PAYMENT_CODE: Record<string, string> = {
   pix: '1',
