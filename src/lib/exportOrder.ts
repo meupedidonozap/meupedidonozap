@@ -2,6 +2,8 @@ import type { Order, CartItem, DiscountRule } from '@/types';
 import { isDicoloreFlow } from './dicolorePayments';
 import { ensureItemDiscountPercents } from './groupDiscounts';
 import { expandKitItems, mergeItemsByCode, type KitMap } from './kitExpansion';
+import { storeDefaultPriceTable } from './pricing';
+
 
 const PAYMENT_CODE: Record<string, string> = {
   pix: '1',
@@ -92,10 +94,15 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   const cpfCnpj = extra.cpfCnpj || order.customer.cpfCnpj || '';
   const sellerCode = extra.sellerCode || rep.codigo || '';
   const isDicolore = isDicoloreFlow(store.slug, s);
-  const isSenses = store.slug === 'dicoloresenses';
+  // A tabela do pedido (gravada na montagem) sempre prevalece; depois o
+  // cadastro do cliente e, por último, o padrão da loja.
   const tabelaPrecos = String(
-    extra.priceTable || s.tabelaPrecos || (isSenses ? '11' : isDicolore ? '4' : '')
+    (order.customer as any)?.priceTable
+      || extra.priceTable
+      || s.tabelaPrecos
+      || (isDicolore || store.slug === 'dicoloresenses' ? storeDefaultPriceTable(store.slug) : '')
   );
+
   const colunaTabelaPrecos = 2;
   const priceDecimals = 2;
   const televendas = isDicolore

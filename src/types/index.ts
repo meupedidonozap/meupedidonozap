@@ -366,7 +366,10 @@ export interface CustomerInfo {
   ie?: string;
   transportadora?: string;
   sellerUserName?: string;
+  /** Tabela de preço usada na montagem do pedido (prevalece na exportação). */
+  priceTable?: 1 | 4 | 9 | 11;
 }
+
 
 export interface Order {
   id: string;

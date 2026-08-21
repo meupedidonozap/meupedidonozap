@@ -39,9 +39,12 @@ function mapProfile(row: any): CustomerProfile {
     number: row.number,
     complement: row.complement || undefined,
     sellerCode: row.seller_code || '',
+    transportadora: row.transportadora || '',
+    ie: row.ie || '',
     priceTable: normalizePriceTable(row.price_table),
   };
 }
+
 
 export function useCustomerProfile(userId: string | undefined, storeId: string | undefined) {
   return useQuery({

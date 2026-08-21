@@ -119,6 +119,35 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 }
 
 
+/**
+ * Cadastro do cliente que originou o pedido.
+ * Preferência: mesmo usuário > mesmo código de cliente > telefone
+ * (desempate pelo cadastro mais completo).
+ */
+function findOrderProfile(order: any, profiles: any[]): any {
+  const ouid = order?.userId;
+  const code = String(order?.customer?.customerCode || '').trim();
+  const cleanWa = String(order?.customer?.whatsapp || '').replace(/\D/g, '').slice(-8);
+  const score = (c: any) =>
+    (String(c?.cpfCnpj || '').replace(/\D/g, '') ? 4 : 0) +
+    (String(c?.customerCode || '').trim() ? 2 : 0) +
+    (String(c?.sellerCode || '').trim() ? 1 : 0);
+  const best = (list: any[]) => list.sort((a, b) => score(b) - score(a))[0];
+  if (ouid) {
+    const byUser = profiles.filter((c: any) => c.userId === ouid);
+    if (byUser.length) return best(byUser);
+  }
+  if (code) {
+    const byCode = profiles.filter((c: any) => String(c.customerCode || '').trim() === code);
+    if (byCode.length) return best(byCode);
+  }
+  if (cleanWa) {
+    const byPhone = profiles.filter((c: any) => String(c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa));
+    if (byPhone.length) return best(byPhone);
+  }
+  return undefined;
+}
+
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -3018,12 +3047,10 @@ export default function StoreAdminPage() {
         store={store}
         priceTable={(() => {
           if (!editingOrder) return storeDefaultPriceTable(store?.slug);
-          const ouid = (editingOrder as any).userId;
-          const cleanWa = (editingOrder.customer?.whatsapp || '').replace(/\D/g, '').slice(-8);
-          const cp: any = (customerProfiles as any[]).find((c: any) =>
-            (ouid && c.userId === ouid) ||
-            (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
-          );
+          // A tabela gravada no pedido sempre prevalece.
+          const stamped = (editingOrder.customer as any)?.priceTable;
+          if (stamped) return normalizePriceTable(stamped, storeDefaultPriceTable(store?.slug));
+          const cp: any = findOrderProfile(editingOrder, customerProfiles as any[]);
           return normalizePriceTable(cp?.priceTable, storeDefaultPriceTable(store?.slug));
         })()}
       />
@@ -3059,21 +3086,7 @@ export default function StoreAdminPage() {
             <Button onClick={() => {
               if (!downloadOrder) return;
               const order = downloadOrder;
-              const cleanWa = (order.customer.whatsapp || '').replace(/\D/g, '').slice(-8);
-              const ouid = (order as any).userId;
-              // Pode haver mais de um cadastro para o mesmo telefone (cliente
-              // com login por código + login por email). Preferimos sempre o
-              // que tem CPF/CNPJ e código do vendedor preenchidos para que o
-              // XML do ERP não saia com <cgcCliente></cgcCliente>.
-              const candidates = (customerProfiles as any[]).filter((c: any) =>
-                (ouid && c.userId === ouid) ||
-                (cleanWa && (c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa))
-              );
-              const score = (c: any) =>
-                (String(c?.cpfCnpj || '').replace(/\D/g, '') ? 4 : 0) +
-                (String(c?.customerCode || '').trim() ? 2 : 0) +
-                (String(c?.sellerCode || '').trim() ? 1 : 0);
-              const cp: any = candidates.sort((a, b) => score(b) - score(a))[0];
+              const cp: any = findOrderProfile(order, customerProfiles as any[]);
               downloadOrderFile(order, store, downloadFormat, {
                 cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
                 sellerCode: cp?.sellerCode || '',
@@ -3081,7 +3094,10 @@ export default function StoreAdminPage() {
                 kitMap,
                 transportadora: cp?.transportadora || '',
                 ie: cp?.ie || '',
-                priceTable: cp?.priceTable,
+                priceTable: normalizePriceTable(
+                  (order.customer as any)?.priceTable ?? cp?.priceTable,
+                  storeDefaultPriceTable(store?.slug),
+                ),
                 productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
                 productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
                 productBlingCode: Object.fromEntries(
