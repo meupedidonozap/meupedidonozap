@@ -865,6 +865,27 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
+
+      <Dialog open={!!pendingWhatsApp} onOpenChange={(v) => { if (!v) { setPendingWhatsApp(null); clearCart(); navigate(`/${store.slug}`); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Pedido registrado!</DialogTitle>
+            <DialogDescription>
+              Toque no botão abaixo para enviar o pedido pelo WhatsApp de {pendingWhatsApp?.sellerName}.
+            </DialogDescription>
+          </DialogHeader>
+          <Button asChild size="lg" className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+            <a
+              href={pendingWhatsApp?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => { setPendingWhatsApp(null); setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 800); }}
+            >
+              <MessageCircle className="h-4 w-4" /> Abrir WhatsApp de {pendingWhatsApp?.sellerName}
+            </a>
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
