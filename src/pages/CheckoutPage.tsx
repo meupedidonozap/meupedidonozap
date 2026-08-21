@@ -6,6 +6,7 @@ import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVers
 import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
+import { normalizePriceTable, storeDefaultPriceTable, type PriceTable } from '@/lib/pricing';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
@@ -68,7 +69,13 @@ export default function CheckoutPage() {
   } = useActiveCustomerProfile(store?.id);
   const sellerOrder = isSellerMode && !!selectedCustomer;
   const { data: sellers = [] } = useStoreSellers(store?.id);
-  const { data: kitMap = {} } = useStoreKitMap(store?.id, customerProfile?.priceTable);
+  // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
+  // com o padrão da loja como único fallback (mesma regra da vitrine).
+  const activePriceTable: PriceTable = normalizePriceTable(
+    customerProfile?.priceTable,
+    storeDefaultPriceTable(store?.slug),
+  );
+  const { data: kitMap = {} } = useStoreKitMap(store?.id, activePriceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
   // Otherwise fall back to all active sellers.
@@ -293,7 +300,7 @@ export default function CheckoutPage() {
 
   const generateOrderMessage = () => {
     const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
-      computeGroupDiscounts(cart.items, discountRules, customerProfile?.priceTable);
+      computeGroupDiscounts(cart.items, discountRules, activePriceTable);
     return generateWhatsAppMessage({
       storeName: store.name,
       customer: {
@@ -370,7 +377,7 @@ export default function CheckoutPage() {
       }
       // Recalcula descontos por grupo na hora, evitando estado defasado do contexto
       const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
-        computeGroupDiscounts(cart.items, discountRules, customerProfile?.priceTable);
+        computeGroupDiscounts(cart.items, discountRules, activePriceTable);
       const liveTotalDiscount = cart.couponDiscount + liveQtyDiscount;
       const liveTotal = Math.max(0, cart.subtotal - liveTotalDiscount) + deliveryFee;
       const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
@@ -410,6 +417,7 @@ export default function CheckoutPage() {
           address: isPickup ? 'RETIRAR NA LOJA' : formData.address,
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
+          priceTable: activePriceTable,
           ...(sellerOrder ? {
             customerCode: selectedCustomer?.customerCode || undefined,
             sellerCode: selectedCustomer?.sellerCode || undefined,
