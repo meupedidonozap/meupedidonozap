@@ -348,6 +348,9 @@ export default function CheckoutPage() {
       toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - effectiveTotal)} em produtos (já considerando descontos).`);
       return;
     }
+    // Abre a aba do WhatsApp já no gesto do usuário para não ser bloqueada
+    // pelo navegador (a URL é definida depois que o pedido é gravado).
+    const waWindow = sellerOrder ? null : window.open('', '_blank');
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
