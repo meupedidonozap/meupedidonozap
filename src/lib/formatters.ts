@@ -144,10 +144,14 @@ export function generateWhatsAppMessage(order: {
   return msg;
 }
 
-export function openWhatsApp(phone: string, message: string): void {
+export function buildWhatsAppUrl(phone: string, message: string): string {
   const cleanedPhone = phone.replace(/\D/g, '');
   const encodedMessage = encodeURIComponent(message);
-  window.open(`https://api.whatsapp.com/send/?text=${encodedMessage}&phone=${cleanedPhone}`, '_blank');
+  return `https://api.whatsapp.com/send/?text=${encodedMessage}&phone=${cleanedPhone}`;
+}
+
+export function openWhatsApp(phone: string, message: string): void {
+  window.open(buildWhatsAppUrl(phone, message), '_blank');
 }
 
 export function downloadTxt(content: string, filename: string): void {

@@ -18,7 +18,7 @@ import { expandKitItems } from '@/lib/kitExpansion';
 import { useStoreKitMap } from '@/hooks/useProductKits';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
-  generateWhatsAppMessage, openWhatsApp, downloadTxt,
+  generateWhatsAppMessage, buildWhatsAppUrl, downloadTxt,
 } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import ClosedBanner from '@/components/ClosedBanner';
 import { useStoreOpen } from '@/hooks/useStoreOpen';
 import type { PaymentMethod, DeliveryShift } from '@/types';
@@ -89,6 +90,7 @@ export default function CheckoutPage() {
     observations: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingWhatsApp, setPendingWhatsApp] = useState<{ url: string; sellerName: string } | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
@@ -348,6 +350,9 @@ export default function CheckoutPage() {
       toast.error(`Pedido mínimo de ${formatCurrency(minOrder)}. Faltam ${formatCurrency(minOrder - effectiveTotal)} em produtos (já considerando descontos).`);
       return;
     }
+    // Abre a aba do WhatsApp já no gesto do usuário para não ser bloqueada
+    // pelo navegador (a URL é definida depois que o pedido é gravado).
+    const waWindow = sellerOrder ? null : window.open('', '_blank');
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
@@ -438,6 +443,7 @@ export default function CheckoutPage() {
       };
 
       if (offline) {
+        waWindow?.close();
         await enqueueOrder({
           id: newClientOrderId(),
           storeId: store.id,
@@ -459,13 +465,22 @@ export default function CheckoutPage() {
         return;
       }
 
-      const targetWhatsapp = recipientOptions.length > 0 && selectedSellerId
-        ? (recipientOptions.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
-        : store.whatsapp;
-      openWhatsApp(targetWhatsapp, generateOrderMessage());
-      toast.success('Pedido enviado!');
-      setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+      const chosenRecipient = recipientOptions.length > 0 && selectedSellerId
+        ? recipientOptions.find(s => s.id === selectedSellerId)
+        : undefined;
+      const targetWhatsapp = chosenRecipient?.whatsapp || store.whatsapp;
+      const waUrl = buildWhatsAppUrl(targetWhatsapp, generateOrderMessage());
+
+      if (waWindow && !waWindow.closed) {
+        waWindow.location.href = waUrl;
+        toast.success('Pedido enviado!');
+        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+      } else {
+        // Popup bloqueado: o cliente conclui o envio com um toque direto.
+        setPendingWhatsApp({ url: waUrl, sellerName: chosenRecipient?.name || store.name });
+      }
     } catch (err: any) {
+      waWindow?.close();
       toast.error(err.message || 'Erro ao salvar pedido');
     } finally {
       setIsSubmitting(false);
@@ -851,6 +866,27 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
+
+      <Dialog open={!!pendingWhatsApp} onOpenChange={(v) => { if (!v) { setPendingWhatsApp(null); clearCart(); navigate(`/${store.slug}`); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Pedido registrado!</DialogTitle>
+            <DialogDescription>
+              Toque no botão abaixo para enviar o pedido pelo WhatsApp de {pendingWhatsApp?.sellerName}.
+            </DialogDescription>
+          </DialogHeader>
+          <Button asChild size="lg" className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+            <a
+              href={pendingWhatsApp?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => { setPendingWhatsApp(null); setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 800); }}
+            >
+              <MessageCircle className="h-4 w-4" /> Abrir WhatsApp de {pendingWhatsApp?.sellerName}
+            </a>
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
