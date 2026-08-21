@@ -441,6 +441,7 @@ export default function CheckoutPage() {
       };
 
       if (offline) {
+        waWindow?.close();
         await enqueueOrder({
           id: newClientOrderId(),
           storeId: store.id,
@@ -462,13 +463,22 @@ export default function CheckoutPage() {
         return;
       }
 
-      const targetWhatsapp = recipientOptions.length > 0 && selectedSellerId
-        ? (recipientOptions.find(s => s.id === selectedSellerId)?.whatsapp || store.whatsapp)
-        : store.whatsapp;
-      openWhatsApp(targetWhatsapp, generateOrderMessage());
-      toast.success('Pedido enviado!');
-      setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+      const chosenRecipient = recipientOptions.length > 0 && selectedSellerId
+        ? recipientOptions.find(s => s.id === selectedSellerId)
+        : undefined;
+      const targetWhatsapp = chosenRecipient?.whatsapp || store.whatsapp;
+      const waUrl = buildWhatsAppUrl(targetWhatsapp, generateOrderMessage());
+
+      if (waWindow && !waWindow.closed) {
+        waWindow.location.href = waUrl;
+        toast.success('Pedido enviado!');
+        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+      } else {
+        // Popup bloqueado: o cliente conclui o envio com um toque direto.
+        setPendingWhatsApp({ url: waUrl, sellerName: chosenRecipient?.name || store.name });
+      }
     } catch (err: any) {
+      waWindow?.close();
       toast.error(err.message || 'Erro ao salvar pedido');
     } finally {
       setIsSubmitting(false);
