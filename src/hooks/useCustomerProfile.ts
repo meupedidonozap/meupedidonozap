@@ -42,8 +42,9 @@ function mapProfile(row: any): CustomerProfile {
     transportadora: row.transportadora || '',
     ie: row.ie || '',
     priceTable: normalizePriceTable(row.price_table),
-
+  };
 }
+
 
 export function useCustomerProfile(userId: string | undefined, storeId: string | undefined) {
   return useQuery({
