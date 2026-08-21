@@ -18,7 +18,7 @@ import { expandKitItems } from '@/lib/kitExpansion';
 import { useStoreKitMap } from '@/hooks/useProductKits';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
-  generateWhatsAppMessage, openWhatsApp, downloadTxt,
+  generateWhatsAppMessage, buildWhatsAppUrl, downloadTxt,
 } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { supabase } from '@/integrations/supabase/client';
