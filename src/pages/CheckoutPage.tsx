@@ -89,6 +89,7 @@ export default function CheckoutPage() {
     observations: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingWhatsApp, setPendingWhatsApp] = useState<{ url: string; sellerName: string } | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
