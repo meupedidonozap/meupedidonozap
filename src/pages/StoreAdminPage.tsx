@@ -262,6 +262,15 @@ export default function StoreAdminPage() {
     });
     return m;
   }, [customerProfiles]);
+  const docToSellerCode = useMemo(() => {
+    const m = new Map<string, string>();
+    (customerProfiles as any[]).forEach((cp: any) => {
+      const doc = String(cp.cpfCnpj || '').replace(/\D/g, '');
+      const code = String(cp.sellerCode || '').trim();
+      if (doc && code) m.set(doc, code);
+    });
+    return m;
+  }, [customerProfiles]);
   const customerCodeLookup = useMemo(() => {
     const byDoc = new Map<string, string>();
     const byWa = new Map<string, string>();
@@ -276,6 +285,8 @@ export default function StoreAdminPage() {
     return { byDoc, byWa };
   }, [customerProfiles]);
   const resolveCustomerCode = (c: any): string => {
+    const own = String(c?.customerCode || '').trim();
+    if (own) return own;
     const doc = String(c?.cpfCnpj || '').replace(/\D/g, '');
     if (doc && customerCodeLookup.byDoc.has(doc)) return customerCodeLookup.byDoc.get(doc)!;
     const wa = last8(c?.whatsapp || '');
@@ -283,11 +294,15 @@ export default function StoreAdminPage() {
     return '';
   };
   const resolveOrderSellerName = (c: any): string | null => {
+    const doc = String(c?.cpfCnpj || '').replace(/\D/g, '');
     const wa = last8(c?.whatsapp || '');
-    const sellerCode = wa ? whatsappToSellerCode.get(wa) : undefined;
+    const sellerCode = String(c?.sellerCode || '').trim()
+      || (doc ? docToSellerCode.get(doc) : undefined)
+      || (wa ? whatsappToSellerCode.get(wa) : undefined);
     if (!sellerCode) return null;
-    return sellerByCode.get(sellerCode.trim())?.name || null;
+    return sellerByCode.get(String(sellerCode).trim())?.name || null;
   };
+
 
   const scopedCustomerProfiles = useMemo(() => {
     if (!restrictBySeller) return customerProfiles as any[];
