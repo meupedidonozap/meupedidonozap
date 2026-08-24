@@ -205,10 +205,17 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    // Evita a "janela de corrida": se ainda estamos verificando se o usuário é
+    // vendedor da loja, não deixa finalizar (senão o pedido sairia no nome dele).
+    if (seller.loading) {
+      toast.error('Aguarde a verificação do seu acesso e tente novamente');
+      return false;
+    }
     if (isSellerMode && !selectedCustomer) {
       toast.error('Selecione o cliente antes de finalizar o pedido');
       return false;
     }
+
     const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
     const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
@@ -403,10 +410,15 @@ export default function CheckoutPage() {
           number: isPickup ? '' : formData.number,
           complement: isPickup ? undefined : (formData.complement || undefined),
         });
-      } catch (profileErr) {
-        // Não bloqueia o pedido se o upsert do perfil falhar
+      } catch (profileErr: any) {
+        // Não bloqueia o pedido, mas o usuário precisa saber que o cadastro não foi salvo
         console.warn('[checkout] upsertProfile falhou:', profileErr);
+        toast.warning(
+          `Não foi possível salvar seu cadastro de cliente: ${profileErr?.message || 'erro desconhecido'}. O pedido segue normalmente, mas avise a loja.`,
+          { duration: 8000 },
+        );
       }
+
 
       const orderPayload: any = {
         storeId: store.id,
