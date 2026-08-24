@@ -65,6 +65,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
+import { buildCustomerPassword, sanitizeCustomerLogin } from '@/lib/customerAuth';
+
 import { printOrder } from '@/lib/printOrder';
 import { downloadOrderFile } from '@/lib/exportOrder';
 import { expandKitItems } from '@/lib/kitExpansion';
