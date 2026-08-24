@@ -2922,12 +2922,12 @@ export default function StoreAdminPage() {
                     Informe a nova senha ao cliente — ele poderá alterá-la depois.
                   </p>
                   <div className="grid gap-1">
-                    <Label className="text-sm">Nova senha (mín. 6 caracteres)</Label>
+                    <Label className="text-sm">Nova senha (pode ser o próprio código do cliente)</Label>
                     <Input
                       type="text"
                       value={resetPwdValue}
                       onChange={e => setResetPwdValue(e.target.value)}
-                      placeholder="ex: cliente123"
+                      placeholder="ex: 98887"
                       autoFocus
                     />
                   </div>
@@ -2937,7 +2937,7 @@ export default function StoreAdminPage() {
                     Cancelar
                   </Button>
                   <Button
-                    disabled={resetPwdValue.length < 6 || resetPwdLoading}
+                    disabled={resetPwdValue.trim().length < 3 || resetPwdLoading}
                     onClick={async () => {
                       if (!resetPwdCustomer) return;
                       setResetPwdLoading(true);
@@ -2946,9 +2946,10 @@ export default function StoreAdminPage() {
                           body: {
                             storeId: resetPwdCustomer.storeId,
                             customerProfileId: resetPwdCustomer.id,
-                            newPassword: resetPwdValue,
+                            newPassword: buildCustomerPassword(resetPwdValue.trim()),
                           },
                         });
+
                         if (error) throw error;
                         if ((data as any)?.error) throw new Error((data as any).error);
                         toast.success('Senha redefinida com sucesso!');
