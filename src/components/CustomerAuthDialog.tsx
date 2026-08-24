@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { formatPhone, formatCEP } from '@/lib/formatters';
+import { buildCustomerEmail, buildCustomerPassword } from '@/lib/customerAuth';
+
 
 const brazilianStates = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
