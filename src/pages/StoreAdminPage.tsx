@@ -2892,7 +2892,7 @@ export default function StoreAdminPage() {
                         if (codigo && dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         await createCustomerAccess({ storeId: store.id, codigo, form: customerForm });
                         toast.success(
-                          `Cliente criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                          `Cliente criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || codigo}`,
                           { duration: 10000 },
                         );
                       } else {
