@@ -2791,7 +2791,7 @@ export default function StoreAdminPage() {
                         if (!editingCustomer.userId && (codigo || login)) {
                           await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
                           toast.success(
-                            `Acesso criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                            `Acesso criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || codigo}`,
                             { duration: 10000 },
                           );
                         } else {
