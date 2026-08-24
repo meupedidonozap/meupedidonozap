@@ -707,6 +707,8 @@ export default function StoreAdminPage() {
       if (data?.created > 0) parts.push(`${data.created} criado(s)`);
       if (data?.updated > 0) parts.push(`${data.updated} atualizado(s)`);
       if (data?.deactivated > 0) parts.push(`${data.deactivated} desativado(s)`);
+      if (data?.access_created > 0) parts.push(`${data.access_created} acesso(s) criado(s)`);
+      if (data?.access_pending > 0) parts.push(`${data.access_pending} acesso(s) pendente(s)`);
       if (data?.errors > 0) parts.push(`${data.errors} erro(s)`);
       if (parts.length > 0) {
         toast.success(`Clientes sincronizados: ${parts.join(', ')} (planilha: ${data?.total_sheet_rows || 0})`);
