@@ -157,8 +157,9 @@ Deno.serve(async (req) => {
         userId = existingProfile.user_id;
         action = 'updated';
         if (senhaRaw) {
-          await admin.auth.admin.updateUserById(userId!, { password: senhaRaw });
+          await admin.auth.admin.updateUserById(userId!, { password: buildPassword(senhaRaw) });
         }
+
       } else {
         // try create auth user
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
