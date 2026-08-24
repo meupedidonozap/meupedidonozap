@@ -112,14 +112,12 @@ Deno.serve(async (req) => {
           results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
           continue;
         }
-        if (senhaRaw && senhaRaw.length < 6) {
-          results.push({ codigo, nome, status: 'error', erro: 'Senha deve ter no mínimo 6 caracteres' });
-          continue;
-        }
 
         const identity = loginRaw || codigo;
         const email = buildEmail(identity, slug);
-        const password = senhaRaw || buildPassword(identity);
+        // Senha curta (ex.: código de 5 dígitos) é completada internamente.
+        const password = senhaRaw ? buildPassword(senhaRaw) : buildPassword(identity);
+
 
       let userId: string | null = null;
       let action: 'created' | 'updated' = 'created';
