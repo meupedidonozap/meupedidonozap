@@ -129,6 +129,7 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 function findOrderProfile(order: any, profiles: any[]): any {
   const ouid = order?.userId;
   const code = String(order?.customer?.customerCode || '').trim();
+  const doc = String(order?.customer?.cpfCnpj || '').replace(/\D/g, '');
   const cleanWa = String(order?.customer?.whatsapp || '').replace(/\D/g, '').slice(-8);
   const score = (c: any) =>
     (String(c?.cpfCnpj || '').replace(/\D/g, '') ? 4 : 0) +
@@ -143,12 +144,17 @@ function findOrderProfile(order: any, profiles: any[]): any {
     const byCode = profiles.filter((c: any) => String(c.customerCode || '').trim() === code);
     if (byCode.length) return best(byCode);
   }
+  if (doc) {
+    const byDoc = profiles.filter((c: any) => String(c.cpfCnpj || '').replace(/\D/g, '') === doc);
+    if (byDoc.length) return best(byDoc);
+  }
   if (cleanWa) {
     const byPhone = profiles.filter((c: any) => String(c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa));
     if (byPhone.length) return best(byPhone);
   }
   return undefined;
 }
+
 
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
