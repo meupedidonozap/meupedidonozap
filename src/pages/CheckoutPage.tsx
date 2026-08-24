@@ -205,10 +205,17 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    // Evita a "janela de corrida": se ainda estamos verificando se o usuário é
+    // vendedor da loja, não deixa finalizar (senão o pedido sairia no nome dele).
+    if (seller.loading) {
+      toast.error('Aguarde a verificação do seu acesso e tente novamente');
+      return false;
+    }
     if (isSellerMode && !selectedCustomer) {
       toast.error('Selecione o cliente antes de finalizar o pedido');
       return false;
     }
+
     const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
     const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
