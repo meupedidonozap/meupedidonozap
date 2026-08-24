@@ -39,6 +39,18 @@ function parseCSVLine(line: string): string[] {
 
 const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
 
+const sanitizeLogin = (v: string) =>
+  (v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+const buildCustomerEmail = (identity: string, slug: string) =>
+  `${sanitizeLogin(identity)}@${(slug || "loja").toLowerCase().replace(/[^a-z0-9]/g, "")}.cliente.local`;
+
+/** Senha do cliente = o próprio código; se tiver menos de 6, completa internamente. */
+const buildCustomerPassword = (v: string) => {
+  const c = (v || "").trim();
+  return c.length >= 6 ? c : `dico${c}`;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -117,6 +129,7 @@ Deno.serve(async (req) => {
       seller_code: string | null;
       transportadora: string | null;
       is_active: boolean | null;
+      user_id: string | null;
     };
     const existing = new Map<string, ExistingRow>();
     const PAGE = 1000;
@@ -124,7 +137,7 @@ Deno.serve(async (req) => {
     while (true) {
       const { data, error } = await supabase
         .from("customer_profiles")
-        .select("id, customer_code, name, cpf_cnpj, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, transportadora, is_active")
+        .select("id, customer_code, user_id, name, cpf_cnpj, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, transportadora, is_active")
         .eq("store_id", store_id)
         .range(from, from + PAGE - 1);
       if (error) throw error;
@@ -135,6 +148,10 @@ Deno.serve(async (req) => {
       if (rows.length < PAGE) break;
       from += PAGE;
     }
+
+    const { data: storeRow } = await supabase
+      .from("stores").select("slug").eq("id", store_id).maybeSingle();
+    const storeSlug = String(storeRow?.slug || "loja");
 
     let created = 0;
     let updated = 0;
@@ -237,9 +254,67 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Cria acesso do cliente (login = código, senha = código) para quem ainda não tem
+    let accessCreated = 0;
+    const missing: { id: string; code: string }[] = [];
+    {
+      let f = 0;
+      while (true) {
+        const { data } = await supabase
+          .from("customer_profiles")
+          .select("id, customer_code, user_id")
+          .eq("store_id", store_id)
+          .is("user_id", null)
+          .range(f, f + PAGE - 1);
+        const rows = data || [];
+        for (const r of rows) {
+          const code = String(r.customer_code || "").trim();
+          if (code) missing.push({ id: r.id, code });
+        }
+        if (rows.length < PAGE) break;
+        f += PAGE;
+      }
+    }
+
+    const MAX_ACCESS = 400;
+    const targets = missing.slice(0, MAX_ACCESS);
+    for (let i = 0; i < targets.length; i += 5) {
+      const slice = targets.slice(i, i + 5);
+      await Promise.all(slice.map(async (t) => {
+        const email = buildCustomerEmail(t.code, storeSlug);
+        const password = buildCustomerPassword(t.code);
+        try {
+          let userId: string | null = null;
+          const { data: createdUser, error: createErr } = await supabase.auth.admin.createUser({
+            email, password, email_confirm: true,
+          });
+          if (createErr) {
+            // já existe: localiza e garante a senha padrão
+            const { data: list } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+            const found = list?.users?.find((u: any) => u.email === email);
+            if (found) {
+              userId = found.id;
+              await supabase.auth.admin.updateUserById(found.id, { password });
+            }
+          } else {
+            userId = createdUser?.user?.id ?? null;
+          }
+          if (userId) {
+            const { error: linkErr } = await supabase
+              .from("customer_profiles").update({ user_id: userId }).eq("id", t.id);
+            if (!linkErr) accessCreated++;
+          }
+        } catch (e) {
+          errors.push({ codigo: t.code, erro: String(e) });
+        }
+      }));
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
+        access_created: accessCreated,
+        access_pending: Math.max(0, missing.length - targets.length),
         created,
         updated,
         skipped,
