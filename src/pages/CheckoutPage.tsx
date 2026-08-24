@@ -410,10 +410,15 @@ export default function CheckoutPage() {
           number: isPickup ? '' : formData.number,
           complement: isPickup ? undefined : (formData.complement || undefined),
         });
-      } catch (profileErr) {
-        // Não bloqueia o pedido se o upsert do perfil falhar
+      } catch (profileErr: any) {
+        // Não bloqueia o pedido, mas o usuário precisa saber que o cadastro não foi salvo
         console.warn('[checkout] upsertProfile falhou:', profileErr);
+        toast.warning(
+          `Não foi possível salvar seu cadastro de cliente: ${profileErr?.message || 'erro desconhecido'}. O pedido segue normalmente, mas avise a loja.`,
+          { duration: 8000 },
+        );
       }
+
 
       const orderPayload: any = {
         storeId: store.id,
