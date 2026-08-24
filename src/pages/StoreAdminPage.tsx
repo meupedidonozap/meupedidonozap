@@ -173,20 +173,19 @@ export default function StoreAdminPage() {
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
   // Senha inicial de acesso por código (mesma regra da importação de clientes)
-  const initialCodePassword = (codigo: string) => {
-    const c = (codigo || '').trim();
-    return c.length >= 6 ? c : `dico${c}`;
-  };
+  const initialCodePassword = (codigo: string) => buildCustomerPassword(codigo);
 
   // Normaliza o usuário informado no cadastro (somente letras/números)
-  const sanitizeLogin = (v: string) => (v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const sanitizeLogin = (v: string) => sanitizeCustomerLogin(v);
   const storeLoginSuffix = `@${(store?.slug || 'loja').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
   // Cria (ou vincula) o acesso do cliente: login = usuário informado (ou código), senha = informada (ou código)
   const createCustomerAccess = async (params: { storeId: string; codigo: string; form: typeof customerForm }) => {
     const { form } = params;
     const login = sanitizeLogin(form.loginUser);
-    const senha = (form.loginPassword || '').trim();
+    const senhaRaw = (form.loginPassword || '').trim();
+    const senha = senhaRaw ? buildCustomerPassword(senhaRaw) : '';
+
     const { data, error } = await supabase.functions.invoke('import-customers', {
       body: {
         storeId: params.storeId,
