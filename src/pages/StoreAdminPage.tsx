@@ -65,6 +65,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
+import { buildCustomerPassword, sanitizeCustomerLogin } from '@/lib/customerAuth';
+
 import { printOrder } from '@/lib/printOrder';
 import { downloadOrderFile } from '@/lib/exportOrder';
 import { expandKitItems } from '@/lib/kitExpansion';
@@ -173,20 +175,19 @@ export default function StoreAdminPage() {
   const deleteCustomerProfile = useDeleteCustomerProfile();
 
   // Senha inicial de acesso por código (mesma regra da importação de clientes)
-  const initialCodePassword = (codigo: string) => {
-    const c = (codigo || '').trim();
-    return c.length >= 6 ? c : `dico${c}`;
-  };
+  const initialCodePassword = (codigo: string) => buildCustomerPassword(codigo);
 
   // Normaliza o usuário informado no cadastro (somente letras/números)
-  const sanitizeLogin = (v: string) => (v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  const sanitizeLogin = (v: string) => sanitizeCustomerLogin(v);
   const storeLoginSuffix = `@${(store?.slug || 'loja').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
   // Cria (ou vincula) o acesso do cliente: login = usuário informado (ou código), senha = informada (ou código)
   const createCustomerAccess = async (params: { storeId: string; codigo: string; form: typeof customerForm }) => {
     const { form } = params;
     const login = sanitizeLogin(form.loginUser);
-    const senha = (form.loginPassword || '').trim();
+    const senhaRaw = (form.loginPassword || '').trim();
+    const senha = senhaRaw ? buildCustomerPassword(senhaRaw) : '';
+
     const { data, error } = await supabase.functions.invoke('import-customers', {
       body: {
         storeId: params.storeId,
@@ -2775,9 +2776,11 @@ export default function StoreAdminPage() {
                         const login = sanitizeLogin(customerForm.loginUser);
                         const senha = customerForm.loginPassword.trim();
                         if (!editingCustomer.userId && (login || senha)) {
-                          if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
-                          if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                          if (login && login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                          const igualIdentidade = !!senha && (senha === (login || codigo));
+                          if (senha && !igualIdentidade && senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres (ou ser igual ao código/usuário).'); return; }
                         }
+
                         if (codigo) {
                           const dup = (customerProfiles as any[]).find(
                             (c) => String(c.customerCode || '').trim() === codigo && c.id !== editingCustomer.id
@@ -2788,7 +2791,7 @@ export default function StoreAdminPage() {
                         if (!editingCustomer.userId && (codigo || login)) {
                           await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
                           toast.success(
-                            `Acesso criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                            `Acesso criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || codigo}`,
                             { duration: 10000 },
                           );
                         } else {
@@ -2879,15 +2882,17 @@ export default function StoreAdminPage() {
                       const login = sanitizeLogin(customerForm.loginUser);
                       const senha = customerForm.loginPassword.trim();
                       if (login || senha) {
-                        if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
-                        if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                        if (login && login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                        const igualIdentidade = !!senha && (senha === (login || codigo));
+                        if (senha && !igualIdentidade && senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres (ou ser igual ao código/usuário).'); return; }
                       }
+
                       if (codigo || login) {
                         const dup = (customerProfiles as any[]).find((c) => String(c.customerCode || '').trim() === codigo);
                         if (codigo && dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         await createCustomerAccess({ storeId: store.id, codigo, form: customerForm });
                         toast.success(
-                          `Cliente criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || initialCodePassword(codigo)}`,
+                          `Cliente criado! Login: ${login ? `${login}${storeLoginSuffix}` : codigo} · Senha: ${senha || codigo}`,
                           { duration: 10000 },
                         );
                       } else {
@@ -2917,12 +2922,12 @@ export default function StoreAdminPage() {
                     Informe a nova senha ao cliente — ele poderá alterá-la depois.
                   </p>
                   <div className="grid gap-1">
-                    <Label className="text-sm">Nova senha (mín. 6 caracteres)</Label>
+                    <Label className="text-sm">Nova senha (pode ser o próprio código do cliente)</Label>
                     <Input
                       type="text"
                       value={resetPwdValue}
                       onChange={e => setResetPwdValue(e.target.value)}
-                      placeholder="ex: cliente123"
+                      placeholder="ex: 98887"
                       autoFocus
                     />
                   </div>
@@ -2932,7 +2937,7 @@ export default function StoreAdminPage() {
                     Cancelar
                   </Button>
                   <Button
-                    disabled={resetPwdValue.length < 6 || resetPwdLoading}
+                    disabled={resetPwdValue.trim().length < 3 || resetPwdLoading}
                     onClick={async () => {
                       if (!resetPwdCustomer) return;
                       setResetPwdLoading(true);
@@ -2941,9 +2946,10 @@ export default function StoreAdminPage() {
                           body: {
                             storeId: resetPwdCustomer.storeId,
                             customerProfileId: resetPwdCustomer.id,
-                            newPassword: resetPwdValue,
+                            newPassword: buildCustomerPassword(resetPwdValue.trim()),
                           },
                         });
+
                         if (error) throw error;
                         if ((data as any)?.error) throw new Error((data as any).error);
                         toast.success('Senha redefinida com sucesso!');

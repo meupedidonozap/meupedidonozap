@@ -112,14 +112,12 @@ Deno.serve(async (req) => {
           results.push({ codigo, nome: '', status: 'error', erro: 'Nome vazio' });
           continue;
         }
-        if (senhaRaw && senhaRaw.length < 6) {
-          results.push({ codigo, nome, status: 'error', erro: 'Senha deve ter no mínimo 6 caracteres' });
-          continue;
-        }
 
         const identity = loginRaw || codigo;
         const email = buildEmail(identity, slug);
-        const password = senhaRaw || buildPassword(identity);
+        // Senha curta (ex.: código de 5 dígitos) é completada internamente.
+        const password = senhaRaw ? buildPassword(senhaRaw) : buildPassword(identity);
+
 
       let userId: string | null = null;
       let action: 'created' | 'updated' = 'created';
@@ -159,8 +157,9 @@ Deno.serve(async (req) => {
         userId = existingProfile.user_id;
         action = 'updated';
         if (senhaRaw) {
-          await admin.auth.admin.updateUserById(userId!, { password: senhaRaw });
+          await admin.auth.admin.updateUserById(userId!, { password: buildPassword(senhaRaw) });
         }
+
       } else {
         // try create auth user
         const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -261,7 +260,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      results.push({ codigo, nome, status: action, email, senha: password, user_id: userId });
+      results.push({ codigo, nome, status: action, email, senha: senhaRaw || identity, user_id: userId });
 
       // Propagar dados do ERP para qualquer cadastro "irmão" no mesmo telefone
       // Pulado em modo update (não afetar clientes existentes).

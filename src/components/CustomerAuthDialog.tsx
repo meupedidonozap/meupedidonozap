@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { formatPhone, formatCEP } from '@/lib/formatters';
+import { buildCustomerEmail, buildCustomerPassword } from '@/lib/customerAuth';
+
 
 const brazilianStates = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
@@ -74,17 +76,23 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const handleCodeLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const codigo = codeLoginData.codigo.trim();
-    const password = codeLoginData.password;
+    const password = codeLoginData.password.trim();
     if (!codigo || !password) {
       toast.error('Preencha código e senha');
       return;
     }
-    const slug = (storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || 'loja')
-      .toLowerCase().replace(/[^a-z0-9]/g, '');
-    const safeCode = codigo.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const email = `${safeCode}@${slug}.cliente.local`;
+    const slug = (storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || 'loja');
+    const email = buildCustomerEmail(codigo, slug);
     setLoading(true);
-    const { error } = await signIn(email, password);
+    let { error } = await signIn(email, password);
+    // Senhas curtas (ex.: código de 5 dígitos) são completadas internamente.
+    if (error) {
+      const fallback = buildCustomerPassword(password);
+      if (fallback !== password) {
+        const retry = await signIn(email, fallback);
+        error = retry.error;
+      }
+    }
     setLoading(false);
     if (error) {
       toast.error('Código ou senha incorretos. Confira com o seu representante.');
@@ -93,6 +101,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       onOpenChange(false);
     }
   };
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
