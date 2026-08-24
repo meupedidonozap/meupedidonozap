@@ -2776,9 +2776,11 @@ export default function StoreAdminPage() {
                         const login = sanitizeLogin(customerForm.loginUser);
                         const senha = customerForm.loginPassword.trim();
                         if (!editingCustomer.userId && (login || senha)) {
-                          if (login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
-                          if (senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres.'); return; }
+                          if (login && login.length < 3) { toast.error('Usuário deve ter no mínimo 3 caracteres.'); return; }
+                          const igualIdentidade = !!senha && (senha === (login || codigo));
+                          if (senha && !igualIdentidade && senha.length < 6) { toast.error('Senha deve ter no mínimo 6 caracteres (ou ser igual ao código/usuário).'); return; }
                         }
+
                         if (codigo) {
                           const dup = (customerProfiles as any[]).find(
                             (c) => String(c.customerCode || '').trim() === codigo && c.id !== editingCustomer.id
