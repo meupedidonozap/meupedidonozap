@@ -880,6 +880,10 @@ export default function CheckoutPage() {
                   >
                     <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp'))}
                   </Button>
+                  <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-xs text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200">
+                    <p className="font-semibold">Aviso:</p>
+                    <p>Devido ao alto giro da plataforma, produtos podem ficar sem estoque sem prévio aviso.</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
