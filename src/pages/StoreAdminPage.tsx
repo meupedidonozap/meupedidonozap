@@ -3009,6 +3009,7 @@ export default function StoreAdminPage() {
         categories={categories}
         product={editingProduct}
         storeType={store.type as StoreType}
+        storeSlug={store.slug}
         useBlingIntegration={(store.settings as any)?.useBlingIntegration === true}
       />
       <ImportProductsDialog
