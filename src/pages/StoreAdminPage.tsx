@@ -24,7 +24,7 @@ import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import { fetchAddressByCep } from '@/lib/cepLookup';
-import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable } from '@/lib/pricing';
+import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, resolveProductPrice } from '@/lib/pricing';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
 import type { MaterialApoioSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
