@@ -24,7 +24,7 @@ import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import { fetchAddressByCep } from '@/lib/cepLookup';
-import { normalizePriceTable, storeDefaultPriceTable } from '@/lib/pricing';
+import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable } from '@/lib/pricing';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
 import type { MaterialApoioSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
@@ -2586,7 +2586,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4, customerCode: '', loginUser: '', loginPassword: '' });
+                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: resolveStorePriceTable(store?.slug), customerCode: '', loginUser: '', loginPassword: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -2644,7 +2644,7 @@ export default function StoreAdminPage() {
                               sellerCode: (cp as any).sellerCode || '',
                               transportadora: (cp as any).transportadora || '',
                               ie: (cp as any).ie || '',
-                              priceTable: normalizePriceTable((cp as any).priceTable, storeDefaultPriceTable(store?.slug)),
+                              priceTable: resolveStorePriceTable(store?.slug, (cp as any).priceTable),
                               customerCode: (cp as any).customerCode || '',
                               loginUser: '',
                               loginPassword: '',
@@ -3075,12 +3075,13 @@ export default function StoreAdminPage() {
         materialApoio={store?.settings.materialApoio}
         store={store}
         priceTable={(() => {
-          if (!editingOrder) return storeDefaultPriceTable(store?.slug);
+          if (store?.slug === 'dicoloresenses') return resolveStorePriceTable(store?.slug);
+          if (!editingOrder) return resolveStorePriceTable(store?.slug);
           // A tabela gravada no pedido sempre prevalece.
           const stamped = (editingOrder.customer as any)?.priceTable;
-          if (stamped) return normalizePriceTable(stamped, storeDefaultPriceTable(store?.slug));
+          if (stamped) return resolveStorePriceTable(store?.slug, stamped);
           const cp: any = findOrderProfile(editingOrder, customerProfiles as any[]);
-          return normalizePriceTable(cp?.priceTable, storeDefaultPriceTable(store?.slug));
+          return resolveStorePriceTable(store?.slug, cp?.priceTable);
         })()}
       />
       <Dialog open={!!downloadOrder} onOpenChange={(v) => { if (!v) setDownloadOrder(null); }}>
@@ -3123,10 +3124,9 @@ export default function StoreAdminPage() {
                 kitMap,
                 transportadora: cp?.transportadora || '',
                 ie: cp?.ie || '',
-                priceTable: normalizePriceTable(
-                  (order.customer as any)?.priceTable ?? cp?.priceTable,
-                  storeDefaultPriceTable(store?.slug),
-                ),
+                priceTable: store?.slug === 'dicoloresenses'
+                  ? 11
+                  : resolveStorePriceTable(store?.slug, (order.customer as any)?.priceTable ?? cp?.priceTable),
                 productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
                 productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
                 productBlingCode: Object.fromEntries(

@@ -44,6 +44,7 @@ import {
   hasStock,
   normalizePriceTable,
   storeDefaultPriceTable,
+  resolveStorePriceTable,
   type PriceTable,
 } from '@/lib/pricing';
 
@@ -88,10 +89,7 @@ export default function ProductStorePage() {
   }, [store, setStoreId, setDiscountRules]);
 
   // Sync the customer's price table into the cart (default 4 for visitors/unknown).
-  const activePriceTable: PriceTable = normalizePriceTable(
-    customerProfile?.priceTable,
-    storeDefaultPriceTable(store?.slug),
-  );
+  const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
   useEffect(() => {
     setCustomerPriceTable(activePriceTable);
   }, [activePriceTable, setCustomerPriceTable]);
@@ -576,6 +574,7 @@ export default function ProductStorePage() {
       {isSellerMode && store && (
         <SellerModeBar
           storeId={store.id}
+          storeSlug={store.slug}
           sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
           selectedCustomer={selectedCustomer}
           onSelect={selectCustomer}

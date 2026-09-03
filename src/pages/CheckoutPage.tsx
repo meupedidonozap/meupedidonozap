@@ -6,7 +6,7 @@ import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVers
 import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
-import { normalizePriceTable, storeDefaultPriceTable, type PriceTable } from '@/lib/pricing';
+import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
@@ -71,10 +71,7 @@ export default function CheckoutPage() {
   const { data: sellers = [] } = useStoreSellers(store?.id);
   // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
   // com o padrão da loja como único fallback (mesma regra da vitrine).
-  const activePriceTable: PriceTable = normalizePriceTable(
-    customerProfile?.priceTable,
-    storeDefaultPriceTable(store?.slug),
-  );
+  const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, activePriceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
@@ -531,7 +528,7 @@ export default function CheckoutPage() {
             <span>
               <span className="font-semibold">Modo Vendedor</span>
               {selectedCustomer
-                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {selectedCustomer.priceTable ?? 4}</>
+                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {activePriceTable}</>
                 : ' — selecione o cliente para finalizar'}
             </span>
             <Button size="sm" variant={selectedCustomer ? 'outline' : 'default'} onClick={() => setSellerCustomerDialogOpen(true)}>
@@ -542,6 +539,7 @@ export default function CheckoutPage() {
             open={sellerCustomerDialogOpen}
             onOpenChange={setSellerCustomerDialogOpen}
             storeId={store.id}
+            storeSlug={store.slug}
             sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
             onSelected={(c) => {
               if (selectedCustomer && selectedCustomer.id !== c.id) clearCart();

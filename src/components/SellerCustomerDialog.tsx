@@ -12,17 +12,21 @@ import { useStoreCustomerProfiles, useCreateCustomerProfileAdmin } from '@/hooks
 import { formatCPFCNPJ, formatPhone, formatCEP } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { SellerCustomer } from '@/contexts/SellerContext';
+import { resolveStorePriceTable } from '@/lib/pricing';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   storeId: string;
+  /** Slug da loja (define a tabela de preço padrão). */
+  storeSlug?: string;
   /** Códigos de representante do vendedor. Vazio = vê todos (admin). */
   sellerCodes: string[];
   onSelected: (customer: SellerCustomer) => void;
 }
 
-export default function SellerCustomerDialog({ open, onOpenChange, storeId, sellerCodes, onSelected }: Props) {
+export default function SellerCustomerDialog({ open, onOpenChange, storeId, storeSlug, sellerCodes, onSelected }: Props) {
+  const defaultPriceTable = resolveStorePriceTable(storeSlug);
   const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId);
   const createCustomer = useCreateCustomerProfileAdmin();
   const [search, setSearch] = useState('');
@@ -30,7 +34,7 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, sell
   const [form, setForm] = useState({
     name: '', whatsapp: '', cpfCnpj: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
-    priceTable: '4', sellerCode: sellerCodes[0] || '',
+    priceTable: String(defaultPriceTable), sellerCode: sellerCodes[0] || '',
   });
 
   const scoped = useMemo(() => {
@@ -110,7 +114,7 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, sell
                       <p className="text-sm font-medium">{c.name || '—'}</p>
                       <p className="text-xs text-muted-foreground">
                         {c.customerCode ? `#${c.customerCode} • ` : ''}{c.whatsapp || '—'}
-                        {c.city ? ` • ${c.city}/${c.uf}` : ''} • Tabela {c.priceTable ?? 4}
+                        {c.city ? ` • ${c.city}/${c.uf}` : ''} • Tabela {resolveStorePriceTable(storeSlug, c.priceTable)}
                       </p>
                     </button>
                   ))}
@@ -146,6 +150,7 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, sell
                     <SelectItem value="1">Tabela 1</SelectItem>
                     <SelectItem value="4">Tabela 4</SelectItem>
                     <SelectItem value="9">Tabela 9</SelectItem>
+                    <SelectItem value="11">Tabela 11</SelectItem>
                   </SelectContent>
                 </Select></div>
             </div>
