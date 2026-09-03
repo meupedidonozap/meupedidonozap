@@ -36,6 +36,8 @@ interface ProductFormDialogProps {
   categories: Category[];
   product?: Product | null;
   storeType?: StoreType;
+  /** Slug da loja — define qual tabela de preço é a principal no formulário. */
+  storeSlug?: string;
   /** Loja trabalha com integração Bling (mostra o campo Código BLING). */
   useBlingIntegration?: boolean;
 }
