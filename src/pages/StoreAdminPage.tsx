@@ -1236,7 +1236,7 @@ export default function StoreAdminPage() {
                       <TableHead>Produto</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Estoque</TableHead>
-                      <TableHead>Preço</TableHead>
+                      <TableHead>Preço (Tab. {resolveStorePriceTable(store?.slug)})</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
