@@ -1266,7 +1266,7 @@ export default function StoreAdminPage() {
                             <span className="text-destructive font-medium">0</span>
                           )}
                         </TableCell>
-                        <TableCell>{formatCurrency(product.basePrice)}</TableCell>
+                        <TableCell>{formatCurrency(resolveProductPrice(product, resolveStorePriceTable(store?.slug)) || product.basePrice)}</TableCell>
                         <TableCell>
                           <button onClick={() => handleToggleProductActive(product)}>
                             {product.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6 text-muted-foreground" />}
