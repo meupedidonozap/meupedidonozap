@@ -91,8 +91,11 @@ export default function ProductFormDialog({
   categories,
   product,
   storeType,
+  storeSlug,
   useBlingIntegration,
 }: ProductFormDialogProps) {
+  const mainPriceTable = resolveStorePriceTable(storeSlug);
+  const mainIsT11 = mainPriceTable === 11;
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const fileInputRef = useRef<HTMLInputElement>(null);
