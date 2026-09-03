@@ -6,7 +6,7 @@ import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVers
 import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
-import { normalizePriceTable, storeDefaultPriceTable, type PriceTable } from '@/lib/pricing';
+import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
@@ -71,10 +71,7 @@ export default function CheckoutPage() {
   const { data: sellers = [] } = useStoreSellers(store?.id);
   // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
   // com o padrão da loja como único fallback (mesma regra da vitrine).
-  const activePriceTable: PriceTable = normalizePriceTable(
-    customerProfile?.priceTable,
-    storeDefaultPriceTable(store?.slug),
-  );
+  const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, activePriceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.

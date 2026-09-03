@@ -18,6 +18,16 @@ export function storeDefaultPriceTable(slug?: string | null): PriceTable {
   return slug === 'dicoloresenses' ? 11 : DEFAULT_PRICE_TABLE;
 }
 
+/**
+ * Tabela de preço efetiva da loja para um cliente.
+ * DiColore Senses opera exclusivamente na tabela 11 (visitante, cliente
+ * cadastrado, Modo Vendedor, pedido manual e exportação).
+ */
+export function resolveStorePriceTable(slug?: string | null, customerTable?: unknown): PriceTable {
+  if (slug === 'dicoloresenses') return 11;
+  return normalizePriceTable(customerTable, storeDefaultPriceTable(slug));
+}
+
 function positive(value: unknown): number | null {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : null;

@@ -16,7 +16,7 @@ import { useCreateOrder } from '@/hooks/useOrders';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
-import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, normalizePriceTable, storeDefaultPriceTable, type PriceTable } from '@/lib/pricing';
+import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
 
 interface CustomerProfile {
   id: string;
@@ -92,10 +92,9 @@ export default function NewOrderDialog({
 
   /** Tabela de preço do cliente selecionado (novo cliente = padrão). */
   const activeTable: PriceTable = useMemo(() => {
-    const fallback = storeDefaultPriceTable(store?.slug);
-    if (customerMode !== 'existing') return fallback;
+    if (customerMode !== 'existing') return resolveStorePriceTable(store?.slug);
     const cp = customerProfiles.find(c => c.id === selectedCustomerId);
-    return normalizePriceTable(cp?.priceTable, fallback);
+    return resolveStorePriceTable(store?.slug, cp?.priceTable);
   }, [customerMode, selectedCustomerId, customerProfiles, store?.slug]);
 
   /** Preço do produto para a tabela ativa (null = não vendável). */
