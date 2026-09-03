@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.force_senses_price_table() FROM PUBLIC, anon, authenticated;
