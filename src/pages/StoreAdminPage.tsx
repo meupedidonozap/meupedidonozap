@@ -24,7 +24,7 @@ import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import { fetchAddressByCep } from '@/lib/cepLookup';
-import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable } from '@/lib/pricing';
+import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, resolveProductPrice } from '@/lib/pricing';
 import type { OrderStatus, Product, ServiceOrder, ServiceOrderStatus, StoreType, DiscountRule, ShippingSettings } from '@/types';
 import type { MaterialApoioSettings } from '@/types';
 import ProductFormDialog from '@/components/ProductFormDialog';
@@ -1236,7 +1236,7 @@ export default function StoreAdminPage() {
                       <TableHead>Produto</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Estoque</TableHead>
-                      <TableHead>Preço</TableHead>
+                      <TableHead>Preço (Tab. {resolveStorePriceTable(store?.slug)})</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -1266,7 +1266,7 @@ export default function StoreAdminPage() {
                             <span className="text-destructive font-medium">0</span>
                           )}
                         </TableCell>
-                        <TableCell>{formatCurrency(product.basePrice)}</TableCell>
+                        <TableCell>{formatCurrency(resolveProductPrice(product, resolveStorePriceTable(store?.slug)) || product.basePrice)}</TableCell>
                         <TableCell>
                           <button onClick={() => handleToggleProductActive(product)}>
                             {product.isActive ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6 text-muted-foreground" />}
