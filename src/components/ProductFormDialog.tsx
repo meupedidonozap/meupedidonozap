@@ -8,6 +8,7 @@ import { useIngredients } from '@/hooks/useIngredients';
 import { useProductAssemblies, useUpsertProductAssembly } from '@/hooks/useProductAssembly';
 import { Checkbox } from '@/components/ui/checkbox';
 import { uploadProductImage } from '@/lib/storage';
+import { resolveStorePriceTable } from '@/lib/pricing';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,6 +114,7 @@ export default function ProductFormDialog({
   const [categoryId, setCategoryId] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [priceTable1, setPriceTable1] = useState('');
+  const [priceTable4, setPriceTable4] = useState('');
   const [priceTable9, setPriceTable9] = useState('');
   const [priceTable11, setPriceTable11] = useState('');
   const [stock, setStock] = useState('0');
@@ -151,6 +153,7 @@ export default function ProductFormDialog({
       setCategoryId(product.categoryId || '');
       setBasePrice(String(product.basePrice));
       setPriceTable1(product.priceTable1 != null && product.priceTable1 > 0 ? String(product.priceTable1) : '');
+      setPriceTable4(product.priceTable4 != null && product.priceTable4 > 0 ? String(product.priceTable4) : (product.basePrice > 0 ? String(product.basePrice) : ''));
       setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : '');
       setPriceTable11(product.priceTable11 != null && product.priceTable11 > 0 ? String(product.priceTable11) : '');
       setStock(String(product.stock ?? 0));
@@ -205,6 +208,7 @@ export default function ProductFormDialog({
       setCategoryId('');
       setBasePrice('');
       setPriceTable1('');
+      setPriceTable4('');
       setPriceTable9('');
       setPriceTable11('');
       setStock('0');
