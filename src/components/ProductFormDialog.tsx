@@ -278,13 +278,10 @@ export default function ProductFormDialog({
   };
 
   const addVariant = () => {
-    const bp = Number(basePrice) || 0;
-    const pt1 = Number(priceTable1) || bp;
-    const pt9 = Number(priceTable9) || bp;
-    const pt11 = Number(priceTable11) || bp;
+    const { bp, pt1, pt4, pt9, pt11 } = computePrices();
     setVariants(prev => [...prev, {
-      color: '', size: '', price: bp, stock: 0, sku: '',
-      priceTable1: pt1, priceTable4: bp, priceTable9: pt9, priceTable11: pt11,
+      color: '', size: '', price: pt4 || bp, stock: 0, sku: '',
+      priceTable1: pt1, priceTable4: pt4 || bp, priceTable9: pt9, priceTable11: pt11,
     }]);
   };
 
@@ -303,6 +300,18 @@ export default function ProductFormDialog({
         return next;
       })
     );
+  };
+
+  /** Preços resolvidos conforme a tabela principal da loja. */
+  const computePrices = () => {
+    const t11Input = Number(priceTable11) || 0;
+    const t4Input = Number(mainIsT11 ? priceTable4 : basePrice) || 0;
+    const bp = mainIsT11 ? (t4Input || t11Input) : t4Input;
+    const pt4 = mainIsT11 ? (t4Input || t11Input) : bp;
+    const pt1 = Number(priceTable1) || bp;
+    const pt9 = Number(priceTable9) || bp;
+    const pt11 = t11Input || bp;
+    return { bp, pt1, pt4, pt9, pt11 };
   };
 
   const handleSave = async () => {
@@ -357,11 +366,11 @@ export default function ProductFormDialog({
           name,
           description,
           categoryId: categoryId || null,
-          basePrice: Number(basePrice) || 0,
-          priceTable1: Number(priceTable1) || Number(basePrice) || 0,
-          priceTable4: Number(basePrice) || 0,
-          priceTable9: Number(priceTable9) || Number(basePrice) || 0,
-          priceTable11: Number(priceTable11) || Number(basePrice) || 0,
+          basePrice: computePrices().bp,
+          priceTable1: computePrices().pt1,
+          priceTable4: computePrices().pt4,
+          priceTable9: computePrices().pt9,
+          priceTable11: computePrices().pt11,
           imageUrl: imageUrl,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
@@ -396,11 +405,11 @@ export default function ProductFormDialog({
           name,
           description,
           categoryId: categoryId || null,
-          basePrice: Number(basePrice) || 0,
-          priceTable1: Number(priceTable1) || Number(basePrice) || 0,
-          priceTable4: Number(basePrice) || 0,
-          priceTable9: Number(priceTable9) || Number(basePrice) || 0,
-          priceTable11: Number(priceTable11) || Number(basePrice) || 0,
+          basePrice: computePrices().bp,
+          priceTable1: computePrices().pt1,
+          priceTable4: computePrices().pt4,
+          priceTable9: computePrices().pt9,
+          priceTable11: computePrices().pt11,
           imageUrl: imageUrl || undefined,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
@@ -519,13 +528,15 @@ export default function ProductFormDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="price">{isSalon ? 'Preço (R$)' : 'Preço (Tabela 4 — Varejo)'}</Label>
+              <Label htmlFor="price">
+                {isSalon ? 'Preço (R$)' : mainIsT11 ? 'Preço (Tabela 11)' : 'Preço (Tabela 4 — Varejo)'}
+              </Label>
               <Input
                 id="price"
                 type="number"
                 step="0.01"
-                value={basePrice}
-                onChange={e => setBasePrice(e.target.value)}
+                value={mainIsT11 ? priceTable11 : basePrice}
+                onChange={e => (mainIsT11 ? setPriceTable11(e.target.value) : setBasePrice(e.target.value))}
                 placeholder="0.00"
               />
             </div>
@@ -556,18 +567,20 @@ export default function ProductFormDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="price-t11" className="text-xs">Tabela 11</Label>
+                <Label htmlFor="price-t-alt" className="text-xs">{mainIsT11 ? 'Tabela 4 (Varejo)' : 'Tabela 11'}</Label>
                 <Input
-                  id="price-t11"
+                  id="price-t-alt"
                   type="number"
                   step="0.01"
-                  value={priceTable11}
-                  onChange={e => setPriceTable11(e.target.value)}
+                  value={mainIsT11 ? priceTable4 : priceTable11}
+                  onChange={e => (mainIsT11 ? setPriceTable4(e.target.value) : setPriceTable11(e.target.value))}
                   placeholder="0.00"
                 />
               </div>
               <p className="col-span-2 text-xs text-muted-foreground">
-                A Tabela 4 é preenchida pelo campo "Preço" acima. Campo em branco significa que ainda não há preço gravado nessa tabela — ao salvar, ele fica igual ao "Preço".
+                {mainIsT11
+                  ? 'Esta loja opera na Tabela 11: o campo "Preço" acima grava a Tabela 11. Campos em branco ficam iguais ao "Preço" ao salvar.'
+                  : 'A Tabela 4 é preenchida pelo campo "Preço" acima. Campo em branco significa que ainda não há preço gravado nessa tabela — ao salvar, ele fica igual ao "Preço".'}
               </p>
             </div>
           )}
