@@ -3,9 +3,11 @@ import { UserCog, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SellerCustomerDialog from '@/components/SellerCustomerDialog';
 import type { SellerCustomer } from '@/contexts/SellerContext';
+import { resolveStorePriceTable } from '@/lib/pricing';
 
 interface Props {
   storeId: string;
+  storeSlug?: string;
   sellerCodes: string[];
   selectedCustomer: SellerCustomer | null;
   onSelect: (c: SellerCustomer) => void;
@@ -13,7 +15,7 @@ interface Props {
   onChangeCustomer?: () => void;
 }
 
-export default function SellerModeBar({ storeId, sellerCodes, selectedCustomer, onSelect, onChangeCustomer }: Props) {
+export default function SellerModeBar({ storeId, storeSlug, sellerCodes, selectedCustomer, onSelect, onChangeCustomer }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +29,7 @@ export default function SellerModeBar({ storeId, sellerCodes, selectedCustomer, 
                 <span className="font-semibold">Modo Vendedor</span> — pedido para{' '}
                 <span className="font-semibold">{selectedCustomer.name}</span>
                 {selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''}
-                {' '}• Tabela {selectedCustomer.priceTable ?? 4}
+                {' '}• Tabela {resolveStorePriceTable(storeSlug, selectedCustomer.priceTable)}
               </span>
             ) : (
               <span><span className="font-semibold">Modo Vendedor</span> — selecione o cliente antes de montar o pedido</span>
@@ -43,6 +45,7 @@ export default function SellerModeBar({ storeId, sellerCodes, selectedCustomer, 
         open={open}
         onOpenChange={setOpen}
         storeId={storeId}
+        storeSlug={storeSlug}
         sellerCodes={sellerCodes}
         onSelected={(c) => {
           if (selectedCustomer && selectedCustomer.id !== c.id) onChangeCustomer?.();

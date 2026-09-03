@@ -574,6 +574,7 @@ export default function ProductStorePage() {
       {isSellerMode && store && (
         <SellerModeBar
           storeId={store.id}
+          storeSlug={store.slug}
           sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
           selectedCustomer={selectedCustomer}
           onSelect={selectCustomer}

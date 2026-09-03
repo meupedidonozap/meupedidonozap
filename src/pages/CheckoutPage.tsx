@@ -528,7 +528,7 @@ export default function CheckoutPage() {
             <span>
               <span className="font-semibold">Modo Vendedor</span>
               {selectedCustomer
-                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {selectedCustomer.priceTable ?? 4}</>
+                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {activePriceTable}</>
                 : ' — selecione o cliente para finalizar'}
             </span>
             <Button size="sm" variant={selectedCustomer ? 'outline' : 'default'} onClick={() => setSellerCustomerDialogOpen(true)}>
@@ -539,6 +539,7 @@ export default function CheckoutPage() {
             open={sellerCustomerDialogOpen}
             onOpenChange={setSellerCustomerDialogOpen}
             storeId={store.id}
+            storeSlug={store.slug}
             sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
             onSelected={(c) => {
               if (selectedCustomer && selectedCustomer.id !== c.id) clearCart();
