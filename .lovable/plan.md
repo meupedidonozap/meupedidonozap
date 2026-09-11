@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Criar a loja **MABELLE** como uma loja independente, usando a DiColore como base para estrutura, configurações, categorias e catálogo. A Mabelle terá checkout com pagamento online por **cartão e Pix** e cotação oficial de frete pelos **Correios**.
+Criar a loja **MABELLE** como uma loja independente dentro da estrutura atual, usando a DiColore como base para configurações, categorias e catálogo. A Mabelle terá marca e domínio próprios, checkout com pagamento online por **cartão e Pix** e cotação oficial de frete pelos **Correios**.
 
 ## O que será copiado
 
@@ -13,6 +13,15 @@ Criar a loja **MABELLE** como uma loja independente, usando a DiColore como base
 - Copiar as regras comerciais e de desconto existentes como configuração inicial.
 - Não copiar pedidos, clientes, visitas ou histórico. Esses dados começarão vazios e separados.
 - Não aplicar automaticamente comportamentos exclusivos dos endereços `dicolore` e `dicoloresenses`, como XML Tinturaria, códigos ERP ou Tabela 11.
+
+## Domínio e identidade Mabelle
+
+- Manter a Mabelle nesta mesma plataforma; não é necessário criar outro sistema apenas para usar domínio próprio.
+- Conectar o domínio escolhido pelo cliente à aplicação e reconhecer esse endereço para abrir diretamente a Mabelle, sem mostrar a lista geral de lojas.
+- No domínio próprio, substituir as referências visíveis a “Meu Pedido no Zap” por nome, logo, ícone, cores, títulos e informações da Mabelle.
+- Preservar os endereços e marcas das demais lojas quando acessadas pelos endereços atuais.
+- Manter o painel e os dados da Mabelle isolados pelos acessos existentes. Uma plataforma separada só seria indicada se o cliente exigisse gestão técnica, publicação e infraestrutura totalmente independentes.
+- A conexão do domínio será concluída quando o cliente informar o endereço que possui ou deseja comprar; publicação e domínio exigem plano compatível.
 
 ## Pagamento online
 
@@ -48,11 +57,13 @@ Criar a loja **MABELLE** como uma loja independente, usando a DiColore como base
 - Testar cartão aprovado/recusado, Pix aguardando/pago/expirado, retorno do pagamento e prevenção de duplicidade.
 - Testar PAC e SEDEX com diferentes CEPs e carrinhos, conferindo se o frete entra corretamente no total cobrado e no pedido.
 - Verificar a loja e o painel em celular e computador, sem alterar o funcionamento da DiColore.
+- Abrir o domínio próprio diretamente na Mabelle e confirmar que nenhuma identificação do Meu Pedido no Zap aparece na experiência do cliente.
 
 ## Ordem de execução
 
 1. Ativar o ambiente de teste do Stripe.
 2. Criar e isolar a loja Mabelle, copiando configurações e catálogo.
-3. Implementar pagamentos e confirmação segura.
-4. Preparar a cotação oficial dos Correios e então solicitar as credenciais necessárias.
-5. Executar os testes completos antes de liberar pagamentos reais.
+3. Aplicar a identidade Mabelle e preparar o domínio próprio.
+4. Implementar pagamentos e confirmação segura.
+5. Preparar a cotação oficial dos Correios e então solicitar as credenciais necessárias.
+6. Executar os testes completos antes de liberar pagamentos reais.
