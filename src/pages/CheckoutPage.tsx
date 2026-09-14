@@ -278,12 +278,14 @@ export default function CheckoutPage() {
     try {
       const { data, error } = await supabase.functions.invoke('correios-shipping', {
         body: {
+          storeId: store.id,
           originCep: shipping.originCep,
           destinyCep,
           weight: shipping.defaultWeight,
           length: shipping.defaultLength,
           width: shipping.defaultWidth,
           height: shipping.defaultHeight,
+          services: shipping.enabledServices,
         },
       });
 

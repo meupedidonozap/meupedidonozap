@@ -512,6 +512,8 @@ export default function StoreAdminPage() {
   const [shippingLength, setShippingLength] = useState('20');
   const [shippingWidth, setShippingWidth] = useState('15');
   const [shippingHeight, setShippingHeight] = useState('10');
+  const [shippingPac, setShippingPac] = useState(true);
+  const [shippingSedex, setShippingSedex] = useState(true);
   const [shippingInitialized, setShippingInitialized] = useState(false);
 
   // Material de Apoio rule
@@ -560,6 +562,8 @@ export default function StoreAdminPage() {
       setShippingLength(String(s.defaultLength || 20));
       setShippingWidth(String(s.defaultWidth || 15));
       setShippingHeight(String(s.defaultHeight || 10));
+      setShippingPac(!s.enabledServices || s.enabledServices.includes('PAC'));
+      setShippingSedex(!s.enabledServices || s.enabledServices.includes('SEDEX'));
     }
     setShippingInitialized(true);
   }
@@ -816,6 +820,7 @@ export default function StoreAdminPage() {
             defaultLength: parseFloat(shippingLength) || 20,
             defaultWidth: parseFloat(shippingWidth) || 15,
             defaultHeight: parseFloat(shippingHeight) || 10,
+            enabledServices: [shippingPac ? 'PAC' : null, shippingSedex ? 'SEDEX' : null].filter(Boolean) as Array<'PAC' | 'SEDEX'>,
           }
         : store.settings.shipping;
 
@@ -2196,6 +2201,10 @@ export default function StoreAdminPage() {
                           <Label className="text-xs">Altura (cm)</Label>
                           <Input type="number" min="2" value={shippingHeight} onChange={e => setShippingHeight(e.target.value)} />
                         </div>
+                      </div>
+                      <div className="flex flex-wrap gap-5">
+                        <label className="flex items-center gap-2 text-sm"><Switch checked={shippingPac} onCheckedChange={setShippingPac} /> PAC</label>
+                        <label className="flex items-center gap-2 text-sm"><Switch checked={shippingSedex} onCheckedChange={setShippingSedex} /> SEDEX</label>
                       </div>
                       <p className="text-xs text-muted-foreground">Dimensões mínimas dos Correios: 16x11x2 cm, peso mínimo 300g.</p>
                       <Button onClick={handleSaveSettings} disabled={updateStore.isPending} size="sm">

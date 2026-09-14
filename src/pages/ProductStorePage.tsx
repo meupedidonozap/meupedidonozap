@@ -284,10 +284,9 @@ export default function ProductStorePage() {
     );
   }
 
-  const canonicalBase = store.slug === 'mabelle' && window.location.pathname.startsWith('/mabelle')
-    ? window.location.origin
-    : 'https://meupedidonozap.lovable.app';
-  const canonicalUrl = `${canonicalBase}/${store.slug}`;
+  const isMabelleCustomDomain = store.slug === 'mabelle' && !window.location.hostname.endsWith('.lovable.app') && window.location.hostname !== 'localhost';
+  const canonicalBase = isMabelleCustomDomain ? window.location.origin : 'https://meupedidonozap.lovable.app';
+  const canonicalUrl = isMabelleCustomDomain ? canonicalBase : `${canonicalBase}/${store.slug}`;
   const platformSuffix = store.slug === 'mabelle' ? '' : ' | MeuPedidoNoZap';
 
     const jsonLdProducts = filteredProducts.slice(0, 50).map(product => ({
