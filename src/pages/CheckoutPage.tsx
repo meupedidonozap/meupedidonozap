@@ -372,6 +372,10 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
+      if (isOnlinePayment && offline) {
+        toast.error('Conecte-se à internet para realizar o pagamento.');
+        return;
+      }
       // Bloqueia a finalização se o catálogo/preços foram atualizados pela loja
       // enquanto o cliente estava com o navegador aberto.
       if (!offline && slug && store?.id) {
