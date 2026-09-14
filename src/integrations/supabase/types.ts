@@ -398,7 +398,14 @@ export type Database = {
           observations: string | null
           order_number: number
           origem: string
+          paid_at: string | null
+          payment_environment: string | null
           payment_method: string
+          payment_session_id: string | null
+          payment_status: string
+          shipping_code: string | null
+          shipping_deadline: number | null
+          shipping_service: string | null
           status: string
           store_id: string
           subtotal: number
@@ -417,7 +424,14 @@ export type Database = {
           observations?: string | null
           order_number?: number
           origem?: string
+          paid_at?: string | null
+          payment_environment?: string | null
           payment_method?: string
+          payment_session_id?: string | null
+          payment_status?: string
+          shipping_code?: string | null
+          shipping_deadline?: number | null
+          shipping_service?: string | null
           status?: string
           store_id: string
           subtotal?: number
@@ -436,7 +450,14 @@ export type Database = {
           observations?: string | null
           order_number?: number
           origem?: string
+          paid_at?: string | null
+          payment_environment?: string | null
           payment_method?: string
+          payment_session_id?: string | null
+          payment_status?: string
+          shipping_code?: string | null
+          shipping_deadline?: number | null
+          shipping_service?: string | null
           status?: string
           store_id?: string
           subtotal?: number
