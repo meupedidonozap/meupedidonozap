@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Store, ShoppingBag, Pizza, ChevronRight, Loader2 } from 'lucide-react';
 import { useStores } from '@/hooks/useStores';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,12 @@ const storeTypeIcons = {
 export default function HomePage() {
   const { data: stores, isLoading } = useStores();
   const activeStores = (stores || []).filter(s => s.isActive);
+  const host = window.location.hostname.toLowerCase();
+  const customStoreSlug = host !== 'localhost' && !host.endsWith('.lovable.app')
+    ? activeStores.find(store => (store.settings as any)?.customDomains?.includes(host))?.slug
+    : undefined;
+
+  if (customStoreSlug) return <Navigate to={`/${customStoreSlug}`} replace />;
 
   return (
     <div className="min-h-screen bg-background">

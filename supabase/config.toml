@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.sync-customers]
 verify_jwt = false
+
+[functions.create-mabelle-checkout]
+verify_jwt = false
+
+[functions.payments-webhook]
+verify_jwt = false

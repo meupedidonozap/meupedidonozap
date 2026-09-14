@@ -18,6 +18,13 @@ function mapOrder(row: any): Order {
     observations: row.observations || undefined,
     status: row.status as OrderStatus,
     origem: row.origem || 'web',
+    paymentStatus: row.payment_status || 'not_required',
+    paymentSessionId: row.payment_session_id || undefined,
+    paymentEnvironment: row.payment_environment || undefined,
+    paidAt: row.paid_at || undefined,
+    shippingService: row.shipping_service || undefined,
+    shippingCode: row.shipping_code || undefined,
+    shippingDeadline: row.shipping_deadline ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -62,6 +69,13 @@ export function useCreateOrder() {
         status: order.status,
         user_id: userId,
         origem: (order as any).origem || 'web',
+        payment_status: order.paymentStatus || 'not_required',
+        payment_session_id: order.paymentSessionId || null,
+        payment_environment: order.paymentEnvironment || null,
+        paid_at: order.paidAt || null,
+        shipping_service: order.shippingService || null,
+        shipping_code: order.shippingCode || null,
+        shipping_deadline: order.shippingDeadline ?? null,
       }).select().single();
       if (error) {
         // Log diagnostic record (best-effort, never blocks the error)
