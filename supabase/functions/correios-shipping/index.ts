@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { originCep, destinyCep, weight } = body;
+    const { originCep, destinyCep, weight, services } = body;
 
     if (!originCep || !destinyCep) {
       return new Response(JSON.stringify({ error: 'CEP de origem e destino são obrigatórios' }), {
@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
     const pricing = basePricing[distance as keyof typeof basePricing];
     const safeWeight = Math.max(weight || 0.3, 0.3);
 
+    const enabledServices = Array.isArray(services) && services.length > 0 ? services : ['PAC', 'SEDEX'];
     const options = [
       {
         code: '04510',
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
         price: calculatePrice(pricing.sedex, safeWeight),
         deadline: pricing.sedexDays,
       },
-    ];
+    ].filter(option => enabledServices.includes(option.name));
 
     return new Response(JSON.stringify({ options }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
