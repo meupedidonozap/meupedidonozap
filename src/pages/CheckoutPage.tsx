@@ -468,10 +468,14 @@ export default function CheckoutPage() {
       };
 
       if (isOnlinePayment) {
+        const discountedItems = orderPayload.items.map((item: any) => {
+          const percent = Number(item.discountPercent || 0);
+          return percent > 0 ? { ...item, price: item.price * (1 - percent / 100) } : item;
+        });
         setOnlineCheckout({
           storeId: store.id,
           customer: orderPayload.customer,
-          items: orderPayload.items,
+          items: discountedItems,
           paymentMethod: formData.paymentMethod,
           deliveryShift: formData.deliveryShift,
           observations: observationsFinal || undefined,

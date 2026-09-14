@@ -100,6 +100,15 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
 };
 
+const paymentStatusLabels: Record<string, string> = {
+  pending: 'Aguardando pagamento',
+  paid: 'Pago',
+  failed: 'Recusado',
+  expired: 'Expirado',
+  canceled: 'Cancelado',
+  refunded: 'Reembolsado',
+};
+
 function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }) {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -1477,7 +1486,17 @@ export default function StoreAdminPage() {
                             </div>
                           </TableCell>
                         <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
-                        <TableCell className="uppercase text-xs">{order.paymentMethod}</TableCell>
+                        <TableCell className="text-xs">
+                          <p className="uppercase">{order.paymentMethod}</p>
+                          {order.paymentStatus && order.paymentStatus !== 'not_required' && (
+                            <Badge variant={order.paymentStatus === 'paid' ? 'default' : 'secondary'} className="mt-1 text-[10px]">
+                              {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
+                            </Badge>
+                          )}
+                          {order.shippingService && (
+                            <p className="mt-1 text-muted-foreground">{order.shippingService} · {formatCurrency(order.deliveryFee)}{order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''}</p>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {store.type === 'SERVICOS' ? (
                             <div className="flex items-center gap-1">
