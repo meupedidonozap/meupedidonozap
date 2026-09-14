@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     if (!store || store.settings?.onlinePayments !== true) throw new Error('Pagamento online indisponível');
 
     const productIds = [...new Set(input.items.map(item => item.productId))];
-    const { data: products, error: productsError } = await client.from('products').select('id, code, name, base_price, is_active, stock, has_variants, product_variants(id, price, stock)').eq('store_id', store.id).in('id', productIds);
+    const { data: products, error: productsError } = await client.from('products').select('id, code, name, group_id, base_price, is_active, stock, has_variants, product_variants(id, price, stock)').eq('store_id', store.id).in('id', productIds);
     if (productsError || !products || products.length !== productIds.length) throw new Error('Um produto não está mais disponível');
 
     let subtotalCents = 0;
@@ -48,15 +48,31 @@ Deno.serve(async (req) => {
       if (!(price > 0)) throw new Error('Um produto está sem preço válido');
       if (store.settings?.useStockIntegration === true && Number(variant?.stock ?? product.stock) < item.quantity) throw new Error(`Estoque insuficiente para ${product.name}`);
       subtotalCents += Math.round(price * 100) * item.quantity;
-      return { productId: product.id, variantId: variant?.id, code: product.code, name: product.name, price, quantity: item.quantity };
+      return { productId: product.id, variantId: variant?.id, groupId: product.group_id ?? undefined, code: product.code, name: product.name, price, quantity: item.quantity };
     });
+    const rules = Array.isArray(store.settings?.discountRules) ? store.settings.discountRules : [];
+    const groups = new Map<string, typeof orderItems>();
+    for (const item of orderItems) {
+      if (!item.groupId) continue;
+      const key = String(item.groupId).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+    let discountCents = 0;
+    for (const [group, groupedItems] of groups) {
+      const quantity = groupedItems.reduce((sum, item) => sum + item.quantity, 0);
+      const rule = rules.filter((candidate: any) => candidate.type === 'group' && candidate.priceTable == null && String(candidate.groupId ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === group && Number(candidate.minQuantity ?? 0) <= quantity).sort((a: any, b: any) => Number(b.minQuantity ?? 0) - Number(a.minQuantity ?? 0))[0];
+      if (!rule) continue;
+      const percentage = Number(rule.discountPercent ?? 0);
+      for (const item of groupedItems) discountCents += Math.round(item.price * 100) * item.quantity * percentage / 100;
+    }
+    discountCents = Math.round(discountCents);
     const shippingCents = Math.round((input.shipping?.price ?? 0) * 100);
-    const totalCents = subtotalCents + shippingCents;
+    const totalCents = subtotalCents - discountCents + shippingCents;
     if (totalCents < 50) throw new Error('Valor do pedido inválido');
 
     const { data: order, error: orderError } = await client.from('orders').insert({
       store_id: store.id, user_id: user.id, customer: input.customer, items: orderItems,
-      subtotal: subtotalCents / 100, discount: 0, delivery_fee: shippingCents / 100, total: totalCents / 100,
+      subtotal: subtotalCents / 100, discount: discountCents / 100, delivery_fee: shippingCents / 100, total: totalCents / 100,
       payment_method: input.paymentMethod, payment_status: 'pending', payment_environment: input.environment,
       delivery_shift: input.deliveryShift, observations: input.observations ?? null, status: 'pendente', origem: 'pagamento_online',
       shipping_service: input.shipping?.name ?? null, shipping_code: input.shipping?.code ?? null, shipping_deadline: input.shipping?.deadline ?? null,
@@ -67,9 +83,10 @@ Deno.serve(async (req) => {
     const customers = await stripe.customers.search({ query: `metadata['userId']:'${user.id}'`, limit: 1 });
     const customerId = customers.data[0]?.id ?? (await stripe.customers.create({ email: user.email, name: input.customer.name, metadata: { userId: user.id } })).id;
     const session = await stripe.checkout.sessions.create({
-      line_items: [{ price_data: { currency: 'brl', product_data: { name: `Pedido Mabelle #${order.order_number}` }, unit_amount: totalCents }, quantity: 1 }],
+      line_items: [{ price_data: { currency: 'brl', product_data: { name: `Pedido Mabelle #${order.order_number}`, tax_code: 'txcd_99999999' }, unit_amount: totalCents }, quantity: 1 }],
       mode: 'payment', ui_mode: 'embedded_page', return_url: input.returnUrl, customer: customerId,
       payment_method_types: input.paymentMethod === 'pix' ? ['pix'] : ['card'],
+      automatic_tax: { enabled: true },
       payment_intent_data: { description: `Pedido Mabelle #${order.order_number}`, metadata: { orderId: order.id, userId: user.id } },
       metadata: { orderId: order.id, userId: user.id, storeId: store.id, paymentMethod: input.paymentMethod },
       expires_at: Math.floor(Date.now() / 1000) + 1800,
