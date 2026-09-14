@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     let discountCents = 0;
     for (const [group, groupedItems] of groups) {
       const quantity = groupedItems.reduce((sum, item) => sum + item.quantity, 0);
-      const rule = rules.filter((candidate: any) => candidate.type === 'group' && candidate.priceTable == null && String(candidate.groupId ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === group && Number(candidate.minQuantity ?? 0) <= quantity).sort((a: any, b: any) => Number(b.minQuantity ?? 0) - Number(a.minQuantity ?? 0))[0];
+      const rule = rules.filter((candidate: any) => candidate.type === 'group' && (candidate.priceTable == null || Number(candidate.priceTable) === 4) && String(candidate.groupId ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === group && Number(candidate.minQuantity ?? 0) <= quantity).sort((a: any, b: any) => Number(b.minQuantity ?? 0) - Number(a.minQuantity ?? 0))[0];
       if (!rule) continue;
       const percentage = Number(rule.discountPercent ?? 0);
       for (const item of groupedItems) discountCents += Math.round(item.price * 100) * item.quantity * percentage / 100;
