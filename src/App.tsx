@@ -21,6 +21,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WaiterPage from "./pages/WaiterPage";
 import NoIndex from "./components/NoIndex";
 import OfflineBanner from "./components/OfflineBanner";
+import PaymentReturnPage from "./pages/PaymentReturnPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/:slug" element={<StorePage />} />
             <Route path="/:slug/admin" element={<><NoIndex /><StoreAdminPage /></>} />
             <Route path="/:slug/checkout" element={<><NoIndex /><CheckoutPage /></>} />
+            <Route path="/mabelle/pagamento" element={<><NoIndex /><PaymentReturnPage /></>} />
             <Route path="/:slug/pedidos" element={<><NoIndex /><OrderHistoryPage /></>} />
             <Route path="/:slug/cozinha" element={<><NoIndex /><KitchenPage /></>} />
             <Route path="/:slug/garcom" element={<><NoIndex /><WaiterPage /></>} />
