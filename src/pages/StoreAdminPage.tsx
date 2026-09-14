@@ -100,6 +100,15 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
 };
 
+const paymentStatusLabels: Record<string, string> = {
+  pending: 'Aguardando pagamento',
+  paid: 'Pago',
+  failed: 'Recusado',
+  expired: 'Expirado',
+  canceled: 'Cancelado',
+  refunded: 'Reembolsado',
+};
+
 function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }) {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -503,6 +512,8 @@ export default function StoreAdminPage() {
   const [shippingLength, setShippingLength] = useState('20');
   const [shippingWidth, setShippingWidth] = useState('15');
   const [shippingHeight, setShippingHeight] = useState('10');
+  const [shippingPac, setShippingPac] = useState(true);
+  const [shippingSedex, setShippingSedex] = useState(true);
   const [shippingInitialized, setShippingInitialized] = useState(false);
 
   // Material de Apoio rule
@@ -551,6 +562,8 @@ export default function StoreAdminPage() {
       setShippingLength(String(s.defaultLength || 20));
       setShippingWidth(String(s.defaultWidth || 15));
       setShippingHeight(String(s.defaultHeight || 10));
+      setShippingPac(!s.enabledServices || s.enabledServices.includes('PAC'));
+      setShippingSedex(!s.enabledServices || s.enabledServices.includes('SEDEX'));
     }
     setShippingInitialized(true);
   }
@@ -807,6 +820,7 @@ export default function StoreAdminPage() {
             defaultLength: parseFloat(shippingLength) || 20,
             defaultWidth: parseFloat(shippingWidth) || 15,
             defaultHeight: parseFloat(shippingHeight) || 10,
+            enabledServices: [shippingPac ? 'PAC' : null, shippingSedex ? 'SEDEX' : null].filter(Boolean) as Array<'PAC' | 'SEDEX'>,
           }
         : store.settings.shipping;
 
@@ -1477,7 +1491,17 @@ export default function StoreAdminPage() {
                             </div>
                           </TableCell>
                         <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
-                        <TableCell className="uppercase text-xs">{order.paymentMethod}</TableCell>
+                        <TableCell className="text-xs">
+                          <p className="uppercase">{order.paymentMethod}</p>
+                          {order.paymentStatus && order.paymentStatus !== 'not_required' && (
+                            <Badge variant={order.paymentStatus === 'paid' ? 'default' : 'secondary'} className="mt-1 text-[10px]">
+                              {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
+                            </Badge>
+                          )}
+                          {order.shippingService && (
+                            <p className="mt-1 text-muted-foreground">{order.shippingService} · {formatCurrency(order.deliveryFee)}{order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''}</p>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {store.type === 'SERVICOS' ? (
                             <div className="flex items-center gap-1">
@@ -2177,6 +2201,10 @@ export default function StoreAdminPage() {
                           <Label className="text-xs">Altura (cm)</Label>
                           <Input type="number" min="2" value={shippingHeight} onChange={e => setShippingHeight(e.target.value)} />
                         </div>
+                      </div>
+                      <div className="flex flex-wrap gap-5">
+                        <label className="flex items-center gap-2 text-sm"><Switch checked={shippingPac} onCheckedChange={setShippingPac} /> PAC</label>
+                        <label className="flex items-center gap-2 text-sm"><Switch checked={shippingSedex} onCheckedChange={setShippingSedex} /> SEDEX</label>
                       </div>
                       <p className="text-xs text-muted-foreground">Dimensões mínimas dos Correios: 16x11x2 cm, peso mínimo 300g.</p>
                       <Button onClick={handleSaveSettings} disabled={updateStore.isPending} size="sm">

@@ -284,6 +284,11 @@ export default function ProductStorePage() {
     );
   }
 
+  const isMabelleCustomDomain = store.slug === 'mabelle' && !window.location.hostname.endsWith('.lovable.app') && window.location.hostname !== 'localhost';
+  const canonicalBase = isMabelleCustomDomain ? window.location.origin : 'https://meupedidonozap.lovable.app';
+  const canonicalUrl = isMabelleCustomDomain ? canonicalBase : `${canonicalBase}/${store.slug}`;
+  const platformSuffix = store.slug === 'mabelle' ? '' : ' | MeuPedidoNoZap';
+
     const jsonLdProducts = filteredProducts.slice(0, 50).map(product => ({
       "@type": "Product",
       name: product.name,
@@ -295,7 +300,7 @@ export default function ProductStorePage() {
         price: product.basePrice.toFixed(2),
         priceCurrency: "BRL",
         availability: "https://schema.org/InStock",
-        url: `https://meupedidonozap.online/${store.slug}`,
+        url: canonicalUrl,
       },
     }));
 
@@ -303,7 +308,7 @@ export default function ProductStorePage() {
       "@context": "https://schema.org",
       "@type": "ItemList",
       name: store.name,
-      url: `https://meupedidonozap.online/${store.slug}`,
+      url: canonicalUrl,
       numberOfItems: jsonLdProducts.length,
       itemListElement: jsonLdProducts.map((p, i) => ({
         "@type": "ListItem",
@@ -315,13 +320,13 @@ export default function ProductStorePage() {
     return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>{store.name} | MeuPedidoNoZap</title>
+        <title>{store.name}{platformSuffix}</title>
         <meta name="description" content={`Faça seu pedido em ${store.name}. ${store.address || 'Peça online via WhatsApp.'}`} />
-        <link rel="canonical" href={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title" content={store.name} />
         <meta property="og:description" content={`Peça online via WhatsApp em ${store.name}`} />
         <meta property="og:image" content={store.logo || store.banner || 'https://meupedidonozap.lovable.app/placeholder.svg'} />
-        <meta property="og:url" content={`https://meupedidonozap.lovable.app/${store.slug}`} />
+        <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>

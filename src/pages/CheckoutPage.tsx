@@ -38,6 +38,8 @@ import ClosedBanner from '@/components/ClosedBanner';
 import { useStoreOpen } from '@/hooks/useStoreOpen';
 import type { PaymentMethod, DeliveryShift } from '@/types';
 import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
+import MabelleEmbeddedCheckout from '@/components/MabelleEmbeddedCheckout';
+import { PaymentTestModeBanner } from '@/components/PaymentTestModeBanner';
 
 interface ShippingOption {
   code: string;
@@ -98,6 +100,7 @@ export default function CheckoutPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
+  const [onlineCheckout, setOnlineCheckout] = useState<any>(null);
 
   // Dicolore ERP payment codes
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
@@ -275,12 +278,14 @@ export default function CheckoutPage() {
     try {
       const { data, error } = await supabase.functions.invoke('correios-shipping', {
         body: {
+          storeId: store.id,
           originCep: shipping.originCep,
           destinyCep,
           weight: shipping.defaultWeight,
           length: shipping.defaultLength,
           width: shipping.defaultWidth,
           height: shipping.defaultHeight,
+          services: shipping.enabledServices,
         },
       });
 
@@ -363,10 +368,16 @@ export default function CheckoutPage() {
     }
     // Abre a aba do WhatsApp já no gesto do usuário para não ser bloqueada
     // pelo navegador (a URL é definida depois que o pedido é gravado).
-    const waWindow = sellerOrder ? null : window.open('', '_blank');
+    const isOnlinePayment = store.slug === 'mabelle' && store.settings.onlinePayments === true
+      && (formData.paymentMethod === 'pix' || formData.paymentMethod === 'cartao');
+    const waWindow = sellerOrder || isOnlinePayment ? null : window.open('', '_blank');
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
+      if (isOnlinePayment && offline) {
+        toast.error('Conecte-se à internet para realizar o pagamento.');
+        return;
+      }
       // Bloqueia a finalização se o catálogo/preços foram atualizados pela loja
       // enquanto o cliente estava com o navegador aberto.
       if (!offline && slug && store?.id) {
@@ -457,7 +468,23 @@ export default function CheckoutPage() {
         observations: observationsFinal || undefined,
         status: 'pendente',
         ...(sellerOrder ? { origem: 'vendedor' } : {}),
+        shippingService: selectedShippingOption?.name,
+        shippingCode: selectedShippingOption?.code,
+        shippingDeadline: selectedShippingOption?.deadline,
       };
+
+      if (isOnlinePayment) {
+        setOnlineCheckout({
+          storeId: store.id,
+          customer: orderPayload.customer,
+          items: orderPayload.items,
+          paymentMethod: formData.paymentMethod,
+          deliveryShift: formData.deliveryShift,
+          observations: observationsFinal || undefined,
+          shipping: selectedShippingOption,
+        });
+        return;
+      }
 
       if (offline) {
         waWindow?.close();
@@ -506,6 +533,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {store.slug === 'mabelle' && store.settings.onlinePayments === true && <PaymentTestModeBanner />}
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center gap-4">
           <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
@@ -736,7 +764,7 @@ export default function CheckoutPage() {
                       {store.settings.acceptPix && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
                       {store.settings.acceptBoleto && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
                       {store.settings.acceptCard && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
-                      <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>
+                      {store.settings.onlinePayments !== true && <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>}
                     </RadioGroup>
                   )}
                 </div>
@@ -876,7 +904,7 @@ export default function CheckoutPage() {
                     disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
-                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp'))}
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'mabelle' && store.settings.onlinePayments === true ? 'PAGAR PEDIDO' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp')))}
                   </Button>
                   <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-xs text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200">
                     <p className="font-semibold">Aviso:</p>
@@ -907,6 +935,17 @@ export default function CheckoutPage() {
               <MessageCircle className="h-4 w-4" /> Abrir WhatsApp de {pendingWhatsApp?.sellerName}
             </a>
           </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!onlineCheckout} onOpenChange={(open) => { if (!open) setOnlineCheckout(null); }}>
+        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto p-0">
+          <DialogHeader className="border-b p-5">
+            <DialogTitle>Pagamento seguro</DialogTitle>
+            <DialogDescription>Conclua o pagamento para confirmar o pedido.</DialogDescription>
+          </DialogHeader>
+          <div className="p-2 sm:p-5">
+            {onlineCheckout && <MabelleEmbeddedCheckout {...onlineCheckout} />}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

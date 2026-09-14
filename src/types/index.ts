@@ -117,6 +117,7 @@ export interface ShippingSettings {
   defaultLength: number;
   defaultWidth: number;
   defaultHeight: number;
+  enabledServices?: Array<'PAC' | 'SEDEX'>;
 }
 
 export interface StoreSettings {
@@ -143,6 +144,8 @@ export interface StoreSettings {
   cnpj?: string;
   /** Modos de visualização do catálogo habilitados na vitrine. */
   catalogViewModes?: { list: boolean; grid: boolean };
+  /** Pagamento online confirmado antes do pedido entrar na operação. */
+  onlinePayments?: boolean;
 }
 
 export interface DeliveryNeighborhood {
@@ -386,6 +389,13 @@ export interface Order {
   observations?: string;
   status: OrderStatus;
   origem?: string;
+  paymentStatus?: 'not_required' | 'pending' | 'paid' | 'failed' | 'expired' | 'canceled' | 'refunded';
+  paymentSessionId?: string;
+  paymentEnvironment?: 'sandbox' | 'live';
+  paidAt?: string;
+  shippingService?: string;
+  shippingCode?: string;
+  shippingDeadline?: number;
   createdAt: string;
 }
 
