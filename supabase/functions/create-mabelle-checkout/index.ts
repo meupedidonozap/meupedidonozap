@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     if (!store || store.settings?.onlinePayments !== true) throw new Error('Pagamento online indisponível');
 
     const productIds = [...new Set(input.items.map(item => item.productId))];
-    const { data: products, error: productsError } = await client.from('products').select('id, code, name, group_id, base_price, is_active, stock, has_variants, product_variants(id, price, stock)').eq('store_id', store.id).in('id', productIds);
+    const { data: products, error: productsError } = await client.from('products').select('id, code, name, group_id, base_price, price_table_4, is_active, stock, has_variants, product_variants(id, price, price_table_4, stock)').eq('store_id', store.id).in('id', productIds);
     if (productsError || !products || products.length !== productIds.length) throw new Error('Um produto não está mais disponível');
 
     let subtotalCents = 0;
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       if (!product?.is_active) throw new Error('Um produto não está mais disponível');
       const variant = item.variantId ? product.product_variants?.find((candidate: any) => candidate.id === item.variantId) : undefined;
       if (item.variantId && !variant) throw new Error('Uma variação não está mais disponível');
-      const price = Number(variant?.price ?? product.base_price);
+      const price = Number(variant?.price_table_4 ?? variant?.price ?? product.price_table_4 ?? product.base_price);
       if (!(price > 0)) throw new Error('Um produto está sem preço válido');
       if (store.settings?.useStockIntegration === true && Number(variant?.stock ?? product.stock) < item.quantity) throw new Error(`Estoque insuficiente para ${product.name}`);
       subtotalCents += Math.round(price * 100) * item.quantity;
