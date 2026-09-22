@@ -14,6 +14,7 @@ const storeTypeIcons = {
 export default function HomePage() {
   const { data: stores, isLoading } = useStores();
   const activeStores = (stores || []).filter(s => s.isActive);
+  const companySignupUrl = `https://wa.me/5547999625155?text=${encodeURIComponent('Olá gostaria de criar o meu Catalogo Digital no MEU PEDIDO NO ZAP.')}`;
   const host = window.location.hostname.toLowerCase();
   const customStoreSlug = host !== 'localhost' && !host.endsWith('.lovable.app')
     ? activeStores.find(store => (store.settings as any)?.customDomains?.includes(host))?.slug
@@ -35,9 +36,16 @@ export default function HomePage() {
 
       {/* Store List */}
       <main className="container py-12">
-        <div className="mb-8 text-center">
-          <h2 className="mb-2 text-2xl font-bold">Lojas Disponíveis</h2>
-          <p className="text-muted-foreground">Escolha uma loja e faça seu pedido</p>
+        <div className="relative mb-8 flex flex-col items-center gap-6 text-center lg:min-h-16 lg:justify-center">
+          <div>
+            <h2 className="mb-2 text-2xl font-bold">Lojas Disponíveis</h2>
+            <p className="text-muted-foreground">Escolha uma loja e faça seu pedido</p>
+          </div>
+          <Button asChild variant="outline" size="lg" className="w-full border-2 border-foreground text-base font-semibold sm:w-auto lg:absolute lg:right-0">
+            <a href={companySignupUrl} target="_blank" rel="noopener noreferrer">
+              CADASTRE SUA EMPRESA
+            </a>
+          </Button>
         </div>
 
         {isLoading ? (
