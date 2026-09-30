@@ -239,13 +239,13 @@ export default function CheckinDialog({
         <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
           <DialogHeader><DialogTitle>Atendimento — Check-in de clientes</DialogTitle></DialogHeader>
 
-          <Tabs defaultValue="clientes" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="w-full">
+          <Tabs defaultValue="clientes" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <TabsList className="w-full shrink-0">
               <TabsTrigger value="clientes" className="flex-1">Clientes</TabsTrigger>
               <TabsTrigger value="hoje" className="flex-1">Visitas de hoje ({todayCount})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="clientes" className="mt-3 flex-1 overflow-hidden flex flex-col space-y-3">
+            <TabsContent value="clientes" className="mt-3 flex-1 min-h-0 overflow-hidden flex flex-col space-y-3 data-[state=inactive]:hidden">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-9" placeholder="Nome, código, cidade ou CNPJ..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -262,7 +262,7 @@ export default function CheckinDialog({
                 <span className="text-xs text-muted-foreground">{filtered.length} clientes</span>
               </div>
 
-              <ScrollArea className="flex-1 min-h-[300px] rounded-md border">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable]">
                 {isLoading ? (
                   <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
                 ) : filtered.length === 0 ? (
@@ -325,11 +325,11 @@ export default function CheckinDialog({
                     })}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
             </TabsContent>
 
-            <TabsContent value="hoje" className="mt-3 flex-1 overflow-hidden">
-              <ScrollArea className="h-[420px] rounded-md border">
+            <TabsContent value="hoje" className="mt-3 flex-1 min-h-0 overflow-hidden data-[state=inactive]:hidden">
+              <div className="h-full min-h-[300px] overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable]">
                 {(() => {
                   const start = new Date(); start.setHours(0, 0, 0, 0);
                   const rows = allVisits.filter(v => new Date(v.checked_in_at) >= start);
@@ -358,7 +358,7 @@ export default function CheckinDialog({
                     </div>
                   );
                 })()}
-              </ScrollArea>
+              </div>
             </TabsContent>
           </Tabs>
         </DialogContent>
