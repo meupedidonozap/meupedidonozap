@@ -325,11 +325,11 @@ export default function CheckinDialog({
                     })}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
             </TabsContent>
 
-            <TabsContent value="hoje" className="mt-3 flex-1 overflow-hidden">
-              <ScrollArea className="h-[420px] rounded-md border">
+            <TabsContent value="hoje" className="mt-3 flex-1 min-h-0 overflow-hidden data-[state=inactive]:hidden">
+              <div className="h-full min-h-[300px] overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable]">
                 {(() => {
                   const start = new Date(); start.setHours(0, 0, 0, 0);
                   const rows = allVisits.filter(v => new Date(v.checked_in_at) >= start);
