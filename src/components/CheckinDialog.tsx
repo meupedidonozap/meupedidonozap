@@ -144,14 +144,17 @@ export default function CheckinDialog({
 
   async function handleCheckIn(c: CustomerRow) {
     setBusyId(c.id);
+    // IMPORTANTE (Safari/iOS): o pedido de localização precisa sair no mesmo
+    // gesto do toque. Por isso disparamos o GPS ANTES de qualquer await.
+    const positionPromise = getCurrentPosition().catch(() => null);
     try {
       let geo = c.geo_lat != null && c.geo_lng != null
         ? { lat: Number(c.geo_lat), lng: Number(c.geo_lng) }
         : await geocodeAddress(fullAddress(c));
 
-      let my: { lat: number; lng: number } | null = null;
-      try { my = await getCurrentPosition(); } catch { my = null; }
+      const my = await positionPromise;
       if (!my) { toast.error('Ative a localização do aparelho para registrar a visita.'); return; }
+
 
       if (!geo) {
         geo = my;
