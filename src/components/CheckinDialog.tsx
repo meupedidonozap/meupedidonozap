@@ -262,7 +262,7 @@ export default function CheckinDialog({
                 <span className="text-xs text-muted-foreground">{filtered.length} clientes</span>
               </div>
 
-              <ScrollArea className="flex-1 min-h-[300px] rounded-md border">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable]">
                 {isLoading ? (
                   <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
                 ) : filtered.length === 0 ? (
