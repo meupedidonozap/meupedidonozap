@@ -239,13 +239,13 @@ export default function CheckinDialog({
         <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
           <DialogHeader><DialogTitle>Atendimento — Check-in de clientes</DialogTitle></DialogHeader>
 
-          <Tabs defaultValue="clientes" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="w-full">
+          <Tabs defaultValue="clientes" className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <TabsList className="w-full shrink-0">
               <TabsTrigger value="clientes" className="flex-1">Clientes</TabsTrigger>
               <TabsTrigger value="hoje" className="flex-1">Visitas de hoje ({todayCount})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="clientes" className="mt-3 flex-1 overflow-hidden flex flex-col space-y-3">
+            <TabsContent value="clientes" className="mt-3 flex-1 min-h-0 overflow-hidden flex flex-col space-y-3 data-[state=inactive]:hidden">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input className="pl-9" placeholder="Nome, código, cidade ou CNPJ..." value={search} onChange={e => setSearch(e.target.value)} />
