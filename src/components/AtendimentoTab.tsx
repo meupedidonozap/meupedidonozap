@@ -9,7 +9,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDateTime } from '@/lib/formatters';
 import { haversineMeters, getCurrentPosition, loadGoogleMaps, onGoogleMapsAuthFailure } from '@/lib/geo';
-import { useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo, type CustomerVisit } from '@/hooks/useCustomerVisits';
+import { useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo, formatDuration, DEFAULT_VISIT_REASONS, type CustomerVisit } from '@/hooks/useCustomerVisits';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const MAX_CHECKIN_METERS = 300;
 
@@ -146,7 +151,7 @@ function MiniMap({
   return <div ref={ref} className="h-56 w-full rounded-md border bg-muted" />;
 }
 
-export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { storeId: string; sellerCodes: string[]; isAdmin: boolean }) {
+export default function AtendimentoTab({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT_VISIT_REASONS }: { storeId: string; sellerCodes: string[]; isAdmin: boolean; visitReasons?: string[] }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -167,6 +172,10 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
 
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
+  const [checkoutVisit, setCheckoutVisit] = useState<CustomerVisit | null>(null);
+  const [coReason, setCoReason] = useState('');
+  const [coNotes, setCoNotes] = useState('');
+
 
   const openVisitByCustomer = useMemo(() => {
     const m = new Map<string, CustomerVisit>();
@@ -319,16 +328,33 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
     }
   }
 
-  async function handleCheckOut(visit: CustomerVisit) {
-    const my = await acquireLocation();
-    if (!my) return;
+  function handleCheckOut(visit: CustomerVisit) {
+    setCoReason('');
+    setCoNotes('');
+    setCheckoutVisit(visit);
+  }
+
+  async function confirmCheckOut() {
+    if (!checkoutVisit) return;
+    if (!coReason) { toast.error('Escolha o motivo/resultado da visita.'); return; }
+    let my: { lat: number; lng: number } | null = null;
+    try { my = await getCurrentPosition(); } catch { my = null; }
     try {
-      await checkOut.mutateAsync({ visitId: visit.id, lat: my.lat, lng: my.lng });
-      toast.success('Check-out registrado.');
+      const v = await checkOut.mutateAsync({
+        visitId: checkoutVisit.id,
+        lat: my?.lat ?? null,
+        lng: my?.lng ?? null,
+        reason: coReason,
+        notes: coNotes.trim() || undefined,
+        checkedInAt: checkoutVisit.checked_in_at,
+      });
+      toast.success(`Visita encerrada. Tempo total: ${formatDuration(v.duration_seconds)}.`);
+      setCheckoutVisit(null);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao registrar check-out.');
     }
   }
+
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -533,12 +559,16 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
                   <p className="text-xs font-semibold mb-1">Últimas visitas</p>
                   <ul className="text-xs space-y-1">
                     {list.map((v) => (
-                      <li key={v.id} className="flex justify-between gap-2">
-                        <span>{formatDateTime(v.checked_in_at)}</span>
-                        <span className="text-muted-foreground">
-                          {v.checked_out_at ? `→ ${formatDateTime(v.checked_out_at)}` : 'em aberto'}
-                          {v.distance_meters_at_checkin != null && ` · ${v.distance_meters_at_checkin}m`}
-                        </span>
+                      <li key={v.id} className="space-y-0.5">
+                        <div className="flex justify-between gap-2">
+                          <span>{formatDateTime(v.checked_in_at)}</span>
+                          <span className="text-muted-foreground">
+                            {v.checked_out_at ? `→ ${formatDateTime(v.checked_out_at)}` : 'em aberto'}
+                            {v.duration_seconds != null && ` · ${formatDuration(v.duration_seconds)}`}
+                          </span>
+                        </div>
+                        {v.checkout_reason && <p className="text-muted-foreground">Resultado: {v.checkout_reason}</p>}
+                        {v.checkout_notes && <p className="text-muted-foreground">{v.checkout_notes}</p>}
                       </li>
                     ))}
                   </ul>
@@ -548,6 +578,37 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin }: { stor
           </div>
         )}
       </Card>
+
+      <Dialog open={!!checkoutVisit} onOpenChange={(o) => !o && setCheckoutVisit(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Encerrar visita (Checkout)</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {checkoutVisit && (
+              <p className="text-xs text-muted-foreground">Entrada: {formatDateTime(checkoutVisit.checked_in_at)}</p>
+            )}
+            <div className="grid gap-1">
+              <Label className="text-sm">Motivo / Resultado da visita *</Label>
+              <Select value={coReason} onValueChange={setCoReason}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(visitReasons.length ? visitReasons : DEFAULT_VISIT_REASONS).map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label className="text-sm">Observações</Label>
+              <Textarea rows={4} value={coNotes} onChange={(e) => setCoNotes(e.target.value)} placeholder="Resumo do atendimento..." />
+            </div>
+            <Button className="w-full" onClick={confirmCheckOut} disabled={checkOut.isPending}>
+              {checkOut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOutIcon className="mr-2 h-4 w-4" />}
+              Registrar Checkout
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }

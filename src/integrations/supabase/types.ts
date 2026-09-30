@@ -187,9 +187,12 @@ export type Database = {
           checkin_lng: number | null
           checkout_lat: number | null
           checkout_lng: number | null
+          checkout_notes: string | null
+          checkout_reason: string | null
           created_at: string
           customer_profile_id: string
           distance_meters_at_checkin: number | null
+          duration_seconds: number | null
           id: string
           seller_code: string | null
           seller_user_id: string
@@ -203,9 +206,12 @@ export type Database = {
           checkin_lng?: number | null
           checkout_lat?: number | null
           checkout_lng?: number | null
+          checkout_notes?: string | null
+          checkout_reason?: string | null
           created_at?: string
           customer_profile_id: string
           distance_meters_at_checkin?: number | null
+          duration_seconds?: number | null
           id?: string
           seller_code?: string | null
           seller_user_id: string
@@ -219,9 +225,12 @@ export type Database = {
           checkin_lng?: number | null
           checkout_lat?: number | null
           checkout_lng?: number | null
+          checkout_notes?: string | null
+          checkout_reason?: string | null
           created_at?: string
           customer_profile_id?: string
           distance_meters_at_checkin?: number | null
+          duration_seconds?: number | null
           id?: string
           seller_code?: string | null
           seller_user_id?: string

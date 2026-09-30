@@ -584,8 +584,15 @@ export default function ProductStorePage() {
           selectedCustomer={selectedCustomer}
           onSelect={selectCustomer}
           onChangeCustomer={clearCart}
+          salesForce={{
+            enabled: store.slug === 'dicolore',
+            unvisitedPeriodDays: Number((store.settings as any)?.unvisitedPeriodDays) || 30,
+            visitReasons: ((store.settings as any)?.visitReasons as string[]) || [],
+            maxCheckinDistanceMeters: Number((store.settings as any)?.maxCheckinDistanceMeters) || 300,
+          }}
         />
       )}
+
 
       <main className="container py-4">
         {viewMode === 'list' ? (
