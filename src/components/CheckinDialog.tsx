@@ -188,6 +188,8 @@ export default function CheckinDialog({
         address: c.address,
         number: c.number,
         sellerCode: c.seller_code,
+        storeId,
+
         priceTable: c.price_table,
       } as unknown as SellerCustomer);
       toast.success(`Check-in registrado em ${c.name}.`);
@@ -306,6 +308,8 @@ export default function CheckinDialog({
                                   whatsapp: c.whatsapp, cpfCnpj: c.cpf_cnpj, cep: c.cep, uf: c.uf,
                                   city: c.city, neighborhood: c.neighborhood, address: c.address,
                                   number: c.number, sellerCode: c.seller_code, priceTable: c.price_table,
+                                  storeId,
+
                                 } as unknown as SellerCustomer);
                                 onOpenChange(false);
                               }}
