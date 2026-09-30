@@ -162,9 +162,11 @@ export default function CheckinDialog({
 
       const dist = haversineMeters(my.lat, my.lng, geo.lat, geo.lng);
       if (dist > maxDistanceMeters) {
-        toast.error(`Você está a ${Math.round(dist)}m do cliente. Máximo permitido: ${maxDistanceMeters}m.`);
-        return;
+        toast.warning(
+          `Atenção: você está a ${Math.round(dist)}m do cliente (recomendado até ${maxDistanceMeters}m). Check-in registrado mesmo assim.`,
+        );
       }
+
 
       await checkIn.mutateAsync({
         storeId,
