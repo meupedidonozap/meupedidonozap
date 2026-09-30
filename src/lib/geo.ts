@@ -21,7 +21,7 @@ export interface Coords {
   lng: number;
 }
 
-export function getCurrentPosition(options?: PositionOptions): Promise<Coords> {
+function readPosition(options: PositionOptions): Promise<Coords> {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new Error('Geolocalização não suportada neste navegador.'));
@@ -30,10 +30,21 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Coords> {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       (err) => reject(new Error(err.message || 'Falha ao obter localização.')),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0, ...(options || {}) },
+      options,
     );
   });
 }
+
+export async function getCurrentPosition(options?: PositionOptions): Promise<Coords> {
+  // 1ª tentativa: GPS de alta precisão (melhor no celular, ao ar livre).
+  try {
+    return await readPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0, ...(options || {}) });
+  } catch (e) {
+    // 2ª tentativa: posição aproximada por rede/Wi-Fi (rápida, funciona em ambiente fechado).
+    return await readPosition({ enableHighAccuracy: false, timeout: 12000, maximumAge: 120000, ...(options || {}) });
+  }
+}
+
 
 let mapsLoader: Promise<any> | null = null;
 let mapsAuthFailed = false;
