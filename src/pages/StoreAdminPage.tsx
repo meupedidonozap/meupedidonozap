@@ -89,6 +89,8 @@ import { PushNotificationsCard } from '@/components/PushNotificationsCard';
 import DynamicManifest from '@/components/DynamicManifest';
 import InstallAppCard from '@/components/InstallAppCard';
 import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard';
+import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
+
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
@@ -488,6 +490,11 @@ export default function StoreAdminPage() {
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
+  const [sfPeriodDays, setSfPeriodDays] = useState('30');
+  const [sfMaxDistance, setSfMaxDistance] = useState('300');
+  const [sfReasons, setSfReasons] = useState<string[]>([]);
+  const [sfNewReason, setSfNewReason] = useState('');
+
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -545,8 +552,12 @@ export default function StoreAdminPage() {
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
     setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
+    setSfPeriodDays(String((store.settings as any)?.unvisitedPeriodDays ?? 30));
+    setSfMaxDistance(String((store.settings as any)?.maxCheckinDistanceMeters ?? 300));
+    setSfReasons(((store.settings as any)?.visitReasons as string[]) ?? DEFAULT_VISIT_REASONS);
     setSettingsInitialized(true);
   }
+
 
   if (store && !discountRulesInitialized) {
     setDiscountRulesLocal((store.settings.discountRules || []).filter((r: DiscountRule) => r.type === 'group'));
@@ -841,6 +852,10 @@ export default function StoreAdminPage() {
           useBlingIntegration,
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           catalogViewModes: { list: viewModeList, grid: viewModeGrid },
+          unvisitedPeriodDays: Math.max(1, parseInt(sfPeriodDays, 10) || 30),
+          maxCheckinDistanceMeters: Math.max(50, parseInt(sfMaxDistance, 10) || 300),
+          visitReasons: sfReasons,
+
           materialApoio: {
             enabled: maEnabled,
             maxPercent: Math.max(0, parseFloat(maPercent.replace(',', '.')) || 0),
@@ -1951,6 +1966,8 @@ export default function StoreAdminPage() {
                 storeId={store.id}
                 sellerCodes={userSellerCodes || []}
                 isAdmin={isAdmin}
+                visitReasons={((store.settings as any)?.visitReasons as string[]) || DEFAULT_VISIT_REASONS}
+
               />
             </TabsContent>
           )}
@@ -2050,7 +2067,86 @@ export default function StoreAdminPage() {
                 </CardContent>
               </Card>
             )}
+            {store.slug === 'dicolore' && (
+              <Card className="border-accent">
+                <CardHeader><CardTitle>Força de Vendas (Check-in / Checkout)</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2 sm:max-w-xl">
+                    <div className="grid gap-1">
+                      <Label>Período de "não atendidos" (dias)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={sfPeriodDays}
+                        onChange={(e) => setSfPeriodDays(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label>Distância máxima do check-in (metros)</Label>
+                      <Input
+                        type="number"
+                        min={50}
+                        value={sfMaxDistance}
+                        onChange={(e) => setSfMaxDistance(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Motivos / resultados da visita</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {sfReasons.map((r) => (
+                        <Badge key={r} variant="secondary" className="gap-1">
+                          {r}
+                          <button
+                            type="button"
+                            aria-label={`Remover ${r}`}
+                            className="ml-1 text-muted-foreground hover:text-destructive"
+                            onClick={() => setSfReasons(sfReasons.filter((x) => x !== r))}
+                          >
+                            ✕
+                          </button>
+                        </Badge>
+                      ))}
+                      {sfReasons.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Nenhum motivo cadastrado.</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2 sm:max-w-md">
+                      <Input
+                        placeholder="Novo motivo (ex.: Venda fechada)"
+                        value={sfNewReason}
+                        onChange={(e) => setSfNewReason(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const v = sfNewReason.trim();
+                          if (!v) return;
+                          if (!sfReasons.includes(v)) setSfReasons([...sfReasons, v]);
+                          setSfNewReason('');
+                        }}
+                      >
+                        Adicionar
+                      </Button>
+                    </div>
+                    {sfReasons.length === 0 && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setSfReasons(DEFAULT_VISIT_REASONS)}>
+                        Usar motivos padrão
+                      </Button>
+                    )}
+                  </div>
+
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             <OrderErrorsDiagnosticsCard storeId={store.id} />
+
             <Card className="border-accent">
               <CardHeader><CardTitle>Integração Bling</CardTitle></CardHeader>
               <CardContent className="space-y-3">

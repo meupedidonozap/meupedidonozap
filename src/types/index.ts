@@ -146,7 +146,14 @@ export interface StoreSettings {
   catalogViewModes?: { list: boolean; grid: boolean };
   /** Pagamento online confirmado antes do pedido entrar na operação. */
   onlinePayments?: boolean;
+  /** Força de vendas: período (dias) usado no filtro de clientes não atendidos. */
+  unvisitedPeriodDays?: number;
+  /** Força de vendas: motivos/resultados de visita disponíveis no check-out. */
+  visitReasons?: string[];
+  /** Força de vendas: distância máxima (metros) permitida no check-in. */
+  maxCheckinDistanceMeters?: number;
 }
+
 
 export interface DeliveryNeighborhood {
   id: string;
