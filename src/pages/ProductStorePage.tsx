@@ -284,8 +284,11 @@ export default function ProductStorePage() {
     );
   }
 
-  const isMabelleCustomDomain = store.slug === 'mabelle' && !window.location.hostname.endsWith('.lovable.app') && window.location.hostname !== 'localhost';
-  const canonicalBase = isMabelleCustomDomain ? window.location.origin : 'https://meupedidonozap.lovable.app';
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname.endsWith('.lovable.app');
+  const isMabelleCustomDomain = store.slug === 'mabelle' && !isLocalHost;
+  // Usa o domínio atualmente acessado para que o atalho do iPhone
+  // ("Adicionar à Tela de Início") fixe exatamente esta loja.
+  const canonicalBase = isLocalHost ? 'https://meupedidonozap.online' : window.location.origin;
   const canonicalUrl = isMabelleCustomDomain ? canonicalBase : `${canonicalBase}/${store.slug}`;
   const platformSuffix = store.slug === 'mabelle' ? '' : ' | MeuPedidoNoZap';
 
