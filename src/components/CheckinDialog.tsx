@@ -358,7 +358,7 @@ export default function CheckinDialog({
                     </div>
                   );
                 })()}
-              </ScrollArea>
+              </div>
             </TabsContent>
           </Tabs>
         </DialogContent>
