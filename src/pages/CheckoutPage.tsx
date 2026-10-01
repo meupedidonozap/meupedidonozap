@@ -349,7 +349,7 @@ export default function CheckoutPage() {
     toast.success('Arquivo baixado!');
   };
 
-  const handleSendWhatsApp = async () => {
+  const handleSendWhatsApp = async (asQuote = false) => {
     if (!validateForm()) return;
     // Nenhum item pode ser fechado sem preço válido na tabela do cliente.
     if (cart.items.some(i => !(Number(i.price) > 0))) {
@@ -466,7 +466,7 @@ export default function CheckoutPage() {
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
         observations: observationsFinal || undefined,
-        status: 'pendente',
+        status: asQuote ? 'orcamento' : 'pendente',
         ...(sellerOrder ? { origem: 'vendedor' } : {}),
         shippingService: selectedShippingOption?.name,
         shippingCode: selectedShippingOption?.code,
@@ -504,7 +504,7 @@ export default function CheckoutPage() {
       await createOrder.mutateAsync(orderPayload);
 
       if (sellerOrder) {
-        toast.success(`Pedido registrado para ${formData.name}`);
+        toast.success(asQuote ? `Orçamento salvo para ${formData.name}` : `Pedido registrado para ${formData.name}`);
         setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1200);
         return;
       }
@@ -900,12 +900,17 @@ export default function CheckoutPage() {
                     <Button variant="outline" onClick={handleDownloadTxt} className="w-full gap-2"><Download className="h-4 w-4" /> Baixar TXT</Button>
                   )}
                   <Button
-                    onClick={handleSendWhatsApp}
+                    onClick={() => handleSendWhatsApp()}
                     disabled={isSubmitting || !storeOpenStatus.open || ((store.settings?.minOrderValue || 0) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < (store.settings?.minOrderValue || 0))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
                     <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'mabelle' && store.settings.onlinePayments === true ? 'PAGAR PEDIDO' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp')))}
                   </Button>
+                  {sellerOrder && store.slug === 'dicolore' && (
+                    <Button variant="outline" disabled={isSubmitting} onClick={() => handleSendWhatsApp(true)} className="w-full gap-2">
+                      <Download className="h-4 w-4" /> SALVAR ORÇAMENTO
+                    </Button>
+                  )}
                   <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-xs text-yellow-900 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-200">
                     <p className="font-semibold">Aviso:</p>
                     <p>Devido ao alto giro da plataforma, produtos podem ficar sem estoque sem prévio aviso.</p>

@@ -352,7 +352,7 @@ export interface Cart {
 // Order types
 export type PaymentMethod = 'pix' | 'boleto' | 'cartao' | 'dinheiro';
 export type DeliveryShift = 'manha' | 'tarde' | 'noite';
-export type OrderStatus = 'pendente' | 'liberado_transmissao' | 'confirmado' | 'preparando' | 'enviado' | 'entregue' | 'cancelado';
+export type OrderStatus = 'orcamento' | 'pendente' | 'liberado_transmissao' | 'confirmado' | 'preparando' | 'enviado' | 'entregue' | 'cancelado';
 
 export interface CustomerInfo {
   name: string;

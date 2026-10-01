@@ -93,6 +93,7 @@ import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
+  orcamento: { label: 'Orçamento', color: 'bg-muted text-muted-foreground', icon: <Clock className="h-4 w-4" /> },
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="h-4 w-4" /> },
   liberado_transmissao: { label: 'Liberado p/ Transmissão', color: 'bg-cyan-100 text-cyan-700', icon: <Send className="h-4 w-4" /> },
   confirmado: { label: 'Confirmado', color: 'bg-blue-100 text-blue-700', icon: <CheckCircle className="h-4 w-4" /> },

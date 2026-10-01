@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
+import SellerMenu from '@/components/SellerMenu';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
@@ -336,6 +337,9 @@ export default function ProductStorePage() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card shadow-sm">
         <div className="container flex h-16 items-center justify-between gap-4">
+          {isSellerMode && store.slug === 'dicolore' && (
+            <SellerMenu store={store} sellerName={seller.sellerName} />
+          )}
           <Sheet open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
