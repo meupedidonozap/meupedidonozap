@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.is_store_seller_code(uuid, uuid, text) FROM PUBLIC, anon;
