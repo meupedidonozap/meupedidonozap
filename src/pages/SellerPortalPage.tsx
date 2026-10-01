@@ -19,6 +19,10 @@ import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
+import { Pencil } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
+import { mapProfile } from '@/hooks/useCustomerProfile';
+import { setEditingQuote } from '@/lib/quoteEditing';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -41,6 +45,7 @@ export default function SellerPortalPage() {
   const { data: store, isLoading } = useStoreBySlug(slug || '');
   const seller = useSellerMode(store?.id);
   const { selectCustomer } = useSellerContext();
+  const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [search, setSearch] = useState('');
 
   const codes = seller.isAdmin ? [] : seller.sellerCodes;
@@ -86,6 +91,41 @@ export default function SellerPortalPage() {
     qc.invalidateQueries({ queryKey: ['seller-orders'] });
   };
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editQuote = async (id: string) => {
+    if (!store) return;
+    setEditingId(id);
+    try {
+      const { data: order, error } = await supabase.from('orders').select('id, customer, items, status').eq('id', id).single();
+      if (error) throw error;
+      if (order.status !== 'orcamento') throw new Error('Este orçamento já foi finalizado');
+      const c: any = order.customer || {};
+      let profile: any = null;
+      if (c.customerCode) {
+        const { data } = await supabase.from('customer_profiles').select('*').eq('store_id', store.id).eq('customer_code', c.customerCode).limit(1);
+        profile = data?.[0];
+      }
+      if (!profile && c.cpfCnpj) {
+        const { data } = await supabase.from('customer_profiles').select('*').eq('store_id', store.id).eq('cpf_cnpj', c.cpfCnpj).limit(1);
+        profile = data?.[0];
+      }
+      if (!profile) throw new Error('Cliente do orçamento não encontrado no cadastro');
+      selectCustomer({ ...mapProfile(profile), customerCode: profile.customer_code || undefined });
+      setCartStore(store.id);
+      clearCart();
+      for (const it of (order.items as any[]) || []) {
+        if (it?.productId) addItem({ ...it, discountPercent: undefined });
+      }
+      setEditingQuote({ id: order.id, storeId: store.id, customerName: profile.name });
+      toast.success('Orçamento carregado no carrinho para edição');
+      navigate(`/${store.slug}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao abrir orçamento');
+    } finally {
+      setEditingId(null);
+    }
+  };
+
   if (isLoading || seller.loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (!store || !seller.canSell) {
     return (
@@ -115,7 +155,10 @@ export default function SellerPortalPage() {
             <p className="font-bold">{formatCurrency(Number(o.total))}</p>
             {quote && !o._offline && (
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="h-4 w-4" /></Button>
+                <Button size="sm" variant="ghost" title="Cancelar" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="h-4 w-4" /></Button>
+                <Button size="sm" variant="outline" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
+                  {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
+                </Button>
                 <Button size="sm" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
               </div>
             )}

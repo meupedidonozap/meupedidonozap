@@ -23,7 +23,7 @@ export interface CustomerProfile {
   priceTable?: 1 | 4 | 9 | 11;
 }
 
-function mapProfile(row: any): CustomerProfile {
+export function mapProfile(row: any): CustomerProfile {
   return {
     id: row.id,
     userId: row.user_id,
