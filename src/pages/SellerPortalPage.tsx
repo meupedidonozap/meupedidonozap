@@ -155,7 +155,7 @@ export default function SellerPortalPage() {
               </>
             )}
             <Button size="icon" className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90"
-              onClick={() => navigate(`/${store.slug}?selecionar=1`)} aria-label="Novo pedido">
+              onClick={() => navigate(`/${store.slug}`)} aria-label="Novo pedido">
               <Plus className="h-6 w-6" />
             </Button>
           </Tabs>
