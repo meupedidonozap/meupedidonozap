@@ -4,6 +4,8 @@ import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus,
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
 import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
+import { useEditingQuote, setEditingQuote } from '@/lib/quoteEditing';
+import EditingQuoteBanner from '@/components/EditingQuoteBanner';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
@@ -60,6 +62,7 @@ export default function CheckoutPage() {
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   useDataVersionSync(slug, store?.id);
   const createOrder = useCreateOrder();
+  const editingQuote = useEditingQuote(store?.id);
   const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
   const {
@@ -487,6 +490,27 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (sellerOrder && editingQuote) {
+        if (offline) throw new Error('Sem internet: conecte-se para salvar a edição do orçamento');
+        const { error: upErr } = await supabase.from('orders').update({
+          customer: orderPayload.customer as any,
+          items: orderPayload.items as any,
+          subtotal: orderPayload.subtotal,
+          discount: orderPayload.discount,
+          delivery_fee: orderPayload.deliveryFee,
+          total: orderPayload.total,
+          payment_method: orderPayload.paymentMethod,
+          delivery_shift: orderPayload.deliveryShift,
+          observations: orderPayload.observations ?? null,
+          status: asQuote ? 'orcamento' : 'pendente',
+        }).eq('id', editingQuote.id).select().single();
+        if (upErr) throw upErr;
+        setEditingQuote(null);
+        toast.success(asQuote ? `Orçamento atualizado para ${formData.name}` : `Orçamento finalizado como pedido para ${formData.name}`);
+        setTimeout(() => { clearCart(); navigate(`/${store.slug}/vendedor/vendas`); }, 1200);
+        return;
+      }
+
       if (offline) {
         waWindow?.close();
         await enqueueOrder({
@@ -565,6 +589,8 @@ export default function CheckoutPage() {
       <div className="container mt-3">
         <PendingOrdersCard storeId={store.id} />
       </div>
+
+      {sellerOrder && editingQuote && <EditingQuoteBanner name={editingQuote.customerName} />}
 
       {isSellerMode && (
         <div className="border-b border-primary/30 bg-primary/10">

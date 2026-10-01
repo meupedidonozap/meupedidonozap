@@ -32,6 +32,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
+import EditingQuoteBanner from '@/components/EditingQuoteBanner';
+import { useEditingQuote } from '@/lib/quoteEditing';
 import SellerMenu from '@/components/SellerMenu';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
@@ -52,6 +54,7 @@ import {
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
+  const editingQuote = useEditingQuote(store?.id);
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allProducts = [] } = useProducts(store?.id);
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
@@ -587,6 +590,7 @@ export default function ProductStorePage() {
       <div className="container mt-3">
         <PendingOrdersCard storeId={store?.id} />
       </div>
+      {isSellerMode && editingQuote && <EditingQuoteBanner name={editingQuote.customerName} />}
       {isSellerMode && store && (
         <SellerModeBar
           storeId={store.id}
