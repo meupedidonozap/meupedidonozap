@@ -15,6 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CheckinDialog from '@/components/CheckinDialog';
 import SellerMenu from '@/components/SellerMenu';
+import { useOfflineQueue } from '@/hooks/useOfflineQueue';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
@@ -54,14 +57,24 @@ export default function SellerPortalPage() {
     },
   });
 
+  const { queue, syncing, sync } = useOfflineQueue(store?.id);
+  const online = useOnlineStatus();
+  const allOrders = useMemo(() => {
+    const local = queue.map((q) => ({
+      id: `local-${q.id}`, order_number: null, customer: q.payload.customer, total: q.total,
+      status: q.payload.status, created_at: q.createdAt, _offline: true, _error: q.status === 'error',
+    }));
+    return [...local, ...orders];
+  }, [queue, orders]);
+
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (!s) return orders;
-    return orders.filter((o: any) => {
+    if (!s) return allOrders;
+    return allOrders.filter((o: any) => {
       const c = o.customer || {};
       return [c.name, c.city, c.customerCode, String(o.order_number)].some(v => String(v || '').toLowerCase().includes(s));
     });
-  }, [orders, search]);
+  }, [allOrders, search]);
   const quotes = filtered.filter((o: any) => o.status === 'orcamento');
   const realOrders = filtered.filter((o: any) => o.status !== 'orcamento');
   const sum = (list: any[]) => list.reduce((a, o) => a + Number(o.total || 0), 0);
@@ -92,13 +105,15 @@ export default function SellerPortalPage() {
           <div className="min-w-0 text-sm">
             <p className="font-semibold uppercase">{c.name}</p>
             <p className="text-muted-foreground">{[c.city, c.uf].filter(Boolean).join(' - ')}</p>
-            <p className="text-muted-foreground">Cód: {quote ? 'ORÇAMENTO' : `#${o.order_number}`}{c.customerCode ? ` • Cliente ${c.customerCode}` : ''}</p>
+            <p className="text-muted-foreground">Cód: {o._offline ? 'AGUARDANDO REDE' : quote ? 'ORÇAMENTO' : `#${o.order_number}`}{c.customerCode ? ` • Cliente ${c.customerCode}` : ''}</p>
             <p className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString('pt-BR')}</p>
           </div>
           <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-            <Badge variant={stage.variant}>{stage.label}</Badge>
+            {o._offline
+              ? <Badge variant="destructive" className="gap-1"><WifiOff className="h-3 w-3" /> OFFLINE — Não Integrado</Badge>
+              : <Badge variant={stage.variant}>{stage.label}</Badge>}
             <p className="font-bold">{formatCurrency(Number(o.total))}</p>
-            {quote && (
+            {quote && !o._offline && (
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="h-4 w-4" /></Button>
                 <Button size="sm" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
@@ -140,7 +155,15 @@ export default function SellerPortalPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input className="pl-9" placeholder="Pesquisar cliente, cidade, código..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            {ordersLoading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : (
+            {queue.length > 0 && (
+              <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                <span className="flex items-center gap-2"><WifiOff className="h-4 w-4" /> {queue.length} registro(s) salvos no aparelho, ainda não integrados.</span>
+                <Button size="sm" variant="outline" disabled={!online || syncing} onClick={() => sync()}>
+                  <RefreshCw className={`mr-1 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} /> Sincronizar agora
+                </Button>
+              </div>
+            )}
+            {ordersLoading && queue.length === 0 && online ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : (
               <>
                 <TabsContent value="orcamentos" className="space-y-2">
                   <p className="text-right text-xs text-muted-foreground">{quotes.length} Orçamentos<br />{formatCurrency(sum(quotes))}</p>
