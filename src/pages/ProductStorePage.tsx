@@ -67,6 +67,12 @@ export default function ProductStorePage() {
     seller,
   } = useActiveCustomerProfile(store?.id);
   const stockEnabled = (store?.settings as any)?.useStockIntegration === true;
+  // Vendedor/Televendas (e admin no Modo Vendedor) veem o saldo de estoque.
+  const showStockQty = stockEnabled && isSellerMode;
+  const stockQty = (p: Product) =>
+    p.hasVariants
+      ? (p.variants ?? []).reduce((s, v) => s + Math.max(0, Number(v.stock ?? 0)), 0)
+      : Math.max(0, Number(p.stock ?? 0));
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const allowList = (store?.settings as any)?.catalogViewModes?.list !== false;
@@ -625,6 +631,9 @@ export default function ProductStorePage() {
                     {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
                       <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
                     )}
+                    {showStockQty && hasStock(product, null, stockEnabled) && (
+                      <Badge variant="outline" className="mt-1 border-primary/40 bg-primary/10 text-[10px] text-primary">Estoque: {stockQty(product)} un.</Badge>
+                    )}
                   </div>
                   {(product.hasVariants || hasStock(product, null, stockEnabled)) && (
                     <Button size="icon" className="shrink-0 bg-primary hover:bg-primary/90" onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}><Plus className="h-5 w-5" /></Button>
@@ -645,6 +654,9 @@ export default function ProductStorePage() {
                   <h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
                   {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
                     <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
+                  )}
+                  {showStockQty && hasStock(product, null, stockEnabled) && (
+                    <Badge variant="outline" className="mt-1 border-primary/40 bg-primary/10 text-[10px] text-primary">Estoque: {stockQty(product)} un.</Badge>
                   )}
                   {(() => {
                     const cartQty = product.hasVariants
