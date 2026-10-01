@@ -26,7 +26,7 @@ export default function SellerMenu({ store, sellerName }: Props) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Menu do vendedor"><Menu className="h-5 w-5" /></Button>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3" aria-label="Menu do vendedor"><Menu className="h-4 w-4" /> Menu</Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader className="items-center border-b p-6 text-center">

@@ -5,7 +5,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Menu, Search, ShoppingCart, Grid, List, Plus, Minus, X,
   MapPin, Phone, Clock, Trash2, ArrowRight, Tag, Loader2,
-  User, LogOut, ShoppingBag, LogIn,
+  User, LogOut, ShoppingBag, LogIn, FolderOpen,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCategories } from '@/hooks/useCategories';
@@ -342,7 +342,11 @@ export default function ProductStorePage() {
           )}
           <Sheet open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
+              {isSellerMode && store.slug === 'dicolore' ? (
+                <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3" aria-label="Categorias"><FolderOpen className="h-4 w-4" /> Categorias</Button>
+              ) : (
+                <Button variant="ghost" size="icon" aria-label="Categorias"><Menu className="h-5 w-5" /></Button>
+              )}
             </SheetTrigger>
             <SheetContent side="left" className="w-80 flex flex-col h-full">
               <SheetHeader><SheetTitle>Categorias</SheetTitle></SheetHeader>
