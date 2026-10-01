@@ -349,6 +349,7 @@ export default function CheckoutPage() {
     toast.success('Arquivo baixado!');
   };
 
+  const [offlineSaved, setOfflineSaved] = useState(false);
   const handleSendWhatsApp = async (asQuote = false) => {
     if (!validateForm()) return;
     // Nenhum item pode ser fechado sem preço válido na tabela do cliente.
@@ -496,8 +497,12 @@ export default function CheckoutPage() {
           total: liveTotal,
           payload: orderPayload,
         });
-        toast.warning('Você está OFFLINE. Pedido salvo na fila e será enviado automaticamente quando a conexão voltar.', { duration: 6000 });
-        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1500);
+        if (asQuote) {
+          toast.success('Orçamento salvo no dispositivo');
+          setTimeout(() => { clearCart(); navigate(sellerOrder ? `/${store.slug}/vendedor/vendas` : `/${store.slug}`); }, 1000);
+        } else {
+          setOfflineSaved(true);
+        }
         return;
       }
 
@@ -543,6 +548,17 @@ export default function CheckoutPage() {
           </div>
         </div>
       </header>
+
+      {offlineSaved && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 p-6">
+          <div className="max-w-sm space-y-4 rounded-lg border-2 border-destructive bg-card p-6 text-center shadow-lg">
+            <p className="text-2xl font-bold text-destructive">MODO OFFLINE</p>
+            <p className="font-semibold">Pedido salvo no aparelho</p>
+            <p className="text-sm text-muted-foreground">Ele ainda não foi integrado. Será enviado automaticamente ao painel quando a internet voltar.</p>
+            <Button className="w-full" onClick={() => { clearCart(); navigate(sellerOrder ? `/${store.slug}/vendedor/vendas` : `/${store.slug}`); }}>OK</Button>
+          </div>
+        </div>
+      )}
 
       <ClosedBanner store={store} />
 
