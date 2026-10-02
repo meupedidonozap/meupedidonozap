@@ -485,6 +485,154 @@ export type Database = {
           },
         ]
       }
+      erp_order_items: {
+        Row: {
+          cliente_codigo: string
+          created_at: string
+          id: string
+          order_key: string
+          percentual_desconto: number
+          produto_codigo: string
+          produto_descricao: string | null
+          quantidade: number
+          quantidade_faturada: number
+          status: string | null
+          store_id: string
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          cliente_codigo?: string
+          created_at?: string
+          id?: string
+          order_key: string
+          percentual_desconto?: number
+          produto_codigo?: string
+          produto_descricao?: string | null
+          quantidade?: number
+          quantidade_faturada?: number
+          status?: string | null
+          store_id: string
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          cliente_codigo?: string
+          created_at?: string
+          id?: string
+          order_key?: string
+          percentual_desconto?: number
+          produto_codigo?: string
+          produto_descricao?: string | null
+          quantidade?: number
+          quantidade_faturada?: number
+          status?: string | null
+          store_id?: string
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_order_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_orders: {
+        Row: {
+          cliente_codigo: string
+          codigo: string
+          codigo_importacao: string
+          condicao_pagamento_codigo: string | null
+          created_at: string
+          data_emissao: string | null
+          data_entrega: string | null
+          data_faturamento: string | null
+          external_key: string
+          filial_codigo: string
+          id: string
+          nota_fiscal_numero: string | null
+          observacao: string | null
+          operacao_codigo: string | null
+          ordem_faturamento: string | null
+          pedido_origem: string | null
+          quantidade_total: number
+          status: string
+          store_id: string
+          tabela_preco_codigo: string | null
+          updated_at: string
+          valor_desconto: number
+          valor_faturado: number
+          valor_total: number
+          vendedor_codigo: string
+        }
+        Insert: {
+          cliente_codigo?: string
+          codigo?: string
+          codigo_importacao?: string
+          condicao_pagamento_codigo?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_entrega?: string | null
+          data_faturamento?: string | null
+          external_key: string
+          filial_codigo?: string
+          id?: string
+          nota_fiscal_numero?: string | null
+          observacao?: string | null
+          operacao_codigo?: string | null
+          ordem_faturamento?: string | null
+          pedido_origem?: string | null
+          quantidade_total?: number
+          status?: string
+          store_id: string
+          tabela_preco_codigo?: string | null
+          updated_at?: string
+          valor_desconto?: number
+          valor_faturado?: number
+          valor_total?: number
+          vendedor_codigo?: string
+        }
+        Update: {
+          cliente_codigo?: string
+          codigo?: string
+          codigo_importacao?: string
+          condicao_pagamento_codigo?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_entrega?: string | null
+          data_faturamento?: string | null
+          external_key?: string
+          filial_codigo?: string
+          id?: string
+          nota_fiscal_numero?: string | null
+          observacao?: string | null
+          operacao_codigo?: string | null
+          ordem_faturamento?: string | null
+          pedido_origem?: string | null
+          quantidade_total?: number
+          status?: string
+          store_id?: string
+          tabela_preco_codigo?: string | null
+          updated_at?: string
+          valor_desconto?: number
+          valor_faturado?: number
+          valor_total?: number
+          vendedor_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_orders_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       food_items: {
         Row: {
           category_id: string | null
