@@ -1701,6 +1701,10 @@ export type Database = {
         Args: { _store_id: string; _user_id: string }
         Returns: boolean
       }
+      has_customer_portfolio_access: {
+        Args: { _customer_code: string; _store_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_store_permission: {
         Args: { _permission: string; _store_id: string; _user_id: string }
         Returns: boolean
