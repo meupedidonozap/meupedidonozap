@@ -38,16 +38,33 @@ const InvoiceSchema = z.object({
   valor_total_despesas: num, status: str, condicao_pagamento_codigo: str,
   total_quantidade_un_1_faturada: num,
 });
+const OrderSchema = z.object({
+  codigo: str, codigo_importacao: str, filial_codigo: str, cliente_codigo: str, vendedor_codigo: str,
+  tabela_preco_codigo: str, condicao_pagamento_codigo: str, operacao_codigo: str, observacao_comercial: str,
+  data_emissao: date, data_entrega: date, data_faturamento: date,
+  valor_total_com_impostos: num, valor_total_desconto: num, valor_total_faturado: num, total_quantidade_un_1: num,
+  status: str, ordem_faturamento: str, nota_fiscal_numero: str, pedido_origem: str,
+}).passthrough();
+const OrderItemSchema = z.object({
+  codigo: str, pedido_codigo_importacao: str, filial_codigo: str, cliente_codigo: str,
+  produto_codigo: str, produto_descricao: str,
+  quantidade_un_1: num, quantidade_un_1_faturada: num, valor_unitario_venda: num,
+  valor_total_com_impostos: num, percentual_total_descontos: num, status: str,
+}).passthrough();
 const BodySchema = z.object({
   store_slug: z.string().min(1).max(100),
   titles: z.array(TitleSchema).max(5000).default([]),
   boletos: z.array(BoletoSchema).max(500).default([]),
   invoices: z.array(InvoiceSchema).max(5000).default([]),
+  orders: z.array(OrderSchema).max(5000).default([]),
+  order_items: z.array(OrderItemSchema).max(10000).default([]),
 });
 
 /** Chave única: filial|nota|serie+parcela (mesmo formato da coluna parcela da view). */
 const keyOf = (filial: string, codigo: string, parcela: string) => `${filial || "1"}|${codigo}|${parcela}`;
 const invoiceKeyOf = (filial: string, numero: string, serie: string) => `${filial || "1"}|${numero}|${serie}`;
+/** Pedido ERP: filial|pedcod (codigo_importacao) — estável mesmo quando o número do Zap muda. */
+const orderKeyOf = (filial: string, pedcod: string) => `${filial || "1"}|${pedcod}`;
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -175,5 +192,65 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, titlesUpserted, invoicesUpserted, boletosSaved, boletoErrors: boletoErrors.slice(0, 50) });
+  // 4) Pedidos do ERP (vw_mpz_pedido)
+  let ordersUpserted = 0;
+  const orderRows = body.orders.map((o) => ({
+    store_id: store.id,
+    external_key: orderKeyOf(o.filial_codigo, o.codigo_importacao || o.codigo),
+    codigo: o.codigo, codigo_importacao: o.codigo_importacao || o.codigo,
+    filial_codigo: o.filial_codigo, cliente_codigo: o.cliente_codigo, vendedor_codigo: o.vendedor_codigo,
+    tabela_preco_codigo: o.tabela_preco_codigo || null,
+    condicao_pagamento_codigo: o.condicao_pagamento_codigo || null,
+    operacao_codigo: o.operacao_codigo || null,
+    observacao: o.observacao_comercial || null,
+    data_emissao: o.data_emissao, data_entrega: o.data_entrega, data_faturamento: o.data_faturamento,
+    valor_total: o.valor_total_com_impostos, valor_desconto: o.valor_total_desconto,
+    valor_faturado: o.valor_total_faturado, quantidade_total: o.total_quantidade_un_1,
+    status: ["N", "S", "F"].includes(o.status.toUpperCase()) ? o.status.toUpperCase() : "N",
+    ordem_faturamento: o.ordem_faturamento || null,
+    nota_fiscal_numero: o.nota_fiscal_numero && o.nota_fiscal_numero !== "0" ? o.nota_fiscal_numero : null,
+    pedido_origem: o.pedido_origem || null,
+  }));
+  for (let i = 0; i < orderRows.length; i += 500) {
+    const chunk = orderRows.slice(i, i + 500);
+    const { error } = await supabase.from("erp_orders").upsert(chunk, { onConflict: "store_id,external_key" });
+    if (error) return json({ error: `Falha ao gravar pedidos: ${error.message}`, ordersUpserted }, 500);
+    ordersUpserted += chunk.length;
+  }
+
+  // 5) Itens dos pedidos (vw_mpz_pedido_item) — substitui todos os itens de cada pedido recebido
+  let orderItemsSaved = 0;
+  if (body.order_items.length) {
+    const itemRows = body.order_items.map((it) => ({
+      store_id: store.id,
+      order_key: orderKeyOf(it.filial_codigo, it.pedido_codigo_importacao || it.codigo),
+      cliente_codigo: it.cliente_codigo,
+      produto_codigo: it.produto_codigo, produto_descricao: it.produto_descricao || null,
+      quantidade: it.quantidade_un_1, quantidade_faturada: it.quantidade_un_1_faturada,
+      valor_unitario: it.valor_unitario_venda, valor_total: it.valor_total_com_impostos,
+      percentual_desconto: it.percentual_total_descontos, status: it.status || null,
+    }));
+    const keys = [...new Set(itemRows.map((r) => r.order_key))];
+    // Completa cliente_codigo a partir do cabeçalho quando não vier no item
+    const missing = keys.filter((k) => itemRows.some((r) => r.order_key === k && !r.cliente_codigo));
+    for (let i = 0; i < missing.length; i += 300) {
+      const { data } = await supabase.from("erp_orders").select("external_key, cliente_codigo")
+        .eq("store_id", store.id).in("external_key", missing.slice(i, i + 300));
+      const map = new Map((data || []).map((d) => [d.external_key, d.cliente_codigo]));
+      for (const r of itemRows) if (!r.cliente_codigo) r.cliente_codigo = map.get(r.order_key) || "";
+    }
+    for (let i = 0; i < keys.length; i += 300) {
+      const { error } = await supabase.from("erp_order_items").delete()
+        .eq("store_id", store.id).in("order_key", keys.slice(i, i + 300));
+      if (error) return json({ error: `Falha ao limpar itens: ${error.message}` }, 500);
+    }
+    for (let i = 0; i < itemRows.length; i += 1000) {
+      const chunk = itemRows.slice(i, i + 1000);
+      const { error } = await supabase.from("erp_order_items").insert(chunk);
+      if (error) return json({ error: `Falha ao gravar itens: ${error.message}`, orderItemsSaved }, 500);
+      orderItemsSaved += chunk.length;
+    }
+  }
+
+  return json({ ok: true, titlesUpserted, invoicesUpserted, boletosSaved, ordersUpserted, orderItemsSaved, boletoErrors: boletoErrors.slice(0, 50) });
 });
