@@ -39,7 +39,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['customer-invoices', storeId, customerCode, selectedStart],
     queryFn: async () => {
-      const rows: Array<Awaited<ReturnType<typeof supabase.from<'customer_invoices'>>> extends never ? never : any> = [];
+      const rows: Array<Record<string, any>> = [];
       const pageSize = 1000;
       for (let from = 0; ; from += pageSize) {
         let query = supabase.from('customer_invoices').select('*')
