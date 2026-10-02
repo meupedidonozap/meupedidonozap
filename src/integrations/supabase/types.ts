@@ -93,6 +93,122 @@ export type Database = {
           },
         ]
       }
+      customer_invoices: {
+        Row: {
+          base_icms: number
+          base_st: number
+          chave_nfe: string | null
+          cliente_codigo: string
+          condicao_pagamento_codigo: string | null
+          created_at: string
+          data_emissao: string | null
+          data_entrega: string | null
+          external_key: string
+          filial_codigo: string
+          id: string
+          mensagem_nota_fiscal: string | null
+          numero: string
+          pedido_codigo: string
+          peso_total_bruto: number
+          peso_total_liquido: number
+          serie: string
+          status: string
+          store_id: string
+          tipo_frete: string | null
+          total_quantidade_un_1_faturada: number
+          transportadora_codigo: string | null
+          updated_at: string
+          valor_total_desconto: number
+          valor_total_despesas: number
+          valor_total_frete: number
+          valor_total_icms: number
+          valor_total_ipi: number
+          valor_total_nota_fiscal: number
+          valor_total_produtos: number
+          valor_total_seguro: number
+          valor_total_st: number
+          vendedor_codigo: string
+        }
+        Insert: {
+          base_icms?: number
+          base_st?: number
+          chave_nfe?: string | null
+          cliente_codigo?: string
+          condicao_pagamento_codigo?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_entrega?: string | null
+          external_key: string
+          filial_codigo?: string
+          id?: string
+          mensagem_nota_fiscal?: string | null
+          numero?: string
+          pedido_codigo?: string
+          peso_total_bruto?: number
+          peso_total_liquido?: number
+          serie?: string
+          status?: string
+          store_id: string
+          tipo_frete?: string | null
+          total_quantidade_un_1_faturada?: number
+          transportadora_codigo?: string | null
+          updated_at?: string
+          valor_total_desconto?: number
+          valor_total_despesas?: number
+          valor_total_frete?: number
+          valor_total_icms?: number
+          valor_total_ipi?: number
+          valor_total_nota_fiscal?: number
+          valor_total_produtos?: number
+          valor_total_seguro?: number
+          valor_total_st?: number
+          vendedor_codigo?: string
+        }
+        Update: {
+          base_icms?: number
+          base_st?: number
+          chave_nfe?: string | null
+          cliente_codigo?: string
+          condicao_pagamento_codigo?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_entrega?: string | null
+          external_key?: string
+          filial_codigo?: string
+          id?: string
+          mensagem_nota_fiscal?: string | null
+          numero?: string
+          pedido_codigo?: string
+          peso_total_bruto?: number
+          peso_total_liquido?: number
+          serie?: string
+          status?: string
+          store_id?: string
+          tipo_frete?: string | null
+          total_quantidade_un_1_faturada?: number
+          transportadora_codigo?: string | null
+          updated_at?: string
+          valor_total_desconto?: number
+          valor_total_despesas?: number
+          valor_total_frete?: number
+          valor_total_icms?: number
+          valor_total_ipi?: number
+          valor_total_nota_fiscal?: number
+          valor_total_produtos?: number
+          valor_total_seguro?: number
+          valor_total_st?: number
+          vendedor_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_invoices_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_profiles: {
         Row: {
           address: string

@@ -8,6 +8,13 @@
       "when": 1790955718300,
       "tag": "0000_allow_titles_by_customer_portfolio",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790956878622,
+      "tag": "0001_create_customer_invoices",
+      "breakpoints": true
     }
   ]
 }
