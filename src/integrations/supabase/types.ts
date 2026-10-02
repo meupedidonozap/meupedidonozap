@@ -179,6 +179,121 @@ export type Database = {
           },
         ]
       }
+      customer_title_boletos: {
+        Row: {
+          created_at: string
+          file_name: string
+          pdf_base64: string
+          title_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string
+          pdf_base64: string
+          title_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          pdf_base64?: string
+          title_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_title_boletos_title_id_fkey"
+            columns: ["title_id"]
+            isOneToOne: true
+            referencedRelation: "customer_titles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_titles: {
+        Row: {
+          cliente_codigo: string
+          codigo: string | null
+          created_at: string
+          data_emissao: string | null
+          data_quitacao: string | null
+          data_vencimento: string | null
+          external_key: string
+          filial_codigo: string | null
+          has_boleto: boolean
+          id: string
+          nota_fiscal_numero: string | null
+          nota_fiscal_serie: string | null
+          parcela: string | null
+          pedido_codigo: string | null
+          status: string
+          store_id: string
+          updated_at: string
+          valor_comissao: number
+          valor_pago: number
+          valor_saldo: number
+          valor_total: number
+          vendedor_codigo: string
+        }
+        Insert: {
+          cliente_codigo?: string
+          codigo?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_quitacao?: string | null
+          data_vencimento?: string | null
+          external_key: string
+          filial_codigo?: string | null
+          has_boleto?: boolean
+          id?: string
+          nota_fiscal_numero?: string | null
+          nota_fiscal_serie?: string | null
+          parcela?: string | null
+          pedido_codigo?: string | null
+          status?: string
+          store_id: string
+          updated_at?: string
+          valor_comissao?: number
+          valor_pago?: number
+          valor_saldo?: number
+          valor_total?: number
+          vendedor_codigo?: string
+        }
+        Update: {
+          cliente_codigo?: string
+          codigo?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          data_quitacao?: string | null
+          data_vencimento?: string | null
+          external_key?: string
+          filial_codigo?: string | null
+          has_boleto?: boolean
+          id?: string
+          nota_fiscal_numero?: string | null
+          nota_fiscal_serie?: string | null
+          parcela?: string | null
+          pedido_codigo?: string | null
+          status?: string
+          store_id?: string
+          updated_at?: string
+          valor_comissao?: number
+          valor_pago?: number
+          valor_saldo?: number
+          valor_total?: number
+          vendedor_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_titles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_visits: {
         Row: {
           checked_in_at: string
