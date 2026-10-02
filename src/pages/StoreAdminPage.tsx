@@ -2079,7 +2079,7 @@ export default function StoreAdminPage() {
                 <CardHeader><CardTitle>Notas Fiscais, Títulos e Boletos do ERP</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    O histórico permanece armazenado. Esta regra determina quais notas fiscais e títulos aparecem para clientes, vendedores, televendas e administradores.
+                    O histórico permanece armazenado. A data mínima filtra os títulos pelo campo escolhido e as notas fiscais pela emissão, para clientes, vendedores, televendas e administradores.
                   </p>
                   <div className="grid gap-3 sm:max-w-xl sm:grid-cols-2">
                     <div className="grid gap-1">
