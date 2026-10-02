@@ -6,6 +6,7 @@ import {
   Menu, Search, ShoppingCart, Grid, List, Plus, Minus, X,
   MapPin, Phone, Clock, Trash2, ArrowRight, Tag, Loader2,
   User, LogOut, ShoppingBag, LogIn, FolderOpen,
+  Receipt,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCategories } from '@/hooks/useCategories';
