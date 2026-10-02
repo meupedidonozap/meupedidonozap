@@ -25,6 +25,7 @@ import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
+import ErpOrdersPanel from '@/components/ErpOrdersPanel';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -216,9 +217,15 @@ export default function SellerPortalPage() {
                   {quotes.map((o: any) => <OrderCard key={o.id} o={o} quote />)}
                 </TabsContent>
                 <TabsContent value="pedidos" className="space-y-2">
-                  <p className="text-right text-xs text-muted-foreground">{realOrders.length} Pedidos<br />{formatCurrency(sum(realOrders))}</p>
-                  {realOrders.length === 0 && <p className="py-8 text-center text-muted-foreground">Nenhum pedido encontrado.</p>}
-                  {realOrders.map((o: any) => <OrderCard key={o.id} o={o} />)}
+                  {store.slug === 'dicolore' ? (
+                    <ErpOrdersPanel storeId={store.id} localOrders={allOrders.filter((o: any) => !['orcamento', 'cancelado'].includes(o.status))} />
+                  ) : (
+                    <>
+                      <p className="text-right text-xs text-muted-foreground">{realOrders.length} Pedidos<br />{formatCurrency(sum(realOrders))}</p>
+                      {realOrders.length === 0 && <p className="py-8 text-center text-muted-foreground">Nenhum pedido encontrado.</p>}
+                      {realOrders.map((o: any) => <OrderCard key={o.id} o={o} />)}
+                    </>
+                  )}
                 </TabsContent>
               </>
             )}
