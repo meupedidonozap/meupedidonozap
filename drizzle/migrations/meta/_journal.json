@@ -15,6 +15,13 @@
       "when": 1790956878622,
       "tag": "0001_create_customer_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790961232913,
+      "tag": "0002_financial_access_by_linked_customers",
+      "breakpoints": true
     }
   ]
 }
