@@ -39,15 +39,21 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['customer-invoices', storeId, customerCode, selectedStart],
     queryFn: async () => {
-      let query = supabase.from('customer_invoices').select('*')
-        .eq('store_id', storeId)
-        .order('data_emissao', { ascending: false })
-        .range(0, 9999);
-      if (customerCode) query = query.eq('cliente_codigo', customerCode);
-      if (selectedStart) query = query.gte('data_emissao', selectedStart);
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      const rows: Array<Awaited<ReturnType<typeof supabase.from<'customer_invoices'>>> extends never ? never : any> = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        let query = supabase.from('customer_invoices').select('*')
+          .eq('store_id', storeId)
+          .order('data_emissao', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (customerCode) query = query.eq('cliente_codigo', customerCode);
+        if (selectedStart) query = query.gte('data_emissao', selectedStart);
+        const { data, error } = await query;
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
     },
   });
 
