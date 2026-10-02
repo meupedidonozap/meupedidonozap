@@ -99,6 +99,7 @@ export default function CheckoutPage() {
     observations: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [offlineSaved, setOfflineSaved] = useState(false);
   const [pendingWhatsApp, setPendingWhatsApp] = useState<{ url: string; sellerName: string } | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
@@ -352,7 +353,6 @@ export default function CheckoutPage() {
     toast.success('Arquivo baixado!');
   };
 
-  const [offlineSaved, setOfflineSaved] = useState(false);
   const handleSendWhatsApp = async (asQuote = false) => {
     if (!validateForm()) return;
     // Nenhum item pode ser fechado sem preço válido na tabela do cliente.
