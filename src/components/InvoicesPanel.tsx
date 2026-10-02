@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, FileText, Loader2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,18 +36,38 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
     return quickStart > startDate ? quickStart : startDate;
   }, [period, startDate]);
 
+  const [term, setTerm] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setTerm(search.trim().replace(/[,()%*]/g, ' ').trim()), 400);
+    return () => clearTimeout(id);
+  }, [search]);
+
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['customer-invoices', storeId, customerCode, selectedStart],
+    queryKey: ['customer-invoices', storeId, customerCode, selectedStart, term],
     queryFn: async () => {
+      // Busca direta no banco: com termo, procura em todo o histórico.
+      let orFilter = '';
+      if (term) {
+        const parts = [`numero.eq.${term}`, `pedido_codigo.eq.${term}`, `cliente_codigo.eq.${term}`, `chave_nfe.eq.${term}`];
+        if (!customerCode && term.length >= 3) {
+          const { data: cs } = await supabase.from('customer_profiles').select('customer_code')
+            .eq('store_id', storeId).neq('customer_code', '')
+            .or(`name.ilike.%${term}%,city.ilike.%${term}%`).limit(200);
+          const cc = [...new Set((cs || []).map((c) => c.customer_code).filter(Boolean))];
+          if (cc.length) parts.push(`cliente_codigo.in.(${cc.map((c) => `"${c}"`).join(',')})`);
+        }
+        orFilter = parts.join(',');
+      }
       const rows: Array<Record<string, any>> = [];
       const pageSize = 1000;
-      for (let from = 0; ; from += pageSize) {
+      for (let from = 0; from < 10000; from += pageSize) {
         let query = supabase.from('customer_invoices').select('*')
           .eq('store_id', storeId)
           .order('data_emissao', { ascending: false })
           .range(from, from + pageSize - 1);
         if (customerCode) query = query.eq('cliente_codigo', customerCode);
         if (selectedStart) query = query.gte('data_emissao', selectedStart);
+        if (orFilter) query = query.or(orFilter);
         const { data, error } = await query;
         if (error) throw error;
         rows.push(...(data || []));
