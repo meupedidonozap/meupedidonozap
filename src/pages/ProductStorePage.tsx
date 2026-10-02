@@ -397,6 +397,11 @@ export default function ProductStorePage() {
                   <DropdownMenuItem asChild>
                     <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
                   </DropdownMenuItem>
+                  {store.slug === 'dicolore' && (
+                    <DropdownMenuItem asChild>
+                      <Link to={`/${store.slug}/titulos`} className="gap-2"><Receipt className="h-4 w-4" /> Meus Títulos / Boletos</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-destructive"><LogOut className="h-4 w-4" /> Sair</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
