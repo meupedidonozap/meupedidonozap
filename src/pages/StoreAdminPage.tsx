@@ -83,7 +83,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Receipt, FileText } from 'lucide-react';
+import TitlesPanel from '@/components/TitlesPanel';
+import InvoicesPanel from '@/components/InvoicesPanel';
 import ChangePasswordCard from '@/components/ChangePasswordCard';
 import { PushNotificationsCard } from '@/components/PushNotificationsCard';
 import DynamicManifest from '@/components/DynamicManifest';
@@ -1109,7 +1111,24 @@ export default function StoreAdminPage() {
             {isAdmin && (
               <TabsTrigger value="hours" className="gap-2"><Clock className="h-4 w-4" /> Horários</TabsTrigger>
             )}
+            {store.slug === 'dicolore' && isAdmin && (
+              <TabsTrigger value="titulos" className="gap-2"><Receipt className="h-4 w-4" /> Títulos</TabsTrigger>
+            )}
+            {store.slug === 'dicolore' && isAdmin && (
+              <TabsTrigger value="notas" className="gap-2"><FileText className="h-4 w-4" /> Notas Fiscais</TabsTrigger>
+            )}
           </TabsList>
+
+          {store.slug === 'dicolore' && isAdmin && (
+            <TabsContent value="titulos" className="animate-fade-in">
+              <TitlesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} dateField={(store.settings as any)?.titlesDateField} />
+            </TabsContent>
+          )}
+          {store.slug === 'dicolore' && isAdmin && (
+            <TabsContent value="notas" className="animate-fade-in">
+              <InvoicesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} />
+            </TabsContent>
+          )}
 
           {/* Dashboard */}
           <TabsContent value="dashboard" className="animate-fade-in">
