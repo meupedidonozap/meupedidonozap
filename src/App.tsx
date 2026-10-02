@@ -17,6 +17,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import SellerPortalPage from "./pages/SellerPortalPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
 import CustomerTitlesPage from "./pages/CustomerTitlesPage";
+import CustomerInvoicesPage from "./pages/CustomerInvoicesPage";
 import NotFound from "./pages/NotFound";
 import KitchenPage from "./pages/KitchenPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/mabelle/pagamento" element={<><NoIndex /><PaymentReturnPage /></>} />
             <Route path="/:slug/pedidos" element={<><NoIndex /><OrderHistoryPage /></>} />
             <Route path="/:slug/titulos" element={<><NoIndex /><CustomerTitlesPage /></>} />
+            <Route path="/:slug/notas-fiscais" element={<><NoIndex /><CustomerInvoicesPage /></>} />
             <Route path="/:slug/vendedor/:section?" element={<><NoIndex /><SellerPortalPage /></>} />
             <Route path="/:slug/cozinha" element={<><NoIndex /><KitchenPage /></>} />
             <Route path="/:slug/garcom" element={<><NoIndex /><WaiterPage /></>} />

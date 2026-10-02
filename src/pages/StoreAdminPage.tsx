@@ -2076,10 +2076,10 @@ export default function StoreAdminPage() {
             )}
             {store.slug === 'dicolore' && (
               <Card className="border-accent">
-                <CardHeader><CardTitle>Títulos e Boletos do ERP</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Notas Fiscais, Títulos e Boletos do ERP</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    O histórico permanece armazenado. Esta regra determina apenas quais títulos aparecem para clientes, vendedores, televendas e administradores.
+                    O histórico permanece armazenado. Esta regra determina quais notas fiscais e títulos aparecem para clientes, vendedores, televendas e administradores.
                   </p>
                   <div className="grid gap-3 sm:max-w-xl sm:grid-cols-2">
                     <div className="grid gap-1">
