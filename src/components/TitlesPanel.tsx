@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Loader2, Search, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,19 +30,44 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
   dateField?: 'data_emissao' | 'data_vencimento';
 }) {
   const [search, setSearch] = useState('');
+  const [term, setTerm] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setTerm(search.trim().replace(/[,()%*]/g, ' ').trim()), 400);
+    return () => clearTimeout(id);
+  }, [search]);
   const [filter, setFilter] = useState<Filter>('todos');
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const { data: titles = [], isLoading } = useQuery({
-    queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode, startDate, dateField],
+    queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode, startDate, dateField, term],
     queryFn: async () => {
-      let q = supabase.from('customer_titles').select('*').eq('store_id', storeId)
-        .order('data_vencimento', { ascending: true }).range(0, 9999);
-      if (customerCode) q = q.eq('cliente_codigo', customerCode);
-      if (startDate) q = q.gte(dateField, startDate);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data || [];
+      // Busca direta no banco: com termo, procura em todo o histórico (sem limite de memória).
+      let orFilter = '';
+      if (term) {
+        const parts = [`codigo.eq.${term}`, `nota_fiscal_numero.eq.${term}`, `pedido_codigo.eq.${term}`, `cliente_codigo.eq.${term}`];
+        if (!customerCode && term.length >= 3) {
+          const { data: cs } = await supabase.from('customer_profiles').select('customer_code')
+            .eq('store_id', storeId).neq('customer_code', '')
+            .or(`name.ilike.%${term}%,city.ilike.%${term}%`).limit(200);
+          const cc = [...new Set((cs || []).map((c) => c.customer_code).filter(Boolean))];
+          if (cc.length) parts.push(`cliente_codigo.in.(${cc.map((c) => `"${c}"`).join(',')})`);
+        }
+        orFilter = parts.join(',');
+      }
+      const rows: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; from < 10000; from += pageSize) {
+        let q = supabase.from('customer_titles').select('*').eq('store_id', storeId)
+          .order('data_vencimento', { ascending: false }).range(from, from + pageSize - 1);
+        if (customerCode) q = q.eq('cliente_codigo', customerCode);
+        if (startDate) q = q.gte(dateField, startDate);
+        if (orFilter) q = q.or(orFilter);
+        const { data, error } = await q;
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
     },
   });
 
