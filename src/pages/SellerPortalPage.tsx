@@ -23,6 +23,7 @@ import { Pencil } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
+import TitlesPanel from '@/components/TitlesPanel';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -241,7 +242,9 @@ export default function SellerPortalPage() {
           </div>
         )}
 
-        {(section === 'notas' || section === 'titulos') && (
+        {section === 'titulos' && <TitlesPanel storeId={store.id} sellerCodes={codes} />}
+
+        {section === 'notas' && (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
               {section === 'notas' ? <FileText className="h-10 w-10 text-muted-foreground" /> : <Receipt className="h-10 w-10 text-muted-foreground" />}
