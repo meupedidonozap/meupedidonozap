@@ -1834,6 +1834,13 @@ export type Database = {
         Args: { _code: string; _store_id: string; _user_id: string }
         Returns: boolean
       }
+      portfolio_customer_keys: {
+        Args: { _user_id: string }
+        Returns: {
+          customer_code: string
+          store_id: string
+        }[]
+      }
       upsert_push_subscription:
         | {
             Args: {
