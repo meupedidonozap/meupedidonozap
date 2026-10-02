@@ -14,4 +14,4 @@
 ## Financeiro ERP DiColore
 - [x] Filtrar títulos por data mínima configurável de emissão ou vencimento sem apagar histórico
 - [x] Autorizar títulos pelo código do cliente para cliente, vendedor da carteira, televendas e administrador
-- [ ] Integrar Notas Fiscais pela VIEW específica (aguardando nome e colunas da VIEW)
+- [x] Integrar Notas Fiscais pela VIEW `dw_nota_fiscal` para cliente, vendedor, televendas e administrador

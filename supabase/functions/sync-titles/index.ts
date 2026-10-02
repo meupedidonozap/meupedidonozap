@@ -26,14 +26,28 @@ const BoletoSchema = z.object({
   filial_codigo: str, nota: str, serie: str, parcela: str,
   arquivo_base64: z.string().min(10),
 });
+const InvoiceSchema = z.object({
+  numero: str, serie: str, filial_codigo: str, valor_total_nota_fiscal: num,
+  pedido_codigo: str, vendedor_codigo: str, mensagem_nota_fiscal: str,
+  data_emissao: date, cliente_codigo: str, valor_total_ipi: num,
+  valor_total_st: num, valor_total_icms: num, tipo_frete: str,
+  chave_nfe: str, data_entrega: date, transportadora_codigo: str,
+  peso_total_liquido: num, peso_total_bruto: num, base_icms: num,
+  base_st: num, valor_total_frete: num, valor_total_seguro: num,
+  valor_total_desconto: num, valor_total_produtos: num,
+  valor_total_despesas: num, status: str, condicao_pagamento_codigo: str,
+  total_quantidade_un_1_faturada: num,
+});
 const BodySchema = z.object({
   store_slug: z.string().min(1).max(100),
   titles: z.array(TitleSchema).max(5000).default([]),
   boletos: z.array(BoletoSchema).max(500).default([]),
+  invoices: z.array(InvoiceSchema).max(5000).default([]),
 });
 
 /** Chave única: filial|nota|serie+parcela (mesmo formato da coluna parcela da view). */
 const keyOf = (filial: string, codigo: string, parcela: string) => `${filial || "1"}|${codigo}|${parcela}`;
+const invoiceKeyOf = (filial: string, numero: string, serie: string) => `${filial || "1"}|${numero}|${serie}`;
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -99,7 +113,48 @@ Deno.serve(async (req) => {
     titlesUpserted += chunk.length;
   }
 
-  // 2) Boletos
+  // 2) Notas fiscais
+  let invoicesUpserted = 0;
+  const invoiceRows = body.invoices.map((invoice) => ({
+    store_id: store.id,
+    external_key: invoiceKeyOf(invoice.filial_codigo, invoice.numero, invoice.serie),
+    numero: invoice.numero,
+    serie: invoice.serie,
+    filial_codigo: invoice.filial_codigo,
+    valor_total_nota_fiscal: invoice.valor_total_nota_fiscal,
+    pedido_codigo: invoice.pedido_codigo,
+    vendedor_codigo: invoice.vendedor_codigo,
+    mensagem_nota_fiscal: invoice.mensagem_nota_fiscal || null,
+    data_emissao: invoice.data_emissao,
+    cliente_codigo: invoice.cliente_codigo,
+    valor_total_ipi: invoice.valor_total_ipi,
+    valor_total_st: invoice.valor_total_st,
+    valor_total_icms: invoice.valor_total_icms,
+    tipo_frete: invoice.tipo_frete || null,
+    chave_nfe: invoice.chave_nfe || null,
+    data_entrega: invoice.data_entrega,
+    transportadora_codigo: invoice.transportadora_codigo || null,
+    peso_total_liquido: invoice.peso_total_liquido,
+    peso_total_bruto: invoice.peso_total_bruto,
+    base_icms: invoice.base_icms,
+    base_st: invoice.base_st,
+    valor_total_frete: invoice.valor_total_frete,
+    valor_total_seguro: invoice.valor_total_seguro,
+    valor_total_desconto: invoice.valor_total_desconto,
+    valor_total_produtos: invoice.valor_total_produtos,
+    valor_total_despesas: invoice.valor_total_despesas,
+    status: invoice.status,
+    condicao_pagamento_codigo: invoice.condicao_pagamento_codigo || null,
+    total_quantidade_un_1_faturada: invoice.total_quantidade_un_1_faturada,
+  }));
+  for (let i = 0; i < invoiceRows.length; i += 500) {
+    const chunk = invoiceRows.slice(i, i + 500);
+    const { error } = await supabase.from("customer_invoices").upsert(chunk, { onConflict: "store_id,external_key" });
+    if (error) return json({ error: `Falha ao gravar notas fiscais: ${error.message}`, invoicesUpserted }, 500);
+    invoicesUpserted += chunk.length;
+  }
+
+  // 3) Boletos
   let boletosSaved = 0;
   const boletoErrors: string[] = [];
   for (const b of body.boletos) {
@@ -120,5 +175,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, titlesUpserted, boletosSaved, boletoErrors: boletoErrors.slice(0, 50) });
+  return json({ ok: true, titlesUpserted, invoicesUpserted, boletosSaved, boletoErrors: boletoErrors.slice(0, 50) });
 });

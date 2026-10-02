@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, Search, Plus, FileText, Receipt, TrendingUp, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, Plus, TrendingUp, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useSellerMode } from '@/hooks/useSellerMode';
@@ -24,6 +24,7 @@ import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
 import TitlesPanel from '@/components/TitlesPanel';
+import InvoicesPanel from '@/components/InvoicesPanel';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -252,13 +253,7 @@ export default function SellerPortalPage() {
         )}
 
         {section === 'notas' && (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-              {section === 'notas' ? <FileText className="h-10 w-10 text-muted-foreground" /> : <Receipt className="h-10 w-10 text-muted-foreground" />}
-              <p className="font-semibold">{section === 'notas' ? 'Notas Fiscais' : 'Títulos'} dos clientes da sua carteira</p>
-              <p className="max-w-md text-sm text-muted-foreground">Tela pronta. A consulta será ligada à base de dados do ERP na próxima etapa (parâmetros e busca).</p>
-            </CardContent>
-          </Card>
+          <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} />
         )}
 
         {section === 'atendimento' && (
