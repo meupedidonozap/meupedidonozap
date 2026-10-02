@@ -50,7 +50,12 @@ export default function CustomerTitlesPage() {
             <p className="mt-4">Seu cadastro ainda não possui código de cliente. Fale com seu representante.</p>
           </div>
         ) : (
-          <TitlesPanel storeId={store.id} customerCode={code} />
+          <TitlesPanel
+            storeId={store.id}
+            customerCode={code}
+            startDate={store.settings.titlesStartDate}
+            dateField={store.settings.titlesDateField}
+          />
         )}
       </main>
     </div>

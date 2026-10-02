@@ -495,6 +495,8 @@ export default function StoreAdminPage() {
   const [sfMaxDistance, setSfMaxDistance] = useState('300');
   const [sfReasons, setSfReasons] = useState<string[]>([]);
   const [sfNewReason, setSfNewReason] = useState('');
+  const [titlesStartDate, setTitlesStartDate] = useState('');
+  const [titlesDateField, setTitlesDateField] = useState<'data_emissao' | 'data_vencimento'>('data_vencimento');
 
   const [settingsInitialized, setSettingsInitialized] = useState(false);
   const [offersDelivery, setOffersDelivery] = useState(true);
@@ -556,6 +558,8 @@ export default function StoreAdminPage() {
     setSfPeriodDays(String((store.settings as any)?.unvisitedPeriodDays ?? 30));
     setSfMaxDistance(String((store.settings as any)?.maxCheckinDistanceMeters ?? 300));
     setSfReasons(((store.settings as any)?.visitReasons as string[]) ?? DEFAULT_VISIT_REASONS);
+    setTitlesStartDate((store.settings as any)?.titlesStartDate || '');
+    setTitlesDateField((store.settings as any)?.titlesDateField === 'data_emissao' ? 'data_emissao' : 'data_vencimento');
     setSettingsInitialized(true);
   }
 
@@ -856,6 +860,8 @@ export default function StoreAdminPage() {
           unvisitedPeriodDays: Math.max(1, parseInt(sfPeriodDays, 10) || 30),
           maxCheckinDistanceMeters: Math.max(50, parseInt(sfMaxDistance, 10) || 300),
           visitReasons: sfReasons,
+          titlesStartDate: titlesStartDate || undefined,
+          titlesDateField,
 
           materialApoio: {
             enabled: maEnabled,
@@ -2064,6 +2070,36 @@ export default function StoreAdminPage() {
                   <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
                     {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Salvar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {store.slug === 'dicolore' && (
+              <Card className="border-accent">
+                <CardHeader><CardTitle>Títulos e Boletos do ERP</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    O histórico permanece armazenado. Esta regra determina apenas quais títulos aparecem para clientes, vendedores, televendas e administradores.
+                  </p>
+                  <div className="grid gap-3 sm:max-w-xl sm:grid-cols-2">
+                    <div className="grid gap-1">
+                      <Label>Exibir a partir de</Label>
+                      <Input type="date" value={titlesStartDate} onChange={(e) => setTitlesStartDate(e.target.value)} />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label>Aplicar a data sobre</Label>
+                      <Select value={titlesDateField} onValueChange={(value) => setTitlesDateField(value as 'data_emissao' | 'data_vencimento')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="data_vencimento">Data de vencimento</SelectItem>
+                          <SelectItem value="data_emissao">Data de emissão</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar filtro
                   </Button>
                 </CardContent>
               </Card>
