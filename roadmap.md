@@ -10,3 +10,8 @@
 - [x] Motivo, observações e tempo total no registro de visitas
 - [x] Botão Checkin/Checkout no Modo Vendedor com carteira do vendedor
 - [x] Configurações no painel: período de não atendidos, distância máxima e motivos
+
+## Financeiro ERP DiColore
+- [x] Filtrar títulos por data mínima configurável de emissão ou vencimento sem apagar histórico
+- [x] Autorizar títulos pelo código do cliente para cliente, vendedor da carteira, televendas e administrador
+- [ ] Integrar Notas Fiscais pela VIEW específica (aguardando nome e colunas da VIEW)

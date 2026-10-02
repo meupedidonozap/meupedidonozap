@@ -242,7 +242,14 @@ export default function SellerPortalPage() {
           </div>
         )}
 
-        {section === 'titulos' && <TitlesPanel storeId={store.id} sellerCodes={codes} />}
+        {section === 'titulos' && (
+          <TitlesPanel
+            storeId={store.id}
+            sellerCodes={codes}
+            startDate={store.settings.titlesStartDate}
+            dateField={store.settings.titlesDateField}
+          />
+        )}
 
         {section === 'notas' && (
           <Card>

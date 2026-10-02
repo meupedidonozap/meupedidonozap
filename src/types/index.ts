@@ -152,6 +152,10 @@ export interface StoreSettings {
   visitReasons?: string[];
   /** Força de vendas: distância máxima (metros) permitida no check-in. */
   maxCheckinDistanceMeters?: number;
+  /** Financeiro ERP: data mínima dos títulos exibidos, sem remover o histórico sincronizado. */
+  titlesStartDate?: string;
+  /** Financeiro ERP: campo usado para aplicar a data mínima. */
+  titlesDateField?: 'data_emissao' | 'data_vencimento';
 }
 
 

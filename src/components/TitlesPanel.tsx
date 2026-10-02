@@ -22,20 +22,24 @@ function effectiveStatus(t: any): 'ABERTO' | 'VENCIDO' | 'PAGO' {
   return 'ABERTO';
 }
 
-export default function TitlesPanel({ storeId, sellerCodes, customerCode }: {
-  storeId: string; sellerCodes?: string[]; customerCode?: string;
+export default function TitlesPanel({ storeId, sellerCodes, customerCode, startDate, dateField = 'data_vencimento' }: {
+  storeId: string;
+  sellerCodes?: string[];
+  customerCode?: string;
+  startDate?: string;
+  dateField?: 'data_emissao' | 'data_vencimento';
 }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('todos');
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const { data: titles = [], isLoading } = useQuery({
-    queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode],
+    queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode, startDate, dateField],
     queryFn: async () => {
       let q = supabase.from('customer_titles').select('*').eq('store_id', storeId)
         .order('data_vencimento', { ascending: true }).range(0, 9999);
-      if (sellerCodes?.length) q = q.in('vendedor_codigo', sellerCodes);
       if (customerCode) q = q.eq('cliente_codigo', customerCode);
+      if (startDate) q = q.gte(dateField, startDate);
       const { data, error } = await q;
       if (error) throw error;
       return data || [];
@@ -98,6 +102,11 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode }: {
 
   return (
     <div className="space-y-4">
+      {startDate && (
+        <p className="text-xs text-muted-foreground">
+          Exibindo títulos com {dateField === 'data_emissao' ? 'emissão' : 'vencimento'} a partir de {fmtDate(startDate)}.
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         {[{ t: 'Em aberto', s: ab, f: 'ABERTO' as Filter }, { t: 'Vencidos', s: ve, f: 'VENCIDO' as Filter }, { t: 'Pagos', s: pg, f: 'PAGO' as Filter }].map((k) => (
           <Card key={k.t} className="cursor-pointer" onClick={() => setFilter(k.f)}>
