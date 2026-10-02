@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Period = 'todos' | 'mes' | '90dias';
 
@@ -27,6 +28,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
 }) {
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<Period>('todos');
+  const [status, setStatus] = useState('todos');
   const selectedStart = useMemo(() => {
     const quickStart = periodStart(period);
     if (!startDate) return quickStart;
@@ -72,13 +74,19 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
   const list = useMemo(() => {
     const term = search.trim().toLowerCase();
     return invoices.filter((invoice) => {
+      if (status !== 'todos' && invoice.status !== status) return false;
       if (!term) return true;
       const customer = customerNames[invoice.cliente_codigo];
       return [invoice.numero, invoice.serie, invoice.pedido_codigo, invoice.cliente_codigo,
         invoice.chave_nfe, invoice.status, customer?.name, customer?.city]
         .some((value) => String(value || '').toLowerCase().includes(term));
     });
-  }, [invoices, search, customerNames]);
+  }, [invoices, search, customerNames, status]);
+
+  const statuses = useMemo(
+    () => [...new Set(invoices.map((invoice) => invoice.status).filter(Boolean))].sort(),
+    [invoices],
+  );
 
   const total = list.reduce((sum, invoice) => sum + Number(invoice.valor_total_nota_fiscal || 0), 0);
   const products = list.reduce((sum, invoice) => sum + Number(invoice.total_quantidade_un_1_faturada || 0), 0);
@@ -95,10 +103,19 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Quantidade faturada</p><p className="text-xl font-bold">{products.toLocaleString('pt-BR')}</p></CardContent></Card>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)}
-          placeholder={customerCode ? 'Buscar por nota, pedido ou chave da NFe' : 'Buscar por cliente, código, nota, pedido ou chave'} />
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)}
+            placeholder={customerCode ? 'Buscar por nota, pedido ou chave da NFe' : 'Buscar por cliente, código, nota, pedido ou chave'} />
+        </div>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger aria-label="Filtrar por status"><SelectValue placeholder="Todos os status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            {statuses.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs value={period} onValueChange={(value) => setPeriod(value as Period)}>
@@ -130,6 +147,20 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
                     <p className="flex items-center gap-1 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Emissão: {fmtDate(invoice.data_emissao)}{invoice.data_entrega ? ` • Entrega: ${fmtDate(invoice.data_entrega)}` : ''}</p>
                     {invoice.mensagem_nota_fiscal && <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{invoice.mensagem_nota_fiscal}</p>}
                     {invoice.chave_nfe && <p className="mt-2 break-all text-xs text-muted-foreground">Chave NFe: {invoice.chave_nfe}</p>}
+                    <details className="mt-2 text-xs text-muted-foreground">
+                      <summary className="cursor-pointer font-medium text-foreground">Ver detalhes fiscais</summary>
+                      <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                        <span>Condição de pagamento: {invoice.condicao_pagamento_codigo || '-'}</span>
+                        <span>Transportadora: {invoice.transportadora_codigo || '-'}</span>
+                        <span>Tipo de frete: {invoice.tipo_frete || '-'}</span>
+                        <span>Peso líquido: {Number(invoice.peso_total_liquido || 0).toLocaleString('pt-BR')} kg</span>
+                        <span>Peso bruto: {Number(invoice.peso_total_bruto || 0).toLocaleString('pt-BR')} kg</span>
+                        <span>Despesas: {formatCurrency(Number(invoice.valor_total_despesas))}</span>
+                        <span>Seguro: {formatCurrency(Number(invoice.valor_total_seguro))}</span>
+                        <span>Base ICMS: {formatCurrency(Number(invoice.base_icms))}</span>
+                        <span>Base ST: {formatCurrency(Number(invoice.base_st))}</span>
+                      </div>
+                    </details>
                   </div>
                   <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
                     {invoice.status && <Badge variant="outline">{invoice.status}</Badge>}
