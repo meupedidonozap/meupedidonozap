@@ -799,6 +799,7 @@ export type Database = {
           subtotal: number
           total: number
           user_id: string | null
+          xml_downloaded_at: string | null
         }
         Insert: {
           client_order_id?: string | null
@@ -825,6 +826,7 @@ export type Database = {
           subtotal?: number
           total?: number
           user_id?: string | null
+          xml_downloaded_at?: string | null
         }
         Update: {
           client_order_id?: string | null
@@ -851,6 +853,7 @@ export type Database = {
           subtotal?: number
           total?: number
           user_id?: string | null
+          xml_downloaded_at?: string | null
         }
         Relationships: [
           {

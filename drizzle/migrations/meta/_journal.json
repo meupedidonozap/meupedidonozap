@@ -36,6 +36,13 @@
       "when": 1790984348958,
       "tag": "0004_erp_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790987284081,
+      "tag": "0005_orders_xml_lock",
+      "breakpoints": true
     }
   ]
 }

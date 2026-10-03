@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from '@/hooks/useCategories';
 import { useProducts, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useFoodItems } from '@/hooks/useFoodItems';
-import { useOrders, useUpdateOrderStatus, useUpdateOrder, useDeleteOrder } from '@/hooks/useOrders';
+import { useOrders, useUpdateOrderStatus, useUpdateOrder, useDeleteOrder, useMarkOrderXmlDownloaded } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
@@ -83,7 +83,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
-import { AlertTriangle, Receipt, FileText } from 'lucide-react';
+import { AlertTriangle, Receipt, FileText, Lock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
 import ChangePasswordCard from '@/components/ChangePasswordCard';
@@ -402,6 +403,70 @@ export default function StoreAdminPage() {
     [searchedOrders, ordersPage, ordersPageSize],
   );
 
+  // Pedidos liberados p/ transmissão visíveis (filtros atuais) — candidatos ao download em lote.
+  const bulkCandidates = useMemo(
+    () => searchedOrders.filter(o => o.status === 'liberado_transmissao'),
+    [searchedOrders],
+  );
+  useEffect(() => {
+    setSelectedBulk(prev => {
+      const ids = new Set(bulkCandidates.map(o => o.id));
+      const n = new Set([...prev].filter(id => ids.has(id)));
+      return n.size === prev.size ? prev : n;
+    });
+  }, [bulkCandidates]);
+
+  const buildDownloadExtra = (order: any, isTelevendas: boolean) => {
+    const cp: any = findOrderProfile(order, customerProfiles as any[]);
+    return {
+      cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+      sellerCode: cp?.sellerCode || '',
+      isTelevendas,
+      kitMap,
+      transportadora: cp?.transportadora || '',
+      ie: cp?.ie || '',
+      priceTable: store?.slug === 'dicoloresenses'
+        ? 11
+        : resolveStorePriceTable(store?.slug, (order.customer as any)?.priceTable ?? cp?.priceTable),
+      productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
+      productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
+      productBlingCode: Object.fromEntries(
+        products.filter(p => (p as any).blingCode).map(p => [p.id, String((p as any).blingCode)])
+      ),
+      productBlingCodeByCode: Object.fromEntries(
+        products.filter(p => (p as any).blingCode).map(p => [String(p.code || ''), String((p as any).blingCode)])
+      ),
+      productCommission: Object.fromEntries(
+        products.map(p => {
+          const cat = categories.find(c => c.id === p.categoryId);
+          return [p.id, Number(cat?.commissionPercent) || 0];
+        })
+      ),
+    };
+  };
+
+  const runBulkDownload = async () => {
+    const list = bulkCandidates.filter(o => selectedBulk.has(o.id));
+    if (!list.length || !store) return;
+    let ok = 0;
+    setBulkProgress({ done: 0, total: list.length });
+    for (let i = 0; i < list.length; i++) {
+      const order = list[i];
+      setBulkProgress({ done: i + 1, total: list.length });
+      try {
+        downloadOrderFile(order, store, bulkFormat, buildDownloadExtra(order, false));
+        await markXmlDownloaded.mutateAsync({ id: order.id, status: 'entregue' as OrderStatus });
+        ok++;
+      } catch (e: any) {
+        toast.error(`Pedido #${order.orderNumber}: ${e?.message || 'falha'}`);
+      }
+      await new Promise(r => setTimeout(r, 700));
+    }
+    setBulkProgress(null);
+    setSelectedBulk(new Set());
+    toast.success(`${ok} pedido(s) baixado(s) e marcado(s) como Entregue.`);
+  };
+
   // Auto-select default tab for restricted users
   useEffect(() => {
     if (!isAdmin && permissions.can_manage_tables &&
@@ -467,6 +532,10 @@ export default function StoreAdminPage() {
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
+  const markXmlDownloaded = useMarkOrderXmlDownloaded();
+  const [selectedBulk, setSelectedBulk] = useState<Set<string>>(new Set());
+  const [bulkFormat, setBulkFormat] = useState<'xml' | 'bling'>('xml');
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const [resetPwdCustomer, setResetPwdCustomer] = useState<any>(null);
   const [resetPwdValue, setResetPwdValue] = useState('');
   const [resetPwdLoading, setResetPwdLoading] = useState(false);
@@ -1471,9 +1540,42 @@ export default function StoreAdminPage() {
                     </div>
                   )}
                 </div>
+                {bulkCandidates.length > 0 && (isAdmin || permissions.can_manage_orders) && (
+                  <div className="flex flex-col gap-2 border-b bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-sm">
+                      {bulkProgress
+                        ? `Baixando pedido ${bulkProgress.done} de ${bulkProgress.total}...`
+                        : `${selectedBulk.size} de ${bulkCandidates.length} pedido(s) liberados p/ transmissão selecionados`}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                        value={bulkFormat}
+                        onChange={(e) => setBulkFormat(e.target.value as 'xml' | 'bling')}
+                        disabled={!!bulkProgress}
+                      >
+                        <option value="xml">XML (Tinturaria)</option>
+                        {store?.slug === 'dicoloresenses' && <option value="bling">XML (Bling)</option>}
+                      </select>
+                      <Button size="sm" disabled={selectedBulk.size === 0 || !!bulkProgress} onClick={runBulkDownload} className="gap-2">
+                        {bulkProgress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        Baixar selecionados ({selectedBulk.size})
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        {bulkCandidates.length > 0 && (
+                          <Checkbox
+                            checked={bulkCandidates.length > 0 && bulkCandidates.every(o => selectedBulk.has(o.id))}
+                            onCheckedChange={(v) => setSelectedBulk(v ? new Set(bulkCandidates.map(o => o.id)) : new Set())}
+                            aria-label="Selecionar todos os liberados"
+                          />
+                        )}
+                      </TableHead>
                       <TableHead>Pedido</TableHead><TableHead>Cliente</TableHead><TableHead>Itens</TableHead>
                       <TableHead>Total</TableHead><TableHead>Pagamento</TableHead><TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
@@ -1482,8 +1584,24 @@ export default function StoreAdminPage() {
                    <TableBody>
                      {pagedOrders.map(order => (
                       <TableRow key={order.id}>
+                        <TableCell className="w-8">
+                          {order.status === 'liberado_transmissao' && (
+                            <Checkbox
+                              checked={selectedBulk.has(order.id)}
+                              onCheckedChange={(v) => setSelectedBulk(prev => {
+                                const n = new Set(prev);
+                                if (v) n.add(order.id); else n.delete(order.id);
+                                return n;
+                              })}
+                              aria-label={`Selecionar pedido ${order.orderNumber}`}
+                            />
+                          )}
+                        </TableCell>
                         <TableCell>
                           <p className="font-medium">#{order.orderNumber}</p>
+                          {order.xmlDownloadedAt && (
+                            <Badge variant="outline" className="mt-1 gap-1 text-[10px]"><Lock className="h-3 w-3" /> XML baixado</Badge>
+                          )}
                           <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</p>
                         </TableCell>
                         <TableCell>
@@ -1723,7 +1841,16 @@ export default function StoreAdminPage() {
                                 if (!code || !sellerCodeSet.has(code)) return false;
                               }
                               return true;
-                            })() && (
+                            })() && (order.xmlDownloadedAt ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Bloqueado: o XML deste pedido já foi baixado"
+                                onClick={() => toast.info('Este pedido não pode ser editado: o XML já foi baixado.')}
+                              >
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            ) : (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1732,7 +1859,7 @@ export default function StoreAdminPage() {
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                            )}
+                            ))}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -3294,36 +3421,14 @@ export default function StoreAdminPage() {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setDownloadOrder(null)}>Cancelar</Button>
-            <Button onClick={() => {
+            <Button onClick={async () => {
               if (!downloadOrder) return;
               const order = downloadOrder;
-              const cp: any = findOrderProfile(order, customerProfiles as any[]);
-              downloadOrderFile(order, store, downloadFormat, {
-                cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-                sellerCode: cp?.sellerCode || '',
-                isTelevendas: downloadTelevendas,
-                kitMap,
-                transportadora: cp?.transportadora || '',
-                ie: cp?.ie || '',
-                priceTable: store?.slug === 'dicoloresenses'
-                  ? 11
-                  : resolveStorePriceTable(store?.slug, (order.customer as any)?.priceTable ?? cp?.priceTable),
-                productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
-                productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
-                productBlingCode: Object.fromEntries(
-                  products.filter(p => (p as any).blingCode).map(p => [p.id, String((p as any).blingCode)])
-                ),
-                productBlingCodeByCode: Object.fromEntries(
-                  products.filter(p => (p as any).blingCode).map(p => [String(p.code || ''), String((p as any).blingCode)])
-                ),
-                productCommission: Object.fromEntries(
-                  products.map(p => {
-                    const cat = categories.find(c => c.id === p.categoryId);
-                    return [p.id, Number(cat?.commissionPercent) || 0];
-                  })
-                ),
-              });
+              downloadOrderFile(order, store, downloadFormat, buildDownloadExtra(order, downloadTelevendas));
               setDownloadOrder(null);
+              if (downloadFormat !== 'txt' && !order.xmlDownloadedAt) {
+                try { await markXmlDownloaded.mutateAsync({ id: order.id }); } catch (e: any) { toast.error(e?.message || 'Falha ao bloquear o pedido'); }
+              }
             }} className="gap-2">
               <Download className="h-4 w-4" /> Baixar
             </Button>

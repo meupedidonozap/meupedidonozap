@@ -407,6 +407,8 @@ export interface Order {
   shippingService?: string;
   shippingCode?: string;
   shippingDeadline?: number;
+  /** Quando o XML foi baixado — pedido fica bloqueado para edição. */
+  xmlDownloadedAt?: string;
   createdAt: string;
 }
 

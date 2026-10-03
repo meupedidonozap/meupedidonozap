@@ -151,6 +151,10 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         const pct = itemDiscounts[key];
         return pct ? { ...it, discountPercent: pct } : { ...it, discountPercent: undefined };
       });
+      if (order.xmlDownloadedAt) {
+        toast.error('Este pedido não pode ser editado: o XML já foi baixado.');
+        return;
+      }
       const updates: any = { id: order.id, items: stampedItems, subtotal, total, discount };
       if (dicolore) {
         const f = formas.find(x => x.codigo === formaCodigo);
