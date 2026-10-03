@@ -403,6 +403,70 @@ export default function StoreAdminPage() {
     [searchedOrders, ordersPage, ordersPageSize],
   );
 
+  // Pedidos liberados p/ transmissão visíveis (filtros atuais) — candidatos ao download em lote.
+  const bulkCandidates = useMemo(
+    () => searchedOrders.filter(o => o.status === 'liberado_transmissao'),
+    [searchedOrders],
+  );
+  useEffect(() => {
+    setSelectedBulk(prev => {
+      const ids = new Set(bulkCandidates.map(o => o.id));
+      const n = new Set([...prev].filter(id => ids.has(id)));
+      return n.size === prev.size ? prev : n;
+    });
+  }, [bulkCandidates]);
+
+  const buildDownloadExtra = (order: any, isTelevendas: boolean) => {
+    const cp: any = findOrderProfile(order, customerProfiles as any[]);
+    return {
+      cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
+      sellerCode: cp?.sellerCode || '',
+      isTelevendas,
+      kitMap,
+      transportadora: cp?.transportadora || '',
+      ie: cp?.ie || '',
+      priceTable: store?.slug === 'dicoloresenses'
+        ? 11
+        : resolveStorePriceTable(store?.slug, (order.customer as any)?.priceTable ?? cp?.priceTable),
+      productUnit: Object.fromEntries(products.map(p => [p.id, (p as any).unit || 'Un'])),
+      productUnitByCode: Object.fromEntries(products.map(p => [String(p.code || ''), (p as any).unit || 'Un'])),
+      productBlingCode: Object.fromEntries(
+        products.filter(p => (p as any).blingCode).map(p => [p.id, String((p as any).blingCode)])
+      ),
+      productBlingCodeByCode: Object.fromEntries(
+        products.filter(p => (p as any).blingCode).map(p => [String(p.code || ''), String((p as any).blingCode)])
+      ),
+      productCommission: Object.fromEntries(
+        products.map(p => {
+          const cat = categories.find(c => c.id === p.categoryId);
+          return [p.id, Number(cat?.commissionPercent) || 0];
+        })
+      ),
+    };
+  };
+
+  const runBulkDownload = async () => {
+    const list = bulkCandidates.filter(o => selectedBulk.has(o.id));
+    if (!list.length || !store) return;
+    let ok = 0;
+    setBulkProgress({ done: 0, total: list.length });
+    for (let i = 0; i < list.length; i++) {
+      const order = list[i];
+      setBulkProgress({ done: i + 1, total: list.length });
+      try {
+        downloadOrderFile(order, store, bulkFormat, buildDownloadExtra(order, false));
+        await markXmlDownloaded.mutateAsync({ id: order.id, status: 'entregue' as OrderStatus });
+        ok++;
+      } catch (e: any) {
+        toast.error(`Pedido #${order.orderNumber}: ${e?.message || 'falha'}`);
+      }
+      await new Promise(r => setTimeout(r, 700));
+    }
+    setBulkProgress(null);
+    setSelectedBulk(new Set());
+    toast.success(`${ok} pedido(s) baixado(s) e marcado(s) como Entregue.`);
+  };
+
   // Auto-select default tab for restricted users
   useEffect(() => {
     if (!isAdmin && permissions.can_manage_tables &&
