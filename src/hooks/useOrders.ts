@@ -25,6 +25,7 @@ function mapOrder(row: any): Order {
     shippingService: row.shipping_service || undefined,
     shippingCode: row.shipping_code || undefined,
     shippingDeadline: row.shipping_deadline ?? undefined,
+    xmlDownloadedAt: row.xml_downloaded_at || undefined,
     createdAt: row.created_at,
   };
 }
@@ -108,6 +109,20 @@ export function useUpdateOrderStatus() {
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
       const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+  });
+}
+
+/** Marca o XML como baixado (bloqueia edição) e opcionalmente muda o status. */
+export function useMarkOrderXmlDownloaded() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status?: OrderStatus }) => {
+      const update: any = { xml_downloaded_at: new Date().toISOString() };
+      if (status) update.status = status;
+      const { error } = await supabase.from('orders').update(update).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
