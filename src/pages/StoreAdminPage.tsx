@@ -83,7 +83,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
-import { AlertTriangle, Receipt, FileText, Lock, Loader2 } from 'lucide-react';
+import { AlertTriangle, Receipt, FileText, Lock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
