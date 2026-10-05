@@ -9,16 +9,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-type Period = 'todos' | 'mes' | '90dias';
+type Period = 'hoje' | 'todos' | 'mes' | '90dias';
 
 const fmtDate = (value?: string | null) => value ? value.split('-').reverse().join('/') : '-';
+
+const localDay = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 function periodStart(period: Period): string | undefined {
   if (period === 'todos') return undefined;
   const date = new Date();
   if (period === 'mes') date.setDate(1);
-  else date.setDate(date.getDate() - 90);
-  return date.toISOString().slice(0, 10);
+  else if (period === '90dias') date.setDate(date.getDate() - 90);
+  return localDay(date);
 }
 
 export default function InvoicesPanel({ storeId, customerCode, startDate }: {
@@ -27,14 +30,16 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
   startDate?: string;
 }) {
   const [search, setSearch] = useState('');
-  const [period, setPeriod] = useState<Period>('todos');
+  const [period, setPeriod] = useState<Period>('hoje');
   const [status, setStatus] = useState('todos');
+  const hasSearch = search.trim().length > 0;
   const selectedStart = useMemo(() => {
-    const quickStart = periodStart(period);
+    // Com pesquisa, procura em todo o histórico permitido.
+    const quickStart = hasSearch ? undefined : periodStart(period);
     if (!startDate) return quickStart;
     if (!quickStart) return startDate;
     return quickStart > startDate ? quickStart : startDate;
-  }, [period, startDate]);
+  }, [period, startDate, hasSearch]);
 
   const [term, setTerm] = useState('');
   useEffect(() => {
@@ -145,12 +150,14 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
       </div>
 
       <Tabs value={period} onValueChange={(value) => setPeriod(value as Period)}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="todos">Todas</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="hoje">Hoje</TabsTrigger>
           <TabsTrigger value="mes">Este mês</TabsTrigger>
           <TabsTrigger value="90dias">90 dias</TabsTrigger>
+          <TabsTrigger value="todos">Todas</TabsTrigger>
         </TabsList>
       </Tabs>
+      {hasSearch && <p className="text-xs text-muted-foreground">Pesquisando em todo o histórico de notas.</p>}
 
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
