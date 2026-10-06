@@ -83,7 +83,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
-import { AlertTriangle, Receipt, FileText, Lock } from 'lucide-react';
+import { AlertTriangle, Receipt, FileText, Lock, Pencil, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
@@ -545,6 +545,10 @@ export default function StoreAdminPage() {
   // Discount rules state
   const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
+  const [ruleFilterGroup, setRuleFilterGroup] = useState('all');
+  const [ruleFilterTable, setRuleFilterTable] = useState('all');
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editRule, setEditRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' });
   const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' | '11' });
   const [savingRules, setSavingRules] = useState(false);
   const [importRulesOpen, setImportRulesOpen] = useState(false);
