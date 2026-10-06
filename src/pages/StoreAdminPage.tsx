@@ -2921,7 +2921,7 @@ export default function StoreAdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nome</TableHead><TableHead>Código</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Representante</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
+                      <TableHead>Nome</TableHead><TableHead>Código</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Representante</TableHead><TableHead>Tabela</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -2933,6 +2933,7 @@ export default function StoreAdminPage() {
                         <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
                         <TableCell>{cp.cpfCnpj || '—'}</TableCell>
                         <TableCell>{(cp as any).sellerCode ? (sellerByCode.get(((cp as any).sellerCode || '').trim())?.name || (cp as any).sellerCode) : '—'}</TableCell>
+                        <TableCell><Badge variant="outline">Tab. {resolveStorePriceTable(store?.slug, (cp as any).priceTable)}</Badge></TableCell>
                         <TableCell>{cp.whatsapp || '—'}</TableCell>
                         <TableCell>{cp.city && cp.uf ? `${cp.city}/${cp.uf}` : '—'}</TableCell>
                         <TableCell>
