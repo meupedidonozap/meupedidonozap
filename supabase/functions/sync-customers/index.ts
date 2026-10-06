@@ -99,12 +99,12 @@ Deno.serve(async (req) => {
     const iRep = firstIdx("clirepcod", "codigo_vendedor");
     const iSit = firstIdx("clisit", "situacao");
     const iTrans = firstIdx("transportadora", "clitrans", "clitransp");
-    // Segmento do cliente define a tabela: 13 -> Tab 4, 1 -> Tab 1, outros -> sem tabela.
+    // Segmento define a tabela SOMENTE na criação do cliente: 13 -> Tab 4, demais -> sem tabela.
+    // Clientes existentes nunca têm a tabela sobrescrita pela sincronização.
     const iSeg = firstIdx("segmento", "segcod", "codigo_segmento");
     const tableFromSegment = (seg: string): number | null => {
       const n = Number(String(seg || "").trim());
       if (n === 13) return 4;
-      if (n === 1) return 1;
       return null;
     };
 
@@ -200,7 +200,6 @@ Deno.serve(async (req) => {
         transportadora: iTrans !== -1 ? (String(cols[iTrans] || "").trim() || null) : null,
         is_active: isActive,
       };
-      if (iSeg !== -1) payload.price_table = tableFromSegment(String(cols[iSeg] || ""));
 
       const found = existing.get(codigo);
       if (found) {
@@ -218,7 +217,6 @@ Deno.serve(async (req) => {
           norm(found.complement) !== norm(payload.complement) ||
           norm(found.seller_code) !== norm(payload.seller_code) ||
           norm(found.transportadora) !== norm(payload.transportadora) ||
-          (iSeg !== -1 && (found.price_table ?? null) !== (payload.price_table ?? null)) ||
           (found.is_active ?? true) !== isActive;
 
         if (!changed) {
@@ -228,7 +226,8 @@ Deno.serve(async (req) => {
         toUpdate.push({ id: found.id, codigo, payload });
         if (!isActive && (found.is_active ?? true)) deactivated++;
       } else {
-        toInsert.push({ ...payload, user_id: null });
+        const price_table = iSeg !== -1 ? tableFromSegment(String(cols[iSeg] || "")) : null;
+        toInsert.push({ ...payload, price_table, user_id: null });
       }
     }
 
