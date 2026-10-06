@@ -1,0 +1,1 @@
+ALTER TABLE public.customer_profiles ALTER COLUMN price_table DROP NOT NULL;

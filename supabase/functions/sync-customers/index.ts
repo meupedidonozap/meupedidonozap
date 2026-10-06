@@ -99,6 +99,14 @@ Deno.serve(async (req) => {
     const iRep = firstIdx("clirepcod", "codigo_vendedor");
     const iSit = firstIdx("clisit", "situacao");
     const iTrans = firstIdx("transportadora", "clitrans", "clitransp");
+    // Segmento do cliente define a tabela: 13 -> Tab 4, 1 -> Tab 1, outros -> sem tabela.
+    const iSeg = firstIdx("segmento", "segcod", "codigo_segmento");
+    const tableFromSegment = (seg: string): number | null => {
+      const n = Number(String(seg || "").trim());
+      if (n === 13) return 4;
+      if (n === 1) return 1;
+      return null;
+    };
 
     if (iCod === -1 || iNome === -1) {
       return new Response(JSON.stringify({ error: "Colunas obrigatórias não encontradas (codigo, nome)" }), {
@@ -128,6 +136,7 @@ Deno.serve(async (req) => {
       complement: string | null;
       seller_code: string | null;
       transportadora: string | null;
+      price_table: number | null;
       is_active: boolean | null;
       user_id: string | null;
     };
@@ -137,7 +146,7 @@ Deno.serve(async (req) => {
     while (true) {
       const { data, error } = await supabase
         .from("customer_profiles")
-        .select("id, customer_code, user_id, name, cpf_cnpj, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, transportadora, is_active")
+        .select("id, customer_code, user_id, name, cpf_cnpj, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, transportadora, price_table, is_active")
         .eq("store_id", store_id)
         .range(from, from + PAGE - 1);
       if (error) throw error;
@@ -191,6 +200,7 @@ Deno.serve(async (req) => {
         transportadora: iTrans !== -1 ? (String(cols[iTrans] || "").trim() || null) : null,
         is_active: isActive,
       };
+      if (iSeg !== -1) payload.price_table = tableFromSegment(String(cols[iSeg] || ""));
 
       const found = existing.get(codigo);
       if (found) {
@@ -208,6 +218,7 @@ Deno.serve(async (req) => {
           norm(found.complement) !== norm(payload.complement) ||
           norm(found.seller_code) !== norm(payload.seller_code) ||
           norm(found.transportadora) !== norm(payload.transportadora) ||
+          (iSeg !== -1 && (found.price_table ?? null) !== (payload.price_table ?? null)) ||
           (found.is_active ?? true) !== isActive;
 
         if (!changed) {

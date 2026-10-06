@@ -43,6 +43,13 @@
       "when": 1790987284081,
       "tag": "0005_orders_xml_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791306160553,
+      "tag": "0006_customer_price_table_nullable",
+      "breakpoints": true
     }
   ]
 }

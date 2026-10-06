@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerProfile } from './useCustomerProfile';
 
-function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCode: string } {
+function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCode: string; rawPriceTable: number | null } {
   return {
     id: row.id,
     userId: row.user_id,
@@ -24,6 +24,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCo
     transportadora: row.transportadora || '',
     ie: row.ie || '',
     priceTable: normalizePriceTable(row.price_table),
+    rawPriceTable: row.price_table ?? null,
   };
 }
 

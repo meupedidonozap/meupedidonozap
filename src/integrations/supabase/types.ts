@@ -226,7 +226,7 @@ export type Database = {
           name: string
           neighborhood: string
           number: string
-          price_table: number
+          price_table: number | null
           seller_code: string
           store_id: string
           transportadora: string | null
@@ -251,7 +251,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           number?: string
-          price_table?: number
+          price_table?: number | null
           seller_code?: string
           store_id: string
           transportadora?: string | null
@@ -276,7 +276,7 @@ export type Database = {
           name?: string
           neighborhood?: string
           number?: string
-          price_table?: number
+          price_table?: number | null
           seller_code?: string
           store_id?: string
           transportadora?: string | null
