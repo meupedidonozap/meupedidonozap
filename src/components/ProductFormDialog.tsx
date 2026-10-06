@@ -53,6 +53,8 @@ interface VariantForm {
   priceTable4: number;
   priceTable9: number;
   priceTable11: number;
+  priceTable3?: number;
+  priceTable8?: number;
 }
 
 interface ImageForm {
