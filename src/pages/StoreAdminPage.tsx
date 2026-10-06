@@ -83,7 +83,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import RefreshButton from '@/components/RefreshButton';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 import { buildRenewalLink } from '@/lib/supportContact';
-import { AlertTriangle, Receipt, FileText, Lock } from 'lucide-react';
+import { AlertTriangle, Receipt, FileText, Lock, Pencil, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
@@ -545,6 +545,10 @@ export default function StoreAdminPage() {
   // Discount rules state
   const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
+  const [ruleFilterGroup, setRuleFilterGroup] = useState('all');
+  const [ruleFilterTable, setRuleFilterTable] = useState('all');
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editRule, setEditRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' });
   const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' | '11' });
   const [savingRules, setSavingRules] = useState(false);
   const [importRulesOpen, setImportRulesOpen] = useState(false);
@@ -1985,8 +1989,30 @@ export default function StoreAdminPage() {
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <CardTitle>Regras Cadastradas</CardTitle>
+                <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <CardTitle>Regras Cadastradas</CardTitle>
+                    <Select value={ruleFilterGroup} onValueChange={setRuleFilterGroup}>
+                      <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Grupo" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os grupos</SelectItem>
+                        {Array.from(new Set(discountRules.map(r => r.groupId || '').filter(Boolean))).sort().map(g => (
+                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={ruleFilterTable} onValueChange={setRuleFilterTable}>
+                      <SelectTrigger className="h-9 w-[150px]"><SelectValue placeholder="Tabela" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as tabelas</SelectItem>
+                        <SelectItem value="none">Sem tabela (Todas)</SelectItem>
+                        <SelectItem value="1">Tabela 1</SelectItem>
+                        <SelectItem value="4">Tabela 4</SelectItem>
+                        <SelectItem value="9">Tabela 9</SelectItem>
+                        <SelectItem value="11">Tabela 11</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportRulesOpen(true)}>
                       <Upload className="h-4 w-4" /> Importar Planilha
@@ -2009,13 +2035,52 @@ export default function StoreAdminPage() {
                           <TableHead>Desconto</TableHead>
                           <TableHead>Tabela</TableHead>
                           <TableHead>Descrição</TableHead>
+                          <TableHead className="text-center">Editar</TableHead>
                           <TableHead className="text-right">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {discountRules
+                        {[...discountRules]
+                          .filter(r => ruleFilterGroup === 'all' || r.groupId === ruleFilterGroup)
+                          .filter(r => ruleFilterTable === 'all' || (ruleFilterTable === 'none' ? !r.priceTable : String(r.priceTable) === ruleFilterTable))
                           .sort((a, b) => (a.groupId || '').localeCompare(b.groupId || '') || (a.minQuantity || 0) - (b.minQuantity || 0))
-                          .map(rule => (
+                          .map(rule => editingRuleId === rule.id ? (
+                          <TableRow key={rule.id}>
+                            <TableCell><Input className="h-8" value={editRule.groupId} onChange={e => setEditRule(r => ({ ...r, groupId: e.target.value }))} /></TableCell>
+                            <TableCell><Input className="h-8 w-20" type="number" min="1" value={editRule.minQuantity} onChange={e => setEditRule(r => ({ ...r, minQuantity: e.target.value }))} /></TableCell>
+                            <TableCell><Input className="h-8 w-20" type="number" min="1" max="100" value={editRule.discountPercent} onChange={e => setEditRule(r => ({ ...r, discountPercent: e.target.value }))} /></TableCell>
+                            <TableCell>
+                              <Select value={editRule.priceTable} onValueChange={v => setEditRule(r => ({ ...r, priceTable: v }))}>
+                                <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">Todas</SelectItem>
+                                  <SelectItem value="1">Tabela 1</SelectItem>
+                                  <SelectItem value="4">Tabela 4</SelectItem>
+                                  <SelectItem value="9">Tabela 9</SelectItem>
+                                  <SelectItem value="11">Tabela 11</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell><Input className="h-8" value={editRule.description} onChange={e => setEditRule(r => ({ ...r, description: e.target.value }))} /></TableCell>
+                            <TableCell className="text-center whitespace-nowrap">
+                              <Button variant="ghost" size="sm" title="Confirmar" onClick={() => {
+                                if (!editRule.groupId.trim() || !editRule.minQuantity || !editRule.discountPercent) { toast.error('Preencha grupo, quantidade e desconto'); return; }
+                                setDiscountRulesLocal(prev => prev.map(r => r.id === rule.id ? {
+                                  ...r,
+                                  groupId: editRule.groupId.trim(),
+                                  minQuantity: Number(editRule.minQuantity),
+                                  discountPercent: Number(editRule.discountPercent),
+                                  description: editRule.description || `${editRule.minQuantity}+ peças → ${editRule.discountPercent}% off`,
+                                  priceTable: editRule.priceTable === 'all' ? undefined : (Number(editRule.priceTable) as 1 | 4 | 9 | 11),
+                                } : r));
+                                setEditingRuleId(null);
+                                toast.info('Regra alterada. Clique em "Salvar Regras" para gravar.');
+                              }}><CheckIcon className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="sm" title="Cancelar" onClick={() => setEditingRuleId(null)}><XIcon className="h-4 w-4" /></Button>
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                          ) : (
                           <TableRow key={rule.id}>
                             <TableCell><Badge variant="outline" className="font-mono">{rule.groupId}</Badge></TableCell>
                             <TableCell>{rule.minQuantity}+ peças</TableCell>
@@ -2024,6 +2089,18 @@ export default function StoreAdminPage() {
                               <Badge variant="outline">{rule.priceTable ? `Tab. ${rule.priceTable}` : 'Todas'}</Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground text-sm">{rule.description}</TableCell>
+                            <TableCell className="text-center">
+                              <Button variant="ghost" size="sm" title="Editar" onClick={() => {
+                                setEditingRuleId(rule.id);
+                                setEditRule({
+                                  groupId: rule.groupId || '',
+                                  minQuantity: String(rule.minQuantity ?? ''),
+                                  discountPercent: String(rule.discountPercent ?? ''),
+                                  description: rule.description || '',
+                                  priceTable: rule.priceTable ? String(rule.priceTable) : 'all',
+                                });
+                              }}><Pencil className="h-4 w-4" /></Button>
+                            </TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleRemoveDiscountRule(rule.id)}>
                                 <Trash2 className="h-4 w-4" />
