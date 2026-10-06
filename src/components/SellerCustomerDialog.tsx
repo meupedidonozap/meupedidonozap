@@ -72,7 +72,7 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
         number: form.number,
         complement: form.complement,
         sellerCode: form.sellerCode || sellerCodes[0] || '',
-        priceTable: Number(form.priceTable) as 1 | 4 | 9 | 11,
+        priceTable: Number(form.priceTable) as 1 | 3 | 4 | 8 | 9 | 11,
       });
       toast.success('Cliente cadastrado');
       onSelected(created as SellerCustomer);

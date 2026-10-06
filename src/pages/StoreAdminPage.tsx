@@ -528,7 +528,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 3 | 4 | 8 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -1021,7 +1021,7 @@ export default function StoreAdminPage() {
       minQuantity: Number(newRule.minQuantity),
       discountPercent: Number(newRule.discountPercent),
       description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
-      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 4 | 9 | 11),
+      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 3 | 4 | 8 | 9 | 11),
     };
     setDiscountRulesLocal(prev => [...prev, rule]);
     setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
@@ -2077,7 +2077,7 @@ export default function StoreAdminPage() {
                                   minQuantity: Number(editRule.minQuantity),
                                   discountPercent: Number(editRule.discountPercent),
                                   description: editRule.description || `${editRule.minQuantity}+ peças → ${editRule.discountPercent}% off`,
-                                  priceTable: editRule.priceTable === 'all' ? undefined : (Number(editRule.priceTable) as 1 | 4 | 9 | 11),
+                                  priceTable: editRule.priceTable === 'all' ? undefined : (Number(editRule.priceTable) as 1 | 3 | 4 | 8 | 9 | 11),
                                 } : r));
                                 setEditingRuleId(null);
                                 toast.info('Regra alterada. Clique em "Salvar Regras" para gravar.');
@@ -3170,7 +3170,7 @@ export default function StoreAdminPage() {
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
                         value={String(customerForm.priceTable)}
-                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 | 11 }))}
+                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 3 | 4 | 8 | 9 | 11 }))}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -3278,7 +3278,7 @@ export default function StoreAdminPage() {
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
                       value={String(customerForm.priceTable)}
-                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 | 11 }))}
+                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 3 | 4 | 8 | 9 | 11 }))}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
