@@ -1967,7 +1967,9 @@ export default function StoreAdminPage() {
                         <SelectContent>
                           <SelectItem value="all">Todas</SelectItem>
                           <SelectItem value="1">Tabela 1</SelectItem>
+                          <SelectItem value="3">Tabela 3</SelectItem>
                           <SelectItem value="4">Tabela 4</SelectItem>
+                          <SelectItem value="8">Tabela 8</SelectItem>
                           <SelectItem value="9">Tabela 9</SelectItem>
                           <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
@@ -2007,7 +2009,9 @@ export default function StoreAdminPage() {
                         <SelectItem value="all">Todas as tabelas</SelectItem>
                         <SelectItem value="none">Sem tabela (Todas)</SelectItem>
                         <SelectItem value="1">Tabela 1</SelectItem>
+                        <SelectItem value="3">Tabela 3</SelectItem>
                         <SelectItem value="4">Tabela 4</SelectItem>
+                        <SelectItem value="8">Tabela 8</SelectItem>
                         <SelectItem value="9">Tabela 9</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
                       </SelectContent>
@@ -2055,7 +2059,9 @@ export default function StoreAdminPage() {
                                 <SelectContent>
                                   <SelectItem value="all">Todas</SelectItem>
                                   <SelectItem value="1">Tabela 1</SelectItem>
+                                  <SelectItem value="3">Tabela 3</SelectItem>
                                   <SelectItem value="4">Tabela 4</SelectItem>
+                                  <SelectItem value="8">Tabela 8</SelectItem>
                                   <SelectItem value="9">Tabela 9</SelectItem>
                                   <SelectItem value="11">Tabela 11</SelectItem>
                                 </SelectContent>
@@ -3169,7 +3175,9 @@ export default function StoreAdminPage() {
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                          <SelectItem value="3">Tabela 3</SelectItem>
                           <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                          <SelectItem value="8">Tabela 8</SelectItem>
                           <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
@@ -3275,7 +3283,9 @@ export default function StoreAdminPage() {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                        <SelectItem value="3">Tabela 3</SelectItem>
                         <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                        <SelectItem value="8">Tabela 8</SelectItem>
                         <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
                       </SelectContent>

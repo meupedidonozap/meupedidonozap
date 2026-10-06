@@ -73,7 +73,7 @@ export function useCreateCustomerProfileAdmin() {
       sellerCode?: string;
       transportadora?: string;
       ie?: string;
-      priceTable?: 1 | 4 | 9 | 11;
+      priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
       customerCode?: string;
     }) => {
       const { data, error } = await supabase
@@ -126,7 +126,7 @@ export function useUpdateCustomerProfileAdmin() {
       sellerCode?: string;
       transportadora?: string;
       ie?: string;
-      priceTable?: 1 | 4 | 9 | 11;
+      priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
       customerCode?: string;
     }) => {
       const update: any = {};

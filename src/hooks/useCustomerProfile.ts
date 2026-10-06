@@ -20,7 +20,7 @@ export interface CustomerProfile {
   transportadora?: string;
   ie?: string;
   /** 1 = atacado, 4 = varejo (default), 9 = atacado. */
-  priceTable?: 1 | 4 | 9 | 11;
+  priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
 }
 
 export function mapProfile(row: any): CustomerProfile {

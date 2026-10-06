@@ -148,7 +148,9 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">Tabela 1</SelectItem>
+                    <SelectItem value="3">Tabela 3</SelectItem>
                     <SelectItem value="4">Tabela 4</SelectItem>
+                    <SelectItem value="8">Tabela 8</SelectItem>
                     <SelectItem value="9">Tabela 9</SelectItem>
                     <SelectItem value="11">Tabela 11</SelectItem>
                   </SelectContent>
