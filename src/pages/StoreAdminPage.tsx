@@ -2933,7 +2933,7 @@ export default function StoreAdminPage() {
                         <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
                         <TableCell>{cp.cpfCnpj || '—'}</TableCell>
                         <TableCell>{(cp as any).sellerCode ? (sellerByCode.get(((cp as any).sellerCode || '').trim())?.name || (cp as any).sellerCode) : '—'}</TableCell>
-                        <TableCell><Badge variant="outline">Tab. {resolveStorePriceTable(store?.slug, (cp as any).priceTable)}</Badge></TableCell>
+                        <TableCell>{(cp as any).rawPriceTable != null ? <Badge variant="outline">Tab. {resolveStorePriceTable(store?.slug, (cp as any).rawPriceTable)}</Badge> : '—'}</TableCell>
                         <TableCell>{cp.whatsapp || '—'}</TableCell>
                         <TableCell>{cp.city && cp.uf ? `${cp.city}/${cp.uf}` : '—'}</TableCell>
                         <TableCell>

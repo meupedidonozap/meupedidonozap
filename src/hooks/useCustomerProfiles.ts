@@ -24,6 +24,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; customerCo
     transportadora: row.transportadora || '',
     ie: row.ie || '',
     priceTable: normalizePriceTable(row.price_table),
+    rawPriceTable: row.price_table ?? null,
   };
 }
 
