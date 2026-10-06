@@ -1124,7 +1124,9 @@ export type Database = {
           price: number
           price_table_1: number
           price_table_11: number
+          price_table_3: number
           price_table_4: number
+          price_table_8: number
           price_table_9: number
           price_table_res: number | null
           product_id: string
@@ -1138,7 +1140,9 @@ export type Database = {
           price?: number
           price_table_1?: number
           price_table_11?: number
+          price_table_3?: number
           price_table_4?: number
+          price_table_8?: number
           price_table_9?: number
           price_table_res?: number | null
           product_id: string
@@ -1152,7 +1156,9 @@ export type Database = {
           price?: number
           price_table_1?: number
           price_table_11?: number
+          price_table_3?: number
           price_table_4?: number
+          price_table_8?: number
           price_table_9?: number
           price_table_res?: number | null
           product_id?: string
@@ -1188,7 +1194,9 @@ export type Database = {
           name: string
           price_table_1: number
           price_table_11: number
+          price_table_3: number
           price_table_4: number
+          price_table_8: number
           price_table_9: number
           price_table_res: number | null
           stock: number
@@ -1212,7 +1220,9 @@ export type Database = {
           name: string
           price_table_1?: number
           price_table_11?: number
+          price_table_3?: number
           price_table_4?: number
+          price_table_8?: number
           price_table_9?: number
           price_table_res?: number | null
           stock?: number
@@ -1236,7 +1246,9 @@ export type Database = {
           name?: string
           price_table_1?: number
           price_table_11?: number
+          price_table_3?: number
           price_table_4?: number
+          price_table_8?: number
           price_table_9?: number
           price_table_res?: number | null
           stock?: number

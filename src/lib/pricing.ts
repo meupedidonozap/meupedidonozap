@@ -1,15 +1,15 @@
 import type { Product, ProductVariant } from '@/types';
 
-export type PriceTable = 1 | 4 | 9 | 11;
+export type PriceTable = 1 | 3 | 4 | 8 | 9 | 11;
 
-export const PRICE_TABLES: PriceTable[] = [1, 4, 9, 11];
+export const PRICE_TABLES: PriceTable[] = [1, 3, 4, 8, 9, 11];
 
 /** Default price table for visitors / unknown customers. */
 export const DEFAULT_PRICE_TABLE: PriceTable = 4;
 
 export function normalizePriceTable(value: unknown, fallback: PriceTable = DEFAULT_PRICE_TABLE): PriceTable {
   const n = Number(value);
-  if (n === 1 || n === 4 || n === 9 || n === 11) return n as PriceTable;
+  if (n === 1 || n === 3 || n === 4 || n === 8 || n === 9 || n === 11) return n as PriceTable;
   return fallback;
 }
 
@@ -44,6 +44,8 @@ export function getProductPriceOrNull(product: Product | null | undefined, table
   const t = normalizePriceTable(table);
   if (t === 1) return positive(product.priceTable1);
   if (t === 9) return positive(product.priceTable9);
+  if (t === 3) return positive(product.priceTable3);
+  if (t === 8) return positive(product.priceTable8);
   if (t === 11) {
     if (product.priceTable11 == null) {
       return positive(product.priceTable4) ?? positive(product.basePrice);
@@ -60,6 +62,8 @@ export function getVariantPriceOrNull(variant: ProductVariant | null | undefined
   const t = normalizePriceTable(table);
   if (t === 1) return positive(variant.priceTable1);
   if (t === 9) return positive(variant.priceTable9);
+  if (t === 3) return positive(variant.priceTable3);
+  if (t === 8) return positive(variant.priceTable8);
   if (t === 11) {
     if (variant.priceTable11 == null) {
       return positive(variant.priceTable4) ?? positive(variant.price);

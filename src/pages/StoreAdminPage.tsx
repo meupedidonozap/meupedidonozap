@@ -528,7 +528,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 4 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
+  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 3 | 4 | 8 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -1021,7 +1021,7 @@ export default function StoreAdminPage() {
       minQuantity: Number(newRule.minQuantity),
       discountPercent: Number(newRule.discountPercent),
       description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
-      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 4 | 9 | 11),
+      priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 3 | 4 | 8 | 9 | 11),
     };
     setDiscountRulesLocal(prev => [...prev, rule]);
     setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
@@ -1967,7 +1967,9 @@ export default function StoreAdminPage() {
                         <SelectContent>
                           <SelectItem value="all">Todas</SelectItem>
                           <SelectItem value="1">Tabela 1</SelectItem>
+                          <SelectItem value="3">Tabela 3</SelectItem>
                           <SelectItem value="4">Tabela 4</SelectItem>
+                          <SelectItem value="8">Tabela 8</SelectItem>
                           <SelectItem value="9">Tabela 9</SelectItem>
                           <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
@@ -2007,7 +2009,9 @@ export default function StoreAdminPage() {
                         <SelectItem value="all">Todas as tabelas</SelectItem>
                         <SelectItem value="none">Sem tabela (Todas)</SelectItem>
                         <SelectItem value="1">Tabela 1</SelectItem>
+                        <SelectItem value="3">Tabela 3</SelectItem>
                         <SelectItem value="4">Tabela 4</SelectItem>
+                        <SelectItem value="8">Tabela 8</SelectItem>
                         <SelectItem value="9">Tabela 9</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
                       </SelectContent>
@@ -2055,7 +2059,9 @@ export default function StoreAdminPage() {
                                 <SelectContent>
                                   <SelectItem value="all">Todas</SelectItem>
                                   <SelectItem value="1">Tabela 1</SelectItem>
+                                  <SelectItem value="3">Tabela 3</SelectItem>
                                   <SelectItem value="4">Tabela 4</SelectItem>
+                                  <SelectItem value="8">Tabela 8</SelectItem>
                                   <SelectItem value="9">Tabela 9</SelectItem>
                                   <SelectItem value="11">Tabela 11</SelectItem>
                                 </SelectContent>
@@ -2071,7 +2077,7 @@ export default function StoreAdminPage() {
                                   minQuantity: Number(editRule.minQuantity),
                                   discountPercent: Number(editRule.discountPercent),
                                   description: editRule.description || `${editRule.minQuantity}+ peças → ${editRule.discountPercent}% off`,
-                                  priceTable: editRule.priceTable === 'all' ? undefined : (Number(editRule.priceTable) as 1 | 4 | 9 | 11),
+                                  priceTable: editRule.priceTable === 'all' ? undefined : (Number(editRule.priceTable) as 1 | 3 | 4 | 8 | 9 | 11),
                                 } : r));
                                 setEditingRuleId(null);
                                 toast.info('Regra alterada. Clique em "Salvar Regras" para gravar.');
@@ -3164,12 +3170,14 @@ export default function StoreAdminPage() {
                       <Label className="text-sm">Tabela de Preço</Label>
                       <Select
                         value={String(customerForm.priceTable)}
-                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 | 11 }))}
+                        onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 3 | 4 | 8 | 9 | 11 }))}
                       >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                          <SelectItem value="3">Tabela 3</SelectItem>
                           <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                          <SelectItem value="8">Tabela 8</SelectItem>
                           <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
                         </SelectContent>
@@ -3270,12 +3278,14 @@ export default function StoreAdminPage() {
                     <Label className="text-sm">Tabela de Preço</Label>
                     <Select
                       value={String(customerForm.priceTable)}
-                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 4 | 9 | 11 }))}
+                      onValueChange={(v) => setCustomerForm(f => ({ ...f, priceTable: Number(v) as 1 | 3 | 4 | 8 | 9 | 11 }))}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">Tabela 1 (Atacado)</SelectItem>
+                        <SelectItem value="3">Tabela 3</SelectItem>
                         <SelectItem value="4">Tabela 4 (Varejo)</SelectItem>
+                        <SelectItem value="8">Tabela 8</SelectItem>
                         <SelectItem value="9">Tabela 9 (Atacado)</SelectItem>
                         <SelectItem value="11">Tabela 11</SelectItem>
                       </SelectContent>

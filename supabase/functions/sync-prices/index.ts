@@ -115,6 +115,8 @@ Deno.serve(async (req) => {
       ["preco 4", "preco4", "tabela 4", "tab 4", "protabpre", "preco"].includes(h)
     );
     const price9Idx = header.findIndex((h) => ["preco 9", "preco9", "tabela 9", "tab 9"].includes(h));
+    const price3Idx = header.findIndex((h) => ["preco 3", "preco3", "tabela 3", "tab 3"].includes(h));
+    const price8Idx = header.findIndex((h) => ["preco 8", "preco8", "tabela 8", "tab 8"].includes(h));
     // Coluna reservada para a futura tabela de preço: detectada, porém IGNORADA.
     const priceResIdx = header.findIndex((h) =>
       ["preco reservado", "reservado", "preco futuro", "tabela reservada", "preco res"].includes(h)
@@ -155,7 +157,7 @@ Deno.serve(async (req) => {
 
     const sheetData: Record<
       string,
-      { price1: number; price4: number; price9: number; category?: string; name?: string; bar?: string }
+      { price1: number; price4: number; price9: number; price3: number; price8: number; category?: string; name?: string; bar?: string }
     > = {};
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i] || [];
@@ -168,10 +170,14 @@ Deno.serve(async (req) => {
       const price4 = Number.isFinite(p4raw) && p4raw > 0 ? p4raw : 0;
       const price1 = Number.isFinite(p1raw) && p1raw > 0 ? p1raw : 0;
       const price9 = Number.isFinite(p9raw) && p9raw > 0 ? p9raw : 0;
+      const p3raw = price3Idx !== -1 ? num(cols[price3Idx]) : NaN;
+      const p8raw = price8Idx !== -1 ? num(cols[price8Idx]) : NaN;
+      const price3 = Number.isFinite(p3raw) && p3raw > 0 ? p3raw : 0;
+      const price8 = Number.isFinite(p8raw) && p8raw > 0 ? p8raw : 0;
       const category = grpIdx !== -1 ? String(cols[grpIdx] ?? "").trim() || undefined : undefined;
       const name = nameIdx !== -1 ? String(cols[nameIdx] ?? "").trim() || undefined : undefined;
       const bar = barIdx !== -1 ? String(cols[barIdx] ?? "").trim() || undefined : undefined;
-      sheetData[code] = { price1, price4, price9, category, name, bar };
+      sheetData[code] = { price1, price4, price9, price3, price8, category, name, bar };
     }
 
     const supabase = createClient(
@@ -181,7 +187,7 @@ Deno.serve(async (req) => {
 
     const { data: products, error: pErr } = await supabase
       .from("products")
-      .select("id, code, name, base_price, price_table_1, price_table_4, price_table_9, category_id, is_active")
+      .select("id, code, name, base_price, price_table_1, price_table_4, price_table_9, price_table_3, price_table_8, category_id, is_active")
       .eq("store_id", store_id);
 
     if (pErr) {
@@ -264,8 +270,12 @@ Deno.serve(async (req) => {
       if (diff4) updates.price_table_4 = sheet.price4;
       if (diff9) updates.price_table_9 = sheet.price9;
       if (diffBase) updates.base_price = sheet.price4;
+      const diff3 = price3Idx !== -1 && Math.abs(sheet.price3 - (Number(product.price_table_3) || 0)) > 0.001;
+      const diff8 = price8Idx !== -1 && Math.abs(sheet.price8 - (Number(product.price_table_8) || 0)) > 0.001;
+      if (diff3) updates.price_table_3 = sheet.price3;
+      if (diff8) updates.price_table_8 = sheet.price8;
 
-      if (diff1 || diff4 || diff9 || diffBase) {
+      if (diff1 || diff4 || diff9 || diffBase || diff3 || diff8) {
         priceUpdates.push({
           code: product.code,
           old_price: oldBase,
@@ -321,6 +331,8 @@ Deno.serve(async (req) => {
         price_table_1: sheet.price1,
         price_table_4: sheet.price4,
         price_table_9: sheet.price9,
+        price_table_3: sheet.price3,
+        price_table_8: sheet.price8,
         category_id: catId,
         is_active: true,
         has_variants: false,

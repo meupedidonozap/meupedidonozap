@@ -230,7 +230,7 @@ export interface DiscountRule {
   discountPercent: number;
   description: string;
   /** Optional price-table scope (1, 4, 9 ou 11). Undefined = applies to all tables. */
-  priceTable?: 1 | 4 | 9 | 11;
+  priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
 }
 
 // Product types
@@ -261,6 +261,8 @@ export interface ProductVariant {
   priceTable4?: number;
   priceTable9?: number;
   priceTable11?: number;
+  priceTable3?: number;
+  priceTable8?: number;
 }
 
 export interface ProductImage {
@@ -283,6 +285,8 @@ export interface Product {
   priceTable4?: number;
   priceTable9?: number;
   priceTable11?: number;
+  priceTable3?: number;
+  priceTable8?: number;
   image?: string;
   isActive: boolean;
   hasVariants: boolean;
@@ -381,7 +385,7 @@ export interface CustomerInfo {
   transportadora?: string;
   sellerUserName?: string;
   /** Tabela de preço usada na montagem do pedido (prevalece na exportação). */
-  priceTable?: 1 | 4 | 9 | 11;
+  priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
 }
 
 
