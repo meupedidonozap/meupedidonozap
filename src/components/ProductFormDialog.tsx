@@ -117,6 +117,8 @@ export default function ProductFormDialog({
   const [priceTable4, setPriceTable4] = useState('');
   const [priceTable9, setPriceTable9] = useState('');
   const [priceTable11, setPriceTable11] = useState('');
+  const [priceTable3, setPriceTable3] = useState('');
+  const [priceTable8, setPriceTable8] = useState('');
   const [stock, setStock] = useState('0');
   const [unit, setUnit] = useState('Un');
   const [blingCode, setBlingCode] = useState('');
@@ -156,6 +158,8 @@ export default function ProductFormDialog({
       setPriceTable4(product.priceTable4 != null && product.priceTable4 > 0 ? String(product.priceTable4) : (product.basePrice > 0 ? String(product.basePrice) : ''));
       setPriceTable9(product.priceTable9 != null && product.priceTable9 > 0 ? String(product.priceTable9) : '');
       setPriceTable11(product.priceTable11 != null && product.priceTable11 > 0 ? String(product.priceTable11) : '');
+      setPriceTable3(product.priceTable3 != null && product.priceTable3 > 0 ? String(product.priceTable3) : '');
+      setPriceTable8(product.priceTable8 != null && product.priceTable8 > 0 ? String(product.priceTable8) : '');
       setStock(String(product.stock ?? 0));
       setUnit((product as any).unit || 'Un');
       setBlingCode((product as any).blingCode || '');
@@ -371,6 +375,8 @@ export default function ProductFormDialog({
           priceTable4: computePrices().pt4,
           priceTable9: computePrices().pt9,
           priceTable11: computePrices().pt11,
+          priceTable3: Number(priceTable3) || 0,
+          priceTable8: Number(priceTable8) || 0,
           imageUrl: imageUrl,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
@@ -410,6 +416,8 @@ export default function ProductFormDialog({
           priceTable4: computePrices().pt4,
           priceTable9: computePrices().pt9,
           priceTable11: computePrices().pt11,
+          priceTable3: Number(priceTable3) || 0,
+          priceTable8: Number(priceTable8) || 0,
           imageUrl: imageUrl || undefined,
           isActive,
           stock: Math.trunc(Number(stock) || 0),
@@ -554,6 +562,14 @@ export default function ProductFormDialog({
                   onChange={e => setPriceTable1(e.target.value)}
                   placeholder="0.00"
                 />
+              </div>
+              <div>
+                <Label htmlFor="price-t3" className="text-xs">Tabela 3</Label>
+                <Input id="price-t3" type="number" step="0.01" value={priceTable3} onChange={e => setPriceTable3(e.target.value)} placeholder="0.00" />
+              </div>
+              <div>
+                <Label htmlFor="price-t8" className="text-xs">Tabela 8</Label>
+                <Input id="price-t8" type="number" step="0.01" value={priceTable8} onChange={e => setPriceTable8(e.target.value)} placeholder="0.00" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="price-t9" className="text-xs">Tabela 9 (Atacado)</Label>
