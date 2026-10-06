@@ -1,0 +1,2 @@
+ALTER TABLE public.customer_profiles DROP CONSTRAINT IF EXISTS customer_profiles_price_table_check;
+ALTER TABLE public.customer_profiles ADD CONSTRAINT customer_profiles_price_table_check CHECK (price_table IS NULL OR price_table IN (1,3,4,8,9,11));

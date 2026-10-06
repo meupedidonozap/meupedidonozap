@@ -57,6 +57,13 @@
       "when": 1791310606799,
       "tag": "0007_price_tables_3_and_8",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791311597296,
+      "tag": "0008_customer_price_table_check_all_tables",
+      "breakpoints": true
     }
   ]
 }
