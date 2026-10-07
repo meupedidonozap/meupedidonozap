@@ -12,7 +12,13 @@ const storeTypeIcons = {
 };
 
 export default function HomePage() {
+  // Aberto pelo ícone instalado (modo app): volta direto para a última loja.
+  const isStandalone = typeof window !== 'undefined' &&
+    (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true);
+  let lastStore: string | null = null;
+  try { lastStore = localStorage.getItem('mpz:last-store'); } catch { /* ignore */ }
   const { data: stores, isLoading } = useStores();
+  if (isStandalone && lastStore) return <Navigate to={`/${lastStore}`} replace />;
   const activeStores = (stores || []).filter(s => s.isActive);
   const companySignupUrl = `https://wa.me/5547999625155?text=${encodeURIComponent('Olá gostaria de criar o meu Catalogo Digital no MEU PEDIDO NO ZAP.')}`;
   const host = window.location.hostname.toLowerCase();
