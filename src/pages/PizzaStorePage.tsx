@@ -4,10 +4,11 @@ import { buildStoreJsonLd } from '@/lib/seoSchemas';
 import { useParams, Link } from 'react-router-dom';
 import {
   Search, ShoppingCart, Plus, Minus, X, ChevronDown, ChevronUp,
-  Share2, Loader2, User, LogIn, LogOut, ShoppingBag, Pizza, UtensilsCrossed, Wine,
+  Share2, Loader2, User, LogIn, LogOut, LayoutDashboard, ShoppingBag, Pizza, UtensilsCrossed, Wine,
   List, LayoutGrid,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
+import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
@@ -263,6 +264,7 @@ export default function PizzaStorePage() {
   const { data: flavors = [] } = usePizzaFlavors(store?.id);
   const { cart, setStoreId, addItem, updateQuantity } = useCart();
   const { user, signOut } = useAuth();
+  const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
   const { data: customerProfile } = useCustomerProfile(user?.id, store?.id);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -375,6 +377,11 @@ export default function PizzaStorePage() {
                   <DropdownMenuItem asChild>
                     <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
                   </DropdownMenuItem>
+                  {hasAdminAccess && (
+                    <DropdownMenuItem asChild>
+                      <Link to={`/${store.slug}/admin`} className="gap-2"><LayoutDashboard className="h-4 w-4" /> Painel Admin</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-red-400"><LogOut className="h-4 w-4" /> Sair</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
