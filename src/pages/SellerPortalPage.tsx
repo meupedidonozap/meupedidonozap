@@ -19,7 +19,8 @@ import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
-import { Pencil } from 'lucide-react';
+import { Pencil, Share2 } from 'lucide-react';
+import { shareOrderPdf } from '@/lib/shareOrderPdf';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
@@ -94,6 +95,15 @@ export default function SellerPortalPage() {
     qc.invalidateQueries({ queryKey: ['seller-orders'] });
   };
 
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const share = async (id: string) => {
+    if (!store) return;
+    setSharingId(id);
+    try { await shareOrderPdf(id, store.name); }
+    catch (e: any) { toast.error(e.message || 'Não foi possível gerar o PDF'); }
+    finally { setSharingId(null); }
+  };
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const editQuote = async (id: string) => {
     if (!store) return;
@@ -156,13 +166,19 @@ export default function SellerPortalPage() {
               ? <Badge variant="destructive" className="gap-1"><WifiOff className="h-3 w-3" /> OFFLINE — Não Integrado</Badge>
               : <Badge variant={stage.variant}>{stage.label}</Badge>}
             <p className="font-bold">{formatCurrency(Number(o.total))}</p>
-            {quote && !o._offline && (
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" title="Cancelar" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="h-4 w-4" /></Button>
-                <Button size="sm" variant="outline" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
-                  {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
+            {!o._offline && (
+              <div className="flex flex-wrap justify-end gap-1">
+                <Button size="sm" variant="secondary" disabled={sharingId === o.id} onClick={() => share(o.id)}>
+                  {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Share2 className="mr-1 h-4 w-4" />}
+                  {quote ? 'Enviar Orçamento' : 'Enviar Pedido'}
                 </Button>
-                <Button size="sm" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
+                {quote && (<>
+                  <Button size="sm" variant="ghost" title="Cancelar" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="outline" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
+                    {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
+                  </Button>
+                  <Button size="sm" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
+                </>)}
               </div>
             )}
           </div>
