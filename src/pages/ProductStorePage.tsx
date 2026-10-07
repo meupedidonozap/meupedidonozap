@@ -5,7 +5,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Menu, Search, ShoppingCart, Grid, List, Plus, Minus, X,
   MapPin, Phone, Clock, Trash2, ArrowRight, Tag, Loader2,
-  User, LogOut, ShoppingBag, LogIn, FolderOpen,
+  User, LogOut, LayoutDashboard, ShoppingBag, LogIn, FolderOpen,
   Receipt, FileText,
 } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
@@ -60,6 +61,7 @@ export default function ProductStorePage() {
   const { data: allProducts = [] } = useProducts(store?.id);
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
+  const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
   const {
     profile: customerProfile,
     isSellerMode,
@@ -407,6 +409,11 @@ export default function ProductStorePage() {
                         <Link to={`/${store.slug}/titulos`} className="gap-2"><Receipt className="h-4 w-4" /> Meus Títulos / Boletos</Link>
                       </DropdownMenuItem>
                     </>
+                  )}
+                  {hasAdminAccess && (
+                    <DropdownMenuItem asChild>
+                      <Link to={`/${store.slug}/admin`} className="gap-2"><LayoutDashboard className="h-4 w-4" /> Painel Admin</Link>
+                    </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => signOut()} className="gap-2 text-destructive"><LogOut className="h-4 w-4" /> Sair</DropdownMenuItem>
                 </DropdownMenuContent>
