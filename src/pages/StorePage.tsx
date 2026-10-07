@@ -22,6 +22,11 @@ export default function StorePage() {
   // marcar nova versão, todos os clientes recarregam sem perder o carrinho.
   useDataVersionSync(slug, store?.id);
 
+  // Lembra a última loja: o ícone instalado que abrir em "/" volta direto para ela.
+  if (store?.slug) {
+    try { localStorage.setItem('mpz:last-store', store.slug); } catch { /* ignore */ }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">

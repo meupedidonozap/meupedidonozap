@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateTime } from '@/lib/formatters';
-import { haversineMeters, getCurrentPosition } from '@/lib/geo';
+import { haversineMeters, getCurrentPosition, GeoError, type GeoErrorKind } from '@/lib/geo';
 import {
   useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo,
   DEFAULT_VISIT_REASONS, formatDuration, type CustomerVisit,
@@ -90,6 +90,7 @@ export default function CheckinDialog({
   const [checkoutVisit, setCheckoutVisit] = useState<CustomerVisit | null>(null);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [gpsHelp, setGpsHelp] = useState<{ kind: GeoErrorKind; customer: CustomerRow } | null>(null);
 
   const { data: customers = [], isLoading } = useWalletCustomers(storeId, sellerCodes);
   const sinceIso = useMemo(
@@ -146,14 +147,18 @@ export default function CheckinDialog({
     setBusyId(c.id);
     // IMPORTANTE (Safari/iOS): o pedido de localização precisa sair no mesmo
     // gesto do toque. Por isso disparamos o GPS ANTES de qualquer await.
-    const positionPromise = getCurrentPosition().catch(() => null);
+    let geoErr: GeoErrorKind = 'unavailable';
+    const positionPromise = getCurrentPosition().catch((e) => {
+      if (e instanceof GeoError) geoErr = e.kind;
+      return null;
+    });
     try {
       let geo = c.geo_lat != null && c.geo_lng != null
         ? { lat: Number(c.geo_lat), lng: Number(c.geo_lng) }
         : await geocodeAddress(fullAddress(c));
 
       const my = await positionPromise;
-      if (!my) { toast.error('Ative a localização do aparelho para registrar a visita.'); return; }
+      if (!my) { setGpsHelp({ kind: geoErr, customer: c }); return; }
 
 
       if (!geo) {
@@ -424,6 +429,44 @@ export default function CheckinDialog({
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!gpsHelp} onOpenChange={(o) => !o && setGpsHelp(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Não foi possível obter sua localização</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            {gpsHelp?.kind === 'denied' && (
+              <>
+                <p className="font-medium text-destructive">O navegador está BLOQUEANDO a localização para este site (mesmo com o GPS ligado).</p>
+                <div className="rounded-md border p-3 space-y-1">
+                  <p className="font-semibold">Android (Chrome)</p>
+                  <p>1. Toque no ícone à esquerda do endereço (cadeado / ajustes).</p>
+                  <p>2. Toque em <b>Permissões</b> → <b>Localização</b> → <b>Permitir</b>.</p>
+                  <p>3. Se não aparecer: Configurações do celular → Apps → Chrome → Permissões → Localização → <b>Permitir durante o uso</b>.</p>
+                  <p>4. Se usa o ícone instalado: Chrome → ⋮ → Configurações → Configurações do site → Localização → remova o site de "Bloqueado".</p>
+                </div>
+                <div className="rounded-md border p-3 space-y-1">
+                  <p className="font-semibold">iPhone (Safari)</p>
+                  <p>1. Ajustes → Privacidade e Segurança → Serviços de Localização → <b>Ativado</b>.</p>
+                  <p>2. Na mesma tela: <b>Sites do Safari</b> → <b>Durante o Uso</b>.</p>
+                  <p>3. Ajustes → Safari → Localização → <b>Perguntar</b> ou <b>Permitir</b>.</p>
+                </div>
+                <p className="text-muted-foreground">Depois, feche e abra a página novamente e toque em "Tentar novamente".</p>
+              </>
+            )}
+            {(gpsHelp?.kind === 'unavailable' || gpsHelp?.kind === 'timeout') && (
+              <p>O aparelho não respondeu com a posição a tempo. Verifique se o GPS está ligado em <b>alta precisão</b>, vá para perto de uma janela ou área aberta e tente novamente.</p>
+            )}
+            {gpsHelp?.kind === 'insecure' && <p>Abra o sistema pelo endereço com <b>https://</b> para liberar a localização.</p>}
+            {gpsHelp?.kind === 'unsupported' && <p>Este navegador não oferece localização. Use o Chrome (Android) ou Safari (iPhone).</p>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setGpsHelp(null)}>Fechar</Button>
+            <Button onClick={() => { const c = gpsHelp!.customer; setGpsHelp(null); handleCheckIn(c); }}>
+              <MapPin className="mr-1 h-4 w-4" /> Tentar novamente
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

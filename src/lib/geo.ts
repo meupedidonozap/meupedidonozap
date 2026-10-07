@@ -21,15 +21,32 @@ export interface Coords {
   lng: number;
 }
 
+export type GeoErrorKind = 'denied' | 'unavailable' | 'timeout' | 'unsupported' | 'insecure';
+
+export class GeoError extends Error {
+  kind: GeoErrorKind;
+  constructor(kind: GeoErrorKind, message: string) {
+    super(message);
+    this.kind = kind;
+  }
+}
+
 function readPosition(options: PositionOptions): Promise<Coords> {
   return new Promise((resolve, reject) => {
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      reject(new GeoError('insecure', 'A localização só funciona em endereço seguro (https).'));
+      return;
+    }
     if (!('geolocation' in navigator)) {
-      reject(new Error('Geolocalização não suportada neste navegador.'));
+      reject(new GeoError('unsupported', 'Geolocalização não suportada neste navegador.'));
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => reject(new Error(err.message || 'Falha ao obter localização.')),
+      (err) => {
+        const kind: GeoErrorKind = err.code === 1 ? 'denied' : err.code === 3 ? 'timeout' : 'unavailable';
+        reject(new GeoError(kind, err.message || 'Falha ao obter localização.'));
+      },
       options,
     );
   });
@@ -40,8 +57,10 @@ export async function getCurrentPosition(options?: PositionOptions): Promise<Coo
   try {
     return await readPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0, ...(options || {}) });
   } catch (e) {
+    // Permissão negada: não adianta tentar de novo.
+    if (e instanceof GeoError && (e.kind === 'denied' || e.kind === 'unsupported' || e.kind === 'insecure')) throw e;
     // 2ª tentativa: posição aproximada por rede/Wi-Fi (rápida, funciona em ambiente fechado).
-    return await readPosition({ enableHighAccuracy: false, timeout: 12000, maximumAge: 120000, ...(options || {}) });
+    return await readPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 300000, ...(options || {}) });
   }
 }
 
