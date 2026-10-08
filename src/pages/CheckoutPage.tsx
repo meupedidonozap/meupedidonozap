@@ -449,7 +449,7 @@ export default function CheckoutPage() {
           ...(seller.sellerName ? {
             createdByName: seller.sellerName,
             createdByRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
-          } : {}),
+          } : (!sellerOrder ? { createdByName: formData.name, createdByRole: 'cliente' } : {})),
           ...(seller.isTelevendas ? { isTelevendas: true, televendasName: seller.sellerName || undefined } : {}),
           ...(sellerOrder ? {
             customerCode: selectedCustomer?.customerCode || undefined,

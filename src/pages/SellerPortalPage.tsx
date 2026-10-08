@@ -19,7 +19,8 @@ import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
-import { Pencil, Share2 } from 'lucide-react';
+import { Pencil, Share2, Lock } from 'lucide-react';
+import { isCustomerOrder } from '@/lib/orderOwnership';
 import { shareOrderPdf } from '@/lib/shareOrderPdf';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
@@ -57,7 +58,7 @@ export default function SellerPortalPage() {
     queryKey: ['seller-orders', store?.id, codes.join(',')],
     enabled: !!store?.id && seller.canSell,
     queryFn: async () => {
-      let q = supabase.from('orders').select('id, order_number, customer, total, status, created_at')
+      let q = supabase.from('orders').select('id, order_number, customer, total, status, created_at, origem')
         .eq('store_id', store!.id).order('created_at', { ascending: false }).range(0, 4999);
       if (codes.length) q = q.in('customer->>sellerCode', codes);
       const { data, error } = await q;
@@ -109,9 +110,10 @@ export default function SellerPortalPage() {
     if (!store) return;
     setEditingId(id);
     try {
-      const { data: order, error } = await supabase.from('orders').select('id, customer, items, status').eq('id', id).single();
+      const { data: order, error } = await supabase.from('orders').select('id, customer, items, status, origem').eq('id', id).single();
       if (error) throw error;
       if (order.status !== 'orcamento') throw new Error('Este orçamento já foi finalizado');
+      if (!seller.isAdmin && isCustomerOrder(order)) throw new Error('Pedido feito pelo cliente: somente visualização');
       const c: any = order.customer || {};
       let profile: any = null;
       if (c.customerCode) {
@@ -175,7 +177,12 @@ export default function SellerPortalPage() {
                 {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Share2 className="mr-1 h-4 w-4" />}
                 Imprimir / Enviar PDF
               </Button>
-              {quote && (<>
+              {quote && !seller.isAdmin && isCustomerOrder(o) && (
+                <p className="col-span-2 flex items-center justify-center gap-1 text-xs text-muted-foreground sm:self-center">
+                  <Lock className="h-3 w-3" /> Pedido do cliente — somente visualização
+                </p>
+              )}
+              {quote && (seller.isAdmin || !isCustomerOrder(o)) && (<>
                 <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
                   {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
                 </Button>
