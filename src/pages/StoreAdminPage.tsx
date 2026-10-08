@@ -35,6 +35,7 @@ import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
 import EditOrderDialog from '@/components/EditOrderDialog';
+import { isCustomerOrder } from '@/lib/orderOwnership';
 import DicolorePaymentCodesTab from '@/components/DicolorePaymentCodesTab';
 import StoreUsersTab from '@/components/StoreUsersTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
@@ -1856,6 +1857,7 @@ export default function StoreAdminPage() {
                               if (restrictBySeller) {
                                 const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
                                 if (!code || !sellerCodeSet.has(code)) return false;
+                                if (isCustomerOrder(order as any)) return false;
                               }
                               return true;
                             })() && (order.xmlDownloadedAt ? (
