@@ -584,7 +584,13 @@ export default function StoreAdminPage() {
   const [newSellerCode, setNewSellerCode] = useState('');
 
   // Dicolore: confirmação para liberar pedido ao ERP via WhatsApp
-  const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number } | null>(null);
+  const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number; priceTable?: string } | null>(null);
+  const [erpWhatsappByTable, setErpWhatsappByTable] = useState<Record<string, string>>({});
+  const resolveErpWhatsapp = (priceTable?: string) => {
+    const s = (store?.settings as any) || {};
+    const byTable = String((priceTable && s.erpReleaseWhatsappByTable?.[priceTable]) || '').replace(/\D/g, '');
+    return byTable || String(s.erpReleaseWhatsapp || '').replace(/\D/g, '') || '5547992491139';
+  };
 
   // Image optimization state
   const [optimizing, setOptimizing] = useState(false);
@@ -628,6 +634,7 @@ export default function StoreAdminPage() {
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
     setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
+    setErpWhatsappByTable({ ...((store.settings as any)?.erpReleaseWhatsappByTable || {}) });
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
     setViewModeGrid((store.settings as any)?.catalogViewModes?.grid !== false);
     setSfPeriodDays(String((store.settings as any)?.unvisitedPeriodDays ?? 30));
@@ -931,6 +938,9 @@ export default function StoreAdminPage() {
           useStockIntegration,
           useBlingIntegration,
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
+          erpReleaseWhatsappByTable: Object.fromEntries(
+            Object.entries(erpWhatsappByTable).map(([k, v]) => [k, String(v).replace(/\D/g, '')]).filter(([, v]) => v)
+          ),
           catalogViewModes: { list: viewModeList, grid: viewModeGrid },
           unvisitedPeriodDays: Math.max(1, parseInt(sfPeriodDays, 10) || 30),
           maxCheckinDistanceMeters: Math.max(50, parseInt(sfMaxDistance, 10) || 300),
@@ -1722,7 +1732,7 @@ export default function StoreAdminPage() {
                             <div className="flex items-center gap-1">
                               <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
                                 if (['dicolore', 'dicoloresenses'].includes(store.slug) && value === 'liberado_transmissao') {
-                                  setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber });
+                                  setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber, priceTable: (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : undefined });
                                   return;
                                 }
                                 setUpdatingStatusId(order.id);
@@ -2263,6 +2273,20 @@ export default function StoreAdminPage() {
                       placeholder="5547992491139"
                       inputMode="numeric"
                     />
+                  </div>
+                  <div className="grid gap-2 sm:max-w-md">
+                    <Label>WhatsApp por tabela de preço do cliente</Label>
+                    {['1', '3', '4', '8', '9', '11'].map(t => (
+                      <div key={t} className="flex items-center gap-2">
+                        <span className="w-20 text-sm text-muted-foreground">Tabela {t}</span>
+                        <Input
+                          value={erpWhatsappByTable[t] || ''}
+                          onChange={e => setErpWhatsappByTable(prev => ({ ...prev, [t]: e.target.value }))}
+                          placeholder="Usar número padrão"
+                          inputMode="numeric"
+                        />
+                      </div>
+                    ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Número que recebe a mensagem quando um pedido é marcado como <strong>Liberado p/ Transmissão</strong>.
@@ -3531,6 +3555,12 @@ export default function StoreAdminPage() {
             <AlertDialogTitle>Liberar pedido para o ERP</AlertDialogTitle>
             <AlertDialogDescription>
               Deseja liberar o pedido {pendingErpRelease ? `#${pendingErpRelease.orderNumber}` : ''} para o ERP?
+              {pendingErpRelease && (
+                <span className="block mt-2 text-xs">
+                  Aviso será enviado para {resolveErpWhatsapp(pendingErpRelease.priceTable)}
+                  {pendingErpRelease.priceTable ? ` (Tabela ${pendingErpRelease.priceTable})` : ''}
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3564,7 +3594,7 @@ export default function StoreAdminPage() {
                 // window.open é bloqueado silenciosamente. Por isso disparamos a janela
                 // primeiro e só depois atualizamos o status do pedido.
                 const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
-                const waNumber = String((store.settings as any)?.erpReleaseWhatsapp || '').replace(/\D/g, '') || '5547992491139';
+                const waNumber = resolveErpWhatsapp(pending.priceTable);
                 const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
                 const waWin = window.open(waUrl, '_blank');
                 if (!waWin) {
