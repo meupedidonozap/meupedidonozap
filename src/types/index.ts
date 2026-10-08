@@ -385,6 +385,11 @@ export interface CustomerInfo {
   ie?: string;
   transportadora?: string;
   sellerUserName?: string;
+  /** Pedido digitado por televendas (marca <pedidoTelevendas> no XML). */
+  isTelevendas?: boolean;
+  televendasName?: string;
+  createdByName?: string;
+  createdByRole?: string;
   /** Tabela de preço usada na montagem do pedido (prevalece na exportação). */
   priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
 }
