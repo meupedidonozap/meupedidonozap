@@ -141,6 +141,7 @@ export interface StoreSettings {
   useBlingIntegration?: boolean;
   /** WhatsApp (DDI+DDD+numero) que recebe o aviso quando um pedido é liberado p/ transmissão (ERP). */
   erpReleaseWhatsapp?: string;
+  erpReleaseWhatsappByTable?: Record<string, string>;
   cnpj?: string;
   /** Modos de visualização do catálogo habilitados na vitrine. */
   catalogViewModes?: { list: boolean; grid: boolean };
