@@ -1864,8 +1864,15 @@ export default function StoreAdminPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title="Bloqueado: o XML deste pedido já foi baixado"
-                                onClick={() => toast.info('Este pedido não pode ser editado: o XML já foi baixado.')}
+                                title={isAdmin ? 'XML baixado — clique para liberar a edição' : 'Bloqueado: o XML deste pedido já foi baixado'}
+                                onClick={async () => {
+                                  if (!isAdmin) { toast.info('Este pedido não pode ser editado: o XML já foi baixado.'); return; }
+                                  if (!confirm(`Liberar o pedido #${order.orderNumber} para edição? A marca de "XML baixado" será removida.`)) return;
+                                  const { error } = await supabase.from('orders').update({ xml_downloaded_at: null } as any).eq('id', order.id);
+                                  if (error) { toast.error('Não foi possível liberar: ' + error.message); return; }
+                                  qc.invalidateQueries({ queryKey: ["orders"] });
+                                  toast.success('Pedido liberado para edição.');
+                                }}
                               >
                                 <Lock className="h-4 w-4 text-muted-foreground" />
                               </Button>
