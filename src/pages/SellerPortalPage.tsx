@@ -154,34 +154,36 @@ export default function SellerPortalPage() {
     const stage = sellerOrderStage(o.status);
     return (
       <Card>
-        <CardContent className="flex justify-between gap-3 p-4">
-          <div className="min-w-0 text-sm">
-            <p className="font-semibold uppercase">{c.name}</p>
-            <p className="text-muted-foreground">{[c.city, c.uf].filter(Boolean).join(' - ')}</p>
-            <p className="text-muted-foreground">Cód: {o._offline ? 'AGUARDANDO REDE' : quote ? 'ORÇAMENTO' : `#${o.order_number}`}{c.customerCode ? ` • Cliente ${c.customerCode}` : ''}</p>
-            <p className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString('pt-BR')}</p>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex justify-between gap-3">
+            <div className="min-w-0 text-sm">
+              <p className="font-semibold uppercase">{c.name}</p>
+              <p className="text-muted-foreground">{[c.city, c.uf].filter(Boolean).join(' - ')}</p>
+              <p className="text-muted-foreground">Cód: {o._offline ? 'AGUARDANDO REDE' : quote ? 'ORÇAMENTO' : `#${o.order_number}`}{c.customerCode ? ` • Cliente ${c.customerCode}` : ''}</p>
+              <p className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString('pt-BR')}</p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              {o._offline
+                ? <Badge variant="destructive" className="gap-1"><WifiOff className="h-3 w-3" /> OFFLINE — Não Integrado</Badge>
+                : <Badge variant={stage.variant}>{stage.label}</Badge>}
+              <p className="font-bold">{formatCurrency(Number(o.total))}</p>
+            </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-            {o._offline
-              ? <Badge variant="destructive" className="gap-1"><WifiOff className="h-3 w-3" /> OFFLINE — Não Integrado</Badge>
-              : <Badge variant={stage.variant}>{stage.label}</Badge>}
-            <p className="font-bold">{formatCurrency(Number(o.total))}</p>
-            {!o._offline && (
-              <div className="flex flex-wrap justify-end gap-1">
-                <Button size="sm" variant="secondary" disabled={sharingId === o.id} onClick={() => share(o.id)}>
-                  {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Share2 className="mr-1 h-4 w-4" />}
-                  {quote ? 'Enviar Orçamento' : 'Enviar Pedido'}
+          {!o._offline && (
+            <div className="grid grid-cols-2 gap-2 border-t pt-3 sm:flex sm:justify-end">
+              <Button size="sm" variant="secondary" className="col-span-2 w-full sm:w-auto" disabled={sharingId === o.id} onClick={() => share(o.id)}>
+                {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Share2 className="mr-1 h-4 w-4" />}
+                Imprimir / Enviar PDF
+              </Button>
+              {quote && (<>
+                <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
+                  {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
                 </Button>
-                {quote && (<>
-                  <Button size="sm" variant="ghost" title="Cancelar" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="h-4 w-4" /></Button>
-                  <Button size="sm" variant="outline" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
-                    {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
-                  </Button>
-                  <Button size="sm" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
-                </>)}
-              </div>
-            )}
-          </div>
+                <Button size="sm" className="w-full sm:w-auto" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
+                <Button size="sm" variant="ghost" className="col-span-2 w-full text-destructive sm:w-auto" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="mr-1 h-4 w-4" /> Cancelar</Button>
+              </>)}
+            </div>
+          )}
         </CardContent>
       </Card>
     );

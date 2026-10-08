@@ -530,10 +530,20 @@ export default function CheckoutPage() {
         return;
       }
 
-      await createOrder.mutateAsync(orderPayload);
+      const created: any = await createOrder.mutateAsync(orderPayload);
 
       if (sellerOrder) {
-        toast.success(asQuote ? `Orçamento salvo para ${formData.name}` : `Pedido registrado para ${formData.name}`);
+        const storeName = store.name;
+        toast.success(asQuote ? `Orçamento salvo para ${formData.name}` : `Pedido registrado para ${formData.name}`, {
+          duration: 15000,
+          action: created?.id ? {
+            label: 'Enviar PDF',
+            onClick: () => {
+              import('@/lib/shareOrderPdf').then(m => m.shareOrderPdf(created.id, storeName))
+                .catch((e: any) => toast.error(e?.message || 'Não foi possível gerar o PDF'));
+            },
+          } : undefined,
+        });
         setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1200);
         return;
       }
