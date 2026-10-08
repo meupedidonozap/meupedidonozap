@@ -1870,7 +1870,7 @@ export default function StoreAdminPage() {
                                   if (!confirm(`Liberar o pedido #${order.orderNumber} para edição? A marca de "XML baixado" será removida.`)) return;
                                   const { error } = await supabase.from('orders').update({ xml_downloaded_at: null } as any).eq('id', order.id);
                                   if (error) { toast.error('Não foi possível liberar: ' + error.message); return; }
-                                  queryClient.invalidateQueries({ queryKey: ['orders'] });
+                                  qc.invalidateQueries({ queryKey: ["orders"] });
                                   toast.success('Pedido liberado para edição.');
                                 }}
                               >
