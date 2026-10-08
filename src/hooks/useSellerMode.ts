@@ -22,13 +22,14 @@ export function useSellerMode(storeId: string | undefined) {
         .eq('user_id', user!.id)
         .eq('is_active', true)
         .maybeSingle();
-      if (!row) return { isSeller: false, sellerCodes: [] as string[], sellerName: '' };
+      if (!row) return { isSeller: false, sellerCodes: [] as string[], sellerName: '', role: '' };
       const role = String((row as any).role || 'auxiliar');
       const codes = (((row as any).seller_codes ?? []) as string[]).map(c => String(c).trim()).filter(Boolean);
       return {
         isSeller: (role === 'vendedor' || role === 'televendas') && codes.length > 0,
         sellerCodes: codes,
         sellerName: (row as any).name || '',
+        role,
       };
     },
     enabled: !!user && !!storeId,
@@ -43,6 +44,8 @@ export function useSellerMode(storeId: string | undefined) {
     isAdmin,
     sellerCodes: data?.sellerCodes ?? [],
     sellerName: data?.sellerName ?? '',
+    /** Usuário logado é televendas */
+    isTelevendas: data?.role === 'televendas',
     loading: adminLoading || (!!user && !!storeId && isLoading),
   };
 }

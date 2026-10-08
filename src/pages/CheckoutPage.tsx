@@ -442,6 +442,15 @@ export default function CheckoutPage() {
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
           priceTable: activePriceTable,
+          ...(!sellerOrder && (customerProfile as any)?.sellerCode ? {
+            sellerCode: String((customerProfile as any).sellerCode),
+            customerCode: (customerProfile as any)?.customerCode || undefined,
+          } : {}),
+          ...(seller.sellerName ? {
+            createdByName: seller.sellerName,
+            createdByRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
+          } : {}),
+          ...(seller.isTelevendas ? { isTelevendas: true, televendasName: seller.sellerName || undefined } : {}),
           ...(sellerOrder ? {
             customerCode: selectedCustomer?.customerCode || undefined,
             sellerCode: selectedCustomer?.sellerCode || undefined,

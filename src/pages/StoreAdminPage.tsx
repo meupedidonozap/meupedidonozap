@@ -454,7 +454,7 @@ export default function StoreAdminPage() {
       const order = list[i];
       setBulkProgress({ done: i + 1, total: list.length });
       try {
-        downloadOrderFile(order, store, bulkFormat, buildDownloadExtra(order, false));
+        downloadOrderFile(order, store, bulkFormat, buildDownloadExtra(order, !!order?.customer?.isTelevendas));
         await markXmlDownloaded.mutateAsync({ id: order.id, status: 'entregue' as OrderStatus });
         ok++;
       } catch (e: any) {
@@ -1634,6 +1634,9 @@ export default function StoreAdminPage() {
                             const sellerName = resolveOrderSellerName(order.customer);
                             return sellerName ? <p className="text-xs text-destructive">Vendedor: {sellerName}</p> : null;
                           })()}
+                          {(order.customer as any)?.isTelevendas && (
+                            <p className="text-xs text-primary">Televendas: {(order.customer as any)?.televendasName || 'Sim'}</p>
+                          )}
 
                         </TableCell>
                          <TableCell>
@@ -1845,7 +1848,7 @@ export default function StoreAdminPage() {
                             <Button variant="ghost" size="icon" title="Baixar pedido" onClick={() => {
                               setDownloadOrder(order);
                               setDownloadFormat('xml');
-                              setDownloadTelevendas(false);
+                              setDownloadTelevendas(!!(order.customer as any)?.isTelevendas);
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
