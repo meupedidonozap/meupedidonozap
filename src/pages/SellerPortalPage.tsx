@@ -208,7 +208,7 @@ export default function SellerPortalPage() {
         </div>
       </header>
 
-      <main className="container py-4">
+      <main className="container py-4 pb-28">
         {section === 'vendas' && (
           <Tabs defaultValue="orcamentos">
             <TabsList className="grid w-full grid-cols-2">
