@@ -24,6 +24,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WaiterPage from "./pages/WaiterPage";
 import NoIndex from "./components/NoIndex";
 import OfflineBanner from "./components/OfflineBanner";
+import UpdateBanner from "./components/UpdateBanner";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
 
 const queryClient = new QueryClient({
@@ -58,6 +59,7 @@ const App = () => (
         <SellerProvider>
         <Toaster />
         <Sonner />
+        <UpdateBanner />
         <OfflineBanner />
         <BrowserRouter>
           <Routes>

@@ -36,8 +36,16 @@ export function registerServiceWorker() {
     void unregisterAppSW();
     return;
   }
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) window.dispatchEvent(new Event('mpz:update-available'));
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(SW_URL).catch((err) => {
+    navigator.serviceWorker.register(SW_URL).then((reg) => {
+      const check = () => { reg.update().catch(() => {}); };
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+      setInterval(check, 10 * 60 * 1000);
+    }).catch((err) => {
       console.warn('SW register failed', err);
     });
   });
