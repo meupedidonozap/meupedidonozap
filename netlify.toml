@@ -2,6 +2,9 @@
   publish = "dist"
   command = "bun run build && node scripts/prerender.cjs && node scripts/generate-sitemap.cjs"
 
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
 [[edge_functions]]
   function = "og-redirect"
   path = "/*"
