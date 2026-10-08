@@ -645,7 +645,23 @@ export default function ProductStorePage() {
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
                     <h3 className="font-medium line-clamp-3">{product.name}</h3>
-                    <p className="text-lg font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
+                    {(() => {
+                      const base = resolveProductPrice(product, activePriceTable);
+                      const pct = product.hasVariants ? 0 : (itemDiscounts[`${product.id}-`] || 0);
+                      const inCart = cart.items.some(i => i.productId === product.id && !i.variantId);
+                      if (pct > 0 && inCart) {
+                        return (
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-muted-foreground line-through">{formatCurrency(base)}</span>
+                              <Badge className="text-[10px] bg-accent text-accent-foreground">-{Number(pct.toFixed(2))}%</Badge>
+                            </div>
+                            <p className="text-lg font-bold text-accent">{formatCurrency(base * (1 - pct / 100))} un.</p>
+                          </div>
+                        );
+                      }
+                      return <p className="text-lg font-bold text-primary">{formatCurrency(base)}</p>;
+                    })()}
                     {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
                       <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
                     )}
@@ -682,7 +698,22 @@ export default function ProductStorePage() {
                       : cart.items.filter(i => i.productId === product.id && !i.variantId).reduce((s, i) => s + i.quantity, 0);
                     return (
                       <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="font-bold text-primary">{formatCurrency(resolveProductPrice(product, activePriceTable))}</p>
+                        {(() => {
+                          const base = resolveProductPrice(product, activePriceTable);
+                          const pct = product.hasVariants ? 0 : (itemDiscounts[`${product.id}-`] || 0);
+                          if (pct > 0 && cartQty > 0) {
+                            return (
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-muted-foreground line-through">{formatCurrency(base)}</span>
+                                  <Badge className="text-[10px] bg-accent text-accent-foreground">-{Number(pct.toFixed(2))}%</Badge>
+                                </div>
+                                <p className="font-bold text-accent">{formatCurrency(base * (1 - pct / 100))} un.</p>
+                              </div>
+                            );
+                          }
+                          return <p className="font-bold text-primary">{formatCurrency(base)}</p>;
+                        })()}
                         {(() => {
                           const variantQty = product.hasVariants
                             ? cart.items.filter(i => i.productId === product.id).reduce((s, i) => s + i.quantity, 0)
