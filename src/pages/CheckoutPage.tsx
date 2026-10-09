@@ -6,6 +6,7 @@ import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVers
 import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
 import { useEditingQuote, setEditingQuote } from '@/lib/quoteEditing';
 import EditingQuoteBanner from '@/components/EditingQuoteBanner';
+import FinancialAlertBanner from '@/components/FinancialAlertBanner';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
@@ -618,6 +619,7 @@ export default function CheckoutPage() {
         <PendingOrdersCard storeId={store.id} />
       </div>
 
+      <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={customerProfile?.customerCode} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} />
       {editingQuote && (sellerOrder || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} />}
 
       {isSellerMode && (
