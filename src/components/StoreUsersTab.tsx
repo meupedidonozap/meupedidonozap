@@ -92,6 +92,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [sellerFilter, setSellerFilter] = useState('');
   const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas'>('auxiliar');
   const [sellerId, setSellerId] = useState<string>('');
+  const [erpCode, setErpCode] = useState<string>('');
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [pwTargetUser, setPwTargetUser] = useState<StoreUser | null>(null);
@@ -109,6 +110,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerFilter('');
     setRole('auxiliar');
     setSellerId('');
+    setErpCode('');
     setDialogOpen(true);
   };
 
@@ -130,6 +132,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerFilter('');
     setRole((u.role as any) || 'auxiliar');
     setSellerId((u as any).seller_id || '');
+    setErpCode((u as any).erp_code || '');
     setDialogOpen(true);
   };
 
@@ -148,6 +151,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
           role,
           sellerId: role === 'televendas' ? (sellerId || null) : null,
+          erpCode: role === 'televendas' ? (erpCode.trim() || null) : null,
         });
         toast.success('Usuário atualizado!');
       } else {
@@ -164,6 +168,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
           role,
           sellerId: role === 'televendas' ? (sellerId || null) : null,
+          erpCode: role === 'televendas' ? (erpCode.trim() || null) : null,
         });
         toast.success('Usuário criado!');
       }
@@ -410,6 +415,9 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                 <>
               {role === 'televendas' && (
                 <div className="grid gap-2 pt-1">
+                  <Label>Código da televendas no ERP</Label>
+                  <Input value={erpCode} onChange={e => setErpCode(e.target.value)} placeholder="Ex.: 12" />
+                  <p className="text-xs text-muted-foreground">Vai no pedido transmitido ao ERP (campo do operador de televendas).</p>
                   <p className="text-xs text-muted-foreground">
                     Esta televendas aparecerá automaticamente como opção de destino para os clientes dos vendedores vinculados abaixo (vínculo automático pelo nome quando houver um vendedor cadastrado com o mesmo nome desta televendas).
                   </p>

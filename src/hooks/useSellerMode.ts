@@ -17,12 +17,12 @@ export function useSellerMode(storeId: string | undefined) {
     queryFn: async () => {
       const { data: row } = await supabase
         .from('store_users')
-        .select('name, role, seller_codes, is_active')
+        .select('name, role, seller_codes, is_active, erp_code')
         .eq('store_id', storeId!)
         .eq('user_id', user!.id)
         .eq('is_active', true)
         .maybeSingle();
-      if (!row) return { isSeller: false, sellerCodes: [] as string[], sellerName: '', role: '' };
+      if (!row) return { isSeller: false, sellerCodes: [] as string[], sellerName: '', role: '', erpCode: '' };
       const role = String((row as any).role || 'auxiliar');
       const codes = (((row as any).seller_codes ?? []) as string[]).map(c => String(c).trim()).filter(Boolean);
       return {
@@ -30,6 +30,7 @@ export function useSellerMode(storeId: string | undefined) {
         sellerCodes: codes,
         sellerName: (row as any).name || '',
         role,
+        erpCode: String((row as any).erp_code || '').trim(),
       };
     },
     enabled: !!user && !!storeId,
@@ -46,6 +47,8 @@ export function useSellerMode(storeId: string | undefined) {
     sellerName: data?.sellerName ?? '',
     /** Usuário logado é televendas */
     isTelevendas: data?.role === 'televendas',
+    /** Código ERP da televendas logada */
+    erpCode: data?.erpCode ?? '',
     loading: adminLoading || (!!user && !!storeId && isLoading),
   };
 }

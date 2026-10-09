@@ -28,6 +28,7 @@ interface Body {
   permissions?: Permissions;
   isActive?: boolean;
   sellerCodes?: string[];
+  erpCode?: string | null;
   role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
   sellerId?: string | null;
 }
@@ -157,6 +158,7 @@ Deno.serve(async (req) => {
             seller_codes: sellerCodes ?? [],
             role: role ?? 'auxiliar',
             seller_id: sellerId ?? null,
+            erp_code: body.erpCode ? String(body.erpCode).trim() : null,
           },
           { onConflict: "store_id,user_id" },
         )
@@ -176,6 +178,7 @@ Deno.serve(async (req) => {
       if (sellerCodes !== undefined) updateData.seller_codes = sellerCodes;
       if (role !== undefined) updateData.role = role;
       if (sellerId !== undefined) updateData.seller_id = sellerId;
+      if (body.erpCode !== undefined) updateData.erp_code = body.erpCode ? String(body.erpCode).trim() : null;
 
       const { data, error: updErr } = await admin
         .from("store_users")
