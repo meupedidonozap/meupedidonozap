@@ -1979,6 +1979,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_customer_by_document: {
+        Args: { p_doc: string; p_store_id: string }
+        Returns: {
+          customer_code: string
+          name: string
+          seller_code: string
+          seller_name: string
+        }[]
+      }
       get_order_recipients: {
         Args: { p_seller_code: string; p_store_id: string }
         Returns: {

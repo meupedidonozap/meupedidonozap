@@ -78,6 +78,13 @@
       "when": 1791573858096,
       "tag": "0010_erp_order_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791575015907,
+      "tag": "0011_find_customer_by_document",
+      "breakpoints": true
     }
   ]
 }
