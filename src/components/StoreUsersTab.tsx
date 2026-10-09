@@ -110,6 +110,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
     setSellerFilter('');
     setRole('auxiliar');
     setSellerId('');
+    setErpCode('');
     setDialogOpen(true);
   };
 
