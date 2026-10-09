@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
         const patch: Record<string, unknown> = r.ok === false
           ? { erp_error: String(r.error || "erro").slice(0, 1000) }
           : { erp_order_code: String(r.erp_order_code || ""), erp_sent_at: new Date().toISOString(), erp_error: null,
-              xml_downloaded_at: new Date().toISOString(), status: "transmitido" };
+              xml_downloaded_at: new Date().toISOString(), status: "confirmado" };
         const { error } = await admin.from("orders").update(patch).eq("id", r.order_id).is("erp_sent_at", null);
         if (!error) done.push(r.order_id);
       }
