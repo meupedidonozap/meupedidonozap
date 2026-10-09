@@ -781,6 +781,9 @@ export type Database = {
           delivery_fee: number
           delivery_shift: string
           discount: number
+          erp_error: string | null
+          erp_order_code: string | null
+          erp_sent_at: string | null
           id: string
           items: Json
           observations: string | null
@@ -808,6 +811,9 @@ export type Database = {
           delivery_fee?: number
           delivery_shift?: string
           discount?: number
+          erp_error?: string | null
+          erp_order_code?: string | null
+          erp_sent_at?: string | null
           id?: string
           items?: Json
           observations?: string | null
@@ -835,6 +841,9 @@ export type Database = {
           delivery_fee?: number
           delivery_shift?: string
           discount?: number
+          erp_error?: string | null
+          erp_order_code?: string | null
+          erp_sent_at?: string | null
           id?: string
           items?: Json
           observations?: string | null
@@ -1686,6 +1695,7 @@ export type Database = {
           can_view_service_orders: boolean
           created_at: string
           email: string
+          erp_code: string | null
           id: string
           is_active: boolean
           name: string
@@ -1706,6 +1716,7 @@ export type Database = {
           can_view_service_orders?: boolean
           created_at?: string
           email?: string
+          erp_code?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -1726,6 +1737,7 @@ export type Database = {
           can_view_service_orders?: boolean
           created_at?: string
           email?: string
+          erp_code?: string | null
           id?: string
           is_active?: boolean
           name?: string
