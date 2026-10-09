@@ -35,6 +35,7 @@ import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
 import EditOrderDialog from '@/components/EditOrderDialog';
+import OrderItemsDialog from '@/components/OrderItemsDialog';
 import { isCustomerOrder } from '@/lib/orderOwnership';
 import DicolorePaymentCodesTab from '@/components/DicolorePaymentCodesTab';
 import StoreUsersTab from '@/components/StoreUsersTab';
@@ -1641,31 +1642,7 @@ export default function StoreAdminPage() {
 
                         </TableCell>
                          <TableCell>
-                            <div className="space-y-0.5 min-w-[180px]">
-                              {expandKitItems(order.items as any, kitMap).map((item: any, i: number) => (
-                                <div key={i} className="text-xs text-muted-foreground">
-                                  <span className="font-medium text-foreground">{item.quantity}x</span> {item.name}
-                                  {item.kitParentName && (
-                                    <span className="ml-1 opacity-70">(KIT: {item.kitParentName})</span>
-                                  )}
-                                  {(item.size || item.color) && (
-                                    <span className="ml-1 opacity-70">— {[item.size, item.color].filter(Boolean).join(' / ')}</span>
-                                  )}
-                                  {item.ingredients?.length > 0 && (
-                                    <div className="pl-3 opacity-80">+ {item.ingredients.map((x: any) => x.name).join(', ')}</div>
-                                  )}
-                                  {item.removedIngredients?.length > 0 && (
-                                    <div className="pl-3 opacity-80">− {item.removedIngredients.map((x: any) => x.name).join(', ')}</div>
-                                  )}
-                                  {item.border && (
-                                    <div className="pl-3 opacity-80">Borda: {item.border.name}</div>
-                                  )}
-                                  {item.observation && (
-                                    <div className="pl-3 italic opacity-80">Obs: {item.observation}</div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                            <OrderItemsDialog order={order} items={expandKitItems(order.items as any, kitMap) as any[]} />
                           </TableCell>
                         <TableCell className="font-medium">{formatCurrency(order.total)}</TableCell>
                         <TableCell className="text-xs">
