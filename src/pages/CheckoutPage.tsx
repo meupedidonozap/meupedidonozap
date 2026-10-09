@@ -458,7 +458,7 @@ export default function CheckoutPage() {
             createdByName: seller.sellerName,
             createdByRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
           } : (!sellerOrder ? { createdByName: formData.name, createdByRole: 'cliente' } : {})),
-          ...(seller.isTelevendas ? { isTelevendas: true, televendasName: seller.sellerName || undefined } : {}),
+          ...(seller.isTelevendas ? { isTelevendas: true, televendasName: seller.sellerName || undefined, televendasErpCode: seller.erpCode || undefined } : {}),
           ...(sellerOrder ? {
             customerCode: selectedCustomer?.customerCode || undefined,
             sellerCode: selectedCustomer?.sellerCode || undefined,

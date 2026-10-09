@@ -21,6 +21,7 @@ export interface StoreUser {
   seller_codes: string[];
   role: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
   seller_id?: string | null;
+  erp_code?: string | null;
 }
 
 export function useStoreUsers(storeId: string | undefined) {
@@ -71,9 +72,11 @@ export function useCreateStoreUser() {
       sellerCodes?: string[];
       role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
       sellerId?: string | null;
+      erpCode?: string | null;
     }) => {
       return callManage({
         action: 'create',
+        erpCode: input.erpCode ?? null,
         storeId: input.storeId,
         email: input.email,
         password: input.password,
@@ -102,9 +105,11 @@ export function useUpdateStoreUser() {
       sellerCodes?: string[];
       role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
       sellerId?: string | null;
+      erpCode?: string | null;
     }) => {
       return callManage({
         action: 'update',
+        erpCode: input.erpCode,
         storeId: input.storeId,
         storeUserId: input.storeUserId,
         name: input.name,
