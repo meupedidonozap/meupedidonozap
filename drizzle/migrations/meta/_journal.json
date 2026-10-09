@@ -64,6 +64,13 @@
       "when": 1791311597296,
       "tag": "0008_customer_price_table_check_all_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791548851768,
+      "tag": "0009_customer_edit_own_quote",
+      "breakpoints": true
     }
   ]
 }

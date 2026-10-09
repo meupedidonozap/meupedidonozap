@@ -499,8 +499,10 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (sellerOrder && editingQuote) {
+      if (editingQuote && (sellerOrder || editingQuote.byCustomer)) {
         if (offline) throw new Error('Sem internet: conecte-se para salvar a edição do orçamento');
+        waWindow?.close();
+        const byCustomer = !sellerOrder && !!editingQuote.byCustomer;
         const { error: upErr } = await supabase.from('orders').update({
           customer: orderPayload.customer as any,
           items: orderPayload.items as any,
@@ -511,12 +513,12 @@ export default function CheckoutPage() {
           payment_method: orderPayload.paymentMethod,
           delivery_shift: orderPayload.deliveryShift,
           observations: orderPayload.observations ?? null,
-          status: asQuote ? 'orcamento' : 'pendente',
+          status: asQuote && !byCustomer ? 'orcamento' : 'pendente',
         }).eq('id', editingQuote.id).select().single();
         if (upErr) throw upErr;
         setEditingQuote(null);
-        toast.success(asQuote ? `Orçamento atualizado para ${formData.name}` : `Orçamento finalizado como pedido para ${formData.name}`);
-        setTimeout(() => { clearCart(); navigate(`/${store.slug}/vendedor/vendas`); }, 1200);
+        toast.success(byCustomer ? 'Pedido corrigido e reenviado à empresa' : asQuote ? `Orçamento atualizado para ${formData.name}` : `Orçamento finalizado como pedido para ${formData.name}`);
+        setTimeout(() => { clearCart(); navigate(byCustomer ? `/${store.slug}/pedidos` : `/${store.slug}/vendedor/vendas`); }, 1200);
         return;
       }
 
@@ -609,7 +611,7 @@ export default function CheckoutPage() {
         <PendingOrdersCard storeId={store.id} />
       </div>
 
-      {sellerOrder && editingQuote && <EditingQuoteBanner name={editingQuote.customerName} />}
+      {editingQuote && (sellerOrder || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} />}
 
       {isSellerMode && (
         <div className="border-b border-primary/30 bg-primary/10">

@@ -5,6 +5,8 @@ export interface EditingQuote {
   id: string;
   storeId: string;
   customerName: string;
+  /** true quando o próprio cliente está corrigindo um pedido devolvido para orçamento. */
+  byCustomer?: boolean;
 }
 
 const KEY = 'seller_editing_quote';

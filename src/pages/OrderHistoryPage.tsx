@@ -1,16 +1,22 @@
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerOrders } from '@/hooks/useCustomerProfile';
+import { useCart } from '@/contexts/CartContext';
+import { supabase } from '@/integrations/supabase/client';
+import { setEditingQuote } from '@/lib/quoteEditing';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { OrderStatus } from '@/types';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
+  orcamento: { label: 'Devolvido p/ ajuste', color: 'bg-amber-100 text-amber-800' },
   pendente: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700' },
+  liberado: { label: 'Liberado', color: 'bg-blue-100 text-blue-700' },
   confirmado: { label: 'Confirmado', color: 'bg-blue-100 text-blue-700' },
   preparando: { label: 'Preparando', color: 'bg-orange-100 text-orange-700' },
   enviado: { label: 'Enviado', color: 'bg-purple-100 text-purple-700' },
@@ -20,9 +26,35 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 export default function OrderHistoryPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, loading: authLoading } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useCustomerOrders(user?.id, store?.id);
+  const { setStoreId, clearCart, addItem } = useCart();
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const editOrder = async (id: string) => {
+    if (!store) return;
+    setEditingId(id);
+    try {
+      const { data: order, error } = await supabase.from('orders').select('id, customer, items, status, xml_downloaded_at').eq('id', id).single();
+      if (error) throw error;
+      if (order.status !== 'orcamento') throw new Error('Este pedido não está mais disponível para edição');
+      if (order.xml_downloaded_at) throw new Error('Pedido já transmitido: não pode ser editado');
+      setStoreId(store.id);
+      clearCart();
+      for (const it of (order.items as any[]) || []) {
+        if (it?.productId) addItem({ ...it, discountPercent: undefined });
+      }
+      setEditingQuote({ id: order.id, storeId: store.id, customerName: (order.customer as any)?.name || 'Meu pedido', byCustomer: true });
+      toast.success('Pedido carregado no carrinho para edição');
+      navigate(`/${store.slug}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao abrir pedido');
+    } finally {
+      setEditingId(null);
+    }
+  };
 
   if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -74,8 +106,9 @@ export default function OrderHistoryPage() {
         ) : (
           <div className="space-y-4">
             {orders.map((order: any) => {
-              const status = statusLabels[order.status] || statusLabels.pendente;
+              const status = statusLabels[order.status] || { label: order.status, color: 'bg-muted text-muted-foreground' };
               const items = (order.items as any[]) || [];
+              const editable = order.status === 'orcamento' && !order.xml_downloaded_at;
               return (
                 <Card key={order.id}>
                   <CardContent className="p-4">
@@ -86,6 +119,12 @@ export default function OrderHistoryPage() {
                       </div>
                       <Badge className={status.color}>{status.label}</Badge>
                     </div>
+                    {editable && (
+                      <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>A empresa devolveu este pedido para ajuste. Edite os itens e finalize novamente.</span>
+                      </div>
+                    )}
                     <div className="mt-3 space-y-1 text-sm">
                       {items.map((item: any, i: number) => (
                         <div key={i} className="flex justify-between gap-2">
@@ -107,6 +146,12 @@ export default function OrderHistoryPage() {
                       <span>Total</span>
                       <span>{formatCurrency(Number(order.total))}</span>
                     </div>
+                    {editable && (
+                      <Button className="mt-3 w-full" disabled={editingId === order.id} onClick={() => editOrder(order.id)}>
+                        {editingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
+                        Editar pedido
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               );
