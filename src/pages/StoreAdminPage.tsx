@@ -418,6 +418,12 @@ export default function StoreAdminPage() {
     });
   }, [bulkCandidates]);
 
+  // Código do cliente vindo do ERP (cadastro sincronizado). Sem ele, o XML não pode ser gerado.
+  const orderErpCustomerCode = (order: any): string => {
+    const cp: any = findOrderProfile(order, customerProfiles as any[]);
+    return String(cp?.customerCode || order?.customer?.customerCode || '').trim();
+  };
+
   const buildDownloadExtra = (order: any, isTelevendas: boolean) => {
     const cp: any = findOrderProfile(order, customerProfiles as any[]);
     return {
@@ -455,6 +461,10 @@ export default function StoreAdminPage() {
     for (let i = 0; i < list.length; i++) {
       const order = list[i];
       setBulkProgress({ done: i + 1, total: list.length });
+      if (bulkFormat === 'xml' && !orderErpCustomerCode(order)) {
+        toast.error(`Pedido #${order.orderNumber}: cliente sem código do ERP — XML não gerado.`);
+        continue;
+      }
       try {
         downloadOrderFile(order, store, bulkFormat, buildDownloadExtra(order, !!order?.customer?.isTelevendas));
         await markXmlDownloaded.mutateAsync({ id: order.id, status: 'entregue' as OrderStatus });
@@ -3525,6 +3535,10 @@ export default function StoreAdminPage() {
             <Button onClick={async () => {
               if (!downloadOrder) return;
               const order = downloadOrder;
+              if (downloadFormat === 'xml' && !orderErpCustomerCode(order)) {
+                toast.error('Cliente sem código do ERP. Sincronize o cadastro do cliente antes de baixar o XML.');
+                return;
+              }
               downloadOrderFile(order, store, downloadFormat, buildDownloadExtra(order, downloadTelevendas));
               setDownloadOrder(null);
               if (downloadFormat !== 'txt' && !order.xmlDownloadedAt) {

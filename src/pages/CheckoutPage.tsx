@@ -232,6 +232,13 @@ export default function CheckoutPage() {
       toast.error('Selecione o bairro de entrega');
       return false;
     }
+    if (dicolore) {
+      const doc = String(formData.cpfCnpj || '').replace(/\D/g, '');
+      if (doc.length !== 11 && doc.length !== 14) {
+        toast.error('Informe o CPF/CNPJ do cliente para finalizar o pedido');
+        return false;
+      }
+    }
     if (recipientOptions.length > 0 && !sellerOrder && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
