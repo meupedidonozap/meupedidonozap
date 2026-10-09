@@ -615,7 +615,7 @@ export default function ProductStorePage() {
       <div className="container mt-3">
         <PendingOrdersCard storeId={store?.id} />
       </div>
-      <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={customerProfile?.customerCode} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} />
+      <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} />
       {editingQuote && (isSellerMode || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} onCancel={() => clearCart()} />}
       {isSellerMode && store && (
         <SellerModeBar
