@@ -35,6 +35,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
 import EditingQuoteBanner from '@/components/EditingQuoteBanner';
+import FinancialAlertBanner from '@/components/FinancialAlertBanner';
 import { useEditingQuote } from '@/lib/quoteEditing';
 import SellerMenu from '@/components/SellerMenu';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
@@ -614,6 +615,7 @@ export default function ProductStorePage() {
       <div className="container mt-3">
         <PendingOrdersCard storeId={store?.id} />
       </div>
+      <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} />
       {editingQuote && (isSellerMode || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} onCancel={() => clearCart()} />}
       {isSellerMode && store && (
         <SellerModeBar
