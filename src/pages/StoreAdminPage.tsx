@@ -95,6 +95,7 @@ import DynamicManifest from '@/components/DynamicManifest';
 import InstallAppCard from '@/components/InstallAppCard';
 import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
+import { downloadCustomerXml } from '@/lib/customerXml';
 
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -1642,6 +1643,15 @@ export default function StoreAdminPage() {
                             const code = resolveCustomerCode(order.customer);
                             return code ? <p className="text-xs text-muted-foreground">Código: {code}</p> : null;
                           })()}
+                          {order.origem !== 'mesa' && ['dicolore', 'dicoloresenses'].includes(store.slug) && !orderErpCustomerCode(order) && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive-foreground">Sem cadastro no ERP</span>
+                              <button type="button" className="text-[11px] text-primary underline" onClick={() => {
+                                const cp: any = findOrderProfile(order, customerProfiles as any[]);
+                                downloadCustomerXml({ ...(order.customer as any), ...(cp || {}) });
+                              }}>XML do cliente</button>
+                            </div>
+                          )}
                           {order.origem !== 'mesa' && (() => {
                             const sellerName = resolveOrderSellerName(order.customer);
                             return sellerName ? <p className="text-xs text-destructive">Vendedor: {sellerName}</p> : null;
@@ -1723,6 +1733,10 @@ export default function StoreAdminPage() {
                             <div className="flex items-center gap-1">
                               <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
                                 if (['dicolore', 'dicoloresenses'].includes(store.slug) && value === 'liberado_transmissao') {
+                                  if (!orderErpCustomerCode(order)) {
+                                    toast.error('Cliente sem cadastro no ERP. Baixe o XML do cliente, cadastre no ERP e sincronize antes de transmitir.');
+                                    return;
+                                  }
                                   setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber, priceTable: (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : undefined });
                                   return;
                                 }

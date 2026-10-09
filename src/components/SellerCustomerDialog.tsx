@@ -13,6 +13,7 @@ import { formatCPFCNPJ, formatPhone, formatCEP } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 import { resolveStorePriceTable } from '@/lib/pricing';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   open: boolean;
@@ -32,6 +33,19 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [duplicate, setDuplicate] = useState<string | null>(null);
+
+  const checkDuplicate = async (doc: string): Promise<string | null> => {
+    const d = doc.replace(/\D/g, '');
+    if (d.length !== 11 && d.length !== 14) { setDuplicate(null); return null; }
+    const { data } = await (supabase.rpc as any)('find_customer_by_document', { p_store_id: storeId, p_doc: d });
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row) { setDuplicate(null); return null; }
+    const seller = row.seller_name || (row.seller_code ? `código ${row.seller_code}` : 'nenhum vendedor');
+    const msg = `Cliente já cadastrado (${row.name}${row.customer_code ? ` #${row.customer_code}` : ''}) - vinculado ao Vendedor ${seller}`;
+    setDuplicate(msg);
+    return msg;
+  };
   const [form, setForm] = useState({
     name: '', whatsapp: '', cpfCnpj: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
@@ -59,6 +73,8 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
 
   const handleCreate = async () => {
     if (!form.name.trim()) { toast.error('Informe o nome do cliente'); return; }
+    const dup = await checkDuplicate(form.cpfCnpj);
+    if (dup) { toast.error(dup); return; }
     try {
       const created = await createCustomer.mutateAsync({
         storeId,
@@ -134,6 +150,8 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
                     const formatted = formatCPFCNPJ(e.target.value);
                     setForm(f => ({ ...f, cpfCnpj: formatted }));
                     const digits = formatted.replace(/\D/g, '');
+                    const dup = await checkDuplicate(formatted);
+                    if (dup) { toast.error(dup); return; }
                     if (digits.length === 14) {
                       setCnpjLoading(true);
                       try {
@@ -163,7 +181,9 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
                   }}
                 />
                 {cnpjLoading && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
-              </div></div>
+              </div>
+              {duplicate && <p className="rounded-md bg-destructive/10 p-2 text-xs font-medium text-destructive">{duplicate}</p>}
+            </div>
             <div className="grid gap-1"><Label className="text-sm">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value.toUpperCase() }))} /></div>
             <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label>

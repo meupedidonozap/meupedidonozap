@@ -141,6 +141,8 @@ Deno.serve(async (req) => {
       user_id: string | null;
     };
     const existing = new Map<string, ExistingRow>();
+    // Clientes cadastrados no MPZ (sem código ERP), indexados por CPF/CNPJ para vínculo
+    const byDoc = new Map<string, ExistingRow>();
     const PAGE = 1000;
     let from = 0;
     while (true) {
@@ -153,6 +155,10 @@ Deno.serve(async (req) => {
       const rows = data || [];
       for (const r of rows) {
         if (r.customer_code) existing.set(String(r.customer_code), r as ExistingRow);
+        else {
+          const d = onlyDigits(String(r.cpf_cnpj || ""));
+          if (d.length === 11 || d.length === 14) byDoc.set(d, r as ExistingRow);
+        }
       }
       if (rows.length < PAGE) break;
       from += PAGE;
@@ -201,7 +207,18 @@ Deno.serve(async (req) => {
         is_active: isActive,
       };
 
-      const found = existing.get(codigo);
+      let found = existing.get(codigo);
+      if (!found) {
+        const d = onlyDigits(String(payload.cpf_cnpj || ""));
+        const mpz = d ? byDoc.get(d) : undefined;
+        if (mpz) {
+          // Vincula o cadastro feito no MPZ ao código do ERP (mantém tabela de preço e login)
+          byDoc.delete(d);
+          existing.set(codigo, mpz);
+          toUpdate.push({ id: mpz.id, codigo, payload });
+          continue;
+        }
+      }
       if (found) {
         // Diff: só envia UPDATE se algum campo mudou
         const changed =
