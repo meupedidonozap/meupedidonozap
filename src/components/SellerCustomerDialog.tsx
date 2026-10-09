@@ -31,6 +31,7 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
   const createCustomer = useCreateCustomerProfileAdmin();
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [cnpjLoading, setCnpjLoading] = useState(false);
   const [form, setForm] = useState({
     name: '', whatsapp: '', cpfCnpj: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
@@ -124,14 +125,49 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
           </TabsContent>
 
           <TabsContent value="new" className="mt-3 space-y-3">
+            <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label>
+              <div className="relative">
+                <Input
+                  value={form.cpfCnpj}
+                  placeholder="Digite o CNPJ para buscar os dados"
+                  onChange={async e => {
+                    const formatted = formatCPFCNPJ(e.target.value);
+                    setForm(f => ({ ...f, cpfCnpj: formatted }));
+                    const digits = formatted.replace(/\D/g, '');
+                    if (digits.length === 14) {
+                      setCnpjLoading(true);
+                      try {
+                        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+                        if (!res.ok) throw new Error();
+                        const d = await res.json();
+                        const phone = String(d.ddd_telefone_1 || '').replace(/\D/g, '');
+                        setForm(f => ({
+                          ...f,
+                          name: String(d.razao_social || f.name).toUpperCase(),
+                          whatsapp: f.whatsapp || (phone ? formatPhone(phone) : ''),
+                          cep: d.cep ? formatCEP(String(d.cep)) : f.cep,
+                          uf: d.uf || f.uf,
+                          city: d.municipio || f.city,
+                          neighborhood: d.bairro || f.neighborhood,
+                          address: [d.descricao_tipo_de_logradouro, d.logradouro].filter(Boolean).join(' ') || f.address,
+                          number: d.numero || f.number,
+                          complement: d.complemento || f.complement,
+                        }));
+                        toast.success('Dados do CNPJ preenchidos');
+                      } catch {
+                        toast.error('Não foi possível buscar este CNPJ. Preencha manualmente.');
+                      } finally {
+                        setCnpjLoading(false);
+                      }
+                    }
+                  }}
+                />
+                {cnpjLoading && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+              </div></div>
             <div className="grid gap-1"><Label className="text-sm">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value.toUpperCase() }))} /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label>
-                <Input value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: formatPhone(e.target.value) }))} /></div>
-              <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label>
-                <Input value={form.cpfCnpj} onChange={e => setForm(f => ({ ...f, cpfCnpj: formatCPFCNPJ(e.target.value) }))} /></div>
-            </div>
+            <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label>
+              <Input value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: formatPhone(e.target.value) }))} /></div>
             <div className="grid grid-cols-2 gap-2">
               <div className="grid gap-1"><Label className="text-sm">CEP</Label>
                 <Input value={form.cep} onChange={async e => {
