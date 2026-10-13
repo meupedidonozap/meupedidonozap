@@ -130,6 +130,12 @@ Deno.serve(async (req) => {
           payment_condicao_descricao: c.paymentCondicaoDescricao || null,
           transportadora: c.transportadora || cp?.transportadora || null,
           televendas: isTv, televendas_erp_code: tvCode,
+          televendas_commission: isTv ? Number((store.settings as any)?.televendasCommission ?? 0.8) : null,
+          header_commission: (() => {
+            const tot = items.reduce((a: number, i: any) => a + i.total, 0);
+            const com = items.reduce((a: number, i: any) => a + i.commission_value, 0);
+            return tot > 0 ? Math.round((com / tot) * 100 * 10000) / 10000 : 0;
+          })(),
           subtotal: Number(o.subtotal), discount: Number(o.discount), delivery_fee: Number(o.delivery_fee), total: Number(o.total),
           observations: o.observations || "", items,
         };
