@@ -1286,7 +1286,7 @@ export default function StoreAdminPage() {
                   <TableBody>
                     {filteredOrders.slice(0, 10).map(order => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-medium">#{order.orderNumber}</TableCell>
+                        <TableCell className="font-medium">#{order.orderNumber}{order.erpOrderCode && <div className="text-xs font-semibold text-primary">ERP: {order.erpOrderCode}</div>}</TableCell>
                         <TableCell>{order.customer.name}</TableCell>
                          <TableCell>
                             <div className="space-y-0.5">
@@ -1626,6 +1626,7 @@ export default function StoreAdminPage() {
                         </TableCell>
                         <TableCell>
                           <p className="font-medium">#{order.orderNumber}</p>
+                          {order.erpOrderCode && <p className="text-xs font-semibold text-primary">ERP: {order.erpOrderCode}</p>}
                           {order.xmlDownloadedAt && (
                             <Badge variant="outline" className="mt-1 gap-1 text-[10px]"><Lock className="h-3 w-3" /> XML baixado</Badge>
                           )}

@@ -419,6 +419,8 @@ export interface Order {
   shippingDeadline?: number;
   /** Quando o XML foi baixado — pedido fica bloqueado para edição. */
   xmlDownloadedAt?: string;
+  /** Número do pedido gerado pelo ERP após transmissão. */
+  erpOrderCode?: string;
   createdAt: string;
 }
 

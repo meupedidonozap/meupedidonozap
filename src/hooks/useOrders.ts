@@ -26,6 +26,7 @@ function mapOrder(row: any): Order {
     shippingCode: row.shipping_code || undefined,
     shippingDeadline: row.shipping_deadline ?? undefined,
     xmlDownloadedAt: row.xml_downloaded_at || undefined,
+    erpOrderCode: row.erp_order_code || undefined,
     createdAt: row.created_at,
   };
 }
