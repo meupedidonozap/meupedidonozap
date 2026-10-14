@@ -48,8 +48,9 @@ export function wouldExceedMaterialApoio(
     if (cat && apoioSet.has(cat)) material += v;
     else outras += v;
   }
+  // Valores sempre pelo preço cheio de tabela (item.price, antes do desconto de grupo).
+  // Limite = % sobre os produtos comerciais (fora do material de apoio).
   const newMaterial = material + candidateAdditionalValue;
-  const totalPedido = outras + newMaterial;
-  const limit = totalPedido * (config.maxPercent / 100);
+  const limit = outras * (config.maxPercent / 100);
   return { exceeds: newMaterial > limit + 0.001, limit, currentMaterial: newMaterial };
 }
