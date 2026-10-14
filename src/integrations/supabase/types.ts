@@ -633,6 +633,33 @@ export type Database = {
           },
         ]
       }
+      financial_notification_log: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          sent_on: string
+          store_id: string
+          title_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          sent_on?: string
+          store_id: string
+          title_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          sent_on?: string
+          store_id?: string
+          title_id?: string
+        }
+        Relationships: []
+      }
       food_items: {
         Row: {
           category_id: string | null
@@ -1285,6 +1312,7 @@ export type Database = {
         Row: {
           auth: string
           created_at: string
+          customer_profile_id: string | null
           endpoint: string
           id: string
           is_active: boolean
@@ -1299,6 +1327,7 @@ export type Database = {
         Insert: {
           auth: string
           created_at?: string
+          customer_profile_id?: string | null
           endpoint: string
           id?: string
           is_active?: boolean
@@ -1313,6 +1342,7 @@ export type Database = {
         Update: {
           auth?: string
           created_at?: string
+          customer_profile_id?: string | null
           endpoint?: string
           id?: string
           is_active?: boolean
@@ -2024,6 +2054,16 @@ export type Database = {
           customer_code: string
           store_id: string
         }[]
+      }
+      upsert_customer_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_store_id: string
+          p_user_agent: string
+        }
+        Returns: string
       }
       upsert_push_subscription:
         | {
