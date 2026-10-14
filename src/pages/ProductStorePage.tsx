@@ -548,6 +548,15 @@ export default function ProductStorePage() {
                   })()}
                   <SheetFooter className="mt-4 flex-col gap-2 sm:flex-col">
                     <Button onClick={() => setIsCartOpen(false)} variant="outline" className="w-full">Continuar Comprando</Button>
+                    {isSellerMode && store.slug === 'dicolore' && (
+                      selectedCustomer ? (
+                        <Button asChild variant="outline" className="w-full border-accent text-accent">
+                          <Link to={`/${store.slug}/checkout?salvarOrcamento=1`}>Salvar Orçamento</Link>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="w-full border-accent text-accent" onClick={() => { setIsCartOpen(false); toast.info('Selecione o cliente no topo da página para salvar o orçamento.'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Salvar Orçamento</Button>
+                      )
+                    )}
                     {(() => {
                       const minOrder = store.settings?.minOrderValue || 0;
                       const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
