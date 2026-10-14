@@ -602,6 +602,7 @@ export default function CheckoutPage() {
       setIsSubmitting(false);
     }
   };
+  if (sellerOrder && store.slug === 'dicolore') autoQuoteRef.current.run = () => handleSendWhatsApp(true);
 
   return (
     <div className="min-h-screen bg-background">
