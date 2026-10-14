@@ -17,6 +17,7 @@ export interface CustomerProfile {
   number: string;
   complement?: string;
   sellerCode?: string;
+  customerCode?: string;
   transportadora?: string;
   ie?: string;
   /** 1 = atacado, 4 = varejo (default), 9 = atacado. */
@@ -39,6 +40,7 @@ export function mapProfile(row: any): CustomerProfile {
     number: row.number,
     complement: row.complement || undefined,
     sellerCode: row.seller_code || '',
+    customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
     ie: row.ie || '',
     priceTable: normalizePriceTable(row.price_table),

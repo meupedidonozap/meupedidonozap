@@ -64,13 +64,18 @@ Deno.serve(async (req) => {
       });
       const commission = (pid: string) => Number(pmap.get(pid)?.categories?.commission_percent) || 0;
 
-      // Perfis dos clientes (código ERP, tabela)
-      const codes = [...new Set(orders.map((o: any) => String(o.customer?.customerCode || "").trim()).filter(Boolean))];
-      const { data: profiles } = codes.length
-        ? await admin.from("customer_profiles").select("customer_code, cpf_cnpj, seller_code, price_table, ie, transportadora")
-            .eq("store_id", store.id).in("customer_code", codes)
-        : { data: [] as any[] };
-      const prof = new Map((profiles || []).map((p: any) => [String(p.customer_code).trim(), p]));
+      // Perfis dos clientes (código ERP, tabela) — por código, user_id ou CPF/CNPJ
+      const { data: profiles } = await admin.from("customer_profiles")
+        .select("user_id, customer_code, cpf_cnpj, seller_code, price_table, ie, transportadora")
+        .eq("store_id", store.id).neq("customer_code", "");
+      const byCode = new Map<string, any>(), byDoc = new Map<string, any>(), byUser = new Map<string, any>();
+      for (const p of profiles || []) {
+        const code = String(p.customer_code || "").trim();
+        if (code) byCode.set(code, p);
+        const d = String(p.cpf_cnpj || "").replace(/\D/g, "");
+        if (d.length === 11 || d.length === 14) byDoc.set(d, p);
+        if (p.user_id) byUser.set(p.user_id, p);
+      }
 
       // Televendas por nome (fallback quando o pedido não gravou o código)
       const { data: tvs } = await admin.from("store_users").select("name, erp_code")
@@ -78,7 +83,9 @@ Deno.serve(async (req) => {
 
       const out = orders.map((o: any) => {
         const c = o.customer || {};
-        const cp = prof.get(String(c.customerCode || "").trim());
+        const cp = byCode.get(String(c.customerCode || "").trim())
+          || byDoc.get(String(c.cpfCnpj || "").replace(/\D/g, ""))
+          || (o.user_id ? byUser.get(o.user_id) : undefined);
         const lines: any[] = [];
         for (const it of o.items || []) {
           const disc = Number(it.discountPercent) || 0;
