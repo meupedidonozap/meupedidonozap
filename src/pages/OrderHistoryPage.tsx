@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
@@ -147,8 +147,20 @@ export default function OrderHistoryPage() {
                       <span>Total</span>
                       <span>{formatCurrency(Number(order.total))}</span>
                     </div>
+                    <Button
+                      variant="outline"
+                      className="mt-3 w-full"
+                      onClick={() => {
+                        import('@/lib/shareOrderPdf')
+                          .then(m => m.shareOrderPdf(order.id, store.name))
+                          .catch((e: any) => toast.error(e?.message || 'Não foi possível gerar o PDF'));
+                      }}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" />
+                      Baixar / Enviar PDF
+                    </Button>
                     {editable && (
-                      <Button className="mt-3 w-full" disabled={editingId === order.id} onClick={() => editOrder(order.id)}>
+                      <Button className="mt-2 w-full" disabled={editingId === order.id} onClick={() => editOrder(order.id)}>
                         {editingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
                         Editar pedido
                       </Button>
