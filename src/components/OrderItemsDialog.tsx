@@ -19,7 +19,7 @@ export default function OrderItemsDialog({ order, items }: { order: any; items: 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pedido #{order.orderNumber} — {order.customer?.name}</DialogTitle>
+            <DialogTitle>Pedido #{order.orderNumber}{(order as any).erpOrderCode ? ` (ERP ${(order as any).erpOrderCode})` : ''} — {order.customer?.name}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <div><p className="text-xs text-muted-foreground">Pagamento</p><p className="uppercase">{order.paymentMethod || '-'}</p></div>

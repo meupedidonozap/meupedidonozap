@@ -116,6 +116,7 @@ export default function OrderHistoryPage() {
                       <div>
                         <p className="font-bold">Pedido #{order.order_number}</p>
                         <p className="text-sm text-muted-foreground">{formatDateTime(order.created_at)}</p>
+                        {order.erp_order_code && <p className="text-sm font-semibold text-primary">Pedido ERP: {order.erp_order_code}</p>}
                       </div>
                       <Badge className={status.color}>{status.label}</Badge>
                     </div>
