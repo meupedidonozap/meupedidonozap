@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       if (!store) return json({ error: "store not found" }, 404);
 
       const { data: orders, error } = await admin.from("orders")
-        .select("id, order_number, customer, items, subtotal, discount, delivery_fee, total, observations, created_at, status")
+        .select("id, order_number, customer, items, subtotal, discount, delivery_fee, total, observations, created_at, status, user_id")
         .eq("store_id", store.id).eq("status", "liberado_transmissao").is("erp_sent_at", null)
         .order("created_at", { ascending: true }).limit(limit);
       if (error) throw error;
