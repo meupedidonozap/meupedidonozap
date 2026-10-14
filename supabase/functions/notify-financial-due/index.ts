@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       const { data: titles } = await supabase
         .from("customer_titles")
         .select("id, cliente_codigo, valor_saldo, data_vencimento, parcela, nota_fiscal_numero")
-        .eq("store_id", storeId).is("data_quitacao", null).gt("valor_saldo", 0)
+        .eq("store_id", storeId).is("data_quitacao", null).gt("valor_saldo", 0).neq("status", "PAGO")
         .or(`data_vencimento.eq.${dueSoonDate},data_vencimento.lt.${overdueLimit}`);
 
       const relevant = (titles || []).filter((t: any) => codes.has(norm(t.cliente_codigo)));
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
         }
 
         for (const m of msgs) {
-          const payload = JSON.stringify({ title: m.title, body: m.body, url: `/${slugById.get(storeId) || ""}/meus-titulos`, tag: `fin-${m.kind}-${prof.id}` });
+          const payload = JSON.stringify({ title: m.title, body: m.body, url: `/${slugById.get(storeId) || ""}/titulos`, tag: `fin-${m.kind}-${prof.id}` });
           let ok = false;
           for (const s of mySubs) {
             try {
