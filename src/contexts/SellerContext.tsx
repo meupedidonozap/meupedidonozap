@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import type { CustomerProfile } from '@/hooks/useCustomerProfile';
 
 export type SellerCustomer = CustomerProfile & { customerCode?: string };
@@ -28,6 +29,25 @@ export function SellerProvider({ children }: { children: ReactNode }) {
       else sessionStorage.removeItem(STORAGE_KEY);
     } catch { /* ignore */ }
   }, [selectedCustomer]);
+
+  // Limpa o cliente ao sair do sistema ou ao entrar com outro usuário.
+  useEffect(() => {
+    const OWNER_KEY = 'seller_selected_customer_owner';
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const uid = session?.user?.id ?? null;
+      if (event === 'SIGNED_OUT' || !uid) {
+        setSelectedCustomer(null);
+        try { sessionStorage.removeItem(OWNER_KEY); } catch { /* ignore */ }
+        return;
+      }
+      try {
+        const owner = sessionStorage.getItem(OWNER_KEY);
+        if (owner && owner !== uid) setSelectedCustomer(null);
+        sessionStorage.setItem(OWNER_KEY, uid);
+      } catch { /* ignore */ }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const selectCustomer = useCallback((c: SellerCustomer | null) => setSelectedCustomer(c), []);
   const clearSelectedCustomer = useCallback(() => setSelectedCustomer(null), []);

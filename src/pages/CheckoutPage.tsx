@@ -74,6 +74,7 @@ export default function CheckoutPage() {
     isSellerMode,
     selectedCustomer,
     selectCustomer,
+    clearSelectedCustomer,
     seller,
   } = useActiveCustomerProfile(store?.id);
   const sellerOrder = isSellerMode && !!selectedCustomer;
@@ -540,7 +541,7 @@ export default function CheckoutPage() {
         if (upErr) throw upErr;
         setEditingQuote(null);
         toast.success(byCustomer ? 'Pedido corrigido e reenviado à empresa' : asQuote ? `Orçamento atualizado para ${formData.name}` : `Orçamento finalizado como pedido para ${formData.name}`);
-        setTimeout(() => { clearCart(); navigate(byCustomer ? `/${store.slug}/pedidos` : `/${store.slug}/vendedor/vendas`); }, 1200);
+        setTimeout(() => { clearCart(); if (sellerOrder) clearSelectedCustomer(); navigate(byCustomer ? `/${store.slug}/pedidos` : `/${store.slug}/vendedor/vendas`); }, 1200);
         return;
       }
 
@@ -556,7 +557,7 @@ export default function CheckoutPage() {
         });
         if (asQuote) {
           toast.success('Orçamento salvo no dispositivo');
-          setTimeout(() => { clearCart(); navigate(sellerOrder ? `/${store.slug}/vendedor/vendas` : `/${store.slug}`); }, 1000);
+          setTimeout(() => { clearCart(); if (sellerOrder) clearSelectedCustomer(); navigate(sellerOrder ? `/${store.slug}/vendedor/vendas` : `/${store.slug}`); }, 1000);
         } else {
           setOfflineSaved(true);
         }
@@ -577,7 +578,7 @@ export default function CheckoutPage() {
             },
           } : undefined,
         });
-        setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 1200);
+        setTimeout(() => { clearCart(); clearSelectedCustomer(); navigate(`/${store.slug}`); }, 1200);
         return;
       }
 
@@ -623,7 +624,7 @@ export default function CheckoutPage() {
             <p className="text-2xl font-bold text-destructive">MODO OFFLINE</p>
             <p className="font-semibold">Pedido salvo no aparelho</p>
             <p className="text-sm text-muted-foreground">Ele ainda não foi integrado. Será enviado automaticamente ao painel quando a internet voltar.</p>
-            <Button className="w-full" onClick={() => { clearCart(); navigate(sellerOrder ? `/${store.slug}/vendedor/vendas` : `/${store.slug}`); }}>OK</Button>
+            <Button className="w-full" onClick={() => { clearCart(); if (sellerOrder) clearSelectedCustomer(); navigate(sellerOrder ? `/${store.slug}/vendedor/vendas` : `/${store.slug}`); }}>OK</Button>
           </div>
         </div>
       )}
