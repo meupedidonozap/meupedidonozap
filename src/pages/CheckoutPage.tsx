@@ -18,6 +18,8 @@ import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { useProducts } from '@/hooks/useProducts';
+import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { expandKitItems } from '@/lib/kitExpansion';
 import { useStoreKitMap } from '@/hooks/useProductKits';
 import {
@@ -63,6 +65,7 @@ export default function CheckoutPage() {
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   useDataVersionSync(slug, store?.id);
   const createOrder = useCreateOrder();
+  const { data: allProductsCk = [] } = useProducts(store?.id);
   const editingQuote = useEditingQuote(store?.id);
   const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
   const { user, loading: authLoading } = useAuth();
@@ -913,9 +916,9 @@ export default function CheckoutPage() {
                              value={item.quantity}
                              buttonVariant="outline"
                              decrementDisabled={item.quantity === 0}
-                             onChange={(n) => updateQuantity(item.productId, n, item.variantId)}
+                             onChange={(n) => { if (n > item.quantity && wouldExceedMaterialApoio(cart.items, item.productId, item.price * (n - item.quantity), allProductsCk as any, store?.settings.materialApoio).exceeds) { toast.error(MATERIAL_APOIO_MSG); return; } updateQuantity(item.productId, n, item.variantId); }}
                              onDecrement={() => updateQuantity(item.productId, item.quantity - 1, item.variantId)}
-                             onIncrement={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
+                             onIncrement={() => { if (wouldExceedMaterialApoio(cart.items, item.productId, item.price, allProductsCk as any, store?.settings.materialApoio).exceeds) { toast.error(MATERIAL_APOIO_MSG); return; } updateQuantity(item.productId, item.quantity + 1, item.variantId); }}
                            />
                           <span className="text-xs text-muted-foreground">{formatCurrency(discountedPrice)} un.</span>
                         </div>
