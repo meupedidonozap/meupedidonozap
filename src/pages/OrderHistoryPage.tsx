@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
