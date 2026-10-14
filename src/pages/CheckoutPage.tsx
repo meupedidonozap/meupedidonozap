@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
@@ -155,6 +155,17 @@ export default function CheckoutPage() {
       setSelectedSellerId(recipientOptions[0].id);
     }
   }, [recipientOptions, selectedSellerId]);
+
+  // "Salvar Orçamento" acionado direto da gaveta do carrinho
+  const autoQuoteRef = useRef<{ done: boolean; run?: () => void }>({ done: false });
+  useEffect(() => {
+    if (autoQuoteRef.current.done) return;
+    if (!new URLSearchParams(window.location.search).has('salvarOrcamento')) return;
+    if (!profileLoaded || !formData.name || cart.items.length === 0 || !autoQuoteRef.current.run) return;
+    autoQuoteRef.current.done = true;
+    const t = setTimeout(() => autoQuoteRef.current.run?.(), 300);
+    return () => clearTimeout(t);
+  });
 
   if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -591,6 +602,7 @@ export default function CheckoutPage() {
       setIsSubmitting(false);
     }
   };
+  if (sellerOrder && store.slug === 'dicolore') autoQuoteRef.current.run = () => handleSendWhatsApp(true);
 
   return (
     <div className="min-h-screen bg-background">
