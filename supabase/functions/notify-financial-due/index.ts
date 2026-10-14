@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const today = todaySP(0);
     const dueSoonDate = todaySP(2);      // vence daqui a 2 dias
-    const overdueLimit = todaySP(-2);    // vencido há mais de 2 dias
+    const overdueLimit = todaySP(-3);    // vencido há mais de 3 dias (aviso único)
 
     // Assinaturas de clientes ativas
     const { data: subs } = await supabase
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       if (!relevant.length) continue;
 
       const { data: logged } = await supabase.from("financial_notification_log")
-        .select("title_id, kind").eq("sent_on", today).in("title_id", relevant.map((t: any) => t.id));
+        .select("title_id, kind").in("title_id", relevant.map((t: any) => t.id));
       const already = new Set((logged || []).map((l: any) => `${l.title_id}|${l.kind}`));
 
       for (const prof of storeProfiles) {
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
         if (overdue.length) {
           const tot = overdue.reduce((a: number, t: any) => a + Number(t.valor_saldo || 0), 0);
           msgs.push({ kind: "overdue", items: overdue, title: "Parcela em atraso",
-            body: `Consta${overdue.length > 1 ? `m ${overdue.length} parcelas vencidas` : " parcela vencida"} há mais de 2 dias, total ${brl(tot)}. Toque para regularizar.` });
+            body: `Consta${overdue.length > 1 ? `m ${overdue.length} parcelas vencidas` : " parcela vencida"} há mais de 3 dias, total ${brl(tot)}. Toque para regularizar.` });
         }
 
         for (const m of msgs) {
