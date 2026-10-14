@@ -6,6 +6,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import TitlesPanel from '@/components/TitlesPanel';
+import CustomerPushCard from '@/components/CustomerPushCard';
 
 export default function CustomerTitlesPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -50,12 +51,16 @@ export default function CustomerTitlesPage() {
             <p className="mt-4">Seu cadastro ainda não possui código de cliente. Fale com seu representante.</p>
           </div>
         ) : (
-          <TitlesPanel
-            storeId={store.id}
-            customerCode={code}
-            startDate={store.settings.titlesStartDate}
-            dateField={store.settings.titlesDateField}
-          />
+          <>
+            <CustomerPushCard storeId={store.id} />
+            <TitlesPanel
+              storeId={store.id}
+              customerCode={code}
+              startDate={store.settings.titlesStartDate}
+              dateField={store.settings.titlesDateField}
+            />
+          </>
+
         )}
       </main>
     </div>
