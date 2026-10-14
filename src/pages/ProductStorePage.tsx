@@ -730,6 +730,13 @@ export default function ProductStorePage() {
                               incrementDisabled={!buyable}
                               onChange={(n) => {
                                 if (product.hasVariants || !buyable) return;
+                                const unit = cart.items.find(i => i.productId === product.id && !i.variantId)?.price
+                                  ?? getProductPriceOrNull(product, activePriceTable) ?? 0;
+                                const delta = n - cartQty;
+                                if (delta > 0) {
+                                  const check = wouldExceedMaterialApoio(cart.items, product.id, unit * delta, allProducts, store?.settings.materialApoio);
+                                  if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+                                }
                                 if (cartQty === 0 && n > 0) {
                                   handleAddToCart(product);
                                   if (n > 1) updateQuantity(product.id, n);
@@ -738,8 +745,11 @@ export default function ProductStorePage() {
                                 }
                               }}
                               onIncrement={() => {
-                                if (product.hasVariants || cartQty === 0) handleProductClick(product);
-                                else updateQuantity(product.id, cartQty + 1);
+                                if (product.hasVariants || cartQty === 0) { handleProductClick(product); return; }
+                                const unit = cart.items.find(i => i.productId === product.id && !i.variantId)?.price ?? 0;
+                                const check = wouldExceedMaterialApoio(cart.items, product.id, unit, allProducts, store?.settings.materialApoio);
+                                if (check.exceeds) { toast.error(MATERIAL_APOIO_MSG); return; }
+                                updateQuantity(product.id, cartQty + 1);
                               }}
                               onDecrement={() => updateQuantity(product.id, cartQty - 1)}
                             />
