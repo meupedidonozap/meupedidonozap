@@ -14,6 +14,9 @@ import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolor
 import { getProductPriceOrNull, hasStock, normalizePriceTable, type PriceTable } from '@/lib/pricing';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { useSellerMode } from '@/hooks/useSellerMode';
+import { claimCustomerOrder, canEditOrder } from '@/lib/orderOwnership';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EditOrderDialogProps {
   open: boolean;
@@ -32,6 +35,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   const activeTable: PriceTable = normalizePriceTable(priceTable);
   const stockEnabled = store?.settings?.useStockIntegration === true;
   const updateOrder = useUpdateOrder();
+  const sellerMode = useSellerMode((order as any)?.storeId);
   const [items, setItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
@@ -155,12 +159,22 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         toast.error('Este pedido não pode ser editado: o XML já foi baixado.');
         return;
       }
+      const viewer = { isAdmin: sellerMode.isAdmin, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode };
+      // Confere o estado atual: outro responsável pode ter assumido o pedido do cliente.
+      const { data: fresh } = await supabase.from('orders').select('customer').eq('id', order.id).single();
+      const current = (fresh as any)?.customer || order.customer;
+      if (!canEditOrder({ customer: current }, viewer)) {
+        toast.error('Este pedido já foi assumido por outro responsável.');
+        return;
+      }
+      const claimed = claimCustomerOrder(current, viewer);
       const updates: any = { id: order.id, items: stampedItems, subtotal, total, discount };
+      if (claimed !== current) updates.customer = { ...order.customer, ...claimed };
       if (dicolore) {
         const f = formas.find(x => x.codigo === formaCodigo);
         const c = condicoes.find(x => x.codigo === condicaoCodigo);
         const newCustomer: CustomerInfo = {
-          ...order.customer,
+          ...(updates.customer || order.customer),
           priceTable: activeTable,
           paymentFormaCodigo: formaCodigo || undefined,
           paymentFormaDescricao: f?.descricao,

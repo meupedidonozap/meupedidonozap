@@ -20,7 +20,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 import { Pencil, Share2, Lock } from 'lucide-react';
-import { isCustomerOrder, canEditOrder } from '@/lib/orderOwnership';
+import { isCustomerOrder, canEditOrder, claimCustomerOrder } from '@/lib/orderOwnership';
 import { shareOrderPdf } from '@/lib/shareOrderPdf';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
@@ -113,7 +113,12 @@ export default function SellerPortalPage() {
       const { data: order, error } = await supabase.from('orders').select('id, customer, items, status, origem').eq('id', id).single();
       if (error) throw error;
       if (order.status !== 'orcamento') throw new Error('Este orçamento já foi finalizado');
-      if (!canEditOrder(order, seller)) throw new Error('Somente quem iniciou o pedido pode editar');
+      if (!canEditOrder(order, seller)) throw new Error('Este pedido já foi assumido por outro responsável');
+      const claimed = claimCustomerOrder(order.customer, seller);
+      if (claimed !== order.customer) {
+        const { error: cErr } = await supabase.from('orders').update({ customer: claimed } as any).eq('id', id).select().single();
+        if (cErr) throw cErr;
+      }
       const c: any = order.customer || {};
       let profile: any = null;
       if (c.customerCode) {

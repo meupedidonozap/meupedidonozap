@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCustomerOrder, canEditOrder } from './orderOwnership';
+import { isCustomerOrder, canEditOrder, claimCustomerOrder } from './orderOwnership';
 
 describe('isCustomerOrder', () => {
   it('pedido criado pelo cliente é somente leitura para vendedor', () => {
@@ -30,13 +30,31 @@ describe('canEditOrder', () => {
     expect(canEditOrder(o, tv)).toBe(true);
     expect(canEditOrder(o, vend)).toBe(false);
   });
-  it('cliente escolheu televendas: televendas é dona', () => {
-    const o = { customer: { createdByRole: 'cliente', ownerRole: 'televendas', ownerName: 'Grazi' } };
+  it('pedido do cliente não assumido: vendedor e televendas editam', () => {
+    const o = { customer: { createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Rita' } };
+    expect(canEditOrder(o, vend)).toBe(true);
+    expect(canEditOrder(o, tv)).toBe(true);
+  });
+  it('televendas assume primeiro: vendedor fica bloqueado', () => {
+    const o = { customer: claimCustomerOrder({ createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Rita' }, { isTelevendas: true, name: 'Grazi', erpCode: '5' }) };
+    expect(o.customer.isTelevendas).toBe(true);
+    expect(canEditOrder(o, { isTelevendas: true, name: 'Grazi', erpCode: '5' })).toBe(true);
+    expect(canEditOrder(o, vend)).toBe(false);
+    expect(canEditOrder(o, { isTelevendas: true, name: 'Denise', erpCode: '9' })).toBe(false);
+  });
+  it('vendedor assume primeiro: televendas fica bloqueada', () => {
+    const o = { customer: claimCustomerOrder({ createdByRole: 'cliente', ownerRole: 'televendas', isTelevendas: true }, vend) };
+    expect(o.customer.isTelevendas).toBeUndefined();
+    expect(canEditOrder(o, vend)).toBe(true);
+    expect(canEditOrder(o, tv)).toBe(false);
+  });
+  it('cliente escolheu televendas e ela assumiu: televendas é dona', () => {
+    const o = { customer: { createdByRole: 'cliente', claimedRole: 'televendas', claimedName: 'Grazi' } };
     expect(canEditOrder(o, tv)).toBe(true);
     expect(canEditOrder(o, vend)).toBe(false);
   });
   it('cliente escolheu vendedor: vendedor é dono', () => {
-    const o = { customer: { createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Rita' } };
+    const o = { customer: { createdByRole: 'cliente', claimedRole: 'vendedor', claimedName: 'Rita' } };
     expect(canEditOrder(o, vend)).toBe(true);
     expect(canEditOrder(o, tv)).toBe(false);
   });
@@ -47,7 +65,7 @@ describe('canEditOrder', () => {
 
 describe('televendas nome invertido', () => {
   it('"Televendas Grazi" = "Grazi TeleVendas"', () => {
-    const o = { customer: { createdByRole: 'cliente', ownerRole: 'televendas', ownerName: 'Televendas Grazi' } };
+    const o = { customer: { createdByRole: 'cliente', claimedRole: 'televendas', claimedName: 'Televendas Grazi' } };
     expect(canEditOrder(o, { isTelevendas: true, name: 'Grazi TeleVendas' })).toBe(true);
     expect(canEditOrder(o, { isTelevendas: true, name: 'Denise TeleVendas' })).toBe(false);
   });

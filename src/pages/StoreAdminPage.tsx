@@ -1861,7 +1861,6 @@ export default function StoreAdminPage() {
                               if (restrictBySeller && !permissions.can_manage_orders) {
                                 const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
                                 if (!code || !sellerCodeSet.has(code)) return false;
-                                if (isCustomerOrder(order as any)) return false;
                               }
                               if (!isAdmin && !canEditOrder(order as any, { isAdmin: false, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode })) return false;
                               return true;
