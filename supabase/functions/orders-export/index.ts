@@ -25,6 +25,14 @@ function rate(kitUnit: number, comps: { quantity: number; fullPrice: number }[])
   });
 }
 
+// Cadastro do cliente é a base; o pedido só completa o que estiver vazio no cadastro.
+const pick = (base: any, fallback: any) => {
+  const b = base == null ? "" : String(base).trim();
+  if (b) return b;
+  const f = fallback == null ? "" : String(fallback).trim();
+  return f || null;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const token = Deno.env.get("TITLES_SYNC_TOKEN");
@@ -139,17 +147,18 @@ Deno.serve(async (req) => {
         return {
           id: o.id, order_number: o.order_number, created_at: o.created_at,
           customer: {
-            code: c.customerCode || cp?.customer_code || null, name: c.name,
-            cpf_cnpj: (c.cpfCnpj || cp?.cpf_cnpj || "").replace(/\D/g, ""), ie: c.ie || cp?.ie || null,
-            whatsapp: c.whatsapp, cep: c.cep, uf: c.uf, city: c.city, neighborhood: c.neighborhood,
-            address: c.address, number: c.number, complement: c.complement,
+            code: pick(cp?.customer_code, c.customerCode), name: pick(cp?.name, c.name),
+            cpf_cnpj: String(pick(cp?.cpf_cnpj, c.cpfCnpj) || "").replace(/\D/g, ""), ie: pick(cp?.ie, c.ie),
+            whatsapp: pick(cp?.whatsapp, c.whatsapp), cep: pick(cp?.cep, c.cep), uf: pick(cp?.uf, c.uf),
+            city: pick(cp?.city, c.city), neighborhood: pick(cp?.neighborhood, c.neighborhood),
+            address: pick(cp?.address, c.address), number: pick(cp?.number, c.number), complement: pick(cp?.complement, c.complement),
           },
-          seller_code: c.sellerCode || cp?.seller_code || null,
-          price_table: c.priceTable ?? cp?.price_table ?? null,
+          seller_code: pick(cp?.seller_code, c.sellerCode),
+          price_table: cp?.price_table ?? c.priceTable ?? null,
           payment_forma_codigo: c.paymentFormaCodigo || null,
           payment_condicao_codigo: c.paymentCondicaoCodigo || null,
           payment_condicao_descricao: c.paymentCondicaoDescricao || null,
-          transportadora: c.transportadora || cp?.transportadora || null,
+          transportadora: pick(cp?.transportadora, c.transportadora),
           televendas: isTv, televendas_erp_code: tvCode,
           televendas_commission: isTv ? Number((store.settings as any)?.televendasCommission ?? 0.8) : null,
           header_commission: (() => {
