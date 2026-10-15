@@ -472,8 +472,18 @@ export default function CheckoutPage() {
           ...(seller.sellerName ? {
             createdByName: seller.sellerName,
             createdByRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
+            ownerRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
+            ownerName: seller.sellerName,
           } : (!sellerOrder ? { createdByName: formData.name, createdByRole: 'cliente' } : {})),
           ...(seller.isTelevendas ? { isTelevendas: true, televendasName: seller.sellerName || undefined, televendasErpCode: seller.erpCode || undefined } : {}),
+          ...(() => {
+            if (seller.sellerName || sellerOrder) return {};
+            const r = selectedSellerId ? recipientOptions.find(s => s.id === selectedSellerId) : undefined;
+            if (!r) return {};
+            return r.kind === 'televendas'
+              ? { ownerRole: 'televendas', ownerName: r.name, isTelevendas: true, televendasName: r.name }
+              : { ownerRole: 'vendedor', ownerName: r.name };
+          })(),
           ...(sellerOrder ? {
             customerCode: selectedCustomer?.customerCode || undefined,
             sellerCode: selectedCustomer?.sellerCode || undefined,

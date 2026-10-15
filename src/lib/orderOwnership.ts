@@ -6,3 +6,33 @@ export function isCustomerOrder(order: { origem?: string | null; customer?: any 
   if (role === 'cliente') return true;
   return order.origem !== 'vendedor';
 }
+
+export type OrderOwnerRole = 'vendedor' | 'televendas' | null;
+
+/** Quem é o "dono" do pedido: quem iniciou, ou quem o cliente escolheu no envio. */
+export function getOrderOwner(order: { origem?: string | null; customer?: any } | null | undefined): { role: OrderOwnerRole; name: string } {
+  const c = order?.customer || {};
+  const role = c.ownerRole || c.createdByRole;
+  if (role === 'televendas' || role === 'vendedor') {
+    return { role, name: String(c.ownerName || (role === 'televendas' ? c.televendasName : c.createdByName) || '') };
+  }
+  if (!c.createdByRole && order?.origem === 'vendedor') return { role: 'vendedor', name: String(c.sellerUserName || '') };
+  return { role: null, name: '' };
+}
+
+const norm = (s: string) => s.trim().toLowerCase();
+
+/** Apenas o dono (ou admin) edita/finaliza. Os demais da carteira só visualizam. */
+export function canEditOrder(
+  order: { origem?: string | null; customer?: any } | null | undefined,
+  viewer: { isAdmin?: boolean; isTelevendas?: boolean; name?: string },
+): boolean {
+  if (!order) return false;
+  if (viewer.isAdmin) return true;
+  const owner = getOrderOwner(order);
+  if (!owner.role) return false;
+  const viewerRole = viewer.isTelevendas ? 'televendas' : 'vendedor';
+  if (owner.role !== viewerRole) return false;
+  if (owner.role === 'televendas' && owner.name && viewer.name) return norm(owner.name) === norm(viewer.name);
+  return true;
+}
