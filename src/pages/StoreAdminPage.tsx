@@ -1862,32 +1862,26 @@ export default function StoreAdminPage() {
                                 if (isCustomerOrder(order as any)) return false;
                               }
                               return true;
-                            })() && (order.xmlDownloadedAt ? (
+                            })() && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                title={isAdmin ? 'XML baixado — clique para liberar a edição' : 'Bloqueado: o XML deste pedido já foi baixado'}
+                                title={order.xmlDownloadedAt && isAdmin ? 'XML baixado — clique para liberar e editar' : order.xmlDownloadedAt ? 'Bloqueado: o XML deste pedido já foi baixado' : 'Editar pedido'}
                                 onClick={async () => {
-                                  if (!isAdmin) { toast.info('Este pedido não pode ser editado: o XML já foi baixado.'); return; }
-                                  if (!confirm(`Liberar o pedido #${order.orderNumber} para edição? A marca de "XML baixado" será removida.`)) return;
-                                  const { error } = await supabase.from('orders').update({ xml_downloaded_at: null } as any).eq('id', order.id);
-                                  if (error) { toast.error('Não foi possível liberar: ' + error.message); return; }
-                                  qc.invalidateQueries({ queryKey: ["orders"] });
-                                  toast.success('Pedido liberado para edição.');
+                                  if (order.xmlDownloadedAt) {
+                                    if (!isAdmin) { toast.info('Este pedido não pode ser editado: o XML já foi baixado.'); return; }
+                                    if (!confirm(`Liberar o pedido #${order.orderNumber} para edição? A marca de "XML baixado" será removida.`)) return;
+                                    const { error } = await supabase.from('orders').update({ xml_downloaded_at: null } as any).eq('id', order.id);
+                                    if (error) { toast.error('Não foi possível liberar: ' + error.message); return; }
+                                    qc.invalidateQueries({ queryKey: ["orders"] });
+                                    toast.success('Pedido liberado para edição.');
+                                  }
+                                  setEditingOrder(order);
                                 }}
-                              >
-                                <Lock className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Editar pedido"
-                                onClick={() => setEditingOrder(order)}
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
-                            ))}
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
