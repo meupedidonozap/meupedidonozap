@@ -1863,7 +1863,7 @@ export default function StoreAdminPage() {
                                 if (!code || !sellerCodeSet.has(code)) return false;
                                 if (isCustomerOrder(order as any)) return false;
                               }
-                              if (!isAdmin && !canEditOrder(order as any, { isAdmin: false, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName })) return false;
+                              if (!isAdmin && !canEditOrder(order as any, { isAdmin: false, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode })) return false;
                               return true;
                             })() && (
                               <Button
