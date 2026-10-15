@@ -1856,7 +1856,7 @@ export default function StoreAdminPage() {
                               <Download className="h-4 w-4" />
                             </Button>
                             {order.status !== 'cancelado' && (isAdmin || permissions.can_manage_orders || restrictBySeller) && (() => {
-                              if (restrictBySeller) {
+                              if (restrictBySeller && !permissions.can_manage_orders) {
                                 const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
                                 if (!code || !sellerCodeSet.has(code)) return false;
                                 if (isCustomerOrder(order as any)) return false;
