@@ -44,3 +44,16 @@ describe('canEditOrder', () => {
     expect(canEditOrder({ customer: { createdByRole: 'cliente' } }, { isAdmin: true })).toBe(true);
   });
 });
+
+describe('televendas nome invertido', () => {
+  it('"Televendas Grazi" = "Grazi TeleVendas"', () => {
+    const o = { customer: { createdByRole: 'cliente', ownerRole: 'televendas', ownerName: 'Televendas Grazi' } };
+    expect(canEditOrder(o, { isTelevendas: true, name: 'Grazi TeleVendas' })).toBe(true);
+    expect(canEditOrder(o, { isTelevendas: true, name: 'Denise TeleVendas' })).toBe(false);
+  });
+  it('código ERP decide quando presente', () => {
+    const o = { customer: { ownerRole: 'televendas', ownerName: 'X', televendasErpCode: '5' } };
+    expect(canEditOrder(o, { isTelevendas: true, name: 'Y', erpCode: '5' })).toBe(true);
+    expect(canEditOrder(o, { isTelevendas: true, name: 'X', erpCode: '9' })).toBe(false);
+  });
+});

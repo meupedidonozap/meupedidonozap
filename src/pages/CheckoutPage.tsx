@@ -483,7 +483,7 @@ export default function CheckoutPage() {
             const r = selectedSellerId ? recipientOptions.find(s => s.id === selectedSellerId) : undefined;
             if (!r) return {};
             return r.kind === 'televendas'
-              ? { ownerRole: 'televendas', ownerName: r.name, isTelevendas: true, televendasName: r.name }
+              ? { ownerRole: 'televendas', ownerName: r.name, isTelevendas: true, televendasName: r.name, televendasErpCode: (r as any).code || undefined }
               : { ownerRole: 'vendedor', ownerName: r.name };
           })(),
           ...(sellerOrder ? {

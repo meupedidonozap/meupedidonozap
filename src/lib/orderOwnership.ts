@@ -20,12 +20,14 @@ export function getOrderOwner(order: { origem?: string | null; customer?: any } 
   return { role: null, name: '' };
 }
 
-const norm = (s: string) => s.trim().toLowerCase();
+/** Normaliza nome ignorando acentos, maiúsculas, ordem das palavras e a palavra "televendas". */
+const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .split(/[^a-z0-9]+/).filter(w => w && w !== 'televendas' && w !== 'tele' && w !== 'vendas').sort().join(' ');
 
 /** Apenas o dono (ou admin) edita/finaliza. Os demais da carteira só visualizam. */
 export function canEditOrder(
   order: { origem?: string | null; customer?: any } | null | undefined,
-  viewer: { isAdmin?: boolean; isTelevendas?: boolean; name?: string },
+  viewer: { isAdmin?: boolean; isTelevendas?: boolean; name?: string; erpCode?: string },
 ): boolean {
   if (!order) return false;
   if (viewer.isAdmin) return true;
@@ -33,6 +35,11 @@ export function canEditOrder(
   if (!owner.role) return false;
   const viewerRole = viewer.isTelevendas ? 'televendas' : 'vendedor';
   if (owner.role !== viewerRole) return false;
-  if (owner.role === 'televendas' && owner.name && viewer.name) return norm(owner.name) === norm(viewer.name);
+  if (owner.role === 'televendas') {
+    const oc = String(order.customer?.televendasErpCode || '').trim();
+    const vc = String(viewer.erpCode || '').trim();
+    if (oc && vc) return oc === vc;
+    if (owner.name && viewer.name) return norm(owner.name) === norm(viewer.name);
+  }
   return true;
 }
