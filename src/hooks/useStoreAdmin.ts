@@ -92,7 +92,9 @@ export function useStoreAdmin(storeId: string | undefined) {
       return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
     },
     enabled: !!user && !!storeId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+    retry: 3,
+    refetchOnWindowFocus: true,
   });
 
   const access = data ?? { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
