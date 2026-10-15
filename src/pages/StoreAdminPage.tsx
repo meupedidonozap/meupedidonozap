@@ -33,6 +33,7 @@ import ImportCustomersDialog from '@/components/ImportCustomersDialog';
 import ImportDiscountRulesDialog from '@/components/ImportDiscountRulesDialog';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import ServiceOrderDialog from '@/components/ServiceOrderDialog';
+import { useSellerMode } from '@/hooks/useSellerMode';
 import NewOrderDialog from '@/components/NewOrderDialog';
 import EditOrderDialog from '@/components/EditOrderDialog';
 import OrderItemsDialog from '@/components/OrderItemsDialog';
@@ -268,6 +269,7 @@ export default function StoreAdminPage() {
   }, [sellers]);
 
   // Seller-code based access restriction for non-admin store users
+  const sellerMode = useSellerMode(store?.id);
   const restrictBySeller = !isAdmin && (userSellerCodes?.length || 0) > 0;
   const sellerCodeSet = useMemo(() => new Set((userSellerCodes || []).map(c => String(c).trim()).filter(Boolean)), [userSellerCodes]);
   const last8 = (s: string) => (s || '').replace(/\D/g, '').slice(-8);
@@ -1861,6 +1863,7 @@ export default function StoreAdminPage() {
                                 if (!code || !sellerCodeSet.has(code)) return false;
                                 if (isCustomerOrder(order as any)) return false;
                               }
+                              if (!isAdmin && !canEditOrder(order as any, { isAdmin: false, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName })) return false;
                               return true;
                             })() && (
                               <Button

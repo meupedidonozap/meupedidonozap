@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useCreateOrder } from '@/hooks/useOrders';
+import { useSellerMode } from '@/hooks/useSellerMode';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
@@ -47,6 +48,7 @@ export default function NewOrderDialog({
   open, onOpenChange, store, products, foodItems, customerProfiles, categories,
 }: NewOrderDialogProps) {
   const createOrder = useCreateOrder();
+  const sellerMode = useSellerMode(store?.id);
   const stockEnabled = (store as any)?.settings?.useStockIntegration === true;
   // Algumas lojas COMIDA (ex.: Pastelaria RM) cadastram itens em `products`.
   // Caímos para `products` quando não há registros em `food_items`.
@@ -293,7 +295,17 @@ export default function NewOrderDialog({
       });
       await createOrder.mutateAsync({
         storeId: store.id,
-        customer: { ...customer, priceTable: activeTable } as any,
+        customer: {
+          ...customer,
+          priceTable: activeTable,
+          ...(sellerMode.isSeller ? {
+            createdByRole: sellerMode.isTelevendas ? 'televendas' : 'vendedor',
+            createdByName: sellerMode.sellerName,
+            ownerRole: sellerMode.isTelevendas ? 'televendas' : 'vendedor',
+            ownerName: sellerMode.sellerName,
+            ...(sellerMode.isTelevendas ? { isTelevendas: true, televendasName: sellerMode.sellerName, televendasErpCode: sellerMode.erpCode } : {}),
+          } : {}),
+        } as any,
         items: stampedItems,
         subtotal,
         discount: quantityDiscount,
