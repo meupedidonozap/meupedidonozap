@@ -15,3 +15,32 @@ describe('isCustomerOrder', () => {
     expect(isCustomerOrder({ origem: 'web', customer: {} })).toBe(true);
   });
 });
+
+import { canEditOrder } from './orderOwnership';
+describe('canEditOrder', () => {
+  const vend = { name: 'Rita' };
+  const tv = { isTelevendas: true, name: 'Grazi' };
+  it('pedido do vendedor: só vendedor edita', () => {
+    const o = { customer: { createdByRole: 'vendedor', createdByName: 'Rita' } };
+    expect(canEditOrder(o, vend)).toBe(true);
+    expect(canEditOrder(o, tv)).toBe(false);
+  });
+  it('pedido do televendas: só a televendas edita', () => {
+    const o = { customer: { createdByRole: 'televendas', televendasName: 'Grazi' } };
+    expect(canEditOrder(o, tv)).toBe(true);
+    expect(canEditOrder(o, vend)).toBe(false);
+  });
+  it('cliente escolheu televendas: televendas é dona', () => {
+    const o = { customer: { createdByRole: 'cliente', ownerRole: 'televendas', ownerName: 'Grazi' } };
+    expect(canEditOrder(o, tv)).toBe(true);
+    expect(canEditOrder(o, vend)).toBe(false);
+  });
+  it('cliente escolheu vendedor: vendedor é dono', () => {
+    const o = { customer: { createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Rita' } };
+    expect(canEditOrder(o, vend)).toBe(true);
+    expect(canEditOrder(o, tv)).toBe(false);
+  });
+  it('admin sempre edita', () => {
+    expect(canEditOrder({ customer: { createdByRole: 'cliente' } }, { isAdmin: true })).toBe(true);
+  });
+});
