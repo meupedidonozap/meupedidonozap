@@ -42,32 +42,36 @@ export function useStoreAdmin(storeId: string | undefined) {
         return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
       }
       // Platform admin: full access to any store
-      const { data: platform } = await supabase
+      const { data: platform, error: platformErr } = await supabase
         .from('platform_admins')
         .select('user_id')
         .eq('user_id', user.id)
         .maybeSingle();
+      if (platformErr) throw platformErr;
       if (platform) {
         return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS, sellerCodes: [] as string[] };
       }
       // Check primary admin
-      const { data: adminRow } = await supabase
+      const { data: adminRow, error: adminErr } = await supabase
         .from('store_admins')
         .select('id')
         .eq('store_id', storeId)
         .eq('user_id', user.id)
         .maybeSingle();
+      if (adminErr) throw adminErr;
       if (adminRow) {
         return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS, sellerCodes: [] as string[] };
       }
-      // Check secondary store user
-      const { data: storeUser } = await supabase
+      // Check secondary store user (limit 1 avoids failure if duplicated rows exist)
+      const { data: storeUserRows, error: suErr } = await supabase
         .from('store_users')
         .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, can_manage_tables, is_active, seller_codes')
         .eq('store_id', storeId)
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .maybeSingle();
+        .limit(1);
+      if (suErr) throw suErr;
+      const storeUser = storeUserRows?.[0];
       if (storeUser) {
         const sellerCodesArr = (((storeUser as any).seller_codes) ?? []) as string[];
         return {
