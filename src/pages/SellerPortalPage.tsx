@@ -20,7 +20,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 import { Pencil, Share2, Lock } from 'lucide-react';
-import { isCustomerOrder } from '@/lib/orderOwnership';
+import { isCustomerOrder, canEditOrder } from '@/lib/orderOwnership';
 import { shareOrderPdf } from '@/lib/shareOrderPdf';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
@@ -113,7 +113,7 @@ export default function SellerPortalPage() {
       const { data: order, error } = await supabase.from('orders').select('id, customer, items, status, origem').eq('id', id).single();
       if (error) throw error;
       if (order.status !== 'orcamento') throw new Error('Este orçamento já foi finalizado');
-      if (!seller.isAdmin && isCustomerOrder(order)) throw new Error('Pedido feito pelo cliente: somente visualização');
+      if (!canEditOrder(order, seller)) throw new Error('Somente quem iniciou o pedido pode editar');
       const c: any = order.customer || {};
       let profile: any = null;
       if (c.customerCode) {
@@ -177,12 +177,12 @@ export default function SellerPortalPage() {
                 {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Share2 className="mr-1 h-4 w-4" />}
                 Imprimir / Enviar PDF
               </Button>
-              {quote && !seller.isAdmin && isCustomerOrder(o) && (
+              {quote && !canEditOrder(o, seller) && (
                 <p className="col-span-2 flex items-center justify-center gap-1 text-xs text-muted-foreground sm:self-center">
-                  <Lock className="h-3 w-3" /> Pedido do cliente — somente visualização
+                  <Lock className="h-3 w-3" /> Pedido de outro responsável — somente visualização
                 </p>
               )}
-              {quote && (seller.isAdmin || !isCustomerOrder(o)) && (<>
+              {quote && canEditOrder(o, seller) && (<>
                 <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
                   {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
                 </Button>

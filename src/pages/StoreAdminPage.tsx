@@ -36,7 +36,7 @@ import ServiceOrderDialog from '@/components/ServiceOrderDialog';
 import NewOrderDialog from '@/components/NewOrderDialog';
 import EditOrderDialog from '@/components/EditOrderDialog';
 import OrderItemsDialog from '@/components/OrderItemsDialog';
-import { isCustomerOrder } from '@/lib/orderOwnership';
+import { isCustomerOrder, canEditOrder } from '@/lib/orderOwnership';
 import DicolorePaymentCodesTab from '@/components/DicolorePaymentCodesTab';
 import StoreUsersTab from '@/components/StoreUsersTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
