@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isCustomerOrder } from './orderOwnership';
+import { isCustomerOrder, canEditOrder } from './orderOwnership';
 
 describe('isCustomerOrder', () => {
   it('pedido criado pelo cliente é somente leitura para vendedor', () => {
@@ -16,7 +16,7 @@ describe('isCustomerOrder', () => {
   });
 });
 
-import { canEditOrder } from './orderOwnership';
+
 describe('canEditOrder', () => {
   const vend = { name: 'Rita' };
   const tv = { isTelevendas: true, name: 'Grazi' };
