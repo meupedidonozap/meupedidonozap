@@ -465,9 +465,11 @@ export default function CheckoutPage() {
           number: isPickup ? '' : formData.number,
           complement: isPickup ? '' : formData.complement,
           priceTable: activePriceTable,
-          ...(!sellerOrder && (customerProfile as any)?.sellerCode ? {
-            sellerCode: String((customerProfile as any).sellerCode),
+          ...(!sellerOrder && customerProfile ? {
+            sellerCode: (customerProfile as any)?.sellerCode ? String((customerProfile as any).sellerCode) : undefined,
             customerCode: (customerProfile as any)?.customerCode || undefined,
+            ie: (customerProfile as any)?.ie || undefined,
+            transportadora: (customerProfile as any)?.transportadora || undefined,
           } : {}),
           ...(seller.sellerName ? {
             createdByName: seller.sellerName,

@@ -25,6 +25,14 @@ function rate(kitUnit: number, comps: { quantity: number; fullPrice: number }[])
   });
 }
 
+// Cadastro do cliente é a base; o pedido só completa o que estiver vazio no cadastro.
+const pick = (base: any, fallback: any) => {
+  const b = base == null ? "" : String(base).trim();
+  if (b) return b;
+  const f = fallback == null ? "" : String(fallback).trim();
+  return f || null;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const token = Deno.env.get("TITLES_SYNC_TOKEN");
@@ -64,10 +72,24 @@ Deno.serve(async (req) => {
       });
       const commission = (pid: string) => Number(pmap.get(pid)?.categories?.commission_percent) || 0;
 
-      // Perfis dos clientes (código ERP, tabela) — por código, user_id ou CPF/CNPJ
-      const { data: profiles } = await admin.from("customer_profiles")
-        .select("user_id, customer_code, cpf_cnpj, seller_code, price_table, ie, transportadora")
-        .eq("store_id", store.id).neq("customer_code", "");
+      // Perfis dos clientes — busca apenas os do lote (evita limite de 1000 linhas).
+      // O cadastro do cliente é a BASE: seus dados prevalecem sobre o que foi gravado no pedido.
+      const codes = new Set<string>(), docs = new Set<string>(), uids = new Set<string>();
+      for (const o of orders as any[]) {
+        const c = o.customer || {};
+        const code = String(c.customerCode || "").trim(); if (code) codes.add(code);
+        const raw = String(c.cpfCnpj || ""); const d = raw.replace(/\D/g, "");
+        if (d) { docs.add(d); docs.add(raw.trim());
+          if (d.length === 14) docs.add(`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`);
+          if (d.length === 11) docs.add(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`); }
+        if (o.user_id) uids.add(o.user_id);
+      }
+      const sel = "user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora";
+      const qs = [] as any[];
+      if (codes.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("customer_code", [...codes]));
+      if (docs.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("cpf_cnpj", [...docs]));
+      if (uids.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("user_id", [...uids]));
+      const profiles = (await Promise.all(qs)).flatMap((r: any) => r.data || []);
       const byCode = new Map<string, any>(), byDoc = new Map<string, any>(), byUser = new Map<string, any>();
       for (const p of profiles || []) {
         const code = String(p.customer_code || "").trim();
@@ -125,17 +147,18 @@ Deno.serve(async (req) => {
         return {
           id: o.id, order_number: o.order_number, created_at: o.created_at,
           customer: {
-            code: c.customerCode || cp?.customer_code || null, name: c.name,
-            cpf_cnpj: (c.cpfCnpj || cp?.cpf_cnpj || "").replace(/\D/g, ""), ie: c.ie || cp?.ie || null,
-            whatsapp: c.whatsapp, cep: c.cep, uf: c.uf, city: c.city, neighborhood: c.neighborhood,
-            address: c.address, number: c.number, complement: c.complement,
+            code: pick(cp?.customer_code, c.customerCode), name: pick(cp?.name, c.name),
+            cpf_cnpj: String(pick(cp?.cpf_cnpj, c.cpfCnpj) || "").replace(/\D/g, ""), ie: pick(cp?.ie, c.ie),
+            whatsapp: pick(cp?.whatsapp, c.whatsapp), cep: pick(cp?.cep, c.cep), uf: pick(cp?.uf, c.uf),
+            city: pick(cp?.city, c.city), neighborhood: pick(cp?.neighborhood, c.neighborhood),
+            address: pick(cp?.address, c.address), number: pick(cp?.number, c.number), complement: pick(cp?.complement, c.complement),
           },
-          seller_code: c.sellerCode || cp?.seller_code || null,
-          price_table: c.priceTable ?? cp?.price_table ?? null,
+          seller_code: pick(cp?.seller_code, c.sellerCode),
+          price_table: cp?.price_table ?? c.priceTable ?? null,
           payment_forma_codigo: c.paymentFormaCodigo || null,
           payment_condicao_codigo: c.paymentCondicaoCodigo || null,
           payment_condicao_descricao: c.paymentCondicaoDescricao || null,
-          transportadora: c.transportadora || cp?.transportadora || null,
+          transportadora: pick(cp?.transportadora, c.transportadora),
           televendas: isTv, televendas_erp_code: tvCode,
           televendas_commission: isTv ? Number((store.settings as any)?.televendasCommission ?? 0.8) : null,
           header_commission: (() => {
