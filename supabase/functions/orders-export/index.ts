@@ -64,10 +64,24 @@ Deno.serve(async (req) => {
       });
       const commission = (pid: string) => Number(pmap.get(pid)?.categories?.commission_percent) || 0;
 
-      // Perfis dos clientes (código ERP, tabela) — por código, user_id ou CPF/CNPJ
-      const { data: profiles } = await admin.from("customer_profiles")
-        .select("user_id, customer_code, cpf_cnpj, seller_code, price_table, ie, transportadora")
-        .eq("store_id", store.id).neq("customer_code", "");
+      // Perfis dos clientes — busca apenas os do lote (evita limite de 1000 linhas).
+      // O cadastro do cliente é a BASE: seus dados prevalecem sobre o que foi gravado no pedido.
+      const codes = new Set<string>(), docs = new Set<string>(), uids = new Set<string>();
+      for (const o of orders as any[]) {
+        const c = o.customer || {};
+        const code = String(c.customerCode || "").trim(); if (code) codes.add(code);
+        const raw = String(c.cpfCnpj || ""); const d = raw.replace(/\D/g, "");
+        if (d) { docs.add(d); docs.add(raw.trim());
+          if (d.length === 14) docs.add(`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`);
+          if (d.length === 11) docs.add(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`); }
+        if (o.user_id) uids.add(o.user_id);
+      }
+      const sel = "user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora";
+      const qs = [] as any[];
+      if (codes.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("customer_code", [...codes]));
+      if (docs.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("cpf_cnpj", [...docs]));
+      if (uids.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("user_id", [...uids]));
+      const profiles = (await Promise.all(qs)).flatMap((r: any) => r.data || []);
       const byCode = new Map<string, any>(), byDoc = new Map<string, any>(), byUser = new Map<string, any>();
       for (const p of profiles || []) {
         const code = String(p.customer_code || "").trim();
