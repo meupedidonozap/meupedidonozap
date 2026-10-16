@@ -305,11 +305,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Reativar produto que voltou para a planilha.
-      if (!product.is_active) {
-        updates.is_active = true;
-        productsReactivated.push(product.code);
-      }
+      // Produto inativado pelo usuário permanece inativo: a sincronização nunca reativa.
 
       if (Object.keys(updates).length > 0) {
         await supabase.from("products").update(updates).eq("id", product.id);
