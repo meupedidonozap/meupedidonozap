@@ -2004,6 +2004,53 @@ export type Database = {
         }
         Relationships: []
       }
+      technical_materials: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_active: boolean
+          media: Json
+          product_ids: string[]
+          sort_order: number
+          store_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          media?: Json
+          product_ids?: string[]
+          sort_order?: number
+          store_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          media?: Json
+          product_ids?: string[]
+          sort_order?: number
+          store_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "technical_materials_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
