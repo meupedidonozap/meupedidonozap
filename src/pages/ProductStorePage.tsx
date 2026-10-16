@@ -352,8 +352,8 @@ export default function ProductStorePage() {
       </Helmet>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card shadow-sm">
-        <div className={store.slug === 'dicolore' ? "container flex flex-col gap-2 py-2 overflow-x-hidden" : "container flex h-16 items-center justify-between gap-4"}>
-          <div className={store.slug === 'dicolore' ? "flex flex-col items-start gap-1.5" : "contents"}>
+        <div className={store.slug === 'dicolore' ? "container flex flex-col gap-2 py-2 overflow-x-hidden lg:h-16 lg:flex-row lg:items-center lg:gap-4 lg:py-0" : "container flex h-16 items-center justify-between gap-4"}>
+          <div className={store.slug === 'dicolore' ? "flex flex-shrink-0 flex-row flex-wrap items-center gap-1.5" : "contents"}>
           {isSellerMode && store.slug === 'dicolore' && (
             <SellerMenu store={store} sellerName={seller.sellerName} />
           )}
