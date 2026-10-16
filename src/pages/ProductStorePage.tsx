@@ -588,6 +588,7 @@ export default function ProductStorePage() {
             </SheetContent>
           </Sheet>
           </div>
+          </div>
         </div>
 
         <div className="container pb-4">
