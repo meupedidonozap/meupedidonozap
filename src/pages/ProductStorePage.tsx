@@ -352,7 +352,8 @@ export default function ProductStorePage() {
       </Helmet>
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card shadow-sm">
-        <div className="container flex h-16 items-center justify-between gap-4">
+        <div className={store.slug === 'dicolore' ? "container flex flex-col gap-2 py-2 overflow-x-hidden" : "container flex h-16 items-center justify-between gap-4"}>
+          <div className={store.slug === 'dicolore' ? "flex flex-col items-start gap-1.5" : "contents"}>
           {isSellerMode && store.slug === 'dicolore' && (
             <SellerMenu store={store} sellerName={seller.sellerName} />
           )}
@@ -387,6 +388,8 @@ export default function ProductStorePage() {
               <Link to={`/${store.slug}/material-tecnico`}>{materialLabel(store.settings)}</Link>
             </Button>
           )}
+          </div>
+          <div className={store.slug === 'dicolore' ? "flex w-full min-w-0 items-center justify-between gap-2" : "contents"}>
           <Link to={`/${store.slug}`} className="min-w-0 flex items-center gap-2">
             {store.logo && (
               <img src={store.logo} alt={store.name} className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
@@ -584,6 +587,7 @@ export default function ProductStorePage() {
               )}
             </SheetContent>
           </Sheet>
+          </div>
           </div>
         </div>
 
