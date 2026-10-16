@@ -85,6 +85,13 @@
       "when": 1791575015907,
       "tag": "0011_find_customer_by_document",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792153571747,
+      "tag": "0012_technical_materials",
+      "breakpoints": true
     }
   ]
 }

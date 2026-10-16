@@ -1,4 +1,5 @@
 import { HelmetProvider } from "react-helmet-async";
+import TechnicalMaterialsPage from './pages/TechnicalMaterialsPage';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="/:slug/titulos" element={<><NoIndex /><CustomerTitlesPage /></>} />
             <Route path="/:slug/notas-fiscais" element={<><NoIndex /><CustomerInvoicesPage /></>} />
             <Route path="/:slug/vendedor/:section?" element={<><NoIndex /><SellerPortalPage /></>} />
+            <Route path="/:slug/material-tecnico" element={<TechnicalMaterialsPage />} />
             <Route path="/:slug/cozinha" element={<><NoIndex /><KitchenPage /></>} />
             <Route path="/:slug/garcom" element={<><NoIndex /><WaiterPage /></>} />
             <Route path="/:slug/redefinir-senha" element={<><NoIndex /><ResetPasswordPage /></>} />

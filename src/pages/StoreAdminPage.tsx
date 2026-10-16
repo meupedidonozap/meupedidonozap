@@ -89,6 +89,8 @@ import { buildRenewalLink } from '@/lib/supportContact';
 import { AlertTriangle, Receipt, FileText, Lock, Pencil, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import TitlesPanel from '@/components/TitlesPanel';
+import TechnicalMaterialsAdminTab from '@/components/TechnicalMaterialsAdminTab';
+import { materialLabel } from '@/hooks/useTechnicalMaterials';
 import InvoicesPanel from '@/components/InvoicesPanel';
 import ChangePasswordCard from '@/components/ChangePasswordCard';
 import { PushNotificationsCard } from '@/components/PushNotificationsCard';
@@ -1215,7 +1217,16 @@ export default function StoreAdminPage() {
             {store.slug === 'dicolore' && isAdmin && (
               <TabsTrigger value="notas" className="gap-2"><FileText className="h-4 w-4" /> Notas Fiscais</TabsTrigger>
             )}
+            {store.slug === 'dicolore' && (isAdmin || permissions?.can_manage_products) && (
+              <TabsTrigger value="material-tecnico" className="gap-2"><FileText className="h-4 w-4" /> {materialLabel(store.settings)}</TabsTrigger>
+            )}
           </TabsList>
+
+          {store.slug === 'dicolore' && (isAdmin || permissions?.can_manage_products) && (
+            <TabsContent value="material-tecnico" className="animate-fade-in">
+              <TechnicalMaterialsAdminTab store={store} products={products as any[]} />
+            </TabsContent>
+          )}
 
           {store.slug === 'dicolore' && isAdmin && (
             <TabsContent value="titulos" className="animate-fade-in">
