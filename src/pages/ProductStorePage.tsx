@@ -38,6 +38,7 @@ import EditingQuoteBanner from '@/components/EditingQuoteBanner';
 import FinancialAlertBanner from '@/components/FinancialAlertBanner';
 import { useEditingQuote } from '@/lib/quoteEditing';
 import SellerMenu from '@/components/SellerMenu';
+import { useTechnicalMaterials, materialLabel } from '@/hooks/useTechnicalMaterials';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
@@ -60,6 +61,8 @@ export default function ProductStorePage() {
   const editingQuote = useEditingQuote(store?.id);
   const { data: categories = [] } = useCategories(store?.id);
   const { data: allProducts = [] } = useProducts(store?.id);
+  const { data: techMaterials = [] } = useTechnicalMaterials(store?.slug === 'dicolore' ? store?.id : undefined);
+  const productsWithMaterial = useMemo(() => new Set(techMaterials.filter(m => m.isActive).flatMap(m => m.productIds)), [techMaterials]);
   const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
   const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
@@ -379,6 +382,11 @@ export default function ProductStorePage() {
               </ScrollArea>
             </SheetContent>
           </Sheet>
+          {store.slug === 'dicolore' && techMaterials.some(m => m.isActive) && (
+            <Button variant="outline" size="sm" asChild className="h-9 rounded-full px-3">
+              <Link to={`/${store.slug}/material-tecnico`}>{materialLabel(store.settings)}</Link>
+            </Button>
+          )}
           <Link to={`/${store.slug}`} className="min-w-0 flex items-center gap-2">
             {store.logo && (
               <img src={store.logo} alt={store.name} className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
@@ -656,6 +664,9 @@ export default function ProductStorePage() {
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
                     <h3 className="font-medium line-clamp-3">{product.name}</h3>
+                    {productsWithMaterial.has(product.id) && (
+                    <Link to={`/${store.slug}/material-tecnico?produto=${product.id}`} className="mt-1 inline-block text-xs font-semibold text-primary underline">Saiba mais</Link>
+                  )}
                     {(() => {
                       const base = resolveProductPrice(product, activePriceTable);
                       const pct = product.hasVariants ? 0 : (itemDiscounts[`${product.id}-`] || 0);
@@ -697,6 +708,9 @@ export default function ProductStorePage() {
                 <CardContent className="p-3">
                   <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
                   <h3 className="text-sm font-medium line-clamp-3">{product.name}</h3>
+                  {productsWithMaterial.has(product.id) && (
+                    <Link to={`/${store.slug}/material-tecnico?produto=${product.id}`} className="mt-1 inline-block text-xs font-semibold text-primary underline">Saiba mais</Link>
+                  )}
                   {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
                     <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
                   )}
