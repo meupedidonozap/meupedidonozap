@@ -1,11 +1,11 @@
-DICOLORE - PACOTE v9 - OF/NF COM PROGRESSO E TEMPO LIMITE
+DICOLORE - PACOTE v11 - OF/NF COM PROGRESSO E TEMPO LIMITE
 
 INSTALAÇÃO
 1. Feche o monitor e qualquer execução antiga do financeiro (Ctrl+C).
 2. Na pasta S:\denis\integration\mpz\automação dicolore, substitua somente:
    atualizar_dicolore.py
    sync_dicolore_financeiro_v5.py
-   O nome v5 foi mantido para não quebrar atalhos; o conteúdo é v9.
+   O nome v5 foi mantido para não quebrar atalhos; o conteúdo é v11.
 3. NÃO altere dicolore.env, importacao.env, credenciais Google ou o integrador.
 
 PRIMEIRO TESTE: SOMENTE O PEDIDO QUE ESTAVA SEM NF
@@ -64,3 +64,7 @@ Testes locais cobrem OF/NF informadas, consulta individual, consultas por dia,
 preservação dos itens, falha de confirmação, timeout e progresso ao vivo.
 Não houve acesso ao servidor ERP do usuário: a leitura real e a atualização
 final na tela precisam ser confirmadas com o primeiro comando acima.
+v11: o monitor não varre mais por data (lento). Ele pede à nuvem a lista de
+pedidos sem OF/NF e consulta cada um pelo código (~7s cada, até 40 por ciclo).
+Pedido que demorar é pulado e tentado no próximo ciclo.
+Manual: python sync_dicolore_financeiro_v5.py --somente-pedidos --pendentes
