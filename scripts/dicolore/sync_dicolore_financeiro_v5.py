@@ -4,6 +4,7 @@ import argparse
 from decimal import Decimal
 from datetime import timedelta
 import base64
+import json
 import os
 import sys
 import time
@@ -93,7 +94,7 @@ def register_safe_temporals(conn):
 def to_json(v):
     if isinstance(v, Decimal):
         return float(v)
-    if isinstance(v, (date, datetime)):
+    if hasattr(v, "isoformat"):  # date, datetime e time
         try:
             return v.isoformat()
         except (ValueError, OverflowError):
@@ -105,7 +106,7 @@ def post(payload, tries=2):
     expected = {"orders": "ordersUpserted", "order_items": "orderItemsSaved"}
     for attempt in range(tries):
         try:
-            response = requests.post(API_URL, json=payload,
+            response = requests.post(API_URL, data=json.dumps(payload, default=str),
                 headers={"x-sync-token": SYNC_TOKEN, "Content-Type": "application/json"},
                 timeout=(10, 45))
             if 400 <= response.status_code < 500:
