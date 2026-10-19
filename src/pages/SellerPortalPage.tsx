@@ -60,7 +60,7 @@ export default function SellerPortalPage() {
     queryKey: ['seller-orders', store?.id, codes.join(',')],
     enabled: !!store?.id && seller.canSell,
     queryFn: async () => {
-      let q = supabase.from('orders').select('id, order_number, customer, total, status, created_at, origem')
+      let q = supabase.from('orders').select('id, order_number, customer, total, status, created_at, origem, erp_order_code')
         .eq('store_id', store!.id).order('created_at', { ascending: false }).range(0, 4999);
       if (codes.length) q = q.in('customer->>sellerCode', codes);
       const { data, error } = await q;
