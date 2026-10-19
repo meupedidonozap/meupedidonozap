@@ -45,7 +45,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
         let q = supabase.from('erp_orders').select('*').eq('store_id', storeId)
           .order('data_emissao', { ascending: false }).range(from, from + 999);
         if (codes) q = q.in('cliente_codigo', codes);
-        else if (term) q = q.or(`codigo.ilike.%${term}%,codigo_importacao.eq.${term},cliente_codigo.eq.${term},nota_fiscal_numero.eq.${term}`);
+        else if (term) q = q.or(`codigo.ilike.%${term}%,codigo_importacao.eq.${term},cliente_codigo.eq.${term},nota_fiscal_numero.ilike.${term}%,ordem_faturamento.eq.${term}`);
         const { data, error } = await q;
         if (error) throw error;
         all.push(...(data || []));
@@ -75,7 +75,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
     const s = term.toLowerCase();
     const pending = localOrders
       .filter((o) => !erpCodes.has(String(o.order_number)) && !(o.erp_order_code && erpCodes.has(String(o.erp_order_code))))
-      .filter((o) => !s || [o.customer?.name, o.customer?.city, o.customer?.customerCode, String(o.order_number)]
+      .filter((o) => !s || [o.customer?.name, o.customer?.city, o.customer?.customerCode, String(o.order_number), o.erp_order_code]
         .some((v) => String(v || '').toLowerCase().includes(s)))
       .map((o) => ({
         id: o.id, _local: true, codigo: o._offline ? 'OFFLINE' : String(o.order_number ?? ''),
