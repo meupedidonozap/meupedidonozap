@@ -80,7 +80,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
       .map((o) => ({
         id: o.id, _local: true, codigo: o._offline ? 'OFFLINE' : String(o.order_number ?? ''),
         cliente_codigo: o.customer?.customerCode || '', data_emissao: o.created_at,
-        valor_total: Number(o.total || 0), status: o.erp_order_code ? 'T' : 'L', _erp: o.erp_order_code || '',
+        valor_total: Number(o.total || 0), status: o.erp_order_code ? 'N' : 'L', _erp: o.erp_order_code || '',
         _name: o.customer?.name, _city: [o.customer?.city, o.customer?.uf].filter(Boolean).join(' - '),
       }));
     return [...pending, ...orders];
@@ -96,7 +96,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <div className="flex flex-wrap gap-3">
-          {(['L', 'T', 'N', 'S', 'F'] as const).map((k) => (
+          {(['L', 'N', 'S', 'F'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1"><span className={`h-2.5 w-2.5 rounded-full ${STATUS[k].cls}`} />{STATUS[k].label}</span>
           ))}
         </div>
