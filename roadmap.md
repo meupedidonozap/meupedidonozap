@@ -1,5 +1,9 @@
 # Roadmap
 
+## Cadastro na transmissão DiColore
+- [ ] Priorizar cadastro pelo código transmitido e testar duplicados
+- [ ] Corrigir dados ausentes do pedido #524 e validar retorno para o integrador
+
 - [ ] Criar e isolar a loja Mabelle com catálogo da DiColore
 - [ ] Aplicar identidade e roteamento por domínio próprio
 - [ ] Implementar cartão e Pix online em ambiente de teste
