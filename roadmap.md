@@ -1,5 +1,10 @@
 # Roadmap
 
+## Cadastro na transmissão DiColore
+- [x] Priorizar cadastro pelo código transmitido e testar duplicados
+- [x] Corrigir dados ausentes do pedido #524 e validar retorno real para o integrador (95773 / vendedor 46 / transportadora 175)
+- [ ] Confirmar gravação do #524 no ERP — aguarda execução do monitor no servidor do usuário
+
 - [ ] Criar e isolar a loja Mabelle com catálogo da DiColore
 - [ ] Aplicar identidade e roteamento por domínio próprio
 - [ ] Implementar cartão e Pix online em ambiente de teste

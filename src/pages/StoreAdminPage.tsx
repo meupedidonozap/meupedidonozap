@@ -99,6 +99,7 @@ import InstallAppCard from '@/components/InstallAppCard';
 import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 import { downloadCustomerXml } from '@/lib/customerXml';
+import { resolveExportProfile } from '../../supabase/functions/_shared/customerExportProfile';
 
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -142,38 +143,13 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 }
 
 
-/**
- * Cadastro do cliente que originou o pedido.
- * Preferência: mesmo usuário > mesmo código de cliente > telefone
- * (desempate pelo cadastro mais completo).
- */
+/** Mesma resolução por código usada na transmissão automática ao ERP. */
 function findOrderProfile(order: any, profiles: any[]): any {
-  const ouid = order?.userId;
-  const code = String(order?.customer?.customerCode || '').trim();
-  const doc = String(order?.customer?.cpfCnpj || '').replace(/\D/g, '');
-  const cleanWa = String(order?.customer?.whatsapp || '').replace(/\D/g, '').slice(-8);
-  const score = (c: any) =>
-    (String(c?.cpfCnpj || '').replace(/\D/g, '') ? 4 : 0) +
-    (String(c?.customerCode || '').trim() ? 2 : 0) +
-    (String(c?.sellerCode || '').trim() ? 1 : 0);
-  const best = (list: any[]) => list.sort((a, b) => score(b) - score(a))[0];
-  if (ouid) {
-    const byUser = profiles.filter((c: any) => c.userId === ouid);
-    if (byUser.length) return best(byUser);
-  }
-  if (code) {
-    const byCode = profiles.filter((c: any) => String(c.customerCode || '').trim() === code);
-    if (byCode.length) return best(byCode);
-  }
-  if (doc) {
-    const byDoc = profiles.filter((c: any) => String(c.cpfCnpj || '').replace(/\D/g, '') === doc);
-    if (byDoc.length) return best(byDoc);
-  }
-  if (cleanWa) {
-    const byPhone = profiles.filter((c: any) => String(c.whatsapp || '').replace(/\D/g, '').endsWith(cleanWa));
-    if (byPhone.length) return best(byPhone);
-  }
-  return undefined;
+  const resolved = resolveExportProfile(profiles.map(p => ({
+    id: p.id, user_id: p.userId, customer_code: p.customerCode,
+    cpf_cnpj: p.cpfCnpj, seller_code: p.sellerCode, transportadora: p.transportadora,
+  })), order?.customer || {}, order?.userId);
+  return resolved ? profiles.find(p => p.id === resolved.id) : undefined;
 }
 
 
@@ -433,11 +409,11 @@ export default function StoreAdminPage() {
     const cp: any = findOrderProfile(order, customerProfiles as any[]);
     return {
       cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-      sellerCode: cp?.sellerCode || '',
+      sellerCode: cp?.sellerCode || order.customer.sellerCode || '',
       isTelevendas,
       kitMap,
-      transportadora: cp?.transportadora || '',
-      ie: cp?.ie || '',
+      transportadora: cp?.transportadora || order.customer.transportadora || '',
+      ie: cp?.ie || order.customer.ie || '',
       priceTable: store?.slug === 'dicoloresenses'
         ? 11
         : resolveStorePriceTable(store?.slug, (order.customer as any)?.priceTable ?? cp?.priceTable),
