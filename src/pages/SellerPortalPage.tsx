@@ -28,6 +28,7 @@ import { setEditingQuote } from '@/lib/quoteEditing';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
 import ErpOrdersPanel from '@/components/ErpOrdersPanel';
+import SellerPendingOrderDialog from '@/components/SellerPendingOrderDialog';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -52,6 +53,7 @@ export default function SellerPortalPage() {
   const { selectCustomer } = useSellerContext();
   const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [search, setSearch] = useState('');
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   const codes = seller.isAdmin ? [] : seller.sellerCodes;
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
@@ -248,7 +250,10 @@ export default function SellerPortalPage() {
                 </TabsContent>
                 <TabsContent value="pedidos" className="space-y-2">
                   {store.slug === 'dicolore' ? (
-                    <ErpOrdersPanel storeId={store.id} localOrders={allOrders.filter((o: any) => !['orcamento', 'cancelado'].includes(o.status))} />
+                    <>
+                      <ErpOrdersPanel storeId={store.id} localOrders={allOrders.filter((o: any) => !['orcamento', 'cancelado'].includes(o.status))} onLocalClick={setPendingOrderId} />
+                      <SellerPendingOrderDialog orderId={pendingOrderId} store={store} onClose={() => setPendingOrderId(null)} />
+                    </>
                   ) : (
                     <>
                       <p className="text-right text-xs text-muted-foreground">{realOrders.length} Pedidos<br />{formatCurrency(sum(realOrders))}</p>
