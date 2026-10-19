@@ -97,12 +97,47 @@ Deno.serve(async (req) => {
   if (!token || req.headers.get("x-sync-token") !== token) return json({ error: "Não autorizado" }, 401);
 
   let body;
+  let raw: any;
   try {
-    const parsed = BodySchema.safeParse(await req.json());
-    if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
-    body = parsed.data;
+    raw = await req.json();
   } catch {
     return json({ error: "JSON inválido" }, 400);
+  }
+
+  // Lista de códigos ERP que ainda precisam de OF/NF (monitor consulta por código, rápido).
+  if (raw?.action === "pending_order_codes" && typeof raw.store_slug === "string") {
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: st } = await sb.from("stores").select("id").eq("slug", raw.store_slug).maybeSingle();
+    if (!st) return json({ error: "Loja não encontrada" }, 404);
+    const days = Math.min(Math.max(Number(raw.days) || 30, 1), 120);
+    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const codes = new Set<string>();
+    const { data: pend, error: e1 } = await sb.from("erp_orders")
+      .select("codigo_importacao, codigo").eq("store_id", st.id)
+      .or("nota_fiscal_numero.is.null,status.neq.F").gte("data_emissao", since)
+      .order("data_emissao", { ascending: false }).limit(500);
+    if (e1) return json({ error: e1.message }, 500);
+    for (const r of pend || []) { const c = String(r.codigo_importacao || r.codigo || "").trim(); if (/^\d+$/.test(c)) codes.add(c); }
+    const { data: sent, error: e2 } = await sb.from("orders")
+      .select("erp_order_code").eq("store_id", st.id).not("erp_order_code", "is", null)
+      .gte("erp_sent_at", since).limit(500);
+    if (e2) return json({ error: e2.message }, 500);
+    const finished = new Set<string>();
+    const sentCodes = (sent || []).map((r: any) => String(r.erp_order_code || "").trim()).filter((c) => /^\d+$/.test(c));
+    if (sentCodes.length) {
+      const { data: done } = await sb.from("erp_orders").select("codigo_importacao")
+        .eq("store_id", st.id).eq("status", "F").not("nota_fiscal_numero", "is", null)
+        .in("codigo_importacao", sentCodes);
+      for (const d of done || []) finished.add(String(d.codigo_importacao));
+    }
+    for (const c of sentCodes) if (!finished.has(c)) codes.add(c);
+    return json({ ok: true, codes: [...codes] });
+  }
+
+  {
+    const parsed = BodySchema.safeParse(raw);
+    if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
+    body = parsed.data;
   }
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
