@@ -11,19 +11,20 @@ type Props = {
   storeId: string;
   /** Pedidos criados aqui que ainda não voltaram do ERP */
   localOrders?: any[];
+  onLocalClick?: (id: string) => void;
 };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   N: { label: 'Sem OF e sem NF', cls: 'bg-destructive' },
   S: { label: 'Com OF e sem NF', cls: 'bg-primary' },
   F: { label: 'Com OF e com NF', cls: 'bg-accent' },
-  L: { label: 'Aguardando integração', cls: 'bg-muted-foreground' },
+  L: { label: 'Pendente (toque para editar/liberar)', cls: 'bg-muted-foreground' },
 };
 
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
 const clean = (s: string) => s.replace(/[%*(),[\]]/g, '').trim();
 
-export default function ErpOrdersPanel({ storeId, localOrders = [] }: Props) {
+export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick }: Props) {
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [open, setOpen] = useState<any | null>(null);
@@ -95,7 +96,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [] }: Props) {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <div className="flex flex-wrap gap-3">
-          {(['N', 'S', 'F'] as const).map((k) => (
+          {(['L', 'N', 'S', 'F'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1"><span className={`h-2.5 w-2.5 rounded-full ${STATUS[k].cls}`} />{STATUS[k].label}</span>
           ))}
         </div>
@@ -110,7 +111,8 @@ export default function ErpOrdersPanel({ storeId, localOrders = [] }: Props) {
         const c = (clients as any)[String(o.cliente_codigo).trim()];
         const st = STATUS[o.status] || STATUS.N;
         return (
-          <Card key={o.id} className={o._local ? '' : 'cursor-pointer hover:bg-muted/40'} onClick={() => !o._local && setOpen({ ...o, _client: c })}>
+          <Card key={o.id} className={o._local && (o.codigo === 'OFFLINE' || !onLocalClick) ? '' : 'cursor-pointer hover:bg-muted/40'}
+            onClick={() => { if (!o._local) setOpen({ ...o, _client: c }); else if (o.codigo !== 'OFFLINE') onLocalClick?.(o.id); }}>
             <CardContent className="flex justify-between gap-3 p-4">
               <div className="min-w-0 text-sm">
                 <p className="font-semibold uppercase">{c?.name || o._name || `Cliente ${o.cliente_codigo}`}</p>

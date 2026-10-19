@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Order, CustomerInfo, CartItem, PaymentMethod, DeliveryShift, OrderStatus } from '@/types';
 
-function mapOrder(row: any): Order {
+export function mapOrder(row: any): Order {
   return {
     id: row.id,
     storeId: row.store_id,
