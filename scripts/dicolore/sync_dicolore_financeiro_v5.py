@@ -131,6 +131,9 @@ def parse_args(argv=None):
     parser.add_argument("--somente-pedidos", action="store_true")
     parser.add_argument("--dias", type=int, default=int(os.getenv("PEDIDOS_DIAS", "15")))
     parser.add_argument("--pedido", action="append", help="Código ERP; pode repetir. Ignora --dias.")
+    parser.add_argument("--pendentes", action="store_true",
+                        help="Busca na nuvem os códigos sem OF/NF e consulta cada um (rápido).")
+    parser.add_argument("--max-pendentes", type=int, default=int(os.getenv("PEDIDOS_MAX_PENDENTES", "40")))
     parser.add_argument("--com-itens", action="store_true", help="Atualiza itens após cada cabeçalho (mais lento).")
     parser.add_argument("--timeout-sql", type=int, default=30, help="Limite por consulta, em segundos.")
     args = parser.parse_args(argv)
@@ -145,7 +148,7 @@ def main():
     args = parse_args()
     if not SYNC_TOKEN or not DB["dbname"] or not DB["user"]:
         raise RuntimeError("Configuração incompleta: confira banco e token nos arquivos .env existentes.")
-    log("v9: conectando ao ERP (limite de conexão: 15s)...")
+    log("v11: conectando ao ERP (limite de conexão: 15s)...")
     config = dict(DB)
     config["options"] = ("-c default_transaction_read_only=on "
                          f"-c statement_timeout={args.timeout_sql * 1000} -c lock_timeout=5000")
@@ -250,8 +253,27 @@ def query_windows(args, today=None):
                         "AND data_emissao < %s"), (day, day + timedelta(days=1))
 
 
+def fetch_pending_codes(limit, days=30):
+    response = requests.post(API_URL, data=json.dumps({"store_slug": STORE_SLUG, "action": "pending_order_codes",
+                             "days": days}), headers={"x-sync-token": SYNC_TOKEN,
+                             "Content-Type": "application/json"}, timeout=(10, 45))
+    response.raise_for_status()
+    result = response.json()
+    if result.get("ok") is not True:
+        raise RuntimeError("A nuvem não retornou a lista de pedidos pendentes.")
+    return [str(c) for c in result.get("codes", []) if str(c).isdigit()][:limit]
+
+
 def sync_pedidos(conn, cur, args):
     total = 0
+    if args.pendentes and not args.pedido:
+        codes = fetch_pending_codes(args.max_pendentes)
+        log(f"v11: {len(codes)} pedidos sem OF/NF a consultar por código.")
+        if not codes:
+            log("CONCLUÍDO: nenhum pedido pendente de OF/NF.")
+            return
+        args.pedido = codes
+        args.pular_falhas = True
     for label, sql, params in query_windows(args):
         log(f"Lendo {label}: vw_mpz_pedido (limite {args.timeout_sql}s)...")
         started = time.monotonic()
@@ -259,11 +281,17 @@ def sync_pedidos(conn, cur, args):
             cur.execute(sql, params)
             orders = [normalize_order(row) for row in cur.fetchall()]
         except psycopg2.errors.QueryCanceled:
+            if getattr(args, "pular_falhas", False):
+                log(f"{label}: excedeu {args.timeout_sql}s; pulado, tenta no próximo ciclo.")
+                continue
             raise RuntimeError(f"Consulta de {label} excedeu {args.timeout_sql}s. "
                                "Dias já confirmados foram preservados. Teste --pedido 722199; "
                                "se também expirar, a consulta/view precisa de ajuste no servidor ERP.") from None
         log(f"{label}: {len(orders)} pedidos lidos em {time.monotonic() - started:.1f}s.")
         if not orders:
+            if getattr(args, "pular_falhas", False):
+                log(f"{label}: não encontrado na view; pulado.")
+                continue
             if args.pedido:
                 raise RuntimeError(f"{label} não encontrado na view; nenhuma confirmação para este pedido.")
             continue
