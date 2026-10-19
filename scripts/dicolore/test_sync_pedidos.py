@@ -90,3 +90,8 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+def test_to_json_time_field():
+    import datetime as _dt
+    import sync_dicolore_financeiro_v5 as m
+    assert m.to_json(_dt.time(14, 30, 5)) == "14:30:05"
