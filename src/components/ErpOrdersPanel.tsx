@@ -19,6 +19,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   S: { label: 'Com OF e sem NF', cls: 'bg-primary' },
   F: { label: 'Com OF e com NF', cls: 'bg-accent' },
   L: { label: 'Pendente (toque para editar/liberar)', cls: 'bg-muted-foreground' },
+  T: { label: 'Transmitido ao ERP (aguardando OF)', cls: 'bg-secondary-foreground' },
 };
 
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
@@ -71,16 +72,16 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
   });
 
   const rows = useMemo(() => {
-    const erpCodes = new Set(orders.map((o: any) => String(o.codigo)));
+    const erpCodes = new Set(orders.flatMap((o: any) => [String(o.codigo), String(o.codigo_importacao)]));
     const s = term.toLowerCase();
     const pending = localOrders
-      .filter((o) => !erpCodes.has(String(o.order_number)))
+      .filter((o) => !erpCodes.has(String(o.order_number)) && !(o.erp_order_code && erpCodes.has(String(o.erp_order_code))))
       .filter((o) => !s || [o.customer?.name, o.customer?.city, o.customer?.customerCode, String(o.order_number)]
         .some((v) => String(v || '').toLowerCase().includes(s)))
       .map((o) => ({
         id: o.id, _local: true, codigo: o._offline ? 'OFFLINE' : String(o.order_number ?? ''),
         cliente_codigo: o.customer?.customerCode || '', data_emissao: o.created_at,
-        valor_total: Number(o.total || 0), status: 'L',
+        valor_total: Number(o.total || 0), status: o.erp_order_code ? 'T' : 'L', _erp: o.erp_order_code || '',
         _name: o.customer?.name, _city: [o.customer?.city, o.customer?.uf].filter(Boolean).join(' - '),
       }));
     return [...pending, ...orders];
@@ -96,7 +97,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <div className="flex flex-wrap gap-3">
-          {(['L', 'N', 'S', 'F'] as const).map((k) => (
+          {(['L', 'T', 'N', 'S', 'F'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1"><span className={`h-2.5 w-2.5 rounded-full ${STATUS[k].cls}`} />{STATUS[k].label}</span>
           ))}
         </div>
@@ -117,7 +118,10 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
               <div className="min-w-0 text-sm">
                 <p className="font-semibold uppercase">{c?.name || o._name || `Cliente ${o.cliente_codigo}`}</p>
                 <p className="text-muted-foreground">{c ? [c.city, c.uf].filter(Boolean).join(' - ') : o._city}</p>
-                <p className="text-muted-foreground">Pedido: {o.codigo} • Cliente {o.cliente_codigo}</p>
+                <p className="text-muted-foreground">{o._local
+                  ? <>Pedido #{o.codigo}{o._erp && <b className="text-primary"> • ERP {o._erp}</b>}</>
+                  : <>Pedido ERP: <b className="text-foreground">{o.codigo_importacao || o.codigo}</b></>} • Cliente {o.cliente_codigo}</p>
+                {!o._local && o.ordem_faturamento && <p className="text-xs text-muted-foreground">OF {o.ordem_faturamento}</p>}
                 <p className="text-muted-foreground">{fmtDate(o.data_emissao)}</p>
               </div>
               <div className="flex shrink-0 flex-col items-end justify-between gap-1">
@@ -152,14 +156,14 @@ function OrderDetail({ order, onClose }: { order: any | null; onClose: () => voi
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         {order && (
           <>
-            <DialogHeader><DialogTitle>Pedido {order.codigo}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Pedido ERP {order.codigo_importacao || order.codigo}</DialogTitle></DialogHeader>
             <div className="grid gap-1 text-sm sm:grid-cols-2">
               <p><b>Cliente:</b> {order._client?.name || '-'} ({order.cliente_codigo})</p>
               <p><b>Emissão:</b> {fmtDate(order.data_emissao)}</p>
               <p><b>OF:</b> {order.ordem_faturamento || '—'}</p>
               <p><b>NF:</b> {order.nota_fiscal_numero || '—'}{order.data_faturamento ? ` (${fmtDate(order.data_faturamento)})` : ''}</p>
               <p className="flex items-center gap-2"><b>Status:</b> <span className={`h-2.5 w-2.5 rounded-full ${st!.cls}`} />{st!.label}</p>
-              <p><b>Pedido ERP:</b> {order.codigo_importacao}</p>
+              <p><b>Referência:</b> {order.codigo}</p>
               <p><b>Total:</b> {formatCurrency(Number(order.valor_total))}</p>
               {Number(order.valor_faturado) > 0 && <p><b>Faturado:</b> {formatCurrency(Number(order.valor_faturado))}</p>}
             </div>
