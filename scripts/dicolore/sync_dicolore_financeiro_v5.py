@@ -261,7 +261,11 @@ def fetch_pending_codes(limit, days=30):
     result = response.json()
     if result.get("ok") is not True:
         raise RuntimeError("A nuvem não retornou a lista de pedidos pendentes.")
-    return [str(c) for c in result.get("codes", []) if str(c).isdigit()][:limit]
+    codes = [str(c) for c in result.get("codes", []) if str(c).isdigit()]
+    # Metade: os mais recentes; metade: sorteio entre os antigos, para todos serem atualizados com o tempo.
+    head, rest = codes[:limit // 2], codes[limit // 2:]
+    import random
+    return head + random.sample(rest, min(len(rest), limit - len(head)))
 
 
 def sync_pedidos(conn, cur, args):
