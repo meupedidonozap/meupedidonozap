@@ -3,6 +3,7 @@
 // Autenticação: header x-sync-token = TITLES_SYNC_TOKEN.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { resolveExportProfile } from "../_shared/customerExportProfile.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -84,20 +85,14 @@ Deno.serve(async (req) => {
           if (d.length === 11) docs.add(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`); }
         if (o.user_id) uids.add(o.user_id);
       }
-      const sel = "user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora";
+      const sel = "id, updated_at, user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora";
       const qs = [] as any[];
       if (codes.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("customer_code", [...codes]));
       if (docs.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("cpf_cnpj", [...docs]));
       if (uids.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("user_id", [...uids]));
-      const profiles = (await Promise.all(qs)).flatMap((r: any) => r.data || []);
-      const byCode = new Map<string, any>(), byDoc = new Map<string, any>(), byUser = new Map<string, any>();
-      for (const p of profiles || []) {
-        const code = String(p.customer_code || "").trim();
-        if (code) byCode.set(code, p);
-        const d = String(p.cpf_cnpj || "").replace(/\D/g, "");
-        if (d.length === 11 || d.length === 14) byDoc.set(d, p);
-        if (p.user_id) byUser.set(p.user_id, p);
-      }
+      const results = await Promise.all(qs);
+      for (const result of results) if (result.error) throw result.error;
+      const profiles = results.flatMap((r: any) => r.data || []);
 
       // Televendas por nome (fallback quando o pedido não gravou o código)
       const { data: tvs } = await admin.from("store_users").select("name, erp_code")
@@ -105,9 +100,7 @@ Deno.serve(async (req) => {
 
       const out = orders.map((o: any) => {
         const c = o.customer || {};
-        const cp = byCode.get(String(c.customerCode || "").trim())
-          || byDoc.get(String(c.cpfCnpj || "").replace(/\D/g, ""))
-          || (o.user_id ? byUser.get(o.user_id) : undefined);
+        const cp = resolveExportProfile(profiles, c, o.user_id);
         const lines: any[] = [];
         for (const it of o.items || []) {
           const disc = Number(it.discountPercent) || 0;
