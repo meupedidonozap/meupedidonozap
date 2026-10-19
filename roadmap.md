@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Correção do monitor OF/NF v9
-- [ ] Preparar sincronização por dia, pedido individual, limites de tempo e atualização sem itens
-- [ ] Exibir progresso ao vivo no monitor e validar com testes automatizados
-- [ ] Entregar pacote de substituição e instruções; execução real depende do servidor ERP do usuário
+- [x] Preparar sincronização por dia, pedido individual, limites de tempo e atualização sem itens
+- [x] Exibir progresso ao vivo no monitor e validar com seis testes automatizados
+- [x] Entregar pacote de substituição e instruções
+- [ ] Confirmar leitura do pedido 722199 e OF/NF na tela — depende de executar o pacote no servidor ERP do usuário
 
 ## Cadastro na transmissão DiColore
 - [x] Priorizar cadastro pelo código transmitido e testar duplicados
