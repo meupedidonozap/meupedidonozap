@@ -1,0 +1,66 @@
+DICOLORE - PACOTE v9 - OF/NF COM PROGRESSO E TEMPO LIMITE
+
+INSTALAÇÃO
+1. Feche o monitor e qualquer execução antiga do financeiro (Ctrl+C).
+2. Na pasta S:\denis\integration\mpz\automação dicolore, substitua somente:
+   atualizar_dicolore.py
+   sync_dicolore_financeiro_v5.py
+   O nome v5 foi mantido para não quebrar atalhos; o conteúdo é v9.
+3. NÃO altere dicolore.env, importacao.env, credenciais Google ou o integrador.
+
+PRIMEIRO TESTE: SOMENTE O PEDIDO QUE ESTAVA SEM NF
+Abra o CMD e execute:
+cd /d "S:\denis\integration\mpz\automação dicolore"
+python sync_dicolore_financeiro_v5.py --somente-pedidos --pedido 722199
+
+O código vem de codigo_importacao, não do número do site (#517 etc.).
+O programa lê a vw_mpz_pedido, envia o cabeçalho completo e exige confirmação
+de gravação. Os valores de OF/NF são os retornados pelo ERP, sem inventá-los.
+Se a view continuar com os valores informados, a saída será:
+ERP 722199: OF 236784 | NF 209490/55 | status F
+Depois de "gravados e confirmados", atualize a página e reabra o pedido.
+
+PARA O PEDIDO ERP 98850
+python sync_dicolore_financeiro_v5.py --somente-pedidos --pedido 98850
+
+ATUALIZAR OS PEDIDOS RECENTES
+python sync_dicolore_financeiro_v5.py --somente-pedidos --dias 15
+Depois, abra o monitor pelo atalho de sempre.
+
+HISTÓRICO MAIS ANTIGO
+python sync_dicolore_financeiro_v5.py --somente-pedidos --dias 180
+Esse comando é manual e pode demorar: confirma um dia por vez, mais recente
+primeiro. A janela padrão é 15 dias (ou PEDIDOS_DIAS no ambiente existente).
+Pedidos antigos fora dessa janela continuam salvos, mas só são atualizados
+com --dias maior ou --pedido; nada do histórico é apagado.
+
+ITENS (OPCIONAL, MAIS LENTO)
+python sync_dicolore_financeiro_v5.py --somente-pedidos --pedido 722199 --com-itens
+Sem --com-itens, não há consulta à vw_mpz_pedido_item nem alteração dos itens.
+Com --com-itens, usa o comportamento existente de substituição dos itens.
+
+O QUE MUDOU
+- Sem consulta de 180 dias de uma vez; cada dia é enviado antes do seguinte.
+- --pedido consulta o código ERP diretamente e ignora o corte de data.
+- Consulta limitada a 30 segundos; conexão limitada a 15 segundos.
+- Pode ajustar manualmente o limite: acrescente --timeout-sql 60.
+- Mensagens antes de consultar e enviar; confirmação explícita depois.
+- O monitor mostra a saída ao vivo, em vez de esconder por até 15 minutos.
+- OF/NF roda em segundo plano com limite total padrão de 240 segundos.
+  MONITOR_TIMEOUT_STATUS_PEDIDOS no ambiente pode ajustar esse limite.
+- Etapas já confirmadas permanecem gravadas se uma etapa seguinte falhar.
+- O ERP é acessado somente para leitura; nenhuma view ou tabela é alterada.
+- Nenhuma regra de acesso de administrador/vendedor foi alterada.
+
+SE EXPIRAR O TEMPO
+O programa encerra com erro indicando a consulta; não declara sucesso.
+Envie a saída do teste --pedido, sem enviar senhas ou arquivos .env.
+Se até um pedido individual exceder o limite, será necessário analisar a
+consulta/view no servidor ERP. Este pacote não garante corrigir lentidão
+interna do ERP, permissões ausentes ou problemas de rede.
+
+VALIDAÇÃO
+Testes locais cobrem OF/NF informadas, consulta individual, consultas por dia,
+preservação dos itens, falha de confirmação, timeout e progresso ao vivo.
+Não houve acesso ao servidor ERP do usuário: a leitura real e a atualização
+final na tela precisam ser confirmadas com o primeiro comando acima.
