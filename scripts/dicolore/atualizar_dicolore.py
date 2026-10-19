@@ -171,13 +171,13 @@ def sincronizar_status_pedidos() -> bool:
             lines.put(None)
     try:
         process = subprocess.Popen(
-            [sys.executable, "-u", str(SYNC_PEDIDOS_ERP), "--somente-pedidos"],
+            [sys.executable, "-u", str(SYNC_PEDIDOS_ERP), "--somente-pedidos", "--pendentes"],
             cwd=str(_BASE), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, encoding="utf-8", errors="replace", bufsize=1)
         if process.stdout is None:
             raise RuntimeError("Não foi possível ler o progresso.")
         threading.Thread(target=read_output, args=(process.stdout,), daemon=True).start()
-        deadline = time.monotonic() + max(30, _env_int("MONITOR_TIMEOUT_STATUS_PEDIDOS", 240))
+        deadline = time.monotonic() + max(30, _env_int("MONITOR_TIMEOUT_STATUS_PEDIDOS", 600))
         while True:
             if time.monotonic() >= deadline:
                 log.error("[status-pedidos] Limite do ciclo atingido; etapas já confirmadas preservadas. "

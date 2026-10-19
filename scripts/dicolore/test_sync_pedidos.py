@@ -20,6 +20,22 @@ spec.loader.exec_module(sync)
 
 
 class SyncTests(unittest.TestCase):
+    def test_pending_mode_queries_by_code_and_skips_timeouts(self):
+        args = sync.parse_args(['--somente-pedidos', '--pendentes'])
+        class Canceled(Exception): pass
+        calls = []
+        class Cursor:
+            def execute(self, sql, params):
+                calls.append((sql, params))
+                if params == ('111',): raise sync.psycopg2.errors.QueryCanceled()
+            def fetchall(self): return [dict(codigo_importacao='722199', cliente_codigo='1', status='F',
+                                             ordem_faturamento=1, nota_fiscal_numero='2')]
+        with patch.object(sync, 'fetch_pending_codes', return_value=['111', '722199']), \
+             patch.object(sync, 'post', return_value={'ordersUpserted': 1}) as post:
+            sync.sync_pedidos(None, Cursor(), args)
+        self.assertTrue(all('data_emissao' not in c[0] for c in calls))
+        self.assertEqual(post.call_count, 1)
+
     def test_explicit_order_ignores_window(self):
         args = sync.parse_args(['--pedido', '722199', '--pedido', '98850', '--dias', '1'])
         queries = list(sync.query_windows(args, date(2026, 10, 19)))
