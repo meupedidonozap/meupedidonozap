@@ -15,11 +15,10 @@ type Props = {
 };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  N: { label: 'Sem OF e sem NF', cls: 'bg-destructive' },
-  S: { label: 'Com OF e sem NF', cls: 'bg-primary' },
-  F: { label: 'Com OF e com NF', cls: 'bg-accent' },
-  L: { label: 'Pendente (toque para editar/liberar)', cls: 'bg-muted-foreground' },
-  T: { label: 'Transmitido ao ERP (aguardando OF)', cls: 'bg-secondary-foreground' },
+  N: { label: 'Sem OF e sem NF', cls: 'bg-red-500' },
+  S: { label: 'Com OF e sem NF', cls: 'bg-blue-500' },
+  F: { label: 'Com OF e com NF', cls: 'bg-emerald-500' },
+  L: { label: 'Pendente (toque para editar/liberar)', cls: 'bg-gray-400' },
 };
 
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
