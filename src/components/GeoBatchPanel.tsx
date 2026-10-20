@@ -13,18 +13,25 @@ const LABELS: Record<string, string> = { incompleto: 'Cadastro incompleto', nao_
 
 async function call(storeId: string, action: string) {
   const { data, error } = await supabase.functions.invoke('geocode-batch', { body: { storeId, action } });
-  if (error) throw error;
+  if (error) {
+    let msg = error.message;
+    try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  if ((data as any)?.error) throw new Error((data as any).error);
   return data as Stats & { processed?: number };
 }
 
 export default function GeoBatchPanel({ storeId }: { storeId: string }) {
   const qc = useQueryClient();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const stop = useRef(false);
   const [filter, setFilter] = useState('incompleto');
 
-  useEffect(() => { call(storeId, 'stats').then(setStats).catch(() => {}); }, [storeId]);
+  const loadStats = () => call(storeId, 'stats').then((s) => { setStats(s); setLoadError(null); }).catch((e) => setLoadError((e as Error).message));
+  useEffect(() => { loadStats(); }, [storeId]);
 
   const { data: rows = [], refetch } = useQuery({
     queryKey: ['geo-failures', storeId, filter],
@@ -51,7 +58,10 @@ export default function GeoBatchPanel({ storeId }: { storeId: string }) {
     qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
   };
 
-  const retry = async () => { setStats(await call(storeId, 'retry')); refetch(); };
+  const retry = async () => {
+    try { setStats(await call(storeId, 'retry')); refetch(); }
+    catch (e) { toast.error('Falha: ' + (e as Error).message); }
+  };
 
   return (
     <div className="space-y-3">
