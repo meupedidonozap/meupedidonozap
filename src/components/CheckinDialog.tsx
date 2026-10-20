@@ -255,7 +255,7 @@ export default function CheckinDialog({
   }
 
   async function geocodeBatch() {
-    const pending = customers.filter(c => c.geo_lat == null || c.geo_lng == null).slice(0, 50);
+    const pending = customers.filter(c => c.geo_lat == null || c.geo_lng == null);
     if (pending.length === 0) { toast.info('Todos os clientes já estão no mapa.'); return; }
     setGeoBatch({ done: 0, total: pending.length, ok: 0 });
     let ok = 0;
@@ -266,6 +266,7 @@ export default function CheckinDialog({
         if (g) { await saveCustomerGeo(c.id, g.lat, g.lng); ok++; }
       } catch { /* segue */ }
       setGeoBatch({ done: i + 1, total: pending.length, ok });
+      if ((i + 1) % 20 === 0) qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
     }
     qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
     toast.success(`${ok} de ${pending.length} clientes localizados.`);
@@ -341,14 +342,14 @@ export default function CheckinDialog({
                 </Button>
                 {view === 'mapa' && (
                   <Button size="sm" variant="outline" onClick={geocodeBatch} disabled={!!geoBatch}>
-                    {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : 'Localizar clientes sem ponto (50)'}
+                    {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : `Localizar ${customers.filter(c => c.geo_lat == null).length} clientes sem ponto`}
                   </Button>
                 )}
               </div>
 
               {view === 'mapa' && (
                 <div className="flex-1 min-h-[360px] rounded-md border overflow-hidden flex flex-col">
-                  <div className="flex-1 min-h-[320px]">
+                  <div className="h-[55vh] min-h-[320px]">
                     <CustomersMap
                       points={mapPoints}
                       renderActions={(id) => {

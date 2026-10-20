@@ -22,9 +22,18 @@ const COLORS: Record<MapPoint['status'], string> = {
 function FitBounds({ points }: { points: MapPoint[] }) {
   const map = useMap();
   useEffect(() => {
-    if (points.length === 0) return;
-    const b = L.latLngBounds(points.map(p => [p.lat, p.lng] as [number, number]));
-    map.fitBounds(b, { padding: [30, 30], maxZoom: 15 });
+    // Dentro de janelas (dialog) o mapa nasce com tamanho 0: recalcula.
+    const fix = () => {
+      map.invalidateSize();
+      if (points.length === 0) return;
+      const b = L.latLngBounds(points.map(p => [p.lat, p.lng] as [number, number]));
+      map.fitBounds(b, { padding: [30, 30], maxZoom: 15 });
+    };
+    fix();
+    const timers = [150, 400, 900].map(ms => setTimeout(fix, ms));
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(map.getContainer());
+    return () => { timers.forEach(clearTimeout); ro.disconnect(); };
   }, [points, map]);
   return null;
 }
@@ -33,7 +42,7 @@ export default function CustomersMap({
   points, renderActions,
 }: { points: MapPoint[]; renderActions?: (id: string) => React.ReactNode }) {
   return (
-    <MapContainer center={[-27.1, -48.9]} zoom={8} className="h-full w-full rounded-md z-0" scrollWheelZoom>
+    <MapContainer center={[-27.1, -48.9]} zoom={8} style={{ height: '100%', width: '100%', minHeight: 320 }} className="rounded-md z-0" scrollWheelZoom>
       <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <FitBounds points={points} />
       {points.map(p => (
