@@ -17,7 +17,9 @@ import { haversineMeters, getCurrentPosition, GeoError, type GeoErrorKind } from
 import {
   useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo,
   DEFAULT_VISIT_REASONS, formatDuration, type CustomerVisit,
+  OUT_OF_RANGE_REASONS, logGeoChange, reverseGeocode,
 } from '@/hooks/useCustomerVisits';
+import CustomersMap, { type MapPoint } from '@/components/CustomersMap';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 
 interface CustomerRow {
@@ -91,6 +93,13 @@ export default function CheckinDialog({
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [gpsHelp, setGpsHelp] = useState<{ kind: GeoErrorKind; customer: CustomerRow } | null>(null);
+  const [view, setView] = useState<'lista' | 'mapa'>('lista');
+  const [outRange, setOutRange] = useState<{ customer: CustomerRow; my: { lat: number; lng: number }; geo: { lat: number; lng: number }; dist: number } | null>(null);
+  const [oorReason, setOorReason] = useState('');
+  const [oorNotes, setOorNotes] = useState('');
+  const [oorUpdateGeo, setOorUpdateGeo] = useState(true);
+  const [oorSaving, setOorSaving] = useState(false);
+  const [geoBatch, setGeoBatch] = useState<{ done: number; total: number; ok: number } | null>(null);
 
   const { data: customers = [], isLoading } = useWalletCustomers(storeId, sellerCodes);
   const sinceIso = useMemo(
@@ -138,6 +147,14 @@ export default function CheckinDialog({
     }).slice(0, 400);
   }, [customers, onlyUnvisited, visitedInPeriod, search]);
 
+  const mapPoints = useMemo<MapPoint[]>(() => filtered
+    .filter(c => c.geo_lat != null && c.geo_lng != null)
+    .map(c => ({
+      id: c.id, lat: Number(c.geo_lat), lng: Number(c.geo_lng), title: c.name,
+      subtitle: [c.customer_code ? `#${c.customer_code}` : '', [c.city, c.uf].filter(Boolean).join('/')].filter(Boolean).join(' • '),
+      status: openVisitByCustomer.has(c.id) ? 'open' : visitedInPeriod.has(c.id) ? 'visited' : 'pending',
+    })), [filtered, openVisitByCustomer, visitedInPeriod]);
+
   const periodLabel = useMemo(() => {
     const from = new Date(Date.now() - unvisitedPeriodDays * 24 * 3600 * 1000);
     return `Não atendido de ${from.toLocaleDateString('pt-BR')} até ${new Date().toLocaleDateString('pt-BR')}`;
@@ -170,44 +187,89 @@ export default function CheckinDialog({
 
       const dist = haversineMeters(my.lat, my.lng, geo.lat, geo.lng);
       if (dist > maxDistanceMeters) {
-        toast.warning(
-          `Atenção: você está a ${Math.round(dist)}m do cliente (recomendado até ${maxDistanceMeters}m). Check-in registrado mesmo assim.`,
-        );
+        // Fora do raio: exige justificativa antes de registrar.
+        setOorReason(''); setOorNotes(''); setOorUpdateGeo(true);
+        setOutRange({ customer: c, my, geo, dist });
+        return;
       }
-
-
-      await checkIn.mutateAsync({
-        storeId,
-        customerProfileId: c.id,
-        sellerCode: c.seller_code || null,
-        lat: my.lat,
-        lng: my.lng,
-        distanceMeters: dist,
-      });
-      qc.invalidateQueries({ queryKey: ['open-visit', storeId] });
-      onCustomerSelected?.({
-        id: c.id,
-        name: c.name,
-        customerCode: c.customer_code,
-        whatsapp: c.whatsapp,
-        cpfCnpj: c.cpf_cnpj,
-        cep: c.cep,
-        uf: c.uf,
-        city: c.city,
-        neighborhood: c.neighborhood,
-        address: c.address,
-        number: c.number,
-        sellerCode: c.seller_code,
-        storeId,
-
-        priceTable: c.price_table,
-      } as unknown as SellerCustomer);
-      toast.success(`Check-in registrado em ${c.name}.`);
+      await finishCheckIn(c, my, dist);
     } catch (e: any) {
       toast.error(e.message || 'Não foi possível registrar o check-in.');
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function finishCheckIn(
+    c: CustomerRow, my: { lat: number; lng: number }, dist: number,
+    oor?: { reason: string; notes: string },
+  ) {
+    await checkIn.mutateAsync({
+      storeId,
+      customerProfileId: c.id,
+      sellerCode: c.seller_code || null,
+      lat: my.lat,
+      lng: my.lng,
+      distanceMeters: dist,
+      outOfRangeReason: oor?.reason ?? null,
+      outOfRangeNotes: oor?.notes || null,
+    });
+    qc.invalidateQueries({ queryKey: ['open-visit', storeId] });
+    onCustomerSelected?.({
+      id: c.id, name: c.name, customerCode: c.customer_code, whatsapp: c.whatsapp,
+      cpfCnpj: c.cpf_cnpj, cep: c.cep, uf: c.uf, city: c.city, neighborhood: c.neighborhood,
+      address: c.address, number: c.number, sellerCode: c.seller_code, storeId,
+      priceTable: c.price_table,
+    } as unknown as SellerCustomer);
+    toast.success(`Check-in registrado em ${c.name}.`);
+  }
+
+  async function confirmOutOfRange() {
+    if (!outRange) return;
+    if (!oorReason) { toast.error('Escolha a justificativa.'); return; }
+    if (oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
+    const { customer: c, my, geo, dist } = outRange;
+    setOorSaving(true);
+    try {
+      await finishCheckIn(c, my, dist, { reason: oorReason, notes: oorNotes.trim() });
+      if (oorUpdateGeo) {
+        await saveCustomerGeo(c.id, my.lat, my.lng);
+        const newAddress = await reverseGeocode(my.lat, my.lng).catch(() => null);
+        await logGeoChange({
+          store_id: storeId, customer_profile_id: c.id, visit_id: null,
+          seller_code: c.seller_code || null, customer_name: c.name, customer_code: c.customer_code || null,
+          old_address: fullAddress(c), old_lat: geo.lat, old_lng: geo.lng,
+          new_lat: my.lat, new_lng: my.lng, new_address: newAddress,
+          distance_meters: Math.round(dist), reason: oorReason, notes: oorNotes.trim() || null,
+        }).catch((e) => toast.error('Localização salva, mas falhou o registro de auditoria: ' + e.message));
+        qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
+        qc.invalidateQueries({ queryKey: ['customer-geo-changes', storeId] });
+        toast.info('Nova localização do cliente gravada.');
+      }
+      setOutRange(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Não foi possível registrar o check-in.');
+    } finally {
+      setOorSaving(false);
+    }
+  }
+
+  async function geocodeBatch() {
+    const pending = customers.filter(c => c.geo_lat == null || c.geo_lng == null).slice(0, 50);
+    if (pending.length === 0) { toast.info('Todos os clientes já estão no mapa.'); return; }
+    setGeoBatch({ done: 0, total: pending.length, ok: 0 });
+    let ok = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const c = pending[i];
+      try {
+        const g = await geocodeAddress(fullAddress(c));
+        if (g) { await saveCustomerGeo(c.id, g.lat, g.lng); ok++; }
+      } catch { /* segue */ }
+      setGeoBatch({ done: i + 1, total: pending.length, ok });
+    }
+    qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
+    toast.success(`${ok} de ${pending.length} clientes localizados.`);
+    setGeoBatch(null);
   }
 
   function openCheckout(v: CustomerVisit) {
@@ -272,7 +334,50 @@ export default function CheckinDialog({
                 <span className="text-xs text-muted-foreground">{filtered.length} clientes</span>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable]">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant={view === 'lista' ? 'default' : 'outline'} onClick={() => setView('lista')}>Lista</Button>
+                <Button size="sm" variant={view === 'mapa' ? 'default' : 'outline'} onClick={() => setView('mapa')}>
+                  <MapPin className="mr-1 h-4 w-4" /> Mapa
+                </Button>
+                {view === 'mapa' && (
+                  <Button size="sm" variant="outline" onClick={geocodeBatch} disabled={!!geoBatch}>
+                    {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : 'Localizar clientes sem ponto (50)'}
+                  </Button>
+                )}
+              </div>
+
+              {view === 'mapa' && (
+                <div className="flex-1 min-h-[360px] rounded-md border overflow-hidden flex flex-col">
+                  <div className="flex-1 min-h-[320px]">
+                    <CustomersMap
+                      points={mapPoints}
+                      renderActions={(id) => {
+                        const c = filtered.find(x => x.id === id);
+                        if (!c) return null;
+                        const openV = openVisitByCustomer.get(c.id);
+                        return (
+                          <div className="flex flex-col gap-1 pt-1">
+                            {openV ? (
+                              <Button size="sm" variant="destructive" onClick={() => openCheckout(openV)}>Fazer Checkout</Button>
+                            ) : (
+                              <Button size="sm" onClick={() => handleCheckIn(c)} disabled={busyId === c.id}>Fazer Checkin</Button>
+                            )}
+                            <Button size="sm" variant="outline" asChild>
+                              <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${c.geo_lat},${c.geo_lng}`}>Como chegar</a>
+                            </Button>
+                          </div>
+                        );
+                      }}
+                    />
+                  </div>
+                  <p className="p-2 text-xs text-muted-foreground border-t">
+                    {mapPoints.length} no mapa • {filtered.length - mapPoints.length} sem localização •
+                    <span className="text-destructive"> ● sem visita</span> • <span style={{ color: 'hsl(142 70% 40%)' }}>● visitado</span> • <span style={{ color: 'hsl(217 90% 55%)' }}>● em andamento</span>
+                  </p>
+                </div>
+              )}
+
+              <div className={`flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable] ${view === 'mapa' ? 'hidden' : ''}`}>
                 {isLoading ? (
                   <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
                 ) : filtered.length === 0 ? (
@@ -467,6 +572,43 @@ export default function CheckinDialog({
               <MapPin className="mr-1 h-4 w-4" /> Tentar novamente
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-in fora do raio */}
+      <Dialog open={!!outRange} onOpenChange={(o) => !o && !oorSaving && setOutRange(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Check-in fora do raio</DialogTitle></DialogHeader>
+          {outRange && (
+            <div className="space-y-3 text-sm">
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                Você está a <b>{outRange.dist >= 1000 ? `${(outRange.dist / 1000).toFixed(1)} km` : `${Math.round(outRange.dist)} m`}</b> do local registrado de <b>{outRange.customer.name}</b> (limite {maxDistanceMeters} m). Informe a justificativa para continuar.
+              </p>
+              <div className="grid gap-1">
+                <Label>Justificativa *</Label>
+                <Select value={oorReason} onValueChange={setOorReason}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {OUT_OF_RANGE_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label>Detalhes {oorReason === 'Outro' ? '*' : ''}</Label>
+                <Textarea rows={3} value={oorNotes} onChange={e => setOorNotes(e.target.value)} />
+              </div>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" checked={oorUpdateGeo} onChange={e => setOorUpdateGeo(e.target.checked)} />
+                <span>Gravar minha posição atual como nova localização deste cliente</span>
+              </label>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setOutRange(null)} disabled={oorSaving}>Cancelar</Button>
+                <Button onClick={confirmOutOfRange} disabled={oorSaving}>
+                  {oorSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />} Confirmar check-in
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
