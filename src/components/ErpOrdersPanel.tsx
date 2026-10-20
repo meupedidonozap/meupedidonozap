@@ -74,6 +74,8 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
     const erpCodes = new Set(orders.flatMap((o: any) => [String(o.codigo), String(o.codigo_importacao)]));
     const s = term.toLowerCase();
     const pending = localOrders
+      // Pedidos antigos (XML manual / entregue) sem código ERP já estão no ERP com outro número: não duplicar como "Pendente".
+      .filter((o) => o.erp_order_code || (!o.xml_downloaded_at && !['entregue', 'enviado', 'preparando'].includes(o.status)))
       .filter((o) => !erpCodes.has(String(o.order_number)) && !(o.erp_order_code && erpCodes.has(String(o.erp_order_code))))
       .filter((o) => !s || [o.customer?.name, o.customer?.city, o.customer?.customerCode, String(o.order_number), o.erp_order_code]
         .some((v) => String(v || '').toLowerCase().includes(s)))
