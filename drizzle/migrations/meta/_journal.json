@@ -92,6 +92,13 @@
       "when": 1792153571747,
       "tag": "0012_technical_materials",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792516427716,
+      "tag": "0013_visit_out_of_range_and_geo_changes",
+      "breakpoints": true
     }
   ]
 }

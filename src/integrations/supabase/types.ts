@@ -93,6 +93,94 @@ export type Database = {
           },
         ]
       }
+      customer_geo_changes: {
+        Row: {
+          changed_by: string
+          created_at: string
+          customer_code: string | null
+          customer_name: string | null
+          customer_profile_id: string
+          distance_meters: number | null
+          id: string
+          new_address: string | null
+          new_lat: number
+          new_lng: number
+          notes: string | null
+          old_address: string | null
+          old_lat: number | null
+          old_lng: number | null
+          reason: string | null
+          seller_code: string | null
+          seller_name: string | null
+          store_id: string
+          visit_id: string | null
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          customer_code?: string | null
+          customer_name?: string | null
+          customer_profile_id: string
+          distance_meters?: number | null
+          id?: string
+          new_address?: string | null
+          new_lat: number
+          new_lng: number
+          notes?: string | null
+          old_address?: string | null
+          old_lat?: number | null
+          old_lng?: number | null
+          reason?: string | null
+          seller_code?: string | null
+          seller_name?: string | null
+          store_id: string
+          visit_id?: string | null
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          customer_code?: string | null
+          customer_name?: string | null
+          customer_profile_id?: string
+          distance_meters?: number | null
+          id?: string
+          new_address?: string | null
+          new_lat?: number
+          new_lng?: number
+          notes?: string | null
+          old_address?: string | null
+          old_lat?: number | null
+          old_lng?: number | null
+          reason?: string | null
+          seller_code?: string | null
+          seller_name?: string | null
+          store_id?: string
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_geo_changes_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_geo_changes_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_geo_changes_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "customer_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_invoices: {
         Row: {
           base_icms: number
@@ -425,6 +513,8 @@ export type Database = {
           distance_meters_at_checkin: number | null
           duration_seconds: number | null
           id: string
+          out_of_range_notes: string | null
+          out_of_range_reason: string | null
           seller_code: string | null
           seller_user_id: string
           store_id: string
@@ -444,6 +534,8 @@ export type Database = {
           distance_meters_at_checkin?: number | null
           duration_seconds?: number | null
           id?: string
+          out_of_range_notes?: string | null
+          out_of_range_reason?: string | null
           seller_code?: string | null
           seller_user_id: string
           store_id: string
@@ -463,6 +555,8 @@ export type Database = {
           distance_meters_at_checkin?: number | null
           duration_seconds?: number | null
           id?: string
+          out_of_range_notes?: string | null
+          out_of_range_reason?: string | null
           seller_code?: string | null
           seller_user_id?: string
           store_id?: string
