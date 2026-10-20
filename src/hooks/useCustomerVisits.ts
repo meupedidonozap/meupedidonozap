@@ -63,6 +63,8 @@ export function useCheckIn() {
       lat: number;
       lng: number;
       distanceMeters: number;
+      outOfRangeReason?: string | null;
+      outOfRangeNotes?: string | null;
     }) => {
       const { data: { user }, error: authErr } = await supabase.auth.getUser();
       if (authErr || !user) throw new Error('Sessão expirada. Faça login novamente.');
@@ -77,6 +79,8 @@ export function useCheckIn() {
           checkin_lat: input.lat,
           checkin_lng: input.lng,
           distance_meters_at_checkin: Math.round(input.distanceMeters),
+          out_of_range_reason: input.outOfRangeReason ?? null,
+          out_of_range_notes: input.outOfRangeNotes ?? null,
         })
         .select()
         .single();
@@ -172,4 +176,66 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
 
 export async function saveCustomerGeo(customerProfileId: string, lat: number, lng: number) {
   await supabase.from('customer_profiles').update({ geo_lat: lat, geo_lng: lng }).eq('id', customerProfileId);
+}
+
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  const { data, error } = await supabase.functions.invoke('geocode-address', { body: { lat, lng } });
+  if (error || !data?.formatted) return null;
+  return String(data.formatted);
+}
+
+export const OUT_OF_RANGE_REASONS = [
+  'Localização do cliente estava errada',
+  'Cliente mudou de endereço',
+  'Atendimento em outro local (feira/evento)',
+  'Sinal de GPS impreciso',
+  'Outro',
+];
+
+export interface GeoChange {
+  id: string;
+  store_id: string;
+  customer_profile_id: string;
+  visit_id: string | null;
+  changed_by: string;
+  seller_name: string | null;
+  seller_code: string | null;
+  customer_name: string | null;
+  customer_code: string | null;
+  old_address: string | null;
+  old_lat: number | null;
+  old_lng: number | null;
+  new_lat: number;
+  new_lng: number;
+  new_address: string | null;
+  distance_meters: number | null;
+  reason: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export async function logGeoChange(input: Omit<GeoChange, 'id' | 'created_at' | 'changed_by' | 'seller_name'> & { seller_name?: string | null }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Sessão expirada.');
+  let sellerName = input.seller_name ?? null;
+  if (!sellerName) {
+    const { data: su } = await supabase.from('store_users').select('name').eq('user_id', user.id).eq('store_id', input.store_id).maybeSingle();
+    sellerName = su?.name || user.email || null;
+  }
+  const { error } = await supabase.from('customer_geo_changes').insert({ ...input, changed_by: user.id, seller_name: sellerName });
+  if (error) throw error;
+}
+
+export function useGeoChanges(storeId: string | undefined, sinceIso?: string) {
+  return useQuery({
+    queryKey: ['customer-geo-changes', storeId, sinceIso],
+    queryFn: async () => {
+      let q = supabase.from('customer_geo_changes').select('*').eq('store_id', storeId!).order('created_at', { ascending: false }).limit(1000);
+      if (sinceIso) q = q.gte('created_at', sinceIso);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as GeoChange[];
+    },
+    enabled: !!storeId,
+  });
 }

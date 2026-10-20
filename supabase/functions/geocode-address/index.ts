@@ -7,8 +7,9 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
   try {
-    const { address } = await req.json();
-    if (!address || typeof address !== 'string' || address.length > 500) {
+    const { address, lat, lng } = await req.json();
+    const isReverse = typeof lat === 'number' && typeof lng === 'number';
+    if (!isReverse && (!address || typeof address !== 'string' || address.length > 500)) {
       return new Response(JSON.stringify({ error: 'address inválido' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -24,7 +25,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const url = `${GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=br&language=pt-BR`;
+    const query = isReverse ? `latlng=${lat},${lng}` : `address=${encodeURIComponent(address)}&region=br`;
+    const url = `${GATEWAY_URL}/maps/api/geocode/json?${query}&language=pt-BR`;
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
