@@ -9,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDateTime } from '@/lib/formatters';
 import { haversineMeters, getCurrentPosition, loadGoogleMaps, onGoogleMapsAuthFailure } from '@/lib/geo';
-import { useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo, formatDuration, DEFAULT_VISIT_REASONS, type CustomerVisit } from '@/hooks/useCustomerVisits';
+import { useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo, formatDuration, DEFAULT_VISIT_REASONS, OUT_OF_RANGE_REASONS, reverseGeocode, logGeoChange, useGeoChanges, type CustomerVisit, type GeoChange } from '@/hooks/useCustomerVisits';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +30,7 @@ interface CustomerRow {
   uf: string;
   cep: string;
   seller_code: string;
+  customer_code: string;
   geo_lat: number | null;
   geo_lng: number | null;
 }
@@ -50,7 +52,7 @@ function useSellerCustomers(storeId: string | undefined, sellerCodes: string[]) 
     queryFn: async () => {
       let q = supabase
         .from('customer_profiles')
-        .select('id, name, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, geo_lat, geo_lng, is_active')
+        .select('id, name, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, customer_code, geo_lat, geo_lng, is_active')
         .eq('store_id', storeId!)
         .order('name');
       if (sellerCodes.length > 0) q = q.in('seller_code', sellerCodes);
@@ -464,19 +466,33 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
                 {bulkRunning ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <MapPinned className="h-3 w-3 mr-1" />}
                 Localizar todos
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowOnlyPending((v) => !v)}>
-                {showOnlyPending ? 'Mostrar todos' : 'Ver só pendentes'}
-              </Button>
             </div>
           </div>
         )}
+        <div className="rounded-md border p-2 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium">Período:</span>
+            {[30, 60, 90].map((d) => (
+              <Button key={d} size="sm" variant={periodDays === d ? 'default' : 'outline'} className="h-7 px-2" onClick={() => setPeriodDays(d)}>{d} dias</Button>
+            ))}
+            <Input type="number" min={1} max={730} value={periodDays} onChange={(e) => setPeriodDays(Math.max(1, Math.min(730, Number(e.target.value) || 1)))} className="h-7 w-20" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={showOnlyPending ? 'default' : 'outline'} onClick={() => setShowOnlyPending((v) => !v)}>
+              Sem visita ({noVisitCount})
+            </Button>
+            <Button size="sm" variant={showOnlyNoGeo ? 'default' : 'outline'} onClick={() => setShowOnlyNoGeo((v) => !v)}>
+              Sem localização ({pendingCount})
+            </Button>
+          </div>
+        </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar cliente, endereço, cidade..."
+              placeholder="Buscar nome, código, endereço, cidade..."
               className="pl-8"
             />
           </div>
@@ -503,6 +519,8 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
               const count = visitCountByCustomer.get(c.id) ?? 0;
               const active = c.id === selectedId;
               const pending = c.geo_lat == null || c.geo_lng == null;
+              const noVisit = isPendingVisit(c);
+              const last = lastVisitByCustomer.get(c.id);
               return (
                 <button
                   key={c.id}
@@ -511,7 +529,7 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{c.name}</p>
+                      <p className="font-medium truncate">{c.customer_code ? `${c.customer_code} · ` : ''}{c.name}</p>
                       <p className="text-xs text-muted-foreground truncate">
                         <MapPin className="inline h-3 w-3 mr-1" />
                         {c.address}{c.number ? `, ${c.number}` : ''} · {c.neighborhood} · {c.city}/{c.uf}
@@ -520,6 +538,8 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       {openVisit && <Badge className="bg-green-600">Em atendimento</Badge>}
                       {pending && <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50 text-[10px]">Sem localização</Badge>}
+                      {noVisit && !openVisit && <Badge variant="destructive" className="text-[10px]">Sem visita</Badge>}
+                      {last && <span className="text-[10px] text-muted-foreground">Últ.: {formatDateTime(last)}</span>}
                       {count > 0 && <span className="text-[10px] text-muted-foreground">{count} visita{count > 1 ? 's' : ''}</span>}
                     </div>
                   </div>
@@ -540,9 +560,17 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
         ) : (
           <div className="space-y-3">
             <div>
-              <h3 className="font-semibold text-lg">{selected.name}</h3>
+              <h3 className="font-semibold text-lg">{selected.customer_code ? `${selected.customer_code} · ` : ''}{selected.name}</h3>
               <p className="text-sm text-muted-foreground">{fullAddress(selected)}</p>
               {selected.whatsapp && <p className="text-xs text-muted-foreground">WhatsApp: {selected.whatsapp}</p>}
+              <p className="text-xs text-muted-foreground">Última visita: {lastVisitByCustomer.get(selected.id) ? formatDateTime(lastVisitByCustomer.get(selected.id)!) : `nenhuma nos últimos ${periodDays} dias`}</p>
+              <Button asChild size="sm" variant="outline" className="mt-2">
+                <a target="_blank" rel="noreferrer" href={selected.geo_lat != null && selected.geo_lng != null
+                  ? `https://www.google.com/maps/dir/?api=1&destination=${selected.geo_lat},${selected.geo_lng}`
+                  : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress(selected))}`}>
+                  <Navigation className="h-4 w-4 mr-2" /> Como chegar
+                </a>
+              </Button>
             </div>
 
             {selected.geo_lat == null || selected.geo_lng == null ? (
@@ -701,7 +729,128 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!outOfRange} onOpenChange={(o) => !o && setOutOfRange(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Check-in fora do raio</DialogTitle></DialogHeader>
+          {outOfRange && (
+            <div className="space-y-3">
+              <p className="text-sm rounded-md border border-destructive/40 bg-destructive/5 p-2">
+                {outOfRange.dist != null
+                  ? <>Você está a <b>{Math.round(outOfRange.dist)} m</b> do local registrado do cliente (limite {MAX_CHECKIN_METERS} m).</>
+                  : <>O cliente ainda não tem localização registrada.</>}
+              </p>
+              <div className="grid gap-1">
+                <Label className="text-sm">Justificativa *</Label>
+                <Select value={oorReason} onValueChange={setOorReason}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {OUT_OF_RANGE_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-sm">Detalhes</Label>
+                <Textarea rows={3} value={oorNotes} onChange={(e) => setOorNotes(e.target.value)} placeholder="Explique o motivo..." />
+              </div>
+              <label className="flex items-start gap-2 text-sm">
+                <Checkbox checked={oorUpdateGeo} onCheckedChange={(v) => setOorUpdateGeo(!!v)} />
+                <span>Gravar minha posição atual como nova localização deste cliente</span>
+              </label>
+              <Button className="w-full" onClick={confirmOutOfRange} disabled={oorSaving}>
+                {oorSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogInIcon className="mr-2 h-4 w-4" />}
+                Confirmar check-in
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
 
+  );
+}
+
+function CompareMap({ change }: { change: GeoChange }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogleMaps().then((g) => {
+      if (cancelled || !ref.current) return;
+      const nw = { lat: Number(change.new_lat), lng: Number(change.new_lng) };
+      const map = new g.maps.Map(ref.current, { center: nw, zoom: 16, disableDefaultUI: true, zoomControl: true });
+      new g.maps.Marker({ position: nw, map, title: 'Nova localização', label: 'N' });
+      if (change.old_lat != null && change.old_lng != null) {
+        const old = { lat: Number(change.old_lat), lng: Number(change.old_lng) };
+        new g.maps.Marker({ position: old, map, title: 'Localização anterior', label: 'A', opacity: 0.6 });
+        const b = new g.maps.LatLngBounds(); b.extend(old); b.extend(nw); map.fitBounds(b, 60);
+      }
+    }).catch((e) => setErr(e.message));
+    return () => { cancelled = true; };
+  }, [change.id]);
+  if (err) return <p className="text-xs text-destructive">{err}</p>;
+  return <div ref={ref} className="h-72 w-full rounded-md border bg-muted" />;
+}
+
+function GeoChangesDashboard({ storeId }: { storeId: string }) {
+  const [days, setDays] = useState(90);
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState<GeoChange | null>(null);
+  const sinceIso = useMemo(() => new Date(Date.now() - days * 86400000).toISOString(), [days]);
+  const { data = [], isLoading } = useGeoChanges(storeId, sinceIso);
+  const rows = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return data;
+    return data.filter((r) => [r.seller_name, r.seller_code, r.customer_name, r.customer_code, r.old_address, r.new_address].some((x) => (x || '').toLowerCase().includes(t)));
+  }, [data, q]);
+  return (
+    <Card className="p-3 space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {[30, 60, 90, 365].map((d) => (
+          <Button key={d} size="sm" variant={days === d ? 'default' : 'outline'} onClick={() => setDays(d)}>{d} dias</Button>
+        ))}
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar vendedor, cliente, endereço..." className="max-w-xs" />
+        <span className="text-xs text-muted-foreground">{rows.length} alteração(ões)</span>
+      </div>
+      {isLoading ? <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">Nenhuma alteração de localização no período.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="border-b text-left">
+              <th className="p-2">Data</th><th className="p-2">Vendedor</th><th className="p-2">Cliente</th>
+              <th className="p-2">Endereço atual (anterior)</th><th className="p-2">Novo endereço</th><th className="p-2">Distância</th><th className="p-2">Justificativa</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setSel(r)}>
+                  <td className="p-2 whitespace-nowrap">{formatDateTime(r.created_at)}</td>
+                  <td className="p-2">{r.seller_name || '—'}{r.seller_code ? ` (${r.seller_code})` : ''}</td>
+                  <td className="p-2">{r.customer_code ? `${r.customer_code} · ` : ''}{r.customer_name}</td>
+                  <td className="p-2">{r.old_address || '—'}</td>
+                  <td className="p-2">{r.new_address || `${Number(r.new_lat).toFixed(5)}, ${Number(r.new_lng).toFixed(5)}`}</td>
+                  <td className="p-2 whitespace-nowrap">{r.distance_meters != null ? `${Math.round(Number(r.distance_meters))} m` : '—'}</td>
+                  <td className="p-2">{r.reason}{r.notes ? ` — ${r.notes}` : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Dialog open={!!sel} onOpenChange={(o) => !o && setSel(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>{sel?.customer_name}</DialogTitle></DialogHeader>
+          {sel && (
+            <div className="space-y-2 text-sm">
+              <CompareMap change={sel} />
+              <p><b>A — Anterior:</b> {sel.old_address || '—'}</p>
+              <p><b>N — Nova:</b> {sel.new_address || `${sel.new_lat}, ${sel.new_lng}`}</p>
+              <p className="text-xs text-muted-foreground">Vendedor: {sel.seller_name || '—'} · {formatDateTime(sel.created_at)} · {sel.reason}{sel.notes ? ` — ${sel.notes}` : ''}</p>
+              <a className="text-primary underline text-xs" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${sel.new_lat},${sel.new_lng}`}>Abrir nova localização no Google Maps</a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
