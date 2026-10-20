@@ -306,8 +306,12 @@ export type Database = {
           cpf_cnpj: string
           created_at: string
           customer_code: string
+          geo_attempted_at: string | null
+          geo_error: string | null
+          geo_formatted: string | null
           geo_lat: number | null
           geo_lng: number | null
+          geo_status: string | null
           id: string
           ie: string | null
           is_active: boolean
@@ -331,8 +335,12 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          geo_attempted_at?: string | null
+          geo_error?: string | null
+          geo_formatted?: string | null
           geo_lat?: number | null
           geo_lng?: number | null
+          geo_status?: string | null
           id?: string
           ie?: string | null
           is_active?: boolean
@@ -356,8 +364,12 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          geo_attempted_at?: string | null
+          geo_error?: string | null
+          geo_formatted?: string | null
           geo_lat?: number | null
           geo_lng?: number | null
+          geo_status?: string | null
           id?: string
           ie?: string | null
           is_active?: boolean

@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import GeoBatchPanel from '@/components/GeoBatchPanel';
 
 
 const MAX_CHECKIN_METERS = 300;
@@ -154,18 +155,23 @@ function MiniMap({
 }
 
 export default function AtendimentoTab(props: { storeId: string; sellerCodes: string[]; isAdmin: boolean; visitReasons?: string[] }) {
-  const [view, setView] = useState<'atendimento' | 'localizacoes'>('atendimento');
+  const [view, setView] = useState<'atendimento' | 'localizacoes' | 'lote'>('atendimento');
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant={view === 'atendimento' ? 'default' : 'outline'} onClick={() => setView('atendimento')}>
           <MapPin className="h-4 w-4 mr-1" /> Atendimentos
         </Button>
         <Button size="sm" variant={view === 'localizacoes' ? 'default' : 'outline'} onClick={() => setView('localizacoes')}>
           <MapPinned className="h-4 w-4 mr-1" /> Alterações de localização
         </Button>
+        {props.isAdmin && (
+          <Button size="sm" variant={view === 'lote' ? 'default' : 'outline'} onClick={() => setView('lote')}>
+            <RefreshCw className="h-4 w-4 mr-1" /> Localizar clientes
+          </Button>
+        )}
       </div>
-      {view === 'atendimento' ? <AtendimentoMain {...props} /> : <GeoChangesDashboard storeId={props.storeId} />}
+      {view === 'atendimento' ? <AtendimentoMain {...props} /> : view === 'lote' ? <GeoBatchPanel storeId={props.storeId} /> : <GeoChangesDashboard storeId={props.storeId} />}
     </div>
   );
 }

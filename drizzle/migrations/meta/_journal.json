@@ -99,6 +99,13 @@
       "when": 1792516427716,
       "tag": "0013_visit_out_of_range_and_geo_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792520881069,
+      "tag": "0014_customer_geo_status",
+      "breakpoints": true
     }
   ]
 }
