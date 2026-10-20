@@ -828,7 +828,7 @@ export default function ProductStorePage() {
           </Button>
         </div>
       )}
-      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store?.id || ''} storeSlug={store?.slug} />
+      <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store?.id || ''} storeSlug={store?.slug} allowSignup={store?.settings?.allowCustomerSignup !== false} />
     </div>
   );
 }

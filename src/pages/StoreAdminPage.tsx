@@ -556,6 +556,7 @@ export default function StoreAdminPage() {
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
   const [useBlingIntegration, setUseBlingIntegration] = useState(false);
+  const [allowCustomerSignup, setAllowCustomerSignup] = useState(true);
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
@@ -626,6 +627,7 @@ export default function StoreAdminPage() {
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
     setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
+    setAllowCustomerSignup((store.settings as any)?.allowCustomerSignup !== false);
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setErpWhatsappByTable({ ...((store.settings as any)?.erpReleaseWhatsappByTable || {}) });
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
@@ -930,6 +932,7 @@ export default function StoreAdminPage() {
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
           useBlingIntegration,
+          allowCustomerSignup,
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           erpReleaseWhatsappByTable: Object.fromEntries(
             Object.entries(erpWhatsappByTable).map(([k, v]) => [k, String(v).replace(/\D/g, '')]).filter(([, v]) => v)
@@ -2258,6 +2261,18 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+            {(store.slug === 'dicolore' || store.slug === 'dicoloresenses') && (
+              <Card>
+                <CardHeader><CardTitle>Acesso do cliente</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <label className="flex items-center gap-3 text-sm">
+                    <Switch checked={allowCustomerSignup} onCheckedChange={setAllowCustomerSignup} />
+                    Permitir que o cliente se cadastre sozinho (aba "Cadastrar")
+                  </label>
+                  <p className="text-xs text-muted-foreground">Desligado: o cliente vê apenas "Código/Usuário" e "Entrar". Clique em Salvar acima para gravar.</p>
+                </CardContent>
+              </Card>
+            )}
             {(store.slug === 'dicolore' || store.slug === 'dicoloresenses') && (
               <Card className="border-accent">
                 <CardHeader><CardTitle>Aviso de Transmissão (ERP)</CardTitle></CardHeader>
