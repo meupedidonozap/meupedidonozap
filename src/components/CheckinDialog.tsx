@@ -170,44 +170,89 @@ export default function CheckinDialog({
 
       const dist = haversineMeters(my.lat, my.lng, geo.lat, geo.lng);
       if (dist > maxDistanceMeters) {
-        toast.warning(
-          `Atenção: você está a ${Math.round(dist)}m do cliente (recomendado até ${maxDistanceMeters}m). Check-in registrado mesmo assim.`,
-        );
+        // Fora do raio: exige justificativa antes de registrar.
+        setOorReason(''); setOorNotes(''); setOorUpdateGeo(true);
+        setOutRange({ customer: c, my, geo, dist });
+        return;
       }
-
-
-      await checkIn.mutateAsync({
-        storeId,
-        customerProfileId: c.id,
-        sellerCode: c.seller_code || null,
-        lat: my.lat,
-        lng: my.lng,
-        distanceMeters: dist,
-      });
-      qc.invalidateQueries({ queryKey: ['open-visit', storeId] });
-      onCustomerSelected?.({
-        id: c.id,
-        name: c.name,
-        customerCode: c.customer_code,
-        whatsapp: c.whatsapp,
-        cpfCnpj: c.cpf_cnpj,
-        cep: c.cep,
-        uf: c.uf,
-        city: c.city,
-        neighborhood: c.neighborhood,
-        address: c.address,
-        number: c.number,
-        sellerCode: c.seller_code,
-        storeId,
-
-        priceTable: c.price_table,
-      } as unknown as SellerCustomer);
-      toast.success(`Check-in registrado em ${c.name}.`);
+      await finishCheckIn(c, my, dist);
     } catch (e: any) {
       toast.error(e.message || 'Não foi possível registrar o check-in.');
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function finishCheckIn(
+    c: CustomerRow, my: { lat: number; lng: number }, dist: number,
+    oor?: { reason: string; notes: string },
+  ) {
+    await checkIn.mutateAsync({
+      storeId,
+      customerProfileId: c.id,
+      sellerCode: c.seller_code || null,
+      lat: my.lat,
+      lng: my.lng,
+      distanceMeters: dist,
+      outOfRangeReason: oor?.reason ?? null,
+      outOfRangeNotes: oor?.notes || null,
+    });
+    qc.invalidateQueries({ queryKey: ['open-visit', storeId] });
+    onCustomerSelected?.({
+      id: c.id, name: c.name, customerCode: c.customer_code, whatsapp: c.whatsapp,
+      cpfCnpj: c.cpf_cnpj, cep: c.cep, uf: c.uf, city: c.city, neighborhood: c.neighborhood,
+      address: c.address, number: c.number, sellerCode: c.seller_code, storeId,
+      priceTable: c.price_table,
+    } as unknown as SellerCustomer);
+    toast.success(`Check-in registrado em ${c.name}.`);
+  }
+
+  async function confirmOutOfRange() {
+    if (!outRange) return;
+    if (!oorReason) { toast.error('Escolha a justificativa.'); return; }
+    if (oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
+    const { customer: c, my, geo, dist } = outRange;
+    setOorSaving(true);
+    try {
+      await finishCheckIn(c, my, dist, { reason: oorReason, notes: oorNotes.trim() });
+      if (oorUpdateGeo) {
+        await saveCustomerGeo(c.id, my.lat, my.lng);
+        const newAddress = await reverseGeocode(my.lat, my.lng).catch(() => null);
+        await logGeoChange({
+          store_id: storeId, customer_profile_id: c.id, visit_id: null,
+          seller_code: c.seller_code || null, customer_name: c.name, customer_code: c.customer_code || null,
+          old_address: fullAddress(c), old_lat: geo.lat, old_lng: geo.lng,
+          new_lat: my.lat, new_lng: my.lng, new_address: newAddress,
+          distance_meters: Math.round(dist), reason: oorReason, notes: oorNotes.trim() || null,
+        }).catch((e) => toast.error('Localização salva, mas falhou o registro de auditoria: ' + e.message));
+        qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
+        qc.invalidateQueries({ queryKey: ['customer-geo-changes', storeId] });
+        toast.info('Nova localização do cliente gravada.');
+      }
+      setOutRange(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Não foi possível registrar o check-in.');
+    } finally {
+      setOorSaving(false);
+    }
+  }
+
+  async function geocodeBatch() {
+    const pending = customers.filter(c => c.geo_lat == null || c.geo_lng == null).slice(0, 50);
+    if (pending.length === 0) { toast.info('Todos os clientes já estão no mapa.'); return; }
+    setGeoBatch({ done: 0, total: pending.length, ok: 0 });
+    let ok = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const c = pending[i];
+      try {
+        const g = await geocodeAddress(fullAddress(c));
+        if (g) { await saveCustomerGeo(c.id, g.lat, g.lng); ok++; }
+      } catch { /* segue */ }
+      setGeoBatch({ done: i + 1, total: pending.length, ok });
+    }
+    qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
+    toast.success(`${ok} de ${pending.length} clientes localizados.`);
+    setGeoBatch(null);
   }
 
   function openCheckout(v: CustomerVisit) {
