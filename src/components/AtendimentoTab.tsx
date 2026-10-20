@@ -151,7 +151,24 @@ function MiniMap({
   return <div ref={ref} className="h-56 w-full rounded-md border bg-muted" />;
 }
 
-export default function AtendimentoTab({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT_VISIT_REASONS }: { storeId: string; sellerCodes: string[]; isAdmin: boolean; visitReasons?: string[] }) {
+export default function AtendimentoTab(props: { storeId: string; sellerCodes: string[]; isAdmin: boolean; visitReasons?: string[] }) {
+  const [view, setView] = useState<'atendimento' | 'localizacoes'>('atendimento');
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Button size="sm" variant={view === 'atendimento' ? 'default' : 'outline'} onClick={() => setView('atendimento')}>
+          <MapPin className="h-4 w-4 mr-1" /> Atendimentos
+        </Button>
+        <Button size="sm" variant={view === 'localizacoes' ? 'default' : 'outline'} onClick={() => setView('localizacoes')}>
+          <MapPinned className="h-4 w-4 mr-1" /> Alterações de localização
+        </Button>
+      </div>
+      {view === 'atendimento' ? <AtendimentoMain {...props} /> : <GeoChangesDashboard storeId={props.storeId} />}
+    </div>
+  );
+}
+
+function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT_VISIT_REASONS }: { storeId: string; sellerCodes: string[]; isAdmin: boolean; visitReasons?: string[] }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -159,15 +176,29 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin, visitRea
   const [locating, setLocating] = useState(false);
   const [geocodingId, setGeocodingId] = useState<string | null>(null);
   const [showOnlyPending, setShowOnlyPending] = useState(false);
+  const [showOnlyNoGeo, setShowOnlyNoGeo] = useState(false);
+  const [periodDays, setPeriodDays] = useState(90);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
   const [pendingPos, setPendingPos] = useState<{ lat: number; lng: number } | null>(null);
   const [savingPos, setSavingPos] = useState(false);
+  const [outOfRange, setOutOfRange] = useState<{ customer: CustomerRow; my: { lat: number; lng: number }; dist: number | null } | null>(null);
+  const [oorReason, setOorReason] = useState('');
+  const [oorNotes, setOorNotes] = useState('');
+  const [oorUpdateGeo, setOorUpdateGeo] = useState(true);
+  const [oorSaving, setOorSaving] = useState(false);
+
+  const sinceIso = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - periodDays);
+    return d.toISOString();
+  }, [periodDays]);
 
   const { data: customers = [], isLoading, refetch } = useSellerCustomers(storeId, isAdmin ? [] : sellerCodes);
   const { data: visits = [] } = useCustomerVisits(storeId, {
     onlyMine: !isAdmin,
-    sinceIso: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+    sinceIso,
   });
 
   const checkIn = useCheckIn();
@@ -191,24 +222,35 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin, visitRea
     return m;
   }, [visits]);
 
+  const lastVisitByCustomer = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const v of visits) if (!m.has(v.customer_profile_id)) m.set(v.customer_profile_id, v.checked_in_at);
+    return m;
+  }, [visits]);
+
+  const isPendingVisit = (c: CustomerRow) => !visitCountByCustomer.has(c.id);
+
   const filtered = useMemo(() => {
     let base = customers;
-    if (showOnlyPending) base = base.filter((c) => c.geo_lat == null || c.geo_lng == null);
+    if (showOnlyPending) base = base.filter(isPendingVisit);
+    if (showOnlyNoGeo) base = base.filter((c) => c.geo_lat == null || c.geo_lng == null);
     const q = search.trim().toLowerCase();
     if (!q) return base;
     return base.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
+        (c.customer_code || '').toLowerCase().includes(q) ||
         (c.address || '').toLowerCase().includes(q) ||
         (c.city || '').toLowerCase().includes(q) ||
         (c.whatsapp || '').includes(q),
     );
-  }, [customers, search, showOnlyPending]);
+  }, [customers, search, showOnlyPending, showOnlyNoGeo, visitCountByCustomer]);
 
   const pendingCount = useMemo(
     () => customers.filter((c) => c.geo_lat == null || c.geo_lng == null).length,
     [customers],
   );
+  const noVisitCount = useMemo(() => customers.filter(isPendingVisit).length, [customers, visitCountByCustomer]);
 
   const selected = customers.find((c) => c.id === selectedId) || null;
 
@@ -305,12 +347,14 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin, visitRea
 
   async function handleCheckIn(c: CustomerRow) {
     const geo = await ensureCustomerGeo(c);
-    if (!geo) return;
     const my = sellerCoords ?? (await acquireLocation());
     if (!my) return;
-    const dist = haversineMeters(my.lat, my.lng, geo.lat, geo.lng);
+    const dist = geo ? haversineMeters(my.lat, my.lng, geo.lat, geo.lng) : Infinity;
     if (dist > MAX_CHECKIN_METERS) {
-      toast.error(`Muito longe do cliente (${Math.round(dist)}m). Máx.: ${MAX_CHECKIN_METERS}m.`);
+      setOorReason('');
+      setOorNotes('');
+      setOorUpdateGeo(true);
+      setOutOfRange({ customer: c, my, dist: Number.isFinite(dist) ? dist : null });
       return;
     }
     try {
@@ -325,6 +369,55 @@ export default function AtendimentoTab({ storeId, sellerCodes, isAdmin, visitRea
       toast.success(`Check-in registrado (${Math.round(dist)}m).`);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao registrar check-in.');
+    }
+  }
+
+  async function confirmOutOfRange() {
+    if (!outOfRange) return;
+    if (!oorReason) { toast.error('Escolha a justificativa.'); return; }
+    if (oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
+    const { customer: c, my, dist } = outOfRange;
+    setOorSaving(true);
+    try {
+      const visit = await checkIn.mutateAsync({
+        storeId,
+        customerProfileId: c.id,
+        sellerCode: c.seller_code || null,
+        lat: my.lat,
+        lng: my.lng,
+        distanceMeters: dist ?? 0,
+        outOfRangeReason: oorReason,
+        outOfRangeNotes: oorNotes.trim() || null,
+      });
+      if (oorUpdateGeo) {
+        const newAddress = await reverseGeocode(my.lat, my.lng);
+        await logGeoChange({
+          store_id: storeId,
+          customer_profile_id: c.id,
+          visit_id: visit.id,
+          seller_code: c.seller_code || null,
+          customer_name: c.name,
+          customer_code: c.customer_code || null,
+          old_address: fullAddress(c),
+          old_lat: c.geo_lat != null ? Number(c.geo_lat) : null,
+          old_lng: c.geo_lng != null ? Number(c.geo_lng) : null,
+          new_lat: my.lat,
+          new_lng: my.lng,
+          new_address: newAddress,
+          distance_meters: dist != null ? Math.round(dist) : null,
+          reason: oorReason,
+          notes: oorNotes.trim() || null,
+        });
+        await saveCustomerGeo(c.id, my.lat, my.lng);
+        await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
+        await qc.invalidateQueries({ queryKey: ['customer-geo-changes', storeId] });
+      }
+      toast.success(oorUpdateGeo ? 'Check-in registrado e localização do cliente atualizada.' : 'Check-in registrado com justificativa.');
+      setOutOfRange(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao registrar check-in.');
+    } finally {
+      setOorSaving(false);
     }
   }
 
