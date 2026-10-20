@@ -139,6 +139,8 @@ export interface StoreSettings {
   useStockIntegration?: boolean;
   /** Loja trabalha com integração Bling (habilita o campo Código BLING e o de-para no XML Bling). */
   useBlingIntegration?: boolean;
+  /** Vitrine: exibe a aba "Cadastrar" para o cliente criar conta sozinho (padrão: sim). */
+  allowCustomerSignup?: boolean;
   /** WhatsApp (DDI+DDD+numero) que recebe o aviso quando um pedido é liberado p/ transmissão (ERP). */
   erpReleaseWhatsapp?: string;
   erpReleaseWhatsappByTable?: Record<string, string>;

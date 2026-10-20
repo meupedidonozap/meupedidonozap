@@ -25,14 +25,16 @@ interface CustomerAuthDialogProps {
   onOpenChange: (open: boolean) => void;
   storeId: string;
   storeSlug?: string;
+  /** Exibe a aba "Cadastrar" (configuração da loja). Padrão: sim. */
+  allowSignup?: boolean;
 }
 
 type Step = 'auth' | 'profile' | 'forgot';
 
-export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug }: CustomerAuthDialogProps) {
+export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
-  const showCodeTab = storeSlug === 'dicolore';
+  const showCodeTab = storeSlug === 'dicolore' || storeSlug === 'dicoloresenses';
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [step, setStep] = useState<Step>('auth');
@@ -228,7 +230,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {step === 'auth' && 'Entrar ou Cadastrar'}
+            {step === 'auth' && (allowSignup ? 'Entrar ou Cadastrar' : 'Entrar')}
             {step === 'profile' && 'Complete seu Cadastro'}
             {step === 'forgot' && 'Redefinir Senha'}
           </DialogTitle>
@@ -236,10 +238,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
 
         {step === 'auth' && (
           <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
-            <TabsList className={`grid w-full ${showCodeTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <TabsList className={`grid w-full ${(showCodeTab ? 1 : 0) + 1 + (allowSignup ? 1 : 0) === 3 ? 'grid-cols-3' : (showCodeTab || allowSignup) ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {showCodeTab && <TabsTrigger value="code">Código/Usuário</TabsTrigger>}
               <TabsTrigger value="login">Entrar</TabsTrigger>
-              <TabsTrigger value="register">Cadastrar</TabsTrigger>
+              {allowSignup && <TabsTrigger value="register">Cadastrar</TabsTrigger>}
             </TabsList>
             {showCodeTab && <TabsContent value="code">
               <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
