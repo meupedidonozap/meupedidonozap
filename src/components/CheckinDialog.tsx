@@ -17,7 +17,9 @@ import { haversineMeters, getCurrentPosition, GeoError, type GeoErrorKind } from
 import {
   useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo,
   DEFAULT_VISIT_REASONS, formatDuration, type CustomerVisit,
+  OUT_OF_RANGE_REASONS, logGeoChange, reverseGeocode,
 } from '@/hooks/useCustomerVisits';
+import CustomersMap, { type MapPoint } from '@/components/CustomersMap';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 
 interface CustomerRow {
@@ -91,6 +93,13 @@ export default function CheckinDialog({
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [gpsHelp, setGpsHelp] = useState<{ kind: GeoErrorKind; customer: CustomerRow } | null>(null);
+  const [view, setView] = useState<'lista' | 'mapa'>('lista');
+  const [outRange, setOutRange] = useState<{ customer: CustomerRow; my: { lat: number; lng: number }; geo: { lat: number; lng: number }; dist: number } | null>(null);
+  const [oorReason, setOorReason] = useState('');
+  const [oorNotes, setOorNotes] = useState('');
+  const [oorUpdateGeo, setOorUpdateGeo] = useState(true);
+  const [oorSaving, setOorSaving] = useState(false);
+  const [geoBatch, setGeoBatch] = useState<{ done: number; total: number; ok: number } | null>(null);
 
   const { data: customers = [], isLoading } = useWalletCustomers(storeId, sellerCodes);
   const sinceIso = useMemo(
@@ -317,7 +326,50 @@ export default function CheckinDialog({
                 <span className="text-xs text-muted-foreground">{filtered.length} clientes</span>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable]">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant={view === 'lista' ? 'default' : 'outline'} onClick={() => setView('lista')}>Lista</Button>
+                <Button size="sm" variant={view === 'mapa' ? 'default' : 'outline'} onClick={() => setView('mapa')}>
+                  <MapPin className="mr-1 h-4 w-4" /> Mapa
+                </Button>
+                {view === 'mapa' && (
+                  <Button size="sm" variant="outline" onClick={geocodeBatch} disabled={!!geoBatch}>
+                    {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : 'Localizar clientes sem ponto (50)'}
+                  </Button>
+                )}
+              </div>
+
+              {view === 'mapa' && (
+                <div className="flex-1 min-h-[360px] rounded-md border overflow-hidden flex flex-col">
+                  <div className="flex-1 min-h-[320px]">
+                    <CustomersMap
+                      points={mapPoints}
+                      renderActions={(id) => {
+                        const c = filtered.find(x => x.id === id);
+                        if (!c) return null;
+                        const openV = openVisitByCustomer.get(c.id);
+                        return (
+                          <div className="flex flex-col gap-1 pt-1">
+                            {openV ? (
+                              <Button size="sm" variant="destructive" onClick={() => openCheckout(openV)}>Fazer Checkout</Button>
+                            ) : (
+                              <Button size="sm" onClick={() => handleCheckIn(c)} disabled={busyId === c.id}>Fazer Checkin</Button>
+                            )}
+                            <Button size="sm" variant="outline" asChild>
+                              <a target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${c.geo_lat},${c.geo_lng}`}>Como chegar</a>
+                            </Button>
+                          </div>
+                        );
+                      }}
+                    />
+                  </div>
+                  <p className="p-2 text-xs text-muted-foreground border-t">
+                    {mapPoints.length} no mapa • {filtered.length - mapPoints.length} sem localização •
+                    <span className="text-destructive"> ● sem visita</span> • <span style={{ color: 'hsl(142 70% 40%)' }}>● visitado</span> • <span style={{ color: 'hsl(217 90% 55%)' }}>● em andamento</span>
+                  </p>
+                </div>
+              )}
+
+              <div className={`flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-md border [scrollbar-width:thin] [scrollbar-gutter:stable] ${view === 'mapa' ? 'hidden' : ''}`}>
                 {isLoading ? (
                   <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
                 ) : filtered.length === 0 ? (
