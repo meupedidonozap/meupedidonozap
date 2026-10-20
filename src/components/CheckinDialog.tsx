@@ -342,14 +342,14 @@ export default function CheckinDialog({
                 </Button>
                 {view === 'mapa' && (
                   <Button size="sm" variant="outline" onClick={geocodeBatch} disabled={!!geoBatch}>
-                    {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : 'Localizar clientes sem ponto (50)'}
+                    {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : `Localizar ${customers.filter(c => c.geo_lat == null).length} clientes sem ponto`}
                   </Button>
                 )}
               </div>
 
               {view === 'mapa' && (
                 <div className="flex-1 min-h-[360px] rounded-md border overflow-hidden flex flex-col">
-                  <div className="flex-1 min-h-[320px]">
+                  <div className="h-[55vh] min-h-[320px]">
                     <CustomersMap
                       points={mapPoints}
                       renderActions={(id) => {
