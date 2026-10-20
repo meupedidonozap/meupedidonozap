@@ -111,3 +111,15 @@ def test_to_json_time_field():
     import datetime as _dt
     import sync_dicolore_financeiro_v5 as m
     assert m.to_json(_dt.time(14, 30, 5)) == "14:30:05"
+
+
+def test_horario_historico_1730():
+    from datetime import datetime as dt
+    assert sync.historico_liberado(dt(2026, 10, 20, 17, 29)) is False
+    assert sync.historico_liberado(dt(2026, 10, 20, 17, 30)) is True
+
+
+def test_pedidos_do_dia_sempre_primeiro():
+    codes = ["98875", "98869", "1", "2", "3"]
+    assert sync.select_codes(codes, 2, 40, False) == ["98875", "98869"]
+    assert sync.select_codes(codes, 2, 40, True)[:2] == ["98875", "98869"]
