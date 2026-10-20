@@ -76,6 +76,8 @@ export default function GeoBatchPanel({ storeId }: { storeId: string }) {
             <Badge variant="outline">Conferir CEP: {stats.divergente}</Badge>
             <Badge variant="outline">Erros: {stats.erro}</Badge>
           </div>
+        ) : loadError ? (
+          <div className="text-sm text-destructive flex items-center gap-2">Não foi possível carregar: {loadError} <Button size="sm" variant="outline" onClick={loadStats}>Tentar de novo</Button></div>
         ) : <Loader2 className="h-4 w-4 animate-spin" />}
         <div className="flex flex-wrap gap-2">
           {running ? (
