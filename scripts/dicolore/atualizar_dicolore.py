@@ -86,7 +86,19 @@ ADMIN_USER = os.getenv("ADMIN_USER")
 ADMIN_PASS = os.getenv("ADMIN_PASS")
 ADMIN_WAIT_AFTER_CLICK_MS = int(os.getenv("ADMIN_WAIT_AFTER_CLICK_MS", "45000"))
 
-LOG_PATH = Path(__file__).parent / "automacao.log"
+def _tarefa_argv() -> str:
+    """v12: cada monitor separado (pedidos/cadastros/status) tem seu próprio log e trava."""
+    for i, a in enumerate(sys.argv):
+        if a == "--tarefa" and i + 1 < len(sys.argv):
+            return sys.argv[i + 1].strip().lower()
+        if a.startswith("--tarefa="):
+            return a.split("=", 1)[1].strip().lower()
+    return "todos"
+
+
+TAREFA = _tarefa_argv()
+_SUFIXO_LOG = "" if TAREFA == "todos" else f"_{TAREFA}"
+LOG_PATH = Path(__file__).parent / f"automacao{_SUFIXO_LOG}.log"
 ESTADO_PATH = Path(__file__).parent / "estado_monitor.json"
 
 
