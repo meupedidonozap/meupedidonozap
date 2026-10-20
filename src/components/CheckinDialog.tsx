@@ -147,6 +147,14 @@ export default function CheckinDialog({
     }).slice(0, 400);
   }, [customers, onlyUnvisited, visitedInPeriod, search]);
 
+  const mapPoints = useMemo<MapPoint[]>(() => filtered
+    .filter(c => c.geo_lat != null && c.geo_lng != null)
+    .map(c => ({
+      id: c.id, lat: Number(c.geo_lat), lng: Number(c.geo_lng), title: c.name,
+      subtitle: [c.customer_code ? `#${c.customer_code}` : '', [c.city, c.uf].filter(Boolean).join('/')].filter(Boolean).join(' • '),
+      status: openVisitByCustomer.has(c.id) ? 'open' : visitedInPeriod.has(c.id) ? 'visited' : 'pending',
+    })), [filtered, openVisitByCustomer, visitedInPeriod]);
+
   const periodLabel = useMemo(() => {
     const from = new Date(Date.now() - unvisitedPeriodDays * 24 * 3600 * 1000);
     return `Não atendido de ${from.toLocaleDateString('pt-BR')} até ${new Date().toLocaleDateString('pt-BR')}`;
@@ -564,6 +572,43 @@ export default function CheckinDialog({
               <MapPin className="mr-1 h-4 w-4" /> Tentar novamente
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-in fora do raio */}
+      <Dialog open={!!outRange} onOpenChange={(o) => !o && !oorSaving && setOutRange(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Check-in fora do raio</DialogTitle></DialogHeader>
+          {outRange && (
+            <div className="space-y-3 text-sm">
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                Você está a <b>{outRange.dist >= 1000 ? `${(outRange.dist / 1000).toFixed(1)} km` : `${Math.round(outRange.dist)} m`}</b> do local registrado de <b>{outRange.customer.name}</b> (limite {maxDistanceMeters} m). Informe a justificativa para continuar.
+              </p>
+              <div className="grid gap-1">
+                <Label>Justificativa *</Label>
+                <Select value={oorReason} onValueChange={setOorReason}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {OUT_OF_RANGE_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label>Detalhes {oorReason === 'Outro' ? '*' : ''}</Label>
+                <Textarea rows={3} value={oorNotes} onChange={e => setOorNotes(e.target.value)} />
+              </div>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" checked={oorUpdateGeo} onChange={e => setOorUpdateGeo(e.target.checked)} />
+                <span>Gravar minha posição atual como nova localização deste cliente</span>
+              </label>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setOutRange(null)} disabled={oorSaving}>Cancelar</Button>
+                <Button onClick={confirmOutOfRange} disabled={oorSaving}>
+                  {oorSaving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />} Confirmar check-in
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
