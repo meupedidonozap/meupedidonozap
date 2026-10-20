@@ -1,0 +1,17 @@
+MONITORES SEPARADOS DICOLORE - v12
+
+1) Feche a janela do monitor antigo.
+2) Copie todos os arquivos deste ZIP para a pasta:
+   S:\denis\integration\mpz\automação dicolore
+   (substitua os .py; NAO mexa em dicolore.env nem importacao.env)
+3) De dois cliques em INICIAR_TODOS_MONITORES.bat. Abrem 3 janelas:
+   1 - Transmissao de Pedidos  -> verifica a cada 30s, mostra o retorno completo do integrador (motivo de cada pedido)
+                                  log: automacao_pedidos.log
+   2 - Estoque, Precos, Clientes -> log: automacao_cadastros.log
+   3 - Status OF/NF              -> a cada 5 min, log: automacao_status.log
+4) Cada janela e independente: se uma travar ou demorar, as outras continuam.
+   Se uma janela fechar sozinha por erro, ela reinicia em 10s.
+5) Nao abra a mesma janela duas vezes (o programa bloqueia duplicados).
+
+Opcional no dicolore.env: MONITOR_INTERVALO_PEDIDOS_DEDICADO=30 (segundos).
+O modo antigo (tudo junto) continua funcionando: monitorar_dicolore.bat.
