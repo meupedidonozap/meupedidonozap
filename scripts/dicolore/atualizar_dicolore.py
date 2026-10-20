@@ -122,7 +122,8 @@ MONITOR_MIN_ENTRE = {
     "clientes": _env_int("MONITOR_MIN_ENTRE_CLIENTES", 600),
 }
 MONITOR_SYNC_INICIAL = os.getenv("MONITOR_SINCRONIZAR_AO_INICIAR", "sim").strip().lower() in ("sim", "s", "1", "true")
-MONITOR_PORTA_TRAVA = _env_int("MONITOR_PORTA_TRAVA", 47653)
+MONITOR_PORTA_TRAVA = _env_int("MONITOR_PORTA_TRAVA", 47653) + {"todos": 0, "pedidos": 1, "cadastros": 2, "status": 3}.get(TAREFA, 0)
+MONITOR_INTERVALO_PEDIDOS_DEDICADO = _env_int("MONITOR_INTERVALO_PEDIDOS_DEDICADO", 30)
 # Transmissão de pedidos MPZ -> ERP (integrador_pedidos.py na pasta importacao)
 IMPORTACAO_DIR = _BASE / "importacao"
 INTEGRADOR_PEDIDOS = IMPORTACAO_DIR / "integrador_pedidos.py"
@@ -669,6 +670,45 @@ def travar_instancia():
     return sock  # precisa continuar referenciado enquanto o monitor roda
 
 
+def _loop_dedicado(nome: str, intervalo: int, acao) -> int:
+    """Laço leve: não abre navegador, Google Sheets nem views de cadastro."""
+    trava = travar_instancia()
+    if trava is None:
+        log.error("Já existe um monitor de %s rodando (porta %d). Encerrando este.", nome, MONITOR_PORTA_TRAVA)
+        return 3
+    _desligar_modo_selecao()
+    log.info("=== MONITOR DE %s iniciado (a cada %ds). Para parar: feche a janela. ===", nome.upper(), intervalo)
+    proxima = 0.0
+    ultimo_batimento = time.time()
+    try:
+        while True:
+            if time.time() >= proxima:
+                inicio = time.time()
+                try:
+                    ok = acao()
+                except Exception as e:
+                    log.error("[%s] Falha inesperada: %s", nome, e)
+                    ok = False
+                espera = intervalo if ok else max(intervalo, 60)
+                proxima = time.time() + espera
+                log.info("[%s] Ciclo concluído em %.1fs (%s). Próximo às %s.", nome,
+                         time.time() - inicio, "ok" if ok else "com erro",
+                         datetime.fromtimestamp(proxima).strftime("%H:%M:%S"))
+                ultimo_batimento = time.time()
+            elif time.time() - ultimo_batimento >= 300:
+                log.info("[%s] Ativo.", nome)
+                ultimo_batimento = time.time()
+            time.sleep(1)
+    except KeyboardInterrupt:
+        log.info("=== Monitor de %s encerrado pelo usuário ===", nome)
+        return 0
+    finally:
+        try:
+            trava.close()
+        except Exception:
+            pass
+
+
 def monitorar(chaves: list, usar_painel: bool, ver_navegador: bool = False) -> int:
     """Roda até ser interrompido. Retorna o código de saída."""
     trava = travar_instancia()
@@ -692,7 +732,10 @@ def monitorar(chaves: list, usar_painel: bool, ver_navegador: bool = False) -> i
     log.info("=== MONITOR iniciado: %s ===", ", ".join(chaves))
     for c in chaves:
         log.info("  %s: checa a cada %ds; no mínimo %ds entre atualizações", c, MONITOR_INTERVALO[c], MONITOR_MIN_ENTRE[c])
-    if MONITOR_TRANSMITIR_PEDIDOS:
+    so_cadastros = TAREFA == "cadastros"
+    if so_cadastros:
+        log.info("  (modo cadastros: pedidos e OF/NF ficam nos outros monitores)")
+    if MONITOR_TRANSMITIR_PEDIDOS and not so_cadastros:
         log.info("  pedidos-erp: transmite pedidos liberados a cada %ds", MONITOR_INTERVALO_TRANSMISSAO)
     proxima_transmissao = 0.0
     proximo_status = time.time() + 30
@@ -767,15 +810,15 @@ def monitorar(chaves: list, usar_painel: bool, ver_navegador: bool = False) -> i
                     log.info("[%s] Atualização concluída.", ent.chave)
                 salvar_estado(estado)
 
-            if MONITOR_TRANSMITIR_PEDIDOS and time.time() >= proxima_transmissao:
+            if MONITOR_TRANSMITIR_PEDIDOS and not so_cadastros and time.time() >= proxima_transmissao:
                 ok_tx = transmitir_pedidos(silencioso=True)
                 proxima_transmissao = time.time() + (MONITOR_INTERVALO_TRANSMISSAO if ok_tx else max(MONITOR_INTERVALO_TRANSMISSAO, 300))
 
-            if time.time() >= proximo_status:
+            if not so_cadastros and time.time() >= proximo_status:
                 iniciar_status_pedidos_em_segundo_plano()
                 proximo_status = time.time() + MONITOR_INTERVALO_STATUS_PEDIDOS
 
-            if time.time() - ultimo_batimento >= 60:
+            if not so_cadastros and time.time() - ultimo_batimento >= 60:
                 log.info("[monitor] Ativo. Próxima checagem de pedidos %s; OF/NF %s.",
                          datetime.fromtimestamp(proxima_transmissao).strftime("%H:%M"),
                          datetime.fromtimestamp(proximo_status).strftime("%H:%M"))
@@ -802,7 +845,14 @@ if __name__ == "__main__":
     parser.add_argument("--only", nargs="+", choices=list(ENTIDADES), help="Limita a alguns itens (padrão: todos).")
     parser.add_argument("--transmitir-pedidos", action="store_true", help="Só transmite os pedidos liberados ao ERP e sai.")
     parser.add_argument("--dry-pedidos", action="store_true", help="Só gera o XML dos pedidos liberados, sem enviar.")
+    parser.add_argument("--tarefa", choices=["todos", "pedidos", "cadastros", "status"], default="todos",
+                        help="v12: monitor separado. pedidos=só transmissão; cadastros=estoque/preços/clientes; status=OF/NF.")
     args = parser.parse_args()
+
+    if args.monitorar and args.tarefa == "pedidos":
+        sys.exit(_loop_dedicado("pedidos-erp", MONITOR_INTERVALO_PEDIDOS_DEDICADO, lambda: transmitir_pedidos()))
+    if args.monitorar and args.tarefa == "status":
+        sys.exit(_loop_dedicado("status-pedidos", MONITOR_INTERVALO_STATUS_PEDIDOS, sincronizar_status_pedidos))
 
     if args.transmitir_pedidos or args.dry_pedidos:
         sys.exit(0 if transmitir_pedidos(dry=args.dry_pedidos) else 1)
