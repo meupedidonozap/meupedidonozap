@@ -253,19 +253,38 @@ def query_windows(args, today=None):
                         "AND data_emissao < %s"), (day, day + timedelta(days=1))
 
 
+def historico_liberado(agora=None):
+    """Pedidos antigos só depois das 17:30 (ou antes das 7:00)."""
+    agora = agora or datetime.now()
+    hm = agora.hour * 60 + agora.minute
+    return hm >= 17 * 60 + 30 or hm < 7 * 60
+
+
+def select_codes(codes, priority, limit, historico):
+    """Pedidos do dia (transmitidos pelo site) sempre primeiro e todos; antigos só no horário liberado."""
+    head = codes[:priority]
+    if not historico:
+        return head
+    rest = codes[priority:]
+    import random
+    room = max(limit - len(head), 0)
+    return head + random.sample(rest, min(len(rest), room))
+
+
 def fetch_pending_codes(limit, days=30):
+    historico = historico_liberado()
     response = requests.post(API_URL, data=json.dumps({"store_slug": STORE_SLUG, "action": "pending_order_codes",
-                             "days": days}), headers={"x-sync-token": SYNC_TOKEN,
+                             "days": days if historico else 3}), headers={"x-sync-token": SYNC_TOKEN,
                              "Content-Type": "application/json"}, timeout=(10, 45))
     response.raise_for_status()
     result = response.json()
     if result.get("ok") is not True:
         raise RuntimeError("A nuvem não retornou a lista de pedidos pendentes.")
     codes = [str(c) for c in result.get("codes", []) if str(c).isdigit()]
-    # Metade: os mais recentes; metade: sorteio entre os antigos, para todos serem atualizados com o tempo.
-    head, rest = codes[:limit // 2], codes[limit // 2:]
-    import random
-    return head + random.sample(rest, min(len(rest), limit - len(head)))
+    priority = int(result.get("priority", 0))
+    if not historico:
+        log("Horário comercial: só pedidos recentes transmitidos pelo site; antigos após 17:30.")
+    return select_codes(codes, priority, limit, historico)
 
 
 def sync_pedidos(conn, cur, args):

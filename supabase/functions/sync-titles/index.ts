@@ -111,16 +111,11 @@ Deno.serve(async (req) => {
     if (!st) return json({ error: "Loja não encontrada" }, 404);
     const days = Math.min(Math.max(Number(raw.days) || 30, 1), 120);
     const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    // Prioridade: pedidos transmitidos pelo site (mais recentes primeiro), depois os demais do ERP.
     const codes = new Set<string>();
-    const { data: pend, error: e1 } = await sb.from("erp_orders")
-      .select("codigo_importacao, codigo").eq("store_id", st.id)
-      .or("nota_fiscal_numero.is.null,status.neq.F").gte("data_emissao", since)
-      .order("data_emissao", { ascending: false }).limit(500);
-    if (e1) return json({ error: e1.message }, 500);
-    for (const r of pend || []) { const c = String(r.codigo_importacao || r.codigo || "").trim(); if (/^\d+$/.test(c)) codes.add(c); }
     const { data: sent, error: e2 } = await sb.from("orders")
       .select("erp_order_code").eq("store_id", st.id).not("erp_order_code", "is", null)
-      .gte("erp_sent_at", since).limit(500);
+      .gte("erp_sent_at", since).order("erp_sent_at", { ascending: false }).limit(500);
     if (e2) return json({ error: e2.message }, 500);
     const finished = new Set<string>();
     const sentCodes = (sent || []).map((r: any) => String(r.erp_order_code || "").trim()).filter((c) => /^\d+$/.test(c));
@@ -131,7 +126,14 @@ Deno.serve(async (req) => {
       for (const d of done || []) finished.add(String(d.codigo_importacao));
     }
     for (const c of sentCodes) if (!finished.has(c)) codes.add(c);
-    return json({ ok: true, codes: [...codes] });
+    const priority = codes.size;
+    const { data: pend, error: e1 } = await sb.from("erp_orders")
+      .select("codigo_importacao, codigo").eq("store_id", st.id)
+      .or("nota_fiscal_numero.is.null,status.neq.F").gte("data_emissao", since)
+      .order("data_emissao", { ascending: false }).limit(500);
+    if (e1) return json({ error: e1.message }, 500);
+    for (const r of pend || []) { const c = String(r.codigo_importacao || r.codigo || "").trim(); if (/^\d+$/.test(c)) codes.add(c); }
+    return json({ ok: true, codes: [...codes], priority });
   }
 
   {
