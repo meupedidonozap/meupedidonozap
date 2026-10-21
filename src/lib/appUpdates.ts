@@ -13,11 +13,12 @@ export function announceAppUpdate() {
 }
 
 export function observeAppRegistration(registration: ServiceWorkerRegistration) {
+  const isUpdate = Boolean(registration.active || navigator.serviceWorker.controller);
   const observe = (worker: ServiceWorker | null) => {
     if (!worker) return;
     const check = () => {
       // First install is not an update. Auto-update activates the new worker.
-      if (worker.state === 'activated' && navigator.serviceWorker.controller) announceAppUpdate();
+      if (worker.state === 'activated' && isUpdate) announceAppUpdate();
     };
     worker.addEventListener('statechange', check);
   };
