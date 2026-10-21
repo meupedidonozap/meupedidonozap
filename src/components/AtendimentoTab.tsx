@@ -51,15 +51,22 @@ function useSellerCustomers(storeId: string | undefined, sellerCodes: string[]) 
   return useQuery({
     queryKey: ['atendimento-customers', storeId, sellerCodes.join(',')],
     queryFn: async () => {
-      let q = supabase
-        .from('customer_profiles')
-        .select('id, name, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, customer_code, geo_lat, geo_lng, is_active')
-        .eq('store_id', storeId!)
-        .order('name');
-      if (sellerCodes.length > 0) q = q.in('seller_code', sellerCodes);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []).filter((r: any) => r.is_active !== false) as CustomerRow[];
+      const all: any[] = [];
+      for (let from = 0; from < 20000; from += 1000) {
+        let q = supabase
+          .from('customer_profiles')
+          .select('id, name, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, customer_code, geo_lat, geo_lng, is_active')
+          .eq('store_id', storeId!)
+          .order('name')
+          .order('id')
+          .range(from, from + 999);
+        if (sellerCodes.length > 0) q = q.in('seller_code', sellerCodes);
+        const { data, error } = await q;
+        if (error) throw error;
+        all.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return all.filter((r: any) => r.is_active !== false) as CustomerRow[];
     },
     enabled: !!storeId,
   });
