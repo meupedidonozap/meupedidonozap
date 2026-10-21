@@ -2,6 +2,8 @@
  * Registro do service worker (offline + push).
  * Nunca registra em dev, dentro de iframe ou nos previews da Lovable.
  */
+import { announceAppUpdate, observeAppRegistration } from './appUpdates';
+
 const SW_URL = '/sw.js';
 
 function isRefusedContext(): boolean {
@@ -24,7 +26,7 @@ async function unregisterAppSW() {
     const regs = await navigator.serviceWorker.getRegistrations();
     await Promise.all(
       regs
-        .filter((r) => (r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || '').includes(SW_URL))
+        .filter((r) => [r.active, r.installing, r.waiting].some(worker => worker && new URL(worker.scriptURL).pathname === SW_URL))
         .map((r) => r.unregister()),
     );
   } catch {}
@@ -36,17 +38,24 @@ export function registerServiceWorker() {
     void unregisterAppSW();
     return;
   }
-  const hadController = !!navigator.serviceWorker.controller;
+  let hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController) window.dispatchEvent(new Event('mpz:update-available'));
+    if (hadController) announceAppUpdate();
+    hadController = true;
   });
-  window.addEventListener('load', () => {
+  const register = () => {
     navigator.serviceWorker.register(SW_URL).then((reg) => {
+      observeAppRegistration(reg);
       const check = () => { reg.update().catch(() => {}); };
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
-      setInterval(check, 10 * 60 * 1000);
+      window.addEventListener('focus', check);
+      window.addEventListener('pageshow', check);
+      window.addEventListener('online', check);
+      check();
     }).catch((err) => {
       console.warn('SW register failed', err);
     });
-  });
+  };
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register, { once: true });
 }

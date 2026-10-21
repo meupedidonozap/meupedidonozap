@@ -4,6 +4,7 @@ import { Menu, Home, Gem, HeartPulse, LineChart, Package, FileText, Receipt } fr
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
+import AppUpdateButton from './AppUpdateButton';
 
 interface Props {
   store: { slug: string; name: string; logo?: string | null };
@@ -41,6 +42,9 @@ export default function SellerMenu({ store, sellerName }: Props) {
               <i.icon className="h-5 w-5 text-muted-foreground" /> {i.label}
             </Link>
           ))}
+          <div className="mt-2 border-t pt-2">
+            <AppUpdateButton menu />
+          </div>
         </nav>
       </SheetContent>
     </Sheet>

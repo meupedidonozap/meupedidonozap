@@ -1,5 +1,9 @@
 # Roadmap
 
+## Atualização do aplicativo instalado
+- [ ] Avisar quando uma nova versão estiver pronta e oferecer atualização no menu do vendedor
+- [ ] Validar detecção, atualização e preservação de carrinho/sessão
+
 ## Correção do monitor OF/NF v9
 - [x] Preparar sincronização por dia, pedido individual, limites de tempo e atualização sem itens
 - [x] Exibir progresso ao vivo no monitor e validar com seis testes automatizados
