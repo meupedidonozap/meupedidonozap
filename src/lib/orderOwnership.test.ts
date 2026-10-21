@@ -58,6 +58,15 @@ describe('canEditOrder', () => {
     expect(canEditOrder(o, vend)).toBe(true);
     expect(canEditOrder(o, tv)).toBe(false);
   });
+  it('gestor edita qualquer pedido sem tomar a posse (cadeia preservada)', () => {
+    const tvOrder = { createdByRole: 'televendas', ownerRole: 'televendas', isTelevendas: true, ownerName: 'Grazi' };
+    const cliOrder = { createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Rita' };
+    const gestor = { isAdmin: true, name: 'Gestor' };
+    expect(claimCustomerOrder(tvOrder, gestor)).toEqual(tvOrder);
+    expect(claimCustomerOrder(cliOrder, gestor)).toEqual(cliOrder);
+    expect(canEditOrder({ customer: tvOrder }, gestor)).toBe(true);
+    expect(canEditOrder({ customer: cliOrder }, gestor)).toBe(true);
+  });
   it('admin sempre edita', () => {
     expect(canEditOrder({ customer: { createdByRole: 'cliente' } }, { isAdmin: true })).toBe(true);
   });
