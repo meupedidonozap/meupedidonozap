@@ -54,15 +54,22 @@ function useWalletCustomers(storeId: string | undefined, sellerCodes: string[]) 
   return useQuery({
     queryKey: ['checkin-customers', storeId, sellerCodes.join(',')],
     queryFn: async () => {
-      let q = supabase
-        .from('customer_profiles')
-        .select('id, name, customer_code, cpf_cnpj, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, price_table, geo_lat, geo_lng, is_active')
-        .eq('store_id', storeId!)
-        .order('name');
-      if (sellerCodes.length > 0) q = q.in('seller_code', sellerCodes);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []).filter((r: any) => r.is_active !== false) as CustomerRow[];
+      const all: any[] = [];
+      for (let from = 0; from < 20000; from += 1000) {
+        let q = supabase
+          .from('customer_profiles')
+          .select('id, name, customer_code, cpf_cnpj, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, price_table, geo_lat, geo_lng, is_active')
+          .eq('store_id', storeId!)
+          .order('name')
+          .order('id')
+          .range(from, from + 999);
+        if (sellerCodes.length > 0) q = q.in('seller_code', sellerCodes);
+        const { data, error } = await q;
+        if (error) throw error;
+        all.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return all.filter((r: any) => r.is_active !== false) as CustomerRow[];
     },
     enabled: !!storeId,
   });
@@ -106,8 +113,10 @@ export default function CheckinDialog({
     () => new Date(Date.now() - Math.max(unvisitedPeriodDays, 1) * 24 * 3600 * 1000).toISOString(),
     [unvisitedPeriodDays],
   );
-  const { data: periodVisits = [] } = useCustomerVisits(storeId, { onlyMine: true, sinceIso });
-  const { data: allVisits = [] } = useCustomerVisits(storeId, { onlyMine: true });
+  // Gestor/admin (sem carteira) enxerga visitas de toda a equipe.
+  const onlyMine = sellerCodes.length > 0;
+  const { data: periodVisits = [] } = useCustomerVisits(storeId, { onlyMine, sinceIso });
+  const { data: allVisits = [] } = useCustomerVisits(storeId, { onlyMine });
 
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();

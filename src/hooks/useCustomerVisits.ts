@@ -35,19 +35,28 @@ export function useCustomerVisits(storeId: string | undefined, opts?: { onlyMine
   return useQuery({
     queryKey: ['customer-visits', storeId, opts?.onlyMine, opts?.sinceIso],
     queryFn: async () => {
-      let q = supabase
-        .from('customer_visits')
-        .select('*')
-        .eq('store_id', storeId!)
-        .order('checked_in_at', { ascending: false });
-      if (opts?.sinceIso) q = q.gte('checked_in_at', opts.sinceIso);
+      let userId: string | null = null;
       if (opts?.onlyMine) {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) q = q.eq('seller_user_id', user.id);
+        userId = user?.id ?? null;
       }
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as CustomerVisit[];
+      const all: any[] = [];
+      for (let from = 0; from < 20000; from += 1000) {
+        let q = supabase
+          .from('customer_visits')
+          .select('*')
+          .eq('store_id', storeId!)
+          .order('checked_in_at', { ascending: false })
+          .order('id')
+          .range(from, from + 999);
+        if (opts?.sinceIso) q = q.gte('checked_in_at', opts.sinceIso);
+        if (userId) q = q.eq('seller_user_id', userId);
+        const { data, error } = await q;
+        if (error) throw error;
+        all.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return all as CustomerVisit[];
     },
     enabled: !!storeId,
   });
