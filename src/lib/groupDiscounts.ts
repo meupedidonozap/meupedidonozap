@@ -30,30 +30,45 @@ export function computeGroupDiscounts(
 
   if (groupRules.length === 0) return { quantityDiscount: 0, itemDiscounts };
 
-  const groupMap = new Map<string, CartItem[]>();
-  for (const item of items) {
-    if (!item.groupId) continue;
-    const key = normalizeGroupId(item.groupId);
-    if (!key) continue;
-    const list = groupMap.get(key) || [];
-    list.push(item);
-    groupMap.set(key, list);
-  }
-
-  for (const [groupKey, groupItems] of groupMap) {
-    const totalQty = groupItems.reduce((s, i) => s + i.quantity, 0);
-    const applicable = groupRules
-      .filter(r => normalizeGroupId(r.groupId) === groupKey && (r.minQuantity || 0) <= totalQty)
-      .sort((a, b) => (b.minQuantity || 0) - (a.minQuantity || 0))[0];
-
-    if (!applicable) continue;
-
-    const pct = applicable.discountPercent / 100;
-    for (const item of groupItems) {
-      const key = `${item.productId}-${item.variantId || ''}`;
-      itemDiscounts[key] = applicable.discountPercent;
-      totalDiscount += item.price * item.quantity * pct;
+  // Prioridade: produto > grupo > categoria. Cada item recebe só uma regra.
+  const scopeOf = (r: DiscountRule) => r.scope || 'group';
+  const keyFor = (scope: string, item: CartItem): string => {
+    if (scope === 'product') return item.productId || '';
+    if (scope === 'category') return item.categoryId || '';
+    return normalizeGroupId(item.groupId);
+  };
+  const ruleKey = (r: DiscountRule): string => {
+    const sc = scopeOf(r);
+    if (sc === 'product') return r.productId || '';
+    if (sc === 'category') return r.categoryId || '';
+    return normalizeGroupId(r.groupId);
+  };
+  const chosen = new Map<CartItem, number>();
+  for (const scope of ['product', 'group', 'category'] as const) {
+    const scoped = groupRules.filter(r => scopeOf(r) === scope);
+    if (scoped.length === 0) continue;
+    const buckets = new Map<string, CartItem[]>();
+    for (const item of items) {
+      if (chosen.has(item)) continue;
+      const k = keyFor(scope, item);
+      if (!k) continue;
+      const list = buckets.get(k) || [];
+      list.push(item);
+      buckets.set(k, list);
     }
+    for (const [k, bucketItems] of buckets) {
+      const totalQty = bucketItems.reduce((s, i) => s + i.quantity, 0);
+      const applicable = scoped
+        .filter(r => ruleKey(r) === k && (r.minQuantity || 0) <= totalQty)
+        .sort((a, b) => (b.minQuantity || 0) - (a.minQuantity || 0))[0];
+      if (!applicable) continue;
+      for (const item of bucketItems) chosen.set(item, applicable.discountPercent);
+    }
+  }
+  for (const [item, pctValue] of chosen) {
+    const key = `${item.productId}-${item.variantId || ''}`;
+    itemDiscounts[key] = pctValue;
+    totalDiscount += item.price * item.quantity * (pctValue / 100);
   }
 
   return { quantityDiscount: totalDiscount, itemDiscounts };
