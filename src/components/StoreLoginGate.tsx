@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { Button } from '@/components/ui/button';
-import CustomerAuthDialog from '@/components/CustomerAuthDialog';
+import CustomerAuthDialog, { ApprovalNotice } from '@/components/CustomerAuthDialog';
 import type { Store } from '@/types';
 
 /** Quando a loja exige login, só libera o catálogo para cliente aprovado, equipe ou admin. */
@@ -19,6 +19,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
   const { hasAccess, isStoreUser, loading: staffLoading } = useStoreAdmin(required ? store.id : undefined);
   const [open, setOpen] = useState(false);
   const allowSignup = store.settings?.allowCustomerSignup !== false;
+  const supportWhatsapp = String((store.settings as any)?.approvalSupportWhatsapp || '');
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['gate-profile', user?.id, store.id],
@@ -49,8 +50,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
         {pending ? (
           <>
             <Clock className="mx-auto my-4 h-10 w-10 text-primary" />
-            <p className="font-semibold">Seu cadastro está em análise</p>
-            <p className="mt-2 text-sm text-muted-foreground">Nossa equipe vai conferir seus dados e vincular você a um representante. Assim que for aprovado, você poderá acessar a loja.</p>
+            <ApprovalNotice kind="pending" supportWhatsapp={supportWhatsapp} />
             <Button variant="outline" className="mt-6 w-full" onClick={() => signOut()}><LogOut className="mr-2 h-4 w-4" />Sair</Button>
           </>
         ) : (
@@ -67,7 +67,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
         )}
       </div>
       <CustomerAuthDialog open={open} onOpenChange={setOpen} storeId={store.id} storeSlug={store.slug}
-        allowSignup={allowSignup} requireApproval startAtProfile={needsProfile} />
+        allowSignup={allowSignup} requireApproval startAtProfile={needsProfile} supportWhatsapp={supportWhatsapp} />
     </div>
   );
 }
