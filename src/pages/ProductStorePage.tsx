@@ -75,9 +75,10 @@ export default function ProductStorePage() {
     selectCustomer,
     seller,
   } = useActiveCustomerProfile(store?.id);
-  const stockEnabled = (store?.settings as any)?.useStockIntegration === true;
-  // Vendedor/Televendas (e admin no Modo Vendedor) veem o saldo de estoque.
-  const showStockQty = stockEnabled && isSellerMode;
+  const isJewos = store?.slug === 'jewosnewborn';
+  const stockEnabled = (store?.settings as any)?.useStockIntegration === true || isJewos;
+  // Jewos: todos veem o saldo. Demais lojas: só Vendedor/Televendas.
+  const showStockQty = isJewos || (stockEnabled && isSellerMode);
   const stockQty = (p: Product) =>
     p.hasVariants
       ? (p.variants ?? []).reduce((s, v) => s + Math.max(0, Number(v.stock ?? 0)), 0)
