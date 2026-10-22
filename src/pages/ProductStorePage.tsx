@@ -811,7 +811,7 @@ export default function ProductStorePage() {
         setSelectedVariant={setSelectedVariant}
         onAddToCart={handleAddToCart}
         priceTable={activePriceTable}
-        stockEnabled={stockEnabled}
+        stockEnabled={stockEnabled || store.slug === 'jewosnewborn'}
       />
 
       <footer className="border-t bg-card py-6">
