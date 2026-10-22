@@ -248,6 +248,26 @@ Deno.serve(async (req) => {
     nota_fiscal_numero: o.nota_fiscal_numero && o.nota_fiscal_numero !== "0" ? o.nota_fiscal_numero : null,
     pedido_origem: o.pedido_origem || null,
   }));
+  // O ERP às vezes devolve um código interno (não numérico) no lugar do parceiro: usa o cliente do pedido do site.
+  const badCodes = orderRows.filter((r) => !/^\d+$/.test(String(r.cliente_codigo || "").trim()));
+  if (badCodes.length) {
+    const nums = [...new Set(badCodes.flatMap((r) => [r.codigo_importacao, r.codigo]).filter(Boolean).map(String))];
+    const byErp = new Map<string, string>(), byNum = new Map<string, string>();
+    for (let i = 0; i < nums.length; i += 200) {
+      const part = nums.slice(i, i + 200);
+      const { data: a } = await supabase.from("orders").select("erp_order_code, customer").eq("store_id", store.id).in("erp_order_code", part);
+      (a || []).forEach((o: any) => { const c = String(o.customer?.customerCode || "").trim(); if (/^\d+$/.test(c)) byErp.set(String(o.erp_order_code), c); });
+      const ints = part.filter((n) => /^\d{1,9}$/.test(n)).map(Number);
+      if (ints.length) {
+        const { data: b } = await supabase.from("orders").select("order_number, customer").eq("store_id", store.id).in("order_number", ints);
+        (b || []).forEach((o: any) => { const c = String(o.customer?.customerCode || "").trim(); if (/^\d+$/.test(c)) byNum.set(String(o.order_number), c); });
+      }
+    }
+    for (const r of badCodes) {
+      const c = byErp.get(String(r.codigo_importacao)) || byNum.get(String(r.codigo));
+      if (c) r.cliente_codigo = c;
+    }
+  }
   for (let i = 0; i < orderRows.length; i += 500) {
     const chunk = orderRows.slice(i, i + 500);
     const { error } = await supabase.from("erp_orders").upsert(chunk, { onConflict: "store_id,external_key" });
@@ -269,12 +289,13 @@ Deno.serve(async (req) => {
     }));
     const keys = [...new Set(itemRows.map((r) => r.order_key))];
     // Completa cliente_codigo a partir do cabeçalho quando não vier no item
-    const missing = keys.filter((k) => itemRows.some((r) => r.order_key === k && !r.cliente_codigo));
+    const bad = (c: string) => !/^\d+$/.test(String(c || "").trim());
+    const missing = keys.filter((k) => itemRows.some((r) => r.order_key === k && bad(r.cliente_codigo)));
     for (let i = 0; i < missing.length; i += 300) {
       const { data } = await supabase.from("erp_orders").select("external_key, cliente_codigo")
         .eq("store_id", store.id).in("external_key", missing.slice(i, i + 300));
       const map = new Map((data || []).map((d) => [d.external_key, d.cliente_codigo]));
-      for (const r of itemRows) if (!r.cliente_codigo) r.cliente_codigo = map.get(r.order_key) || "";
+      for (const r of itemRows) if (bad(r.cliente_codigo)) r.cliente_codigo = map.get(r.order_key) || r.cliente_codigo || "";
     }
     for (let i = 0; i < keys.length; i += 300) {
       const { error } = await supabase.from("erp_order_items").delete()
