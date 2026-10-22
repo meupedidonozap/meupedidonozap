@@ -19,13 +19,33 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
     if (data?.url) window.open(data.url, '_blank');
   };
 
+  const [msg, setMsg] = useState('');
+  const sync = async (action: 'products' | 'customers') => {
+    setBusy(true); setMsg('Sincronizando... pode levar alguns minutos.');
+    const { data, error } = await supabase.functions.invoke('bling-sync', { body: { action, store_id: storeId } });
+    setBusy(false);
+    if (error || data?.error) { setMsg('Erro: ' + (data?.error || error?.message)); return; }
+    setMsg(action === 'products'
+      ? `Produtos: ${data.total} lidos, ${data.created} novos (inativos, para completar preço/fotos), ${data.stockUpdated} com estoque atualizado.`
+      : `Clientes: ${data.total} lidos, ${data.updated} atualizados.`);
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border p-3 sm:max-w-md">
-      <span className="text-sm">
-        Conta Bling: <strong>{connected === null ? '...' : connected ? 'CONECTADA' : 'NÃO CONECTADA'}</strong>
-      </span>
-      <Button size="sm" onClick={connect} disabled={busy}>{connected ? 'Reconectar' : 'Conectar ao Bling'}</Button>
-      <Button size="sm" variant="ghost" onClick={load}>Verificar</Button>
+    <div className="flex flex-col gap-2 rounded-md border p-3 sm:max-w-md">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm">
+          Conta Bling: <strong>{connected === null ? '...' : connected ? 'CONECTADA' : 'NÃO CONECTADA'}</strong>
+        </span>
+        <Button size="sm" onClick={connect} disabled={busy}>{connected ? 'Reconectar' : 'Conectar ao Bling'}</Button>
+        <Button size="sm" variant="ghost" onClick={load}>Verificar</Button>
+      </div>
+      {connected && (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Importar produtos e estoque</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Atualizar clientes</Button>
+        </div>
+      )}
+      {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
     </div>
   );
 }
