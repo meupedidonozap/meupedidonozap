@@ -1,0 +1,13 @@
+CORRIGIR CODIGO DO CLIENTE NOS PEDIDOS (vw_mpz_pedido)
+
+1) Abra o banco do ERP (pgAdmin ou psql) e rode o arquivo corrigir_vw_mpz_pedido.sql.
+   - PASSO 1 mostra a view atual: copie e guarde (backup).
+   - PASSO 2 troca so o campo cliente_codigo para ve001a.clicod.
+     Se der erro, nada muda: mande o texto do PASSO 1 para o suporte ajustar.
+   - PASSO 3 deve mostrar 98855 -> 94967.
+
+2) Reenvie o historico de pedidos (so cabecalhos; nao mexe em itens nem precos).
+   Na pasta dos scripts:
+     python sync_dicolore_financeiro_v5.py --somente-pedidos --dias 400
+
+   Pode demorar. Os monitores podem continuar abertos.
