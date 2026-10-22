@@ -124,6 +124,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         quantity: 1,
         image: p.image,
         groupId: resolvedGroupId,
+        categoryId: p.categoryId || undefined,
       }];
     });
   };

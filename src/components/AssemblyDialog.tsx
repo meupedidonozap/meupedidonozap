@@ -119,6 +119,7 @@ export default function AssemblyDialog({
       productId: product.id,
       variantId,
       groupId: product.groupId,
+      categoryId: product.categoryId || undefined,
       name: product.name,
       code: product.code || product.id,
       size: variant?.size,
