@@ -55,6 +55,7 @@ interface VariantForm {
   priceTable11: number;
   priceTable3?: number;
   priceTable8?: number;
+  suggestedPrice?: number;
 }
 
 interface ImageForm {
@@ -87,6 +88,8 @@ async function touchStoreDataVersion(storeId: string) {
   }
 }
 
+const RETAIL_SIMPLE_SLUGS = new Set(['jewosnewborn']);
+
 export default function ProductFormDialog({
   open,
   onOpenChange,
@@ -113,6 +116,9 @@ export default function ProductFormDialog({
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [suggestedPrice, setSuggestedPrice] = useState('');
+  // Lojas de varejo simples (estilo Shopee): sem tabelas de atacado, com preço sugerido.
+  const isRetailSimple = RETAIL_SIMPLE_SLUGS.has(storeSlug || '');
   const [categoryId, setCategoryId] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [priceTable1, setPriceTable1] = useState('');
@@ -168,6 +174,7 @@ export default function ProductFormDialog({
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
+      setSuggestedPrice(product.suggestedPrice ? String(product.suggestedPrice) : '');
       setImageFile(null);
       setDurationMinutes(String(product.durationMinutes ?? 30));
       setProfessionalIds(product.professionalIds || []);
@@ -184,6 +191,7 @@ export default function ProductFormDialog({
           priceTable4: v.priceTable4 != null && v.priceTable4 > 0 ? v.priceTable4 : v.price,
           priceTable9: v.priceTable9 != null && v.priceTable9 > 0 ? v.priceTable9 : v.price,
           priceTable11: (v as any).priceTable11 != null && (v as any).priceTable11 > 0 ? (v as any).priceTable11 : v.price,
+          suggestedPrice: v.suggestedPrice || 0,
         })) || []
       );
       setProductImages(
@@ -361,7 +369,9 @@ export default function ProductFormDialog({
             priceTable1: v.priceTable1 || v.priceTable4 || v.price,
             priceTable4: v.priceTable4 || v.price,
             priceTable9: v.priceTable9 || v.priceTable4 || v.price,
-            priceTable11: (v as any).priceTable11 || v.priceTable4 || v.price,
+            priceTable11: isRetailSimple ? (v.priceTable4 || v.price) : ((v as any).priceTable11 || v.priceTable4 || v.price),
+            ...(isRetailSimple ? { priceTable1: v.priceTable4 || v.price, priceTable9: v.priceTable4 || v.price } : {}),
+            suggestedPrice: Number(v.suggestedPrice) || 0,
           }))
         : [];
 
@@ -373,6 +383,7 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: computePrices().bp,
+          suggestedPrice: Number(suggestedPrice) || 0,
           priceTable1: computePrices().pt1,
           priceTable4: computePrices().pt4,
           priceTable9: computePrices().pt9,
@@ -414,6 +425,7 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: computePrices().bp,
+          suggestedPrice: Number(suggestedPrice) || 0,
           priceTable1: computePrices().pt1,
           priceTable4: computePrices().pt4,
           priceTable9: computePrices().pt9,
@@ -552,7 +564,14 @@ export default function ProductFormDialog({
             </div>
           </div>
 
-          {!isSalon && (
+          {isRetailSimple && (
+            <div className="grid gap-2">
+              <Label htmlFor="suggested">Preço sugerido "De" (R$) — aparece riscado como promoção</Label>
+              <Input id="suggested" type="number" step="0.01" value={suggestedPrice} onChange={e => setSuggestedPrice(e.target.value)} placeholder="Ex: 49.90" />
+            </div>
+          )}
+
+          {!isSalon && !isRetailSimple && (
             <div className="grid grid-cols-2 gap-4 rounded-lg border p-3 bg-muted/20">
               <div className="grid gap-2">
                 <Label htmlFor="price-t1" className="text-xs">Tabela 1 (Atacado)</Label>
