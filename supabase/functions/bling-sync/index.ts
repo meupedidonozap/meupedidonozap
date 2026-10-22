@@ -136,6 +136,24 @@ Deno.serve(async (req) => {
     if (!isAdm && !isPlat) return json({ error: 'forbidden' }, 403);
     if (action === 'products') return json(await syncProducts(storeId));
     if (action === 'customers') return json(await syncCustomers(storeId));
+    if (action === 'set_status') {
+      const pid = String(body.product_id || '');
+      const { data: p } = await admin.from('products').select('code, bling_code').eq('id', pid).eq('store_id', storeId).maybeSingle();
+      if (!p) return json({ error: 'produto não encontrado' }, 404);
+      const code = String(p.bling_code || p.code || '').trim();
+      if (!code) return json({ skipped: 'produto sem código Bling' });
+      const token = await getToken(storeId);
+      const found = await bling(token, `/produtos?codigos[]=${encodeURIComponent(code)}&criterio=5`);
+      const bid = found?.data?.[0]?.id;
+      if (!bid) return json({ skipped: 'produto não existe no Bling' });
+      const r = await fetch(`${API}/produtos/${bid}/situacoes`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ situacao: body.active ? 'A' : 'I' }),
+      });
+      if (!r.ok) { const b = await r.json().catch(() => ({})); return json({ error: `Bling ${r.status}: ${b?.error?.description || 'erro'}` }, 502); }
+      return json({ ok: true });
+    }
     return json({ error: 'ação inválida' }, 400);
   } catch (e) {
     console.error(e);
