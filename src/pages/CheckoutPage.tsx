@@ -45,6 +45,9 @@ import type { PaymentMethod, DeliveryShift } from '@/types';
 import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
 import MabelleEmbeddedCheckout from '@/components/MabelleEmbeddedCheckout';
 import { PaymentTestModeBanner } from '@/components/PaymentTestModeBanner';
+import { PixPaymentDialog, type PixDialogData } from '@/components/PixPaymentDialog';
+import { getPaymentGateway } from '@/components/PaymentSettingsCard';
+import { buildPixPayload } from '@/lib/pixBrCode';
 
 interface ShippingOption {
   code: string;
@@ -106,6 +109,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [pendingWhatsApp, setPendingWhatsApp] = useState<{ url: string; sellerName: string } | null>(null);
+  const [pixDialog, setPixDialog] = useState<PixDialogData | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
@@ -397,7 +401,10 @@ export default function CheckoutPage() {
     // pelo navegador (a URL é definida depois que o pedido é gravado).
     const isOnlinePayment = store.slug === 'mabelle' && store.settings.onlinePayments === true
       && (formData.paymentMethod === 'pix' || formData.paymentMethod === 'cartao');
-    const waWindow = sellerOrder || isOnlinePayment ? null : window.open('', '_blank');
+    const gateway = getPaymentGateway(store.settings);
+    const usePixQr = !sellerOrder && !isOnlinePayment && gateway.pixEnabled && !!gateway.pixKey && formData.paymentMethod === 'pix';
+    const awaitsPayment = !sellerOrder && !isOnlinePayment && ((gateway.pixEnabled && formData.paymentMethod === 'pix') || (gateway.cardEnabled && formData.paymentMethod === 'cartao'));
+    const waWindow = sellerOrder || isOnlinePayment || usePixQr ? null : window.open('', '_blank');
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
@@ -519,6 +526,7 @@ export default function CheckoutPage() {
         shippingService: selectedShippingOption?.name,
         shippingCode: selectedShippingOption?.code,
         shippingDeadline: selectedShippingOption?.deadline,
+        ...(awaitsPayment && !asQuote ? { paymentStatus: 'pending' as const } : {}),
       };
 
       if (isOnlinePayment) {
@@ -599,6 +607,12 @@ export default function CheckoutPage() {
         : undefined;
       const targetWhatsapp = chosenRecipient?.whatsapp || store.whatsapp;
       const waUrl = buildWhatsAppUrl(targetWhatsapp, generateOrderMessage());
+
+      if (usePixQr && !asQuote) {
+        const payload = buildPixPayload({ key: gateway.pixKey, name: gateway.pixName, city: gateway.pixCity, amount: liveTotal, txid: created?.order_number ? `PED${created.order_number}` : undefined });
+        setPixDialog({ payload, amount: liveTotal, orderNumber: created?.order_number ?? created?.orderNumber, whatsappUrl: waUrl });
+        return;
+      }
 
       if (waWindow && !waWindow.closed) {
         waWindow.location.href = waUrl;
@@ -861,9 +875,9 @@ export default function CheckoutPage() {
                     </div>
                   ) : (
                     <RadioGroup value={formData.paymentMethod} onValueChange={value => handleInputChange('paymentMethod', value)} className="flex flex-wrap gap-4">
-                      {store.settings.acceptPix && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
+                      {(store.settings.acceptPix || getPaymentGateway(store.settings).pixEnabled) && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
                       {store.settings.acceptBoleto && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
-                      {store.settings.acceptCard && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
+                      {(store.settings.acceptCard || getPaymentGateway(store.settings).cardEnabled) && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
                       {store.settings.onlinePayments !== true && <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>}
                     </RadioGroup>
                   )}
@@ -1042,6 +1056,7 @@ export default function CheckoutPage() {
           </Button>
         </DialogContent>
       </Dialog>
+      <PixPaymentDialog data={pixDialog} onClose={() => { setPixDialog(null); clearCart(); navigate(`/${store.slug}`); }} />
       <Dialog open={!!onlineCheckout} onOpenChange={(open) => { if (!open) setOnlineCheckout(null); }}>
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto p-0">
           <DialogHeader className="border-b p-5">

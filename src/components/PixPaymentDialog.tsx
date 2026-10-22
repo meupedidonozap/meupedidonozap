@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Copy, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/formatters';
 
 export interface PixDialogData { payload: string; amount: number; orderNumber?: number; whatsappUrl: string }
 
