@@ -159,6 +159,11 @@ export default function OrderHistoryPage() {
                       <FileDown className="mr-2 h-4 w-4" />
                       Baixar / Enviar PDF
                     </Button>
+                    {['pending', 'failed'].includes(order.payment_status) && order.status !== 'cancelado' && (
+                      <Button className="mt-2 w-full" onClick={() => navigate(`/${store.slug}/pagar/${order.id}`)}>
+                        Pagar agora (PIX / Cartão)
+                      </Button>
+                    )}
                     {editable && (
                       <Button className="mt-2 w-full" disabled={editingId === order.id} onClick={() => editOrder(order.id)}>
                         {editingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}

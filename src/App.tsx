@@ -72,6 +72,7 @@ const App = () => (
             <Route path="/:slug/checkout" element={<><NoIndex /><CheckoutPage /></>} />
             <Route path="/mabelle/pagamento" element={<><NoIndex /><PaymentReturnPage /></>} />
             <Route path="/:slug/pedidos" element={<><NoIndex /><OrderHistoryPage /></>} />
+            <Route path="/:slug/pagar/:orderId" element={<><NoIndex /><PayOrderPage /></>} />
             <Route path="/:slug/titulos" element={<><NoIndex /><CustomerTitlesPage /></>} />
             <Route path="/:slug/notas-fiscais" element={<><NoIndex /><CustomerInvoicesPage /></>} />
             <Route path="/:slug/vendedor/:section?" element={<><NoIndex /><SellerPortalPage /></>} />
