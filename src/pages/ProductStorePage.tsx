@@ -55,6 +55,8 @@ import {
   type PriceTable,
 } from '@/lib/pricing';
 
+const UNDEFINED_CATEGORY_ID = '__indefinido__';
+
 export default function ProductStorePage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
@@ -135,28 +137,34 @@ export default function ProductStorePage() {
   const categoryNameById = useMemo(() => {
     const m = new Map<string, string>();
     categories.forEach(c => m.set(c.id, c.name));
+    m.set(UNDEFINED_CATEGORY_ID, 'Indefinido');
     return m;
   }, [categories]);
+
+  // Produto sem categoria (ou categoria removida) entra em "Indefinido".
+  const productCategoryKey = (p: Product) =>
+    ((categoryNameById.get(p.categoryId) || '').trim().toLowerCase()) || 'indefinido';
 
   // Categorias que realmente possuem produtos disponíveis para este cliente
   const categoryNamesWithProducts = useMemo(() => {
     const s = new Set<string>();
-    purchasableProducts.forEach(p => {
-      const name = (categoryNameById.get(p.categoryId) || '').trim().toLowerCase();
-      if (name) s.add(name);
-    });
+    purchasableProducts.forEach(p => s.add(productCategoryKey(p)));
     return s;
   }, [purchasableProducts, categoryNameById]);
 
   // Lista de categorias única por nome (evita duplicatas no menu)
   const uniqueCategories = useMemo(() => {
     const seen = new Set<string>();
-    return categories.filter(c => {
+    const list = categories.filter(c => {
       const key = (c.name || '').trim().toLowerCase();
       if (!key || seen.has(key) || !categoryNamesWithProducts.has(key)) return false;
       seen.add(key);
       return true;
     });
+    if (categoryNamesWithProducts.has('indefinido') && !seen.has('indefinido')) {
+      list.push({ id: UNDEFINED_CATEGORY_ID, name: 'Indefinido' } as any);
+    }
+    return list;
   }, [categories, categoryNamesWithProducts]);
 
   const selectedCategoryName = useMemo(() => {
@@ -170,8 +178,7 @@ export default function ProductStorePage() {
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const prodCatName = (categoryNameById.get(product.categoryId) || '').trim().toLowerCase();
-      const matchesCategory = !selectedCategoryName || prodCatName === selectedCategoryName;
+      const matchesCategory = !selectedCategoryName || productCategoryKey(product) === selectedCategoryName;
       return matchesSearch && matchesCategory;
     });
   }, [purchasableProducts, searchTerm, selectedCategoryName, categoryNameById]);
@@ -626,7 +633,7 @@ export default function ProductStorePage() {
         <div className="container pb-4">
           <div className="flex items-center justify-between">
             <Badge variant="outline" className="cursor-pointer" onClick={() => setIsCategoryOpen(true)}>
-              {selectedCategory === 'all' ? 'Todos os Produtos' : categories.find(c => c.id === selectedCategory)?.name}
+              {selectedCategory === 'all' ? 'Todos os Produtos' : (categoryNameById.get(selectedCategory) || '')}
             </Badge>
             <span className="text-sm text-muted-foreground">{filteredProducts.length} produtos</span>
           </div>
