@@ -100,6 +100,16 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     if (error) {
       toast.error(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message);
     } else {
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData.user?.id;
+      const { data: prof } = uid
+        ? await supabase.from('customer_profiles').select('id').eq('user_id', uid).eq('store_id', storeId).maybeSingle()
+        : { data: null };
+      if (!prof && allowSignup) {
+        toast.info('Você ainda não tem cadastro nesta loja. Preencha seus dados.');
+        setStep('profile');
+        return;
+      }
       toast.success('Login realizado!');
       onOpenChange(false);
     }
