@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS suggested_price numeric NOT NULL DEFAULT 0;
+ALTER TABLE public.product_variants ADD COLUMN IF NOT EXISTS suggested_price numeric NOT NULL DEFAULT 0;

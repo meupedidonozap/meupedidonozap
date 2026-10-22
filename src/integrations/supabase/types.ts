@@ -1275,6 +1275,7 @@ export type Database = {
           size: string | null
           sku: string
           stock: number
+          suggested_price: number
         }
         Insert: {
           color?: string | null
@@ -1291,6 +1292,7 @@ export type Database = {
           size?: string | null
           sku?: string
           stock?: number
+          suggested_price?: number
         }
         Update: {
           color?: string | null
@@ -1307,6 +1309,7 @@ export type Database = {
           size?: string | null
           sku?: string
           stock?: number
+          suggested_price?: number
         }
         Relationships: [
           {
@@ -1343,6 +1346,7 @@ export type Database = {
           price_table_res: number | null
           stock: number
           store_id: string
+          suggested_price: number
           unit: string
         }
         Insert: {
@@ -1369,6 +1373,7 @@ export type Database = {
           price_table_res?: number | null
           stock?: number
           store_id: string
+          suggested_price?: number
           unit?: string
         }
         Update: {
@@ -1395,6 +1400,7 @@ export type Database = {
           price_table_res?: number | null
           stock?: number
           store_id?: string
+          suggested_price?: number
           unit?: string
         }
         Relationships: [
