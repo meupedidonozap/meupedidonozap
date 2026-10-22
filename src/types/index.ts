@@ -142,6 +142,7 @@ export interface StoreSettings {
   /** Vitrine: exibe a aba "Cadastrar" para o cliente criar conta sozinho (padrão: sim). */
   allowCustomerSignup?: boolean;
   requireLoginToBrowse?: boolean;
+  approvalSupportWhatsapp?: string;
   /** WhatsApp (DDI+DDD+numero) que recebe o aviso quando um pedido é liberado p/ transmissão (ERP). */
   erpReleaseWhatsapp?: string;
   erpReleaseWhatsappByTable?: Record<string, string>;
