@@ -84,7 +84,7 @@ async function syncProducts(storeId: string) {
     });
     if (error) { console.error('insert', code, error.message); skipped++; } else created++;
   }
-  return { total: all.length, created, stockUpdated, skipped };
+  return { total: all.length, created, stockUpdated, statusChanged, skipped };
 }
 
 async function syncCustomers(storeId: string) {
