@@ -61,12 +61,14 @@ Deno.serve(async (req) => {
       return json({ orderNumber: order.order_number, total: Number(order.total), paymentStatus: order.payment_status, storeName: store.name });
     }
     if (action === "status") {
+      let lastStatus: string | null = null;
       if (order.payment_status !== "paid") {
         const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);
+        lastStatus = s.results?.[0]?.status ?? null;
         for (const p of s.results || []) if (p.status === "approved") { await applyPayment(store.slug, String(p.id)); break; }
       }
       const { data: o } = await db.from("orders").select("payment_status").eq("id", order.id).single();
-      return json({ paymentStatus: o?.payment_status });
+      return json({ paymentStatus: o?.payment_status, lastStatus });
     }
     if (action !== "create") return json({ error: "Ação inválida" }, 400);
     if (order.payment_status === "paid") return json({ error: "Pedido já pago" }, 400);
