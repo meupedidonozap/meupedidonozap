@@ -309,6 +309,7 @@ export default function StoreAdminPage() {
   }, [customerProfiles, restrictBySeller, sellerCodeSet]);
 
   const [customerSearch, setCustomerSearch] = useState('');
+  const [customerApprovalFilter, setCustomerApprovalFilter] = useState<'all' | 'pending'>('all');
   const filteredCustomerProfiles = useMemo(() => {
     const term = customerSearch.trim().toLowerCase();
     const base = customerApprovalFilter === 'pending'
@@ -566,7 +567,6 @@ export default function StoreAdminPage() {
   const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [allowCustomerSignup, setAllowCustomerSignup] = useState(true);
   const [requireLoginToBrowse, setRequireLoginToBrowse] = useState(false);
-  const [customerApprovalFilter, setCustomerApprovalFilter] = useState<'all' | 'pending'>('all');
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
