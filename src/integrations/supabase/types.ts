@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      bling_connections: {
+        Row: {
+          access_token: string | null
+          connected_at: string | null
+          expires_at: string | null
+          pending_state: string | null
+          refresh_token: string | null
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string | null
+          expires_at?: string | null
+          pending_state?: string | null
+          refresh_token?: string | null
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string | null
+          expires_at?: string | null
+          pending_state?: string | null
+          refresh_token?: string | null
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bling_connections_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           commission_percent: number
