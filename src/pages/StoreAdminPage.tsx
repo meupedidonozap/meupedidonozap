@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { BlingConnectCard } from '@/components/BlingConnectCard';
+import { PaymentSettingsCard } from '@/components/PaymentSettingsCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -1706,6 +1707,14 @@ export default function StoreAdminPage() {
                               {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
                             </Badge>
                           )}
+                          {order.paymentStatus === 'pending' && order.origem !== 'pagamento_online' && (isAdmin || permissions.can_manage_orders) && (
+                            <Button size="sm" variant="outline" className="mt-1 h-6 px-2 text-[10px]" onClick={async () => {
+                              const { error } = await supabase.from('orders').update({ payment_status: 'paid', paid_at: new Date().toISOString() }).eq('id', order.id).select().single();
+                              if (error) { toast.error(error.message); return; }
+                              qc.invalidateQueries({ queryKey: ['orders'] });
+                              toast.success('Pagamento confirmado!');
+                            }}>Marcar como pago</Button>
+                          )}
                           {order.shippingService && (
                             <p className="mt-1 text-muted-foreground">{order.shippingService} · {formatCurrency(order.deliveryFee)}{order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''}</p>
                           )}
@@ -2344,6 +2353,7 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+            {(isAdmin) && <PaymentSettingsCard storeId={store.id} settings={store.settings} />}
             <Card>
               <CardHeader><CardTitle>Loja exclusiva para clientes</CardTitle></CardHeader>
               <CardContent className="space-y-3">
