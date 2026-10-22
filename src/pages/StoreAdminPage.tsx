@@ -496,16 +496,19 @@ export default function StoreAdminPage() {
   const [filterCode, setFilterCode] = useState('');
   const [filterName, setFilterName] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('active');
   const filteredProducts = useMemo(() => {
     const code = filterCode.trim().toLowerCase();
     const name = filterName.trim().toLowerCase();
     return products.filter(p => {
+      if (filterStatus === 'active' && !p.isActive) return false;
+      if (filterStatus === 'inactive' && p.isActive) return false;
       if (code && !(p.code || '').toLowerCase().includes(code)) return false;
       if (name && !p.name.toLowerCase().includes(name)) return false;
       if (filterCategoryId !== 'all' && p.categoryId !== filterCategoryId) return false;
       return true;
     });
-  }, [products, filterCode, filterName, filterCategoryId]);
+  }, [products, filterCode, filterName, filterCategoryId, filterStatus]);
   const hasProductFilter = !!(filterCode || filterName || filterCategoryId !== 'all');
   const [updateCustomersOpen, setUpdateCustomersOpen] = useState(false);
   const [syncingPrices, setSyncingPrices] = useState(false);
@@ -738,8 +741,17 @@ export default function StoreAdminPage() {
   }
 
   const handleToggleProductActive = async (product: Product) => {
-    await updateProduct.mutateAsync({ id: product.id, isActive: !product.isActive });
-    toast.success('Status atualizado!');
+    const next = !product.isActive;
+    await updateProduct.mutateAsync({ id: product.id, isActive: next });
+    toast.success(next ? 'Produto ativado!' : 'Produto inativado!');
+    if ((store.settings as any)?.useBlingIntegration === true) {
+      const { data, error } = await supabase.functions.invoke('bling-sync', {
+        body: { action: 'set_status', store_id: store.id, product_id: product.id, active: next },
+      });
+      if (error || (data as any)?.error) toast.error('Bling: ' + ((data as any)?.error || 'falha ao atualizar status'));
+      else if ((data as any)?.skipped) toast.info('Bling: ' + (data as any).skipped);
+      else toast.success('Status enviado ao Bling');
+    }
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -1364,6 +1376,13 @@ export default function StoreAdminPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="inline-flex rounded-md border overflow-hidden" role="group" aria-label="Status do produto">
+                {([['active', 'Ativos'], ['inactive', 'Inativos'], ['all', 'Todos']] as const).map(([v, l]) => (
+                  <Button key={v} type="button" size="sm" variant={filterStatus === v ? 'default' : 'ghost'}
+                    className={`rounded-none ${filterStatus === v ? 'bg-primary text-primary-foreground' : ''}`}
+                    onClick={() => setFilterStatus(v)}>{l}</Button>
+                ))}
+              </div>
               {(filterCode || filterName || filterCategoryId !== 'all') && (
                 <Button variant="ghost" size="sm" onClick={() => { setFilterCode(''); setFilterName(''); setFilterCategoryId('all'); }}>
                   Limpar filtros
