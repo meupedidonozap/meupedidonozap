@@ -61,17 +61,21 @@ export async function shareOrderPdf(orderId: string, storeName: string): Promise
   const file = new File([doc.output('blob')], name, { type: 'application/pdf' });
 
   const nav: any = navigator;
-  if (nav.canShare && nav.canShare({ files: [file] })) {
+  const isTouch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  // Celular: compartilhamento nativo. Computador (Windows etc.): baixar e abrir.
+  if (isTouch && nav.canShare && nav.canShare({ files: [file] })) {
     try {
       await nav.share({ files: [file], title, text: `${title} - ${storeName}` });
+      return;
     } catch (e: any) {
-      if (e?.name !== 'AbortError') throw e;
+      if (e?.name === 'AbortError') return;
+      // falhou: segue para download
     }
-    return;
   }
-  // Computador / navegador sem compartilhamento: abre o PDF.
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');
-  a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  if (!isTouch) { try { window.open(url, '_blank'); } catch { /* popup bloqueado */ } }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
