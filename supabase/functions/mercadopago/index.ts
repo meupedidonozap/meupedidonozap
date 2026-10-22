@@ -61,12 +61,14 @@ Deno.serve(async (req) => {
       return json({ orderNumber: order.order_number, total: Number(order.total), paymentStatus: order.payment_status, storeName: store.name });
     }
     if (action === "status") {
+      let lastStatus: string | null = null;
       if (order.payment_status !== "paid") {
         const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);
+        lastStatus = s.results?.[0]?.status ?? null;
         for (const p of s.results || []) if (p.status === "approved") { await applyPayment(store.slug, String(p.id)); break; }
       }
       const { data: o } = await db.from("orders").select("payment_status").eq("id", order.id).single();
-      return json({ paymentStatus: o?.payment_status });
+      return json({ paymentStatus: o?.payment_status, lastStatus });
     }
     if (action !== "create") return json({ error: "Ação inválida" }, 400);
     if (order.payment_status === "paid") return json({ error: "Pedido já pago" }, 400);
@@ -99,7 +101,7 @@ Deno.serve(async (req) => {
         items: [{ title: description, quantity: 1, unit_price: amount, currency_id: "BRL" }],
         external_reference: order.id, notification_url,
         payment_methods: { excluded_payment_types: [{ id: "ticket" }, { id: "bank_transfer" }] },
-        back_urls: { success: `https://meupedidonozap.online/${store.slug}`, failure: `https://meupedidonozap.online/${store.slug}`, pending: `https://meupedidonozap.online/${store.slug}` },
+        back_urls: (() => { const u = `https://meupedidonozap.online/${store.slug}/pagar/${order.id}?retorno=1`; return { success: u, failure: u, pending: u }; })(),
         auto_return: "approved",
       }),
     });

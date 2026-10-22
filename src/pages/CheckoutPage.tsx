@@ -1071,6 +1071,7 @@ export default function CheckoutPage() {
         </DialogContent>
       </Dialog>
       <PixPaymentDialog data={pixDialog} onClose={() => { setPixDialog(null); clearCart(); navigate(`/${store.slug}`); }} />
+      {/* PIX Mercado Pago: confirmação automática; WhatsApp só após pagamento confirmado */}
       <Dialog open={!!onlineCheckout} onOpenChange={(open) => { if (!open) setOnlineCheckout(null); }}>
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto p-0">
           <DialogHeader className="border-b p-5">
