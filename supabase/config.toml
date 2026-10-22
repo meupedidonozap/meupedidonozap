@@ -34,3 +34,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.orders-export]
 verify_jwt = false
+
+[functions.mercadopago]
+verify_jwt = false
