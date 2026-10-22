@@ -25,8 +25,8 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
     queryKey: ['gate-profile', user?.id, store.id],
     queryFn: async () => {
       const { data } = await supabase.from('customer_profiles')
-        .select('is_active, approval_status').eq('user_id', user!.id).eq('store_id', store.id).maybeSingle();
-      return data as { is_active: boolean; approval_status: string } | null;
+        .select('is_active, approval_status, customer_code').eq('user_id', user!.id).eq('store_id', store.id).maybeSingle();
+      return data as { is_active: boolean; approval_status: string; customer_code: string } | null;
     },
     enabled: required && !!user,
     refetchInterval: 60_000,
@@ -37,9 +37,11 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
   if (user && (hasAccess || isStoreUser)) return <>{children}</>;
-  if (user && profile && profile.is_active && profile.approval_status !== 'pending') return <>{children}</>;
+  // DiColore: cliente sem código ERP fica pendente e não entra.
+  const missingErpCode = store.slug === 'dicolore' && !!profile && !String(profile.customer_code || '').trim();
+  if (user && profile && profile.is_active && profile.approval_status !== 'pending' && !missingErpCode) return <>{children}</>;
 
-  const pending = !!user && !!profile && (profile.approval_status === 'pending' || !profile.is_active);
+  const pending = !!user && !!profile && (profile.approval_status === 'pending' || !profile.is_active || missingErpCode);
   const needsProfile = !!user && !profile;
 
   return (

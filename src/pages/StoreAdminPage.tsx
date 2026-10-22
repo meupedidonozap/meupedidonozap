@@ -3169,6 +3169,10 @@ export default function StoreAdminPage() {
                                   toast.error('Antes de aprovar, edite o cliente (lápis) e escolha o Representante.');
                                   return;
                                 }
+                                if (store?.slug === 'dicolore' && !String((cp as any).customerCode || '').trim()) {
+                                  toast.error('Antes de aprovar, edite o cliente (lápis) e informe o Código do Cliente do ERP.');
+                                  return;
+                                }
                                 const { error } = await supabase.from('customer_profiles')
                                   .update({ approval_status: 'approved', is_active: true } as any)
                                   .eq('id', cp.id).select().single();
