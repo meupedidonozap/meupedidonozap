@@ -29,13 +29,37 @@ interface CustomerAuthDialogProps {
   allowSignup?: boolean;
   /** Cadastro completo obrigatório e sujeito a aprovação (loja exige login). */
   requireApproval?: boolean;
+  supportWhatsapp?: string;
   /** Abre direto no formulário de dados (usuário já logado sem cadastro). */
   startAtProfile?: boolean;
 }
 
 type Step = 'auth' | 'profile' | 'forgot';
 
-export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true, requireApproval = false, startAtProfile = false }: CustomerAuthDialogProps) {
+export function ApprovalNotice({ kind, supportWhatsapp }: { kind: 'success' | 'duplicate' | 'pending'; supportWhatsapp?: string }) {
+  const digits = (supportWhatsapp || '').replace(/\D/g, '');
+  const full = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
+  const local = full.slice(2);
+  const pretty = local.length >= 10 ? `(${local.slice(0, 2)}) ${local.slice(2)}` : digits;
+  const title = kind === 'success' ? 'CADASTRO REALIZADO COM SUCESSO' : kind === 'duplicate' ? 'CADASTRO JÁ REALIZADO' : 'CADASTRO EM ANÁLISE';
+  return (
+    <div className="space-y-3 py-2 text-center">
+      <p className="text-lg font-bold text-primary">{title}</p>
+      <p className="font-medium">Aguarde a aprovação.</p>
+      {full && (
+        <p className="text-sm text-muted-foreground">
+          Dúvidas? Acesse o contato no WhatsApp{' '}
+          <a className="font-semibold text-primary underline" target="_blank" rel="noopener noreferrer"
+            href={`https://wa.me/${full}?text=${encodeURIComponent('Olá! Fiz meu cadastro na loja e aguardo aprovação.')}`}>{pretty}</a>
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true, requireApproval = false, startAtProfile = false, supportWhatsapp }: CustomerAuthDialogProps) {
+  const [notice, setNotice] = useState<'success' | 'duplicate' | null>(null);
+  useEffect(() => { if (!open) setNotice(null); }, [open]);
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
   const showCodeTab = storeSlug === 'dicolore' || storeSlug === 'dicoloresenses';
@@ -131,6 +155,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         msg.includes('user already exists') ||
         (error as any).code === 'user_already_exists'
       ) {
+        if (requireApproval) { setNotice('duplicate'); return; }
         toast.info('Você já tem cadastro. Faça login com sua senha.');
         setLoginData({ email: registerData.email, password: '' });
         setAuthTab('login');
@@ -213,6 +238,14 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     }
     setLoading(true);
     try {
+      if (requireApproval) {
+        const doc = profileData.cpfCnpj.replace(/\D/g, '');
+        const { data: existing } = await supabase.rpc('find_customer_by_document', { p_store_id: storeId, p_doc: doc });
+        if (Array.isArray(existing) && existing.length > 0) {
+          setNotice('duplicate');
+          return;
+        }
+      }
       await upsertProfile.mutateAsync({
         userId: user.id,
         storeId,
@@ -230,7 +263,8 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       if (profileData.ie.trim() && user?.id) {
         await supabase.from('customer_profiles').update({ ie: profileData.ie.trim() }).eq('user_id', user.id).eq('store_id', storeId);
       }
-      toast.success(requireApproval ? 'Cadastro enviado! Aguarde a aprovação da nossa equipe.' : 'Cadastro completo!', { duration: 8000 });
+      if (requireApproval) { setNotice('success'); return; }
+      toast.success('Cadastro completo!', { duration: 8000 });
       onOpenChange(false);
     } catch (err: any) {
       const msg = err.message?.includes('row-level security')
@@ -241,6 +275,17 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       setLoading(false);
     }
   };
+
+  if (notice) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <ApprovalNotice kind={notice} supportWhatsapp={supportWhatsapp} />
+          <Button className="w-full" onClick={() => onOpenChange(false)}>OK</Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
