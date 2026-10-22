@@ -567,6 +567,7 @@ export default function StoreAdminPage() {
   const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [allowCustomerSignup, setAllowCustomerSignup] = useState(true);
   const [requireLoginToBrowse, setRequireLoginToBrowse] = useState(false);
+  const [approvalSupportWhatsapp, setApprovalSupportWhatsapp] = useState('');
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
@@ -639,6 +640,7 @@ export default function StoreAdminPage() {
     setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setAllowCustomerSignup((store.settings as any)?.allowCustomerSignup !== false);
     setRequireLoginToBrowse((store.settings as any)?.requireLoginToBrowse === true);
+    setApprovalSupportWhatsapp(String((store.settings as any)?.approvalSupportWhatsapp || ''));
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setErpWhatsappByTable({ ...((store.settings as any)?.erpReleaseWhatsappByTable || {}) });
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
@@ -954,6 +956,7 @@ export default function StoreAdminPage() {
           useBlingIntegration,
           allowCustomerSignup,
           requireLoginToBrowse,
+          approvalSupportWhatsapp: approvalSupportWhatsapp.replace(/\D/g, ''),
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           erpReleaseWhatsappByTable: Object.fromEntries(
             Object.entries(erpWhatsappByTable).map(([k, v]) => [k, String(v).replace(/\D/g, '')]).filter(([, v]) => v)
@@ -2349,6 +2352,10 @@ export default function StoreAdminPage() {
                   Exigir login para ver produtos e preços
                 </label>
                 <p className="text-xs text-muted-foreground">Ligado: visitante vê só "Fazer login ou Cadastre-se". Novos cadastros chegam em Clientes como PENDENTE e só acessam após aprovação com vendedor. Clique em Salvar para gravar.</p>
+                <div className="space-y-1">
+                  <Label>WhatsApp para dúvidas sobre aprovação</Label>
+                  <Input value={approvalSupportWhatsapp} onChange={e => setApprovalSupportWhatsapp(e.target.value)} placeholder="(47) 99210-1332" />
+                </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>Salvar</Button>
               </CardContent>
             </Card>
