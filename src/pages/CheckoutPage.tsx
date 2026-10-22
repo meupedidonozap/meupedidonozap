@@ -402,9 +402,10 @@ export default function CheckoutPage() {
     const isOnlinePayment = store.slug === 'mabelle' && store.settings.onlinePayments === true
       && (formData.paymentMethod === 'pix' || formData.paymentMethod === 'cartao');
     const gateway = getPaymentGateway(store.settings);
-    const usePixQr = !sellerOrder && !isOnlinePayment && gateway.pixEnabled && !!gateway.pixKey && formData.paymentMethod === 'pix';
+    const useMp = !sellerOrder && !isOnlinePayment && gateway.provider === 'mercadopago' && ((gateway.pixEnabled && formData.paymentMethod === 'pix') || (gateway.cardEnabled && formData.paymentMethod === 'cartao'));
+    const usePixQr = !useMp && !sellerOrder && !isOnlinePayment && gateway.pixEnabled && !!gateway.pixKey && formData.paymentMethod === 'pix';
     const awaitsPayment = !sellerOrder && !isOnlinePayment && ((gateway.pixEnabled && formData.paymentMethod === 'pix') || (gateway.cardEnabled && formData.paymentMethod === 'cartao'));
-    const waWindow = sellerOrder || isOnlinePayment || usePixQr ? null : window.open('', '_blank');
+    const waWindow = sellerOrder || isOnlinePayment || usePixQr || useMp ? null : window.open('', '_blank');
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
@@ -607,6 +608,19 @@ export default function CheckoutPage() {
         : undefined;
       const targetWhatsapp = chosenRecipient?.whatsapp || store.whatsapp;
       const waUrl = buildWhatsAppUrl(targetWhatsapp, generateOrderMessage());
+
+      if (useMp && !asQuote && created?.id) {
+        const method = formData.paymentMethod === 'pix' ? 'pix' : 'card';
+        const { data: mpr, error: mpe } = await supabase.functions.invoke('mercadopago', { body: { action: 'create', orderId: created.id, method } });
+        if (mpe || mpr?.error) throw new Error(mpr?.error || 'Não foi possível gerar o pagamento. O pedido foi salvo; fale com a loja.');
+        if (method === 'pix') {
+          setPixDialog({ payload: mpr.qrCode, qrImage: mpr.qrCodeBase64, amount: mpr.amount, orderNumber: created?.order_number ?? created?.orderNumber, whatsappUrl: waUrl, orderId: created.id });
+        } else {
+          clearCart();
+          window.location.href = mpr.checkoutUrl;
+        }
+        return;
+      }
 
       if (usePixQr && !asQuote) {
         const payload = buildPixPayload({ key: gateway.pixKey, name: gateway.pixName, city: gateway.pixCity, amount: liveTotal, txid: created?.order_number ? `PED${created.order_number}` : undefined });

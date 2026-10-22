@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface PaymentGatewaySettings {
-  provider: 'ton' | 'outro';
+  provider: 'ton' | 'outro' | 'mercadopago';
   pixEnabled: boolean;
   pixKey: string;
   pixName: string;
@@ -34,7 +34,7 @@ export function PaymentSettingsCard({ storeId, settings }: { storeId: string; se
   const set = (patch: Partial<PaymentGatewaySettings>) => setCfg(c => ({ ...c, ...patch }));
 
   const save = async () => {
-    if (cfg.pixEnabled && (!cfg.pixKey.trim() || !cfg.pixName.trim() || !cfg.pixCity.trim())) {
+    if (cfg.provider !== 'mercadopago' && cfg.pixEnabled && (!cfg.pixKey.trim() || !cfg.pixName.trim() || !cfg.pixCity.trim())) {
       toast.error('Para ativar o PIX, preencha chave, nome do recebedor e cidade.');
       return;
     }
@@ -58,6 +58,7 @@ export function PaymentSettingsCard({ storeId, settings }: { storeId: string; se
           <Select value={cfg.provider} onValueChange={v => set({ provider: v as any })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="mercadopago">Mercado Pago (confirmação automática)</SelectItem>
               <SelectItem value="ton">TON</SelectItem>
               <SelectItem value="outro">Outro banco / conta PJ</SelectItem>
             </SelectContent>
@@ -70,22 +71,22 @@ export function PaymentSettingsCard({ storeId, settings }: { storeId: string; se
             Receber PIX na finalização do pedido
           </label>
           <p className="text-xs text-muted-foreground">O cliente vê o QR Code e o "copia e cola" com o valor exato do pedido. O dinheiro cai direto na sua conta.</p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          {cfg.provider !== 'mercadopago' && <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1"><Label>Chave PIX</Label><Input value={cfg.pixKey} onChange={e => set({ pixKey: e.target.value })} placeholder="CNPJ, e-mail, celular ou aleatória" /></div>
             <div className="space-y-1"><Label>Nome do recebedor</Label><Input value={cfg.pixName} onChange={e => set({ pixName: e.target.value })} placeholder="Como aparece no banco" /></div>
             <div className="space-y-1"><Label>Cidade</Label><Input value={cfg.pixCity} onChange={e => set({ pixCity: e.target.value })} /></div>
-          </div>
+          </div>}
         </div>
 
         <div className="space-y-2 rounded-md border p-3">
           <label className="flex items-center gap-3 text-sm font-medium">
             <Switch checked={cfg.cardEnabled} onCheckedChange={v => set({ cardEnabled: v })} />
-            Aceitar Cartão (link de pagamento)
+            Aceitar Cartão
           </label>
-          <p className="text-xs text-muted-foreground">O pedido chega como "Aguardando pagamento" e você envia ao cliente, pelo WhatsApp, o Link de Pagamento gerado no app {cfg.provider === 'ton' ? 'TON' : 'do seu banco'} com o valor do pedido.</p>
+          {cfg.provider === 'mercadopago' ? <p className="text-xs text-muted-foreground">O cliente paga o cartão na página segura do Mercado Pago.</p> : <p className="text-xs text-muted-foreground">O pedido chega como "Aguardando pagamento" e você envia ao cliente, pelo WhatsApp, o Link de Pagamento gerado no app {cfg.provider === 'ton' ? 'TON' : 'do seu banco'} com o valor do pedido.</p>}
         </div>
 
-        <p className="text-xs text-muted-foreground">Ao receber, abra o pedido em Pedidos e clique em "Marcar como pago".</p>
+        <p className="text-xs text-muted-foreground">{cfg.provider === 'mercadopago' ? 'Com Mercado Pago, o pedido é marcado como pago sozinho quando o pagamento é aprovado.' : <>Ao receber, abra o pedido em Pedidos e clique em "Marcar como pago".</>}</p>
         <Button onClick={save} disabled={saving}>{saving ? 'Salvando...' : 'Salvar'}</Button>
       </CardContent>
     </Card>
