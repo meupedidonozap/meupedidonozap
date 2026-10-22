@@ -10,6 +10,7 @@ import SalonStorePage from './SalonStorePage';
 import { Loader2 } from 'lucide-react';
 import WaiterModeFAB from '@/components/WaiterModeFAB';
 import DynamicManifest from '@/components/DynamicManifest';
+import StoreLoginGate from '@/components/StoreLoginGate';
 
 export default function StorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -56,7 +57,7 @@ export default function StorePage() {
           description={storeDesc}
         />
       )}
-      {inner}
+      {store ? <StoreLoginGate store={store}>{inner}</StoreLoginGate> : inner}
       <WaiterModeFAB />
     </>
   );

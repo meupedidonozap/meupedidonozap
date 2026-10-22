@@ -311,9 +311,12 @@ export default function StoreAdminPage() {
   const [customerSearch, setCustomerSearch] = useState('');
   const filteredCustomerProfiles = useMemo(() => {
     const term = customerSearch.trim().toLowerCase();
-    if (!term) return scopedCustomerProfiles;
+    const base = customerApprovalFilter === 'pending'
+      ? scopedCustomerProfiles.filter((cp: any) => cp.approvalStatus === 'pending')
+      : scopedCustomerProfiles;
+    if (!term) return base;
     const digits = term.replace(/\D/g, '');
-    return scopedCustomerProfiles.filter((cp: any) => {
+    return base.filter((cp: any) => {
       const haystack = [
         cp.name, cp.customerCode, cp.cpfCnpj, cp.whatsapp,
         cp.address, cp.number, cp.neighborhood, cp.city, cp.uf, cp.cep, cp.complement,
@@ -325,7 +328,8 @@ export default function StoreAdminPage() {
       }
       return false;
     });
-  }, [scopedCustomerProfiles, customerSearch]);
+  }, [scopedCustomerProfiles, customerSearch, customerApprovalFilter]);
+  const pendingCustomersCount = useMemo(() => scopedCustomerProfiles.filter((cp: any) => cp.approvalStatus === 'pending').length, [scopedCustomerProfiles]);
   const scopedOrders = useMemo(() => {
     if (!restrictBySeller) return orders;
     return orders.filter((o: any) => {
@@ -561,6 +565,8 @@ export default function StoreAdminPage() {
   const [useStockIntegration, setUseStockIntegration] = useState(false);
   const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [allowCustomerSignup, setAllowCustomerSignup] = useState(true);
+  const [requireLoginToBrowse, setRequireLoginToBrowse] = useState(false);
+  const [customerApprovalFilter, setCustomerApprovalFilter] = useState<'all' | 'pending'>('all');
   const [erpWhatsapp, setErpWhatsapp] = useState('');
   const [viewModeList, setViewModeList] = useState(true);
   const [viewModeGrid, setViewModeGrid] = useState(true);
@@ -632,6 +638,7 @@ export default function StoreAdminPage() {
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
     setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setAllowCustomerSignup((store.settings as any)?.allowCustomerSignup !== false);
+    setRequireLoginToBrowse((store.settings as any)?.requireLoginToBrowse === true);
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
     setErpWhatsappByTable({ ...((store.settings as any)?.erpReleaseWhatsappByTable || {}) });
     setViewModeList((store.settings as any)?.catalogViewModes?.list !== false);
@@ -946,6 +953,7 @@ export default function StoreAdminPage() {
           useStockIntegration,
           useBlingIntegration,
           allowCustomerSignup,
+          requireLoginToBrowse,
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
           erpReleaseWhatsappByTable: Object.fromEntries(
             Object.entries(erpWhatsappByTable).map(([k, v]) => [k, String(v).replace(/\D/g, '')]).filter(([, v]) => v)
@@ -2333,6 +2341,17 @@ export default function StoreAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader><CardTitle>Loja exclusiva para clientes</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <label className="flex items-center gap-3 text-sm">
+                  <Switch checked={requireLoginToBrowse} onCheckedChange={setRequireLoginToBrowse} />
+                  Exigir login para ver produtos e preços
+                </label>
+                <p className="text-xs text-muted-foreground">Ligado: visitante vê só "Fazer login ou Cadastre-se". Novos cadastros chegam em Clientes como PENDENTE e só acessam após aprovação com vendedor. Clique em Salvar para gravar.</p>
+                <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>Salvar</Button>
+              </CardContent>
+            </Card>
             {(store.slug === 'dicolore' || store.slug === 'dicoloresenses') && (
               <Card>
                 <CardHeader><CardTitle>Acesso do cliente</CardTitle></CardHeader>
@@ -3091,6 +3110,12 @@ export default function StoreAdminPage() {
                 </Button>
               </div>
             </div>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" variant={customerApprovalFilter === 'all' ? 'default' : 'outline'} onClick={() => setCustomerApprovalFilter('all')}>Todos</Button>
+              <Button size="sm" variant={customerApprovalFilter === 'pending' ? 'default' : 'outline'} onClick={() => setCustomerApprovalFilter('pending')}>
+                Pendentes de aprovação {pendingCustomersCount > 0 && <Badge variant="destructive" className="ml-2">{pendingCustomersCount}</Badge>}
+              </Button>
+            </div>
             <div className="mb-3 flex items-center gap-2">
               <div className="relative w-full max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -3129,9 +3154,27 @@ export default function StoreAdminPage() {
                         <TableCell>{cp.whatsapp || '—'}</TableCell>
                         <TableCell>{cp.city && cp.uf ? `${cp.city}/${cp.uf}` : '—'}</TableCell>
                         <TableCell>
+                          {(cp as any).approvalStatus === 'pending' ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge variant="secondary">Pendente</Badge>
+                              <Button size="sm" className="h-7" onClick={async () => {
+                                if (!String((cp as any).sellerCode || '').trim()) {
+                                  toast.error('Antes de aprovar, edite o cliente (lápis) e escolha o Representante.');
+                                  return;
+                                }
+                                const { error } = await supabase.from('customer_profiles')
+                                  .update({ approval_status: 'approved', is_active: true } as any)
+                                  .eq('id', cp.id).select().single();
+                                if (error) { toast.error('Erro ao aprovar: ' + error.message); return; }
+                                qc.invalidateQueries({ queryKey: ['store-customer-profiles', cp.storeId] });
+                                toast.success('Cliente aprovado! Ele já pode entrar com o e-mail e senha que cadastrou.');
+                              }}>Aprovar</Button>
+                            </div>
+                          ) : (
                           <Badge className={(cp as any).isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
                             {(cp as any).isActive ? 'Ativo' : 'Inativo'}
                           </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => {
