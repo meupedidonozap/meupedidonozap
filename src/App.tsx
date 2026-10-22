@@ -17,6 +17,7 @@ import StorePage from "./pages/StorePage";
 import CheckoutPage from "./pages/CheckoutPage";
 import SellerPortalPage from "./pages/SellerPortalPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
+import PayOrderPage from "./pages/PayOrderPage";
 import CustomerTitlesPage from "./pages/CustomerTitlesPage";
 import CustomerInvoicesPage from "./pages/CustomerInvoicesPage";
 import NotFound from "./pages/NotFound";
