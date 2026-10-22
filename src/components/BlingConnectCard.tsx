@@ -27,7 +27,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
     if (error || data?.error) { setMsg('Erro: ' + (data?.error || error?.message)); return; }
     setMsg(action === 'products'
       ? `Produtos: ${data.total} lidos, ${data.created} novos (inativos, para completar preço/fotos), ${data.stockUpdated} com estoque atualizado.`
-      : `Clientes: ${data.total} lidos, ${data.updated} atualizados.`);
+      : `Clientes: ${data.total} lidos, ${data.created ?? 0} criados, ${data.updated} atualizados${data.failed ? `, ${data.failed} com erro` : ''}.`);
   };
 
   return (
