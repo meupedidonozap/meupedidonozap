@@ -55,6 +55,7 @@ interface VariantForm {
   priceTable11: number;
   priceTable3?: number;
   priceTable8?: number;
+  suggestedPrice?: number;
 }
 
 interface ImageForm {
@@ -87,6 +88,8 @@ async function touchStoreDataVersion(storeId: string) {
   }
 }
 
+const RETAIL_SIMPLE_SLUGS = new Set(['jewosnewborn']);
+
 export default function ProductFormDialog({
   open,
   onOpenChange,
@@ -113,6 +116,9 @@ export default function ProductFormDialog({
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [suggestedPrice, setSuggestedPrice] = useState('');
+  // Lojas de varejo simples (estilo Shopee): sem tabelas de atacado, com preço sugerido.
+  const isRetailSimple = RETAIL_SIMPLE_SLUGS.has(storeSlug || '');
   const [categoryId, setCategoryId] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [priceTable1, setPriceTable1] = useState('');
@@ -168,6 +174,7 @@ export default function ProductFormDialog({
       setIsActive(product.isActive);
       setHasVariants(product.hasVariants);
       setImagePreview(product.image || null);
+      setSuggestedPrice(product.suggestedPrice ? String(product.suggestedPrice) : '');
       setImageFile(null);
       setDurationMinutes(String(product.durationMinutes ?? 30));
       setProfessionalIds(product.professionalIds || []);
@@ -184,6 +191,7 @@ export default function ProductFormDialog({
           priceTable4: v.priceTable4 != null && v.priceTable4 > 0 ? v.priceTable4 : v.price,
           priceTable9: v.priceTable9 != null && v.priceTable9 > 0 ? v.priceTable9 : v.price,
           priceTable11: (v as any).priceTable11 != null && (v as any).priceTable11 > 0 ? (v as any).priceTable11 : v.price,
+          suggestedPrice: v.suggestedPrice || 0,
         })) || []
       );
       setProductImages(
@@ -211,6 +219,7 @@ export default function ProductFormDialog({
       setCode('');
       setName('');
       setDescription('');
+      setSuggestedPrice('');
       setCategoryId('');
       setBasePrice('');
       setPriceTable1('');
@@ -286,7 +295,7 @@ export default function ProductFormDialog({
   const addVariant = () => {
     const { bp, pt1, pt4, pt9, pt11 } = computePrices();
     setVariants(prev => [...prev, {
-      color: '', size: '', price: pt4 || bp, stock: 0, sku: '',
+      color: '', size: '', price: pt4 || bp, stock: 0, sku: '', suggestedPrice: Number(suggestedPrice) || 0,
       priceTable1: pt1, priceTable4: pt4 || bp, priceTable9: pt9, priceTable11: pt11,
     }]);
   };
@@ -316,7 +325,7 @@ export default function ProductFormDialog({
     const pt4 = mainIsT11 ? (t4Input || t11Input) : bp;
     const pt1 = Number(priceTable1) || bp;
     const pt9 = Number(priceTable9) || bp;
-    const pt11 = t11Input || bp;
+    const pt11 = isRetailSimple ? bp : (t11Input || bp);
     return { bp, pt1, pt4, pt9, pt11 };
   };
 
@@ -361,7 +370,9 @@ export default function ProductFormDialog({
             priceTable1: v.priceTable1 || v.priceTable4 || v.price,
             priceTable4: v.priceTable4 || v.price,
             priceTable9: v.priceTable9 || v.priceTable4 || v.price,
-            priceTable11: (v as any).priceTable11 || v.priceTable4 || v.price,
+            priceTable11: isRetailSimple ? (v.priceTable4 || v.price) : ((v as any).priceTable11 || v.priceTable4 || v.price),
+            ...(isRetailSimple ? { priceTable1: v.priceTable4 || v.price, priceTable9: v.priceTable4 || v.price } : {}),
+            suggestedPrice: Number(v.suggestedPrice) || 0,
           }))
         : [];
 
@@ -373,6 +384,7 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: computePrices().bp,
+          suggestedPrice: Number(suggestedPrice) || 0,
           priceTable1: computePrices().pt1,
           priceTable4: computePrices().pt4,
           priceTable9: computePrices().pt9,
@@ -414,6 +426,7 @@ export default function ProductFormDialog({
           description,
           categoryId: categoryId || null,
           basePrice: computePrices().bp,
+          suggestedPrice: Number(suggestedPrice) || 0,
           priceTable1: computePrices().pt1,
           priceTable4: computePrices().pt4,
           priceTable9: computePrices().pt9,
@@ -552,7 +565,14 @@ export default function ProductFormDialog({
             </div>
           </div>
 
-          {!isSalon && (
+          {isRetailSimple && (
+            <div className="grid gap-2">
+              <Label htmlFor="suggested">Preço sugerido "De" (R$) — aparece riscado como promoção</Label>
+              <Input id="suggested" type="number" step="0.01" value={suggestedPrice} onChange={e => setSuggestedPrice(e.target.value)} placeholder="Ex: 49.90" />
+            </div>
+          )}
+
+          {!isSalon && !isRetailSimple && (
             <div className="grid grid-cols-2 gap-4 rounded-lg border p-3 bg-muted/20">
               <div className="grid gap-2">
                 <Label htmlFor="price-t1" className="text-xs">Tabela 1 (Atacado)</Label>
@@ -869,7 +889,49 @@ export default function ProductFormDialog({
                   <Plus className="h-3 w-3" /> Adicionar
                 </Button>
               </div>
-              {variants.map((v, i) => (
+              {isRetailSimple ? variants.map((v, i) => {
+                const photo = productImages.find(img => img.label && v.color && img.label.trim().toLowerCase() === v.color.trim().toLowerCase());
+                const photoUrl = photo ? getImagePreviewUrl(photo) : null;
+                return (
+                  <div key={i} className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded border bg-white">
+                        {photoUrl ? <img src={photoUrl} alt={v.color} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center"><ImageIcon className="h-5 w-5 text-muted-foreground/50" /></div>}
+                      </div>
+                      <div className="grid flex-1 gap-1">
+                        <Label className="text-xs">Cor / descrição da variante</Label>
+                        <Textarea rows={2} value={v.color} onChange={e => updateVariant(i, 'color', e.target.value)} placeholder="Ex: Caramelo" />
+                        {!photoUrl && <p className="text-[11px] text-muted-foreground">Para mostrar a foto desta cor, escreva o mesmo nome na legenda da foto acima.</p>}
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(i)} className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Tamanho</Label>
+                        <Input value={v.size} onChange={e => updateVariant(i, 'size', e.target.value)} placeholder="UNI" />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Preço sugerido "De"</Label>
+                        <Input type="number" step="0.01" value={v.suggestedPrice || ''} onChange={e => updateVariant(i, 'suggestedPrice', Number(e.target.value))} placeholder="49.90" />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Preço de venda "Por"</Label>
+                        <Input type="number" step="0.01" value={v.priceTable4} onChange={e => updateVariant(i, 'priceTable4', Number(e.target.value))} placeholder="29.90" />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Estoque</Label>
+                        <Input type="number" value={v.stock} onChange={e => updateVariant(i, 'stock', Number(e.target.value))} />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">SKU</Label>
+                        <Input value={v.sku} onChange={e => updateVariant(i, 'sku', e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : variants.map((v, i) => (
                 <div key={i} className="grid grid-cols-9 gap-2 items-end">
                   <div>
                     <Label className="text-xs">Cor</Label>

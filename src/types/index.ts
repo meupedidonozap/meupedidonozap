@@ -266,6 +266,8 @@ export interface ProductVariant {
   priceTable11?: number;
   priceTable3?: number;
   priceTable8?: number;
+  /** Preço sugerido "De" (exibido riscado quando maior que o preço). */
+  suggestedPrice?: number;
 }
 
 export interface ProductImage {
@@ -284,6 +286,8 @@ export interface Product {
   categoryId: string;
   groupId?: string;
   basePrice: number;
+  /** Preço sugerido "De" (exibido riscado quando maior que o preço). */
+  suggestedPrice?: number;
   priceTable1?: number;
   priceTable4?: number;
   priceTable9?: number;

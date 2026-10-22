@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ShoppingCart } from 'lucide-react';
 import type { Product } from '@/types';
 import { formatCurrency } from '@/lib/formatters';
+import { getVariantPriceOrNull, type PriceTable } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -19,6 +20,8 @@ interface VariantDialogProps {
   selectedVariant: { color?: string; size?: string } | null;
   setSelectedVariant: React.Dispatch<React.SetStateAction<{ color?: string; size?: string } | null>>;
   onAddToCart: (product: Product, variant?: { color?: string; size?: string }) => void;
+  priceTable?: PriceTable;
+  stockEnabled?: boolean;
 }
 
 export default function VariantDialog({
@@ -30,6 +33,8 @@ export default function VariantDialog({
   selectedVariant,
   setSelectedVariant,
   onAddToCart,
+  priceTable,
+  stockEnabled = true,
 }: VariantDialogProps) {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -69,6 +74,24 @@ export default function VariantDialog({
     }
   }, [currentSlide, hasImages, images, uniqueColors, carouselApi, setSelectedVariant]);
 
+  const variants = product?.variants ?? [];
+  const norm = (x?: string) => (x || '').trim().toLowerCase();
+  const colorInStock = (color: string) =>
+    !stockEnabled || variants.some(v => norm(v.color) === norm(color) && Number(v.stock) > 0);
+  const sizeInStock = (size: string) =>
+    !stockEnabled || variants.some(v => norm(v.size) === norm(size)
+      && (!selectedVariant?.color || norm(v.color) === norm(selectedVariant.color)) && Number(v.stock) > 0);
+  const colorImage = (color: string) => images.find(img => norm(img.label) === norm(color))?.imageUrl;
+  const activeVariant = variants.find(v =>
+    (!selectedVariant?.color || norm(v.color) === norm(selectedVariant.color))
+    && (!selectedVariant?.size || norm(v.size) === norm(selectedVariant.size)));
+  const priceOf = (v?: typeof variants[number]) => (v ? getVariantPriceOrNull(v, priceTable) ?? v.price : product?.basePrice ?? 0);
+  const salePrice = selectedVariant?.color ? priceOf(activeVariant) : (variants.length ? Math.min(...variants.map(v => priceOf(v))) : product?.basePrice ?? 0);
+  const fromPrice = (selectedVariant?.color ? activeVariant?.suggestedPrice : undefined) || product?.suggestedPrice
+    || (variants.length ? Math.max(0, ...variants.map(v => v.suggestedPrice || 0)) : 0);
+  const showPromo = !!fromPrice && fromPrice > salePrice && salePrice > 0;
+  const discountPct = showPromo ? Math.round((1 - salePrice / fromPrice) * 100) : 0;
+
   if (!product) return null;
 
   return (
@@ -84,7 +107,7 @@ export default function VariantDialog({
                   {images.map((img, i) => (
                     <CarouselItem key={img.id || i}>
                       <div className="aspect-square overflow-hidden rounded-lg bg-muted">
-                        <img src={img.imageUrl} alt={img.label || product.name} loading="lazy" className="h-full w-full object-cover" />
+                        <img src={img.imageUrl} alt={img.label || product.name} loading="lazy" className="h-full w-full bg-white object-contain" />
                       </div>
                     </CarouselItem>
                   ))}
@@ -97,13 +120,17 @@ export default function VariantDialog({
                 )}
               </Carousel>
               {images.length > 1 && (
-                <div className="mt-2 flex justify-center gap-1.5">
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
                   {images.map((img, i) => (
                     <button
                       key={i}
-                      className={`h-2 w-2 rounded-full transition-colors ${i === currentSlide ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      type="button"
+                      aria-label={`Foto ${i + 1}`}
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded border-2 bg-white ${i === currentSlide ? 'border-destructive' : 'border-transparent'}`}
                       onClick={() => carouselApi?.scrollTo(i)}
-                    />
+                    >
+                      <img src={img.imageUrl} alt="" className="h-full w-full object-contain" />
+                    </button>
                   ))}
                 </div>
               )}
@@ -120,17 +147,37 @@ export default function VariantDialog({
           <div>
             <h3 className="font-semibold">{product.name}</h3>
             <p className="text-sm text-muted-foreground">{product.description}</p>
-            <p className="mt-2 text-lg font-bold">{formatCurrency(product.basePrice)}</p>
+            <div className="mt-2 flex flex-wrap items-baseline gap-2 rounded-md bg-muted/40 px-3 py-2">
+              <span className="text-2xl font-bold text-destructive">{formatCurrency(salePrice)}</span>
+              {showPromo && (
+                <>
+                  <span className="text-sm text-muted-foreground line-through">{formatCurrency(fromPrice)}</span>
+                  <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-xs font-semibold text-destructive">-{discountPct}%</span>
+                </>
+              )}
+            </div>
           </div>
 
           {uniqueColors.length > 0 && (
             <div>
               <label className="mb-2 block text-sm font-medium">Cor</label>
               <div className="flex flex-wrap gap-2">
-                {uniqueColors.map(color => (
-                  <Button key={color} variant={selectedVariant?.color === color ? 'default' : 'outline'} size="sm"
-                    onClick={() => handleColorSelect(color!)}>{color}</Button>
-                ))}
+                {uniqueColors.map(color => {
+                  const available = colorInStock(color);
+                  const selected = selectedVariant?.color === color;
+                  const thumb = colorImage(color);
+                  return (
+                    <button key={color} type="button" disabled={!available} aria-disabled={!available}
+                      title={available ? color : `${color} — sem estoque`}
+                      onClick={() => available && handleColorSelect(color!)}
+                      className={`flex items-center gap-2 rounded border px-2 py-1 text-sm transition-colors ${
+                        !available ? 'cursor-not-allowed border-border bg-muted text-muted-foreground opacity-50 grayscale'
+                        : selected ? 'border-destructive text-destructive' : 'border-border hover:border-destructive'}`}>
+                      {thumb && <img src={thumb} alt="" className="h-6 w-6 rounded-sm bg-white object-contain" />}
+                      <span>{color}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -139,10 +186,14 @@ export default function VariantDialog({
             <div>
               <label className="mb-2 block text-sm font-medium">Tamanho</label>
               <div className="flex flex-wrap gap-2">
-                {availableSizes.map(size => (
-                  <Button key={size} variant={selectedVariant?.size === size ? 'default' : 'outline'} size="sm"
-                    onClick={() => setSelectedVariant(prev => ({ ...prev, size }))}>{size}</Button>
-                ))}
+                {availableSizes.map(size => {
+                  const available = sizeInStock(size);
+                  return (
+                    <Button key={size} variant={selectedVariant?.size === size ? 'default' : 'outline'} size="sm"
+                      disabled={!available} className={!available ? 'opacity-50 grayscale' : ''}
+                      onClick={() => setSelectedVariant(prev => ({ ...prev, size }))}>{size}</Button>
+                  );
+                })}
               </div>
             </div>
           )}

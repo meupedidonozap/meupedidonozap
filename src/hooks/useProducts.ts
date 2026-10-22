@@ -16,6 +16,7 @@ function mapVariant(row: any): ProductVariant {
     priceTable11: row.price_table_11 != null ? Number(row.price_table_11) : undefined,
     priceTable3: row.price_table_3 != null ? Number(row.price_table_3) : undefined,
     priceTable8: row.price_table_8 != null ? Number(row.price_table_8) : undefined,
+    suggestedPrice: row.suggested_price != null ? Number(row.suggested_price) : 0,
   };
 }
 
@@ -38,6 +39,7 @@ function mapProduct(row: any): Product {
     categoryId: row.category_id || '',
     groupId: row.group_id || undefined,
     basePrice: Number(row.base_price),
+    suggestedPrice: row.suggested_price != null ? Number(row.suggested_price) : 0,
     stock: row.stock != null ? Number(row.stock) : 0,
     priceTable1: row.price_table_1 != null ? Number(row.price_table_1) : undefined,
     priceTable4: row.price_table_4 != null ? Number(row.price_table_4) : undefined,
@@ -106,6 +108,7 @@ export function useCreateProduct() {
       categoryId: string | null;
       groupId?: string;
       basePrice: number;
+      suggestedPrice?: number;
       priceTable1?: number;
       priceTable4?: number;
       priceTable9?: number;
@@ -135,6 +138,7 @@ export function useCreateProduct() {
         category_id: product.categoryId,
         group_id: product.groupId || null,
         base_price: product.basePrice,
+        suggested_price: product.suggestedPrice ?? 0,
         price_table_1: product.priceTable1 ?? product.basePrice,
         price_table_4: product.priceTable4 ?? product.basePrice,
         price_table_9: product.priceTable9 ?? product.basePrice,
@@ -164,6 +168,7 @@ export function useCreateProduct() {
             price_table_11: (v as any).priceTable11 ?? v.price,
             price_table_3: (v as any).priceTable3 ?? 0,
             price_table_8: (v as any).priceTable8 ?? 0,
+            suggested_price: v.suggestedPrice ?? 0,
             stock: v.stock,
             sku: v.sku,
           }))
@@ -207,6 +212,7 @@ export function useUpdateProduct() {
       categoryId?: string | null;
       groupId?: string | null;
       basePrice?: number;
+      suggestedPrice?: number;
       priceTable1?: number;
       priceTable4?: number;
       priceTable9?: number;
@@ -231,6 +237,7 @@ export function useUpdateProduct() {
       if (product.categoryId !== undefined) updates.category_id = product.categoryId;
       if (product.groupId !== undefined) updates.group_id = product.groupId;
       if (product.basePrice !== undefined) updates.base_price = product.basePrice;
+      if (product.suggestedPrice !== undefined) updates.suggested_price = product.suggestedPrice;
       if (product.priceTable1 !== undefined) updates.price_table_1 = product.priceTable1;
       if (product.priceTable4 !== undefined) updates.price_table_4 = product.priceTable4;
       if (product.priceTable9 !== undefined) updates.price_table_9 = product.priceTable9;
@@ -275,6 +282,7 @@ export function useUpdateProduct() {
               price_table_11: (v as any).priceTable11 ?? v.price,
               price_table_3: (v as any).priceTable3 ?? 0,
               price_table_8: (v as any).priceTable8 ?? 0,
+            suggested_price: v.suggestedPrice ?? 0,
               stock: v.stock,
               sku: v.sku,
             }))
