@@ -80,7 +80,7 @@ async function syncProducts(storeId: string) {
     }
     const { error } = await admin.from('products').insert({
       store_id: storeId, code, bling_code: code, name: String(it.nome ?? code).slice(0, 250),
-      description: '', base_price: Number(it.preco ?? 0) || 0, stock, is_active: blingActive,
+      description: '', base_price: Number(it.preco ?? 0) || 0, price_table_4: Number(it.preco ?? 0) || 0, stock, is_active: blingActive,
     });
     if (error) { console.error('insert', code, error.message); skipped++; } else created++;
   }
