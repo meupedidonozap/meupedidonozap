@@ -42,7 +42,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
       {connected && (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Importar produtos e estoque</Button>
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Atualizar clientes</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Importar clientes</Button>
         </div>
       )}
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
