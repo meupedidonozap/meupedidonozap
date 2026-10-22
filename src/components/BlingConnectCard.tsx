@@ -27,7 +27,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
     if (error || data?.error) { setMsg('Erro: ' + (data?.error || error?.message)); return; }
     setMsg(action === 'products'
       ? `Produtos: ${data.total} lidos, ${data.created} novos (inativos, para completar preço/fotos), ${data.stockUpdated} com estoque atualizado.`
-      : `Clientes: ${data.total} lidos, ${data.updated} atualizados.`);
+      : `Clientes: ${data.total} lidos, ${data.created ?? 0} criados, ${data.updated} atualizados${data.failed ? `, ${data.failed} com erro` : ''}.`);
   };
 
   return (
@@ -42,7 +42,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
       {connected && (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Importar produtos e estoque</Button>
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Atualizar clientes</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Importar clientes</Button>
         </div>
       )}
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
