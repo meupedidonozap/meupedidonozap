@@ -100,6 +100,16 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     if (error) {
       toast.error(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message);
     } else {
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData.user?.id;
+      const { data: prof } = uid
+        ? await supabase.from('customer_profiles').select('id').eq('user_id', uid).eq('store_id', storeId).maybeSingle()
+        : { data: null };
+      if (!prof && allowSignup) {
+        toast.info('Você ainda não tem cadastro nesta loja. Preencha seus dados.');
+        setStep('profile');
+        return;
+      }
       toast.success('Login realizado!');
       onOpenChange(false);
     }
@@ -155,8 +165,29 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         msg.includes('user already exists') ||
         (error as any).code === 'user_already_exists'
       ) {
-        if (requireApproval) { setNotice('duplicate'); return; }
-        toast.info('Você já tem cadastro. Faça login com sua senha.');
+        // A conta de acesso é única na plataforma, mas o cadastro de cliente é por loja.
+        // Se a senha confere, abre o cadastro desta loja quando ainda não existir.
+        setLoading(true);
+        const { error: loginErr } = await signIn(registerData.email, registerData.password);
+        if (!loginErr) {
+          const { data: authData } = await supabase.auth.getUser();
+          const uid = authData.user?.id;
+          const { data: prof } = uid
+            ? await supabase.from('customer_profiles').select('id').eq('user_id', uid).eq('store_id', storeId).maybeSingle()
+            : { data: null };
+          setLoading(false);
+          if (!prof) {
+            toast.success('Conta encontrada! Preencha seus dados para esta loja.');
+            setStep('profile');
+            return;
+          }
+          if (requireApproval) { setNotice('duplicate'); return; }
+          toast.success('Login realizado!');
+          onOpenChange(false);
+          return;
+        }
+        setLoading(false);
+        toast.info('Este e-mail já tem acesso no Meu Pedido no Zap (outra loja). Entre com a mesma senha ou use "Esqueci a senha" — depois complete seus dados para esta loja.', { duration: 8000 });
         setLoginData({ email: registerData.email, password: '' });
         setAuthTab('login');
       } else if (msg.includes('password')) {
