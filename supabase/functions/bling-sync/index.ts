@@ -89,28 +89,55 @@ async function syncProducts(storeId: string) {
 
 async function syncCustomers(storeId: string) {
   const token = await getToken(storeId);
-  const { data: profiles } = await admin.from('customer_profiles').select('id, cpf_cnpj').eq('store_id', storeId);
+  const { data: profiles } = await admin.from('customer_profiles').select('id, cpf_cnpj, customer_code').eq('store_id', storeId);
   const byDoc = new Map<string, string>();
-  for (const p of profiles ?? []) { const d = (p.cpf_cnpj || '').replace(/\D/g, ''); if (d) byDoc.set(d, p.id); }
-  let updated = 0, total = 0;
+  const byCode = new Map<string, string>();
+  for (const p of profiles ?? []) {
+    const d = (p.cpf_cnpj || '').replace(/\D/g, '');
+    if (d) byDoc.set(d, p.id);
+    if (p.customer_code) byCode.set(String(p.customer_code).trim(), p.id);
+  }
+  let updated = 0, created = 0, total = 0, failed = 0;
   for (let page = 1; page <= 50; page++) {
     const b = await bling(token, `/contatos?pagina=${page}&limite=100`);
     const rows = b?.data ?? [];
     total += rows.length;
     for (const c of rows) {
-      const doc = String(c.numeroDocumento ?? '').replace(/\D/g, '');
-      const id = byDoc.get(doc);
-      if (!id) continue; // só atualiza quem já existe
-      const patch: Record<string, unknown> = {};
-      if (c.nome) patch.name = c.nome;
-      const tel = String(c.celular || c.telefone || '').replace(/\D/g, '');
-      if (tel) patch.whatsapp = tel;
-      if (Object.keys(patch).length) { await admin.from('customer_profiles').update(patch).eq('id', id); updated++; }
+      let det: any = c;
+      try { det = (await bling(token, `/contatos/${c.id}`))?.data ?? c; } catch (_) { /* usa resumo */ }
+      await new Promise((s) => setTimeout(s, 350));
+      const doc = String(det.numeroDocumento ?? '').replace(/\D/g, '');
+      const code = String(det.codigo || c.id || '').trim();
+      const e = det.endereco?.geral ?? {};
+      const tel = String(det.celular || det.telefone || '').replace(/\D/g, '');
+      const data: Record<string, unknown> = {
+        name: String(det.nome || '').slice(0, 250),
+        cpf_cnpj: doc,
+        customer_code: code,
+        is_active: String(det.situacao || 'A').toUpperCase() !== 'I',
+      };
+      if (tel) data.whatsapp = tel;
+      if (det.ie) data.ie = String(det.ie);
+      if (e.cep) data.cep = String(e.cep).replace(/\D/g, '');
+      if (e.uf) data.uf = String(e.uf);
+      if (e.municipio) data.city = String(e.municipio);
+      if (e.bairro) data.neighborhood = String(e.bairro);
+      if (e.endereco) data.address = String(e.endereco);
+      if (e.numero) data.number = String(e.numero);
+      if (e.complemento) data.complement = String(e.complemento);
+      const id = (doc && byDoc.get(doc)) || byCode.get(code);
+      if (id) {
+        const { error } = await admin.from('customer_profiles').update(data).eq('id', id);
+        if (error) { console.error('upd', code, error.message); failed++; } else updated++;
+      } else {
+        const { data: ins, error } = await admin.from('customer_profiles').insert({ store_id: storeId, ...data }).select('id').single();
+        if (error) { console.error('ins', code, error.message); failed++; }
+        else { created++; if (doc) byDoc.set(doc, ins.id); byCode.set(code, ins.id); }
+      }
     }
     if (rows.length < 100) break;
-    await new Promise((s) => setTimeout(s, 350));
   }
-  return { total, updated };
+  return { total, created, updated, failed };
 }
 
 Deno.serve(async (req) => {
