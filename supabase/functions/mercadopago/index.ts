@@ -57,6 +57,9 @@ Deno.serve(async (req) => {
     const token = tokenFor(store.slug);
     if (!token) return json({ error: "Mercado Pago não configurado para esta loja" }, 400);
 
+    if (action === "info") {
+      return json({ orderNumber: order.order_number, total: Number(order.total), paymentStatus: order.payment_status, storeName: store.name });
+    }
     if (action === "status") {
       if (order.payment_status !== "paid") {
         const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);

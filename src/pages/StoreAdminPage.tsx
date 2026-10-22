@@ -1715,6 +1715,14 @@ export default function StoreAdminPage() {
                               toast.success('Pagamento confirmado!');
                             }}>Marcar como pago</Button>
                           )}
+                          {['pending', 'failed'].includes(order.paymentStatus as string) && (store?.settings as any)?.paymentGateway?.provider === 'mercadopago' && (
+                            <Button size="sm" variant="outline" className="mt-1 ml-1 h-6 px-2 text-[10px]" onClick={() => {
+                              const link = `${window.location.origin}/${store!.slug}/pagar/${order.id}`;
+                              const msg = `Olá! Seu pedido #${order.orderNumber} está aguardando pagamento. Pague com PIX ou Cartão neste link seguro: ${link}`;
+                              const phone = String((order.customer as any)?.whatsapp || '').replace(/\D/g, '');
+                              window.open(`https://wa.me/${phone ? (phone.startsWith('55') ? phone : '55' + phone) : ''}?text=${encodeURIComponent(msg)}`, '_blank');
+                            }}>Enviar link de pagamento</Button>
+                          )}
                           {order.shippingService && (
                             <p className="mt-1 text-muted-foreground">{order.shippingService} · {formatCurrency(order.deliveryFee)}{order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''}</p>
                           )}
