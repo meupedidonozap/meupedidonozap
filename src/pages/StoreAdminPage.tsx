@@ -2465,6 +2465,7 @@ export default function StoreAdminPage() {
                     {useBlingIntegration ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
                   </button>
                 </div>
+                {useBlingIntegration && <BlingConnectCard storeId={store.id} />}
                 <p className="text-xs text-muted-foreground">
                   Quando <strong>ligado</strong>, o cadastro de produto ganha o campo <strong>Código BLING</strong> e o
                   download do <strong>XML (Bling)</strong> passa a usar esse código no lugar do código do sistema.
