@@ -215,7 +215,7 @@ export default function CheckoutPage() {
             </Button>
           </div>
         </main>
-        <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store.id} storeSlug={store.slug} allowSignup={store.settings?.allowCustomerSignup !== false} />
+        <CustomerAuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} storeId={store.id} storeSlug={store.slug} allowSignup={store.settings?.allowCustomerSignup !== false} requireApproval={(store.settings as any)?.requireLoginToBrowse === true} />
       </div>
     );
   }

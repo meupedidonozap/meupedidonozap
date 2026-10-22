@@ -27,11 +27,15 @@ interface CustomerAuthDialogProps {
   storeSlug?: string;
   /** Exibe a aba "Cadastrar" (configuração da loja). Padrão: sim. */
   allowSignup?: boolean;
+  /** Cadastro completo obrigatório e sujeito a aprovação (loja exige login). */
+  requireApproval?: boolean;
+  /** Abre direto no formulário de dados (usuário já logado sem cadastro). */
+  startAtProfile?: boolean;
 }
 
 type Step = 'auth' | 'profile' | 'forgot';
 
-export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true }: CustomerAuthDialogProps) {
+export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true, requireApproval = false, startAtProfile = false }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
   const showCodeTab = storeSlug === 'dicolore' || storeSlug === 'dicoloresenses';
@@ -47,7 +51,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [showRegPwd, setShowRegPwd] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: '', whatsapp: '', cep: '', uf: '', city: '',
+    name: '', cpfCnpj: '', ie: '', whatsapp: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
   });
 
@@ -55,8 +59,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   useEffect(() => {
     if (!open) {
       setStep('auth');
+    } else if (startAtProfile) {
+      setStep('profile');
     }
-  }, [open]);
+  }, [open, startAtProfile]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +199,14 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       toast.error('Preencha os campos obrigatórios');
       return;
     }
+    if (requireApproval) {
+      const doc = profileData.cpfCnpj.replace(/\D/g, '');
+      if (doc.length !== 11 && doc.length !== 14) { toast.error('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido'); return; }
+      if (profileData.cep.replace(/\D/g, '').length !== 8 || !profileData.neighborhood || !profileData.number) {
+        toast.error('Preencha o endereço completo: CEP, bairro e número'); return;
+      }
+      if (profileData.whatsapp.replace(/\D/g, '').length < 10) { toast.error('Informe um telefone de contato válido'); return; }
+    }
     if (!user?.id) {
       toast.error('Sessão não encontrada. Feche esta janela, faça login e tente novamente.');
       return;
@@ -203,7 +217,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         userId: user.id,
         storeId,
         name: profileData.name,
-        cpfCnpj: '',
+        cpfCnpj: profileData.cpfCnpj.replace(/\D/g, ''),
         whatsapp: profileData.whatsapp,
         cep: profileData.cep,
         uf: profileData.uf,
@@ -213,7 +227,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         number: profileData.number,
         complement: profileData.complement || undefined,
       });
-      toast.success('Cadastro completo!');
+      if (profileData.ie.trim() && user?.id) {
+        await supabase.from('customer_profiles').update({ ie: profileData.ie.trim() }).eq('user_id', user.id).eq('store_id', storeId);
+      }
+      toast.success(requireApproval ? 'Cadastro enviado! Aguarde a aprovação da nossa equipe.' : 'Cadastro completo!', { duration: 8000 });
       onOpenChange(false);
     } catch (err: any) {
       const msg = err.message?.includes('row-level security')
@@ -355,18 +372,29 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
             <p className="text-sm text-muted-foreground">Preencha seus dados para finalizar o cadastro.</p>
 
             <div className="grid gap-2">
-              <Label htmlFor="prof-name">Nome completo *</Label>
+              <Label htmlFor="prof-name">Nome completo / Razão social *</Label>
               <Input id="prof-name" value={profileData.name} onChange={e => setProfileData(p => ({ ...p, name: e.target.value.toUpperCase() }))} placeholder="NOME COMPLETO" />
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="prof-doc">CPF/CNPJ{requireApproval ? ' *' : ''}</Label>
+                <Input id="prof-doc" inputMode="numeric" value={profileData.cpfCnpj} onChange={e => setProfileData(p => ({ ...p, cpfCnpj: e.target.value.replace(/[^\d./-]/g, '').slice(0, 18) }))} placeholder="Somente números" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="prof-ie">Inscrição Estadual</Label>
+                <Input id="prof-ie" value={profileData.ie} onChange={e => setProfileData(p => ({ ...p, ie: e.target.value }))} placeholder="Opcional" />
+              </div>
+            </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="prof-whatsapp">WhatsApp *</Label>
+              <Label htmlFor="prof-whatsapp">WhatsApp / Telefone *</Label>
               <Input id="prof-whatsapp" value={profileData.whatsapp} onChange={e => setProfileData(p => ({ ...p, whatsapp: formatPhone(e.target.value) }))} placeholder="(47) 99999-9999" />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="prof-cep">CEP</Label>
+                <Label htmlFor="prof-cep">CEP{requireApproval ? ' *' : ''}</Label>
                 <div className="relative">
                   <Input id="prof-cep" value={profileData.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
                   {cepLoading && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
@@ -387,7 +415,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
                 <Input id="prof-city" value={profileData.city} onChange={e => setProfileData(p => ({ ...p, city: e.target.value }))} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="prof-neighborhood">Bairro</Label>
+                <Label htmlFor="prof-neighborhood">Bairro{requireApproval ? ' *' : ''}</Label>
                 <Input id="prof-neighborhood" value={profileData.neighborhood} onChange={e => setProfileData(p => ({ ...p, neighborhood: e.target.value }))} />
               </div>
             </div>
@@ -398,7 +426,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
                 <Input id="prof-address" value={profileData.address} onChange={e => setProfileData(p => ({ ...p, address: e.target.value }))} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="prof-number">Número</Label>
+                <Label htmlFor="prof-number">Número{requireApproval ? ' *' : ''}</Label>
                 <Input id="prof-number" value={profileData.number} onChange={e => setProfileData(p => ({ ...p, number: e.target.value }))} />
               </div>
             </div>

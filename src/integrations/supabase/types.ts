@@ -338,6 +338,7 @@ export type Database = {
       customer_profiles: {
         Row: {
           address: string
+          approval_status: string
           cep: string
           city: string
           complement: string | null
@@ -367,6 +368,7 @@ export type Database = {
         }
         Insert: {
           address?: string
+          approval_status?: string
           cep?: string
           city?: string
           complement?: string | null
@@ -396,6 +398,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          approval_status?: string
           cep?: string
           city?: string
           complement?: string | null
