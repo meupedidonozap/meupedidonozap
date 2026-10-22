@@ -810,6 +810,8 @@ export default function ProductStorePage() {
         selectedVariant={selectedVariant}
         setSelectedVariant={setSelectedVariant}
         onAddToCart={handleAddToCart}
+        priceTable={activePriceTable}
+        stockEnabled={stockEnabled}
       />
 
       <footer className="border-t bg-card py-6">
