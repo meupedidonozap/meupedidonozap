@@ -229,6 +229,7 @@ export default function ProductStorePage() {
       productId: product.id,
       variantId: variantData?.id,
       groupId: resolvedGroupId,
+      categoryId: product.categoryId || undefined,
       name: product.name,
       code: product.code,
       color: variant?.color,

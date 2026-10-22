@@ -546,7 +546,7 @@ export default function StoreAdminPage() {
   const [ruleFilterTable, setRuleFilterTable] = useState('all');
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editRule, setEditRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' });
-  const [newRule, setNewRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' | '11' });
+  const [newRule, setNewRule] = useState({ scope: 'group' as 'group' | 'category' | 'product', categoryId: '', productQuery: '', groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' as 'all' | '1' | '4' | '9' | '11' });
   const [savingRules, setSavingRules] = useState(false);
   const [importRulesOpen, setImportRulesOpen] = useState(false);
 
@@ -1029,21 +1029,31 @@ export default function StoreAdminPage() {
   };
 
   const handleAddDiscountRule = () => {
-    if (!newRule.groupId.trim() || !newRule.minQuantity || !newRule.discountPercent) {
-      toast.error('Preencha todos os campos da regra');
+    const ruleCategory = newRule.scope === 'category' ? categories.find(c => c.id === newRule.categoryId) : undefined;
+    const q = newRule.productQuery.trim().toLowerCase();
+    const ruleProduct = newRule.scope === 'product'
+      ? products.find(p => `${p.code} - ${p.name}`.toLowerCase() === q) || products.find(p => (p.code || '').toLowerCase() === q)
+      : undefined;
+    const targetOk = newRule.scope === 'group' ? !!newRule.groupId.trim() : newRule.scope === 'category' ? !!ruleCategory : !!ruleProduct;
+    if (!targetOk || !newRule.minQuantity || !newRule.discountPercent) {
+      toast.error(newRule.scope === 'product' && q && !ruleProduct ? 'Produto não encontrado. Escolha da lista.' : 'Preencha todos os campos da regra');
       return;
     }
     const rule: DiscountRule = {
       id: crypto.randomUUID(),
       type: 'group',
-      groupId: newRule.groupId.trim(),
+      scope: newRule.scope,
+      categoryId: ruleCategory?.id,
+      productId: ruleProduct?.id,
+      targetLabel: ruleCategory ? ruleCategory.name : ruleProduct ? `${ruleProduct.code} - ${ruleProduct.name}` : undefined,
+      groupId: newRule.scope === 'group' ? newRule.groupId.trim() : undefined,
       minQuantity: Number(newRule.minQuantity),
       discountPercent: Number(newRule.discountPercent),
       description: newRule.description || `${newRule.minQuantity}+ peças → ${newRule.discountPercent}% off`,
       priceTable: newRule.priceTable === 'all' ? undefined : (Number(newRule.priceTable) as 1 | 3 | 4 | 8 | 9 | 11),
     };
     setDiscountRulesLocal(prev => [...prev, rule]);
-    setNewRule({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
+    setNewRule({ scope: newRule.scope, categoryId: '', productQuery: '', groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: newRule.priceTable });
   };
 
   const handleRemoveDiscountRule = (id: string) => {
@@ -1958,11 +1968,23 @@ export default function StoreAdminPage() {
                 <CardHeader>
                   <CardTitle>Nova Regra de Desconto por Grupo</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Defina faixas de desconto por quantidade de peças do mesmo grupo. O <strong>ID do Grupo</strong> deve coincidir com o campo "Grupo" preenchido nos produtos.
+                    Defina faixas de desconto por quantidade de peças da mesma <strong>Categoria</strong>, do mesmo <strong>Grupo</strong> ou de um <strong>Produto</strong> específico. Categoria e grupo vêm do cadastro do produto. Se um item se encaixar em mais de uma regra, vale a do produto, depois a do grupo, depois a da categoria.
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Aplicar por *</Label>
+                      <Select value={newRule.scope} onValueChange={v => setNewRule(r => ({ ...r, scope: v as 'group' | 'category' | 'product' }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="category">Categoria</SelectItem>
+                          <SelectItem value="group">Grupo</SelectItem>
+                          <SelectItem value="product">Produto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {newRule.scope === 'group' && (
                     <div className="grid gap-1">
                       <Label className="text-sm">ID do Grupo *</Label>
                       <Input
@@ -1971,6 +1993,36 @@ export default function StoreAdminPage() {
                         onChange={e => setNewRule(r => ({ ...r, groupId: e.target.value.toUpperCase() }))}
                       />
                     </div>
+                    )}
+                    {newRule.scope === 'category' && (
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Categoria *</Label>
+                      <Select value={newRule.categoryId} onValueChange={v => setNewRule(r => ({ ...r, categoryId: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger>
+                        <SelectContent>
+                          {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    )}
+                    {newRule.scope === 'product' && (
+                    <div className="grid gap-1">
+                      <Label className="text-sm">Produto *</Label>
+                      <Input
+                        list="discount-rule-products"
+                        placeholder="Digite código ou nome"
+                        value={newRule.productQuery}
+                        onChange={e => setNewRule(r => ({ ...r, productQuery: e.target.value }))}
+                      />
+                      <datalist id="discount-rule-products">
+                        {[...products].sort((a, b) => a.name.localeCompare(b.name)).map(p => (
+                          <option key={p.id} value={`${p.code} - ${p.name}`} />
+                        ))}
+                      </datalist>
+                    </div>
+                    )}
                     <div className="grid gap-1">
                       <Label className="text-sm">Qtd. Mínima *</Label>
                       <Input
@@ -2064,7 +2116,7 @@ export default function StoreAdminPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Grupo</TableHead>
+                          <TableHead>Aplicar por</TableHead>
                           <TableHead>Qtd. Mínima</TableHead>
                           <TableHead>Desconto</TableHead>
                           <TableHead>Tabela</TableHead>
@@ -2080,7 +2132,7 @@ export default function StoreAdminPage() {
                           .sort((a, b) => (a.groupId || '').localeCompare(b.groupId || '') || (a.minQuantity || 0) - (b.minQuantity || 0))
                           .map(rule => editingRuleId === rule.id ? (
                           <TableRow key={rule.id}>
-                            <TableCell><Input className="h-8" value={editRule.groupId} onChange={e => setEditRule(r => ({ ...r, groupId: e.target.value }))} /></TableCell>
+                            <TableCell>{rule.scope && rule.scope !== 'group' ? <Badge variant="outline" className="font-mono">{rule.scope === 'category' ? 'Categoria: ' + (rule.targetLabel || categories.find(c => c.id === rule.categoryId)?.name || '?') : rule.scope === 'product' ? 'Produto: ' + (rule.targetLabel || products.find(p => p.id === rule.productId)?.name || '?') : rule.groupId}</Badge> : <Input className="h-8" value={editRule.groupId} onChange={e => setEditRule(r => ({ ...r, groupId: e.target.value }))} />}</TableCell>
                             <TableCell><Input className="h-8 w-20" type="number" min="1" value={editRule.minQuantity} onChange={e => setEditRule(r => ({ ...r, minQuantity: e.target.value }))} /></TableCell>
                             <TableCell><Input className="h-8 w-20" type="number" min="1" max="100" value={editRule.discountPercent} onChange={e => setEditRule(r => ({ ...r, discountPercent: e.target.value }))} /></TableCell>
                             <TableCell>
@@ -2100,10 +2152,10 @@ export default function StoreAdminPage() {
                             <TableCell><Input className="h-8" value={editRule.description} onChange={e => setEditRule(r => ({ ...r, description: e.target.value }))} /></TableCell>
                             <TableCell className="text-center whitespace-nowrap">
                               <Button variant="ghost" size="sm" title="Confirmar" onClick={() => {
-                                if (!editRule.groupId.trim() || !editRule.minQuantity || !editRule.discountPercent) { toast.error('Preencha grupo, quantidade e desconto'); return; }
+                                if (((!rule.scope || rule.scope === 'group') && !editRule.groupId.trim()) || !editRule.minQuantity || !editRule.discountPercent) { toast.error('Preencha grupo, quantidade e desconto'); return; }
                                 setDiscountRulesLocal(prev => prev.map(r => r.id === rule.id ? {
                                   ...r,
-                                  groupId: editRule.groupId.trim(),
+                                  groupId: (!rule.scope || rule.scope === 'group') ? editRule.groupId.trim() : r.groupId,
                                   minQuantity: Number(editRule.minQuantity),
                                   discountPercent: Number(editRule.discountPercent),
                                   description: editRule.description || `${editRule.minQuantity}+ peças → ${editRule.discountPercent}% off`,
@@ -2118,7 +2170,7 @@ export default function StoreAdminPage() {
                           </TableRow>
                           ) : (
                           <TableRow key={rule.id}>
-                            <TableCell><Badge variant="outline" className="font-mono">{rule.groupId}</Badge></TableCell>
+                            <TableCell><Badge variant="outline" className="font-mono">{rule.scope === 'category' ? 'Categoria: ' + (rule.targetLabel || categories.find(c => c.id === rule.categoryId)?.name || '?') : rule.scope === 'product' ? 'Produto: ' + (rule.targetLabel || products.find(p => p.id === rule.productId)?.name || '?') : rule.groupId}</Badge></TableCell>
                             <TableCell>{rule.minQuantity}+ peças</TableCell>
                             <TableCell><Badge className="bg-accent text-accent-foreground">{rule.discountPercent}% OFF</Badge></TableCell>
                             <TableCell>

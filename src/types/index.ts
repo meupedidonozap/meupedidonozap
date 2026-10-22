@@ -230,6 +230,12 @@ export interface DiscountRule {
   minQuantity?: number;
   minValue?: number;
   groupId?: string;
+  /** Escopo de regras 'group': por grupo (padrão), categoria ou produto específico. */
+  scope?: 'group' | 'category' | 'product';
+  categoryId?: string;
+  productId?: string;
+  /** Nome exibido do alvo (categoria/produto). */
+  targetLabel?: string;
   discountPercent: number;
   description: string;
   /** Optional price-table scope (1, 4, 9 ou 11). Undefined = applies to all tables. */
@@ -336,6 +342,7 @@ export interface CartItem {
   productId: string;
   variantId?: string;
   groupId?: string;
+  categoryId?: string;
   name: string;
   code: string;
   color?: string;
