@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         items: [{ title: description, quantity: 1, unit_price: amount, currency_id: "BRL" }],
         external_reference: order.id, notification_url,
         payment_methods: { excluded_payment_types: [{ id: "ticket" }, { id: "bank_transfer" }] },
-        back_urls: { success: `https://meupedidonozap.online/${store.slug}`, failure: `https://meupedidonozap.online/${store.slug}`, pending: `https://meupedidonozap.online/${store.slug}` },
+        back_urls: (() => { const u = `https://meupedidonozap.online/${store.slug}/pagar/${order.id}?retorno=1`; return { success: u, failure: u, pending: u }; })(),
         auto_return: "approved",
       }),
     });
