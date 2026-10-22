@@ -633,7 +633,7 @@ export default function ProductStorePage() {
         <div className="container pb-4">
           <div className="flex items-center justify-between">
             <Badge variant="outline" className="cursor-pointer" onClick={() => setIsCategoryOpen(true)}>
-              {selectedCategory === 'all' ? 'Todos os Produtos' : categories.find(c => c.id === selectedCategory)?.name}
+              {selectedCategory === 'all' ? 'Todos os Produtos' : (categoryNameById.get(selectedCategory) || '')}
             </Badge>
             <span className="text-sm text-muted-foreground">{filteredProducts.length} produtos</span>
           </div>
