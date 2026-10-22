@@ -45,7 +45,8 @@ async function syncProducts(storeId: string) {
   const token = await getToken(storeId);
   const all: any[] = [];
   for (let page = 1; page <= 50; page++) {
-    const b = await bling(token, `/produtos?pagina=${page}&limite=100&criterio=2`);
+    // criterio=5: todos (ativos e inativos) para espelhar a situação do Bling
+    const b = await bling(token, `/produtos?pagina=${page}&limite=100&criterio=5`);
     const rows = b?.data ?? [];
     all.push(...rows);
     if (rows.length < 100) break;
@@ -61,28 +62,29 @@ async function syncProducts(storeId: string) {
   const varBySku = new Map<string, string>();
   for (const v of vars ?? []) if (v.sku) varBySku.set(String(v.sku).trim(), v.id);
 
-  let created = 0, stockUpdated = 0, skipped = 0;
+  let created = 0, stockUpdated = 0, skipped = 0, statusChanged = 0;
   for (const it of all) {
     const code = String(it.codigo ?? '').trim();
     if (!code || it.formato === 'V') { skipped++; continue; } // pai de variação: filhos vêm com código próprio
+    if (it.situacao === 'E') { skipped++; continue; } // excluído no Bling
+    const blingActive = (it.situacao ?? 'A') === 'A'; // Bling manda no status Ativo/Inativo
     const stock = Math.max(0, Math.round(Number(it.estoque?.saldoVirtualTotal ?? 0)));
     const varId = varBySku.get(code);
     if (varId) { await admin.from('product_variants').update({ stock }).eq('id', varId); stockUpdated++; continue; }
     const found = byBling.get(code) ?? byCode.get(code);
     if (found) {
-      await admin.from('products').update({ stock, bling_code: code }).eq('id', found.id);
+      if (found.is_active !== blingActive) statusChanged++;
+      await admin.from('products').update({ stock, bling_code: code, is_active: blingActive }).eq('id', found.id);
       stockUpdated++;
       continue;
     }
-    if (it.situacao && it.situacao !== 'A') { skipped++; continue; }
-    // Produto novo: entra INATIVO para o catálogo completar preço e fotos.
     const { error } = await admin.from('products').insert({
       store_id: storeId, code, bling_code: code, name: String(it.nome ?? code).slice(0, 250),
-      description: '', base_price: Number(it.preco ?? 0) || 0, stock, is_active: false,
+      description: '', base_price: Number(it.preco ?? 0) || 0, stock, is_active: blingActive,
     });
     if (error) { console.error('insert', code, error.message); skipped++; } else created++;
   }
-  return { total: all.length, created, stockUpdated, skipped };
+  return { total: all.length, created, stockUpdated, statusChanged, skipped };
 }
 
 async function syncCustomers(storeId: string) {
