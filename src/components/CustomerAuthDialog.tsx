@@ -29,11 +29,13 @@ interface CustomerAuthDialogProps {
   allowSignup?: boolean;
   /** Cadastro completo obrigatório e sujeito a aprovação (loja exige login). */
   requireApproval?: boolean;
+  /** Abre direto no formulário de dados (usuário já logado sem cadastro). */
+  startAtProfile?: boolean;
 }
 
 type Step = 'auth' | 'profile' | 'forgot';
 
-export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true, requireApproval = false }: CustomerAuthDialogProps) {
+export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true, requireApproval = false, startAtProfile = false }: CustomerAuthDialogProps) {
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
   const showCodeTab = storeSlug === 'dicolore' || storeSlug === 'dicoloresenses';
@@ -57,8 +59,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   useEffect(() => {
     if (!open) {
       setStep('auth');
+    } else if (startAtProfile) {
+      setStep('profile');
     }
-  }, [open]);
+  }, [open, startAtProfile]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
