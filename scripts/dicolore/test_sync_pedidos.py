@@ -43,9 +43,14 @@ class SyncTests(unittest.TestCase):
         self.assertNotIn('data_emissao', queries[0][1])
 
     def test_daily_queries_newest_first(self):
-        queries = list(sync.query_windows(sync.parse_args(['--dias', '2']), date(2026, 10, 19)))
+        queries = list(sync.query_windows(sync.parse_args(['--dias', '2', '--por-dia']), date(2026, 10, 19)))
         self.assertEqual(queries[0][2], (date(2026, 10, 19), date(2026, 10, 20)))
         self.assertEqual(queries[1][2], (date(2026, 10, 18), date(2026, 10, 19)))
+
+    def test_90_days_is_one_single_query(self):
+        queries = list(sync.query_windows(sync.parse_args(['--dias', '90']), date(2026, 10, 23)))
+        self.assertEqual(len(queries), 1)
+        self.assertEqual(queries[0][2], (date(2026, 7, 26), date(2026, 10, 24)))
 
     def test_nf_and_of_from_erp_preserved_and_no_item_reads(self):
         row = dict(codigo_importacao='722199', cliente_codigo='89141', status='F',

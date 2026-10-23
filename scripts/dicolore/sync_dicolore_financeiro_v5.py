@@ -135,7 +135,9 @@ def parse_args(argv=None):
                         help="Busca na nuvem os códigos sem OF/NF e consulta cada um (rápido).")
     parser.add_argument("--max-pendentes", type=int, default=int(os.getenv("PEDIDOS_MAX_PENDENTES", "40")))
     parser.add_argument("--com-itens", action="store_true", help="Atualiza itens após cada cabeçalho (mais lento).")
-    parser.add_argument("--timeout-sql", type=int, default=30, help="Limite por consulta, em segundos.")
+    parser.add_argument("--por-dia", action="store_true", help="Modo antigo: uma consulta por dia.")
+    parser.add_argument("--timeout-sql", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_SQL", "300")),
+                        help="Limite por consulta, em segundos (padrão 300).")
     args = parser.parse_args(argv)
     if args.dias < 1 or args.timeout_sql < 1:
         parser.error("Dias e tempo limite precisam ser positivos.")
@@ -246,11 +248,16 @@ def query_windows(args, today=None):
             yield f"pedido ERP {code}", "SELECT * FROM vw_mpz_pedido WHERE codigo_importacao = %s", (code,)
         return
     today = today or date.today()
-    # Mais recentes primeiro: confirma cada dia antes de ler o seguinte.
-    for offset in range(args.dias):
-        day = today - timedelta(days=offset)
-        yield str(day), ("SELECT * FROM vw_mpz_pedido WHERE data_emissao >= %s "
-                        "AND data_emissao < %s"), (day, day + timedelta(days=1))
+    sql = "SELECT * FROM vw_mpz_pedido WHERE data_emissao >= %s AND data_emissao < %s"
+    if getattr(args, "por_dia", False):
+        # Modo antigo: um dia por vez, mais recentes primeiro.
+        for offset in range(args.dias):
+            day = today - timedelta(days=offset)
+            yield str(day), sql, (day, day + timedelta(days=1))
+        return
+    # v13: UMA consulta só para o período inteiro (a view custa o mesmo para 1 ou 90 dias).
+    start = today - timedelta(days=args.dias - 1)
+    yield f"{start} a {today}", sql, (start, today + timedelta(days=1))
 
 
 def historico_liberado(agora=None):
