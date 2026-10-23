@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
     const { data: pend, error: e1 } = await sb.from("erp_orders")
       .select("codigo_importacao, codigo").eq("store_id", st.id)
       .or("nota_fiscal_numero.is.null,status.neq.F").neq("status", "C").gte("data_emissao", since)
-      .order("data_emissao", { ascending: false }).limit(500);
+      .order("data_emissao", { ascending: false }).limit(2000);
     if (e1) return json({ error: e1.message }, 500);
     for (const r of pend || []) { const c = String(r.codigo_importacao || r.codigo || "").trim(); if (/^\d+$/.test(c)) codes.add(c); }
     return json({ ok: true, codes: [...codes], priority });
