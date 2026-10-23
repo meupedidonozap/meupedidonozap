@@ -271,8 +271,16 @@ def select_codes(codes, priority, limit, historico):
     return head + random.sample(rest, min(len(rest), room))
 
 
+NOITE_DIAS = int(os.getenv("PEDIDOS_DIAS_NOITE", "120"))
+NOITE_MAX_PENDENTES = int(os.getenv("PEDIDOS_MAX_PENDENTES_NOITE", "150"))
+
+
 def fetch_pending_codes(limit, days=30):
+    """Dia: só recentes (3 dias). Noite (após 17:30/antes 7:00): varre até 120 dias e limpa cancelados."""
     historico = historico_liberado()
+    if historico:
+        days = max(days, NOITE_DIAS)
+        limit = max(limit, NOITE_MAX_PENDENTES)
     response = requests.post(API_URL, data=json.dumps({"store_slug": STORE_SLUG, "action": "pending_order_codes",
                              "days": days if historico else 3}), headers={"x-sync-token": SYNC_TOKEN,
                              "Content-Type": "application/json"}, timeout=(10, 45))
@@ -282,7 +290,9 @@ def fetch_pending_codes(limit, days=30):
         raise RuntimeError("A nuvem não retornou a lista de pedidos pendentes.")
     codes = [str(c) for c in result.get("codes", []) if str(c).isdigit()]
     priority = int(result.get("priority", 0))
-    if not historico:
+    if historico:
+        log(f"Rotina noturna: conferindo pedidos sem OF/NF de até {days} dias ({len(codes)} na fila, até {limit} por ciclo).")
+    else:
         log("Horário comercial: só pedidos recentes transmitidos pelo site; antigos após 17:30.")
     return select_codes(codes, priority, limit, historico)
 
