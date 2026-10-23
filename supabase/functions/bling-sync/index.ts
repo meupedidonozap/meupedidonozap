@@ -171,6 +171,10 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
     // simples / composto
     const code = String(det.codigo || '').trim();
     if (!code) continue;
+    // variação avulsa (filha de um produto pai): é tratada dentro do pai
+    if (det.variacao?.produtoPai?.id) continue;
+    const { data: isVar } = await admin.from('product_variants').select('id, products!inner(store_id)').eq('sku', code).eq('products.store_id', storeId).limit(1);
+    if (isVar?.length) continue;
     const stock = toStock(det.estoque?.saldoVirtualTotal ?? (await saldos(token, [id])).get(String(id)));
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
