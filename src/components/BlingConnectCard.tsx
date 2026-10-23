@@ -88,9 +88,13 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
       </div>
       {connected && (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Importar produtos e estoque</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Sincronizar (inclui preços)</Button>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Importar clientes</Button>
         </div>
+      )}
+      <p className="text-xs text-muted-foreground">Automático a cada 15 min: nome, descrição, fotos, estoque, variantes e clientes. Preço só muda ao clicar em Sincronizar.</p>
+      )}
+      {connected && false && (<span />
       )}
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
     </div>
