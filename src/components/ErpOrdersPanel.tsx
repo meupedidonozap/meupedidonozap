@@ -6,12 +6,16 @@ import { formatCurrency } from '@/lib/formatters';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAllStoreSellers } from '@/hooks/useStoreSellers';
 
 type Props = {
   storeId: string;
   /** Pedidos criados aqui que ainda não voltaram do ERP */
   localOrders?: any[];
   onLocalClick?: (id: string) => void;
+  /** Vendedor com carteira restrita: só mostra estes códigos no filtro */
+  allowedSellerCodes?: string[];
 };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -21,13 +25,35 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   L: { label: 'Pendente (toque para editar/liberar)', cls: 'bg-gray-400' },
 };
 
+const PERIODS: Record<string, string> = {
+  todos: 'Todo o período', hoje: 'Hoje', '7dias': 'Últimos 7 dias', mes: 'Este mês',
+  mes_anterior: 'Mês anterior', '30dias': 'Últimos 30 dias', '90dias': 'Últimos 90 dias', ano: 'Este ano',
+};
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const monthStart = (offset: number) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + offset); return localDay(d); };
+function periodStart(p: string): string | undefined {
+  const d = new Date();
+  if (p === 'hoje') return localDay(d);
+  if (p === '7dias') { d.setDate(d.getDate() - 7); return localDay(d); }
+  if (p === '30dias') { d.setDate(d.getDate() - 30); return localDay(d); }
+  if (p === '90dias') { d.setDate(d.getDate() - 90); return localDay(d); }
+  if (p === 'mes') return monthStart(0);
+  if (p === 'mes_anterior') return monthStart(-1);
+  if (p === 'ano') return `${d.getFullYear()}-01-01`;
+  return undefined;
+}
+
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
 const clean = (s: string) => s.replace(/[%*(),[\]]/g, '').trim();
 
-export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick }: Props) {
+export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick, allowedSellerCodes }: Props) {
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [open, setOpen] = useState<any | null>(null);
+  const [statusF, setStatusF] = useState('todos');
+  const [period, setPeriod] = useState('todos');
+  const [sellerF, setSellerF] = useState('todos');
+  const { data: sellers = [] } = useAllStoreSellers(storeId);
   useEffect(() => { const t = setTimeout(() => setTerm(clean(search)), 400); return () => clearTimeout(t); }, [search]);
 
   const { data: orders = [], isLoading, error, refetch } = useQuery({
@@ -84,11 +110,32 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
         cliente_codigo: o.customer?.customerCode || '', data_emissao: o.created_at,
         valor_total: Number(o.total || 0), status: o.erp_order_code ? 'N' : 'L', _erp: o.erp_order_code || '',
         _name: o.customer?.name, _city: [o.customer?.city, o.customer?.uf].filter(Boolean).join(' - '),
+        _seller: String(o.customer?.sellerCode || '').trim(),
       }));
     return [...pending, ...orders];
   }, [orders, localOrders, term]);
 
-  const total = rows.reduce((a, o: any) => a + Number(o.valor_total || 0), 0);
+  const sellerOptions = useMemo(() => {
+    const allowed = allowedSellerCodes?.length ? new Set(allowedSellerCodes.map((c) => c.trim())) : null;
+    const map = new Map<string, string>();
+    sellers.forEach((s) => { const c = String(s.code || '').trim(); if (c && (!allowed || allowed.has(c)) && !map.has(c)) map.set(c, s.name); });
+    rows.forEach((o: any) => { const c = String(o._seller ?? o.vendedor_codigo ?? '').trim(); if (c && (!allowed || allowed.has(c)) && !map.has(c)) map.set(c, `Vendedor ${c}`); });
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [sellers, rows, allowedSellerCodes]);
+
+  const filteredRows = useMemo(() => {
+    const start = periodStart(period);
+    return rows.filter((o: any) => {
+      if (statusF !== 'todos' && o.status !== statusF) return false;
+      if (sellerF !== 'todos' && String(o._seller ?? o.vendedor_codigo ?? '').trim() !== sellerF) return false;
+      const d = String(o.data_emissao || '').slice(0, 10);
+      if (start && (!d || d < start)) return false;
+      if (period === 'mes_anterior' && d >= monthStart(0)) return false;
+      return true;
+    });
+  }, [rows, statusF, sellerF, period]);
+
+  const total = filteredRows.reduce((a, o: any) => a + Number(o.valor_total || 0), 0);
 
   return (
     <div className="space-y-2">
@@ -96,20 +143,42 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-9" placeholder="Pesquisar cliente, cidade, pedido, NF..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Select value={statusF} onValueChange={setStatusF}>
+          <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            {(['L', 'N', 'S', 'F'] as const).map((k) => <SelectItem key={k} value={k}>{STATUS[k].label.replace(' (toque para editar/liberar)', '')}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger aria-label="Período"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {Object.entries(PERIODS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={sellerF} onValueChange={setSellerF}>
+          <SelectTrigger aria-label="Vendedor"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os vendedores</SelectItem>
+            {sellerOptions.map(([c, n]) => <SelectItem key={c} value={c}>{n} ({c})</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <div className="flex flex-wrap gap-3">
           {(['L', 'N', 'S', 'F'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1"><span className={`h-2.5 w-2.5 rounded-full ${STATUS[k].cls}`} />{STATUS[k].label}</span>
           ))}
         </div>
-        <p className="text-right">{rows.length.toLocaleString('pt-BR')} Pedidos<br />{formatCurrency(total)}</p>
+        <p className="text-right">{filteredRows.length.toLocaleString('pt-BR')} Pedidos<br />{formatCurrency(total)}</p>
       </div>
 
       {isLoading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : error ? (
         <p className="py-8 text-center text-sm text-destructive">Não foi possível carregar os pedidos. <button className="underline" onClick={() => refetch()}>Tentar novamente</button></p>
-      ) : rows.length === 0 ? (
+      ) : filteredRows.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">Nenhum pedido encontrado.</p>
-      ) : rows.map((o: any) => {
+      ) : filteredRows.map((o: any) => {
         const c = (clients as any)[String(o.cliente_codigo).trim()];
         const st = STATUS[o.status] || STATUS.N;
         return (

@@ -251,7 +251,7 @@ export default function SellerPortalPage() {
                 <TabsContent value="pedidos" className="space-y-2">
                   {store.slug === 'dicolore' ? (
                     <>
-                      <ErpOrdersPanel storeId={store.id} localOrders={allOrders.filter((o: any) => !['orcamento', 'cancelado'].includes(o.status))} onLocalClick={setPendingOrderId} />
+                      <ErpOrdersPanel storeId={store.id} allowedSellerCodes={codes} localOrders={allOrders.filter((o: any) => !['orcamento', 'cancelado'].includes(o.status))} onLocalClick={setPendingOrderId} />
                       <SellerPendingOrderDialog orderId={pendingOrderId} store={store} onClose={() => setPendingOrderId(null)} />
                     </>
                   ) : (
