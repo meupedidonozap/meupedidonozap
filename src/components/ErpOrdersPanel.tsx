@@ -127,7 +127,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
   const filteredRows = useMemo(() => {
     const start = periodStart(period);
     return rows.filter((o: any) => {
-      if (statusF !== 'todos' && o.status !== statusF) return false;
+      if (statusF === 'todos' ? o.status === 'C' : o.status !== statusF) return false;
       if (sellerF !== 'todos' && String(o._seller ?? o.vendedor_codigo ?? '').trim() !== sellerF) return false;
       const d = String(o.data_emissao || '').slice(0, 10);
       if (start && (!d || d < start)) return false;
@@ -149,7 +149,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
           <SelectTrigger aria-label="Status"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
-            {(['L', 'N', 'S', 'F'] as const).map((k) => <SelectItem key={k} value={k}>{STATUS[k].label.replace(' (toque para editar/liberar)', '')}</SelectItem>)}
+            {(['L', 'N', 'S', 'F', 'C'] as const).map((k) => <SelectItem key={k} value={k}>{STATUS[k].label.replace(' (toque para editar/liberar)', '')}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={period} onValueChange={setPeriod}>
