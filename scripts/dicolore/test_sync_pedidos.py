@@ -84,6 +84,19 @@ class SyncTests(unittest.TestCase):
                 sync.sync_pedidos(None, Cursor(), sync.parse_args(['--pedido', '722199']))
             post.assert_not_called()
 
+    def test_missing_order_is_marked_but_timeout_is_not(self):
+        args = sync.parse_args(['--somente-pedidos', '--pendentes'])
+        class Cursor:
+            def execute(self, sql, params):
+                self.p = params
+                if params == ('111',): raise sync.psycopg2.errors.QueryCanceled()
+            def fetchall(self): return []
+        with patch.object(sync, 'fetch_pending_codes', return_value=['111', '720160']), \
+             patch.object(sync, 'post', return_value={'ok': True, 'marked': 1}) as post:
+            sync.sync_pedidos(None, Cursor(), args)
+        self.assertEqual(post.call_args.args[0]['action'], 'mark_missing_orders')
+        self.assertEqual(post.call_args.args[0]['codes'], ['720160'])
+
     def test_monitor_reports_output_before_child_exits(self):
         tree = ast.parse((HERE / 'atualizar_dicolore.py').read_text())
         node = next(n for n in tree.body if isinstance(n, ast.FunctionDef)

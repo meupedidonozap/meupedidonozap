@@ -23,6 +23,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   S: { label: 'Com OF e sem NF', cls: 'bg-blue-500' },
   F: { label: 'Com OF e com NF', cls: 'bg-emerald-500' },
   L: { label: 'Pendente (toque para editar/liberar)', cls: 'bg-gray-400' },
+  C: { label: 'Cancelado/excluído no ERP', cls: 'bg-muted-foreground' },
 };
 
 const PERIODS: Record<string, string> = {
