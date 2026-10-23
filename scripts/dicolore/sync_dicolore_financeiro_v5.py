@@ -288,11 +288,11 @@ def fetch_pending_codes(limit, days=30):
 
 
 def mark_missing(codes):
-    """Pedidos que a view não retorna mais (excluídos/cancelados no ERP) viram status C na nuvem."""
+    """Pedidos que a view não retorna mais (excluídos/cancelados no ERP) são removidos da plataforma."""
     if not codes:
         return
     result = post({"store_slug": STORE_SLUG, "action": "mark_missing_orders", "codes": codes})
-    log(f"{result.get('marked', 0)} pedidos não existem mais no ERP; marcados como cancelados: {', '.join(codes)}")
+    log(f"{result.get('marked', 0)} pedidos não existem mais no ERP; removidos da plataforma: {', '.join(codes)}")
 
 
 def sync_pedidos(conn, cur, args):
