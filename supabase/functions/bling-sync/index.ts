@@ -217,7 +217,7 @@ async function imagesBatch(storeId: string, jobs: ImgJob[]) {
         if (error) { console.error('upload', error.message); continue; }
       } catch (e) { console.error('foto', (e as Error).message); continue; }
       await admin.from('product_images').insert({ product_id: p.id, image_url: url, sort_order: order++, label: job.label });
-      have.add(url); added++;
+      have.set(url, { id: null, label: job.label }); added++;
       if (!p.image_url) { await admin.from('products').update({ image_url: url }).eq('id', p.id); p.image_url = url; }
     }
   }
