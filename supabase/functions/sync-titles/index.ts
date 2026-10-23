@@ -129,11 +129,24 @@ Deno.serve(async (req) => {
     const priority = codes.size;
     const { data: pend, error: e1 } = await sb.from("erp_orders")
       .select("codigo_importacao, codigo").eq("store_id", st.id)
-      .or("nota_fiscal_numero.is.null,status.neq.F").gte("data_emissao", since)
+      .or("nota_fiscal_numero.is.null,status.neq.F").neq("status", "C").gte("data_emissao", since)
       .order("data_emissao", { ascending: false }).limit(500);
     if (e1) return json({ error: e1.message }, 500);
     for (const r of pend || []) { const c = String(r.codigo_importacao || r.codigo || "").trim(); if (/^\d+$/.test(c)) codes.add(c); }
     return json({ ok: true, codes: [...codes], priority });
+  }
+
+  // Pedidos que a view do ERP não retorna mais (excluídos/cancelados lá): status C. Voltando na view, o upsert restaura.
+  if (raw?.action === "mark_missing_orders" && typeof raw.store_slug === "string" && Array.isArray(raw.codes)) {
+    const codes = [...new Set(raw.codes.map((c: unknown) => String(c ?? "").trim()).filter((c: string) => /^\d{1,12}$/.test(c)))].slice(0, 500) as string[];
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: st } = await sb.from("stores").select("id").eq("slug", raw.store_slug).maybeSingle();
+    if (!st) return json({ error: "Loja não encontrada" }, 404);
+    if (!codes.length) return json({ ok: true, marked: 0 });
+    const { data, error } = await sb.from("erp_orders").update({ status: "C" })
+      .eq("store_id", st.id).in("codigo_importacao", codes).neq("status", "F").select("id");
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, marked: (data || []).length });
   }
 
   {
