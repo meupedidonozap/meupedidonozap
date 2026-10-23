@@ -287,8 +287,17 @@ def fetch_pending_codes(limit, days=30):
     return select_codes(codes, priority, limit, historico)
 
 
+def mark_missing(codes):
+    """Pedidos que a view não retorna mais (excluídos/cancelados no ERP) viram status C na nuvem."""
+    if not codes:
+        return
+    result = post({"store_slug": STORE_SLUG, "action": "mark_missing_orders", "codes": codes})
+    log(f"{result.get('marked', 0)} pedidos não existem mais no ERP; marcados como cancelados: {', '.join(codes)}")
+
+
 def sync_pedidos(conn, cur, args):
     total = 0
+    missing = []
     if args.pendentes and not args.pedido:
         codes = fetch_pending_codes(args.max_pendentes)
         log(f"v11: {len(codes)} pedidos sem OF/NF a consultar por código.")
@@ -312,11 +321,9 @@ def sync_pedidos(conn, cur, args):
                                "se também expirar, a consulta/view precisa de ajuste no servidor ERP.") from None
         log(f"{label}: {len(orders)} pedidos lidos em {time.monotonic() - started:.1f}s.")
         if not orders:
-            if getattr(args, "pular_falhas", False):
-                log(f"{label}: não encontrado na view; pulado.")
-                continue
             if args.pedido:
-                raise RuntimeError(f"{label} não encontrado na view; nenhuma confirmação para este pedido.")
+                log(f"{label}: não existe mais na view do ERP.")
+                missing.append(label.replace("pedido ERP ", "").strip())
             continue
         for i in range(0, len(orders), ORDERS_BATCH):
             chunk = orders[i:i + ORDERS_BATCH]
@@ -330,6 +337,7 @@ def sync_pedidos(conn, cur, args):
                         f"NF {order['nota_fiscal_numero'] or '—'} | status {order['status']}")
         if args.com_itens:
             sync_items(cur, orders)
+    mark_missing(missing)
     log(f"CONCLUÍDO: {total} pedidos confirmados. "
         + ("Itens atualizados." if args.com_itens else "Itens existentes preservados; não consultados."))
 
