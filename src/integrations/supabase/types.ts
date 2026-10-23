@@ -19,6 +19,9 @@ export type Database = {
           access_token: string | null
           connected_at: string | null
           expires_at: string | null
+          last_customer_sync_at: string | null
+          last_product_sync_at: string | null
+          pending_product_ids: Json
           pending_state: string | null
           refresh_token: string | null
           store_id: string
@@ -28,6 +31,9 @@ export type Database = {
           access_token?: string | null
           connected_at?: string | null
           expires_at?: string | null
+          last_customer_sync_at?: string | null
+          last_product_sync_at?: string | null
+          pending_product_ids?: Json
           pending_state?: string | null
           refresh_token?: string | null
           store_id: string
@@ -37,6 +43,9 @@ export type Database = {
           access_token?: string | null
           connected_at?: string | null
           expires_at?: string | null
+          last_customer_sync_at?: string | null
+          last_product_sync_at?: string | null
+          pending_product_ids?: Json
           pending_state?: string | null
           refresh_token?: string | null
           store_id?: string

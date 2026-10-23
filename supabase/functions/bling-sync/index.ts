@@ -105,10 +105,11 @@ async function saldos(token: string, ids: (string | number)[]) {
   return out;
 }
 
-type ImgJob = { productId: string; links: string[]; label: string | null };
+type ImgJob = { productId: string; links: string[]; label: string | null; keep?: string[] };
 
 // Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
-async function productsBatch(storeId: string, ids: string[]) {
+// withPrice=false (automático): atualiza tudo menos preço de itens já existentes.
+async function productsBatch(storeId: string, ids: string[], withPrice = true) {
   const token = await getToken(storeId);
   let created = 0, updated = 0, variants = 0, failed = 0;
   const variantCodes: string[] = [], images: ImgJob[] = [], errors: string[] = [];
@@ -134,7 +135,7 @@ async function productsBatch(storeId: string, ids: string[]) {
       const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
       let pid = ex?.id as string | undefined;
       if (pid) {
-        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total }).eq('id', pid);
+        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
         updated++;
       } else {
         const { data: ins, error } = await admin.from('products').insert({
@@ -150,8 +151,9 @@ async function productsBatch(storeId: string, ids: string[]) {
         const sku = String(v.codigo).trim();
         const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
         const vp = Number(v.preco ?? 0) || parentPrice;
-        const row = { product_id: pid, sku, color, size, stock: stockOf(v), price: vp, price_table_4: vp };
         const vid = bySku.get(sku);
+        const row: Record<string, unknown> = { product_id: pid, sku, color, size, stock: stockOf(v) };
+        if (withPrice || !vid) { row.price = vp; row.price_table_4 = vp; }
         const { error } = vid ? await admin.from('product_variants').update(row).eq('id', vid) : await admin.from('product_variants').insert(row);
         if (error) { errors.push(`${sku}: ${error.message}`); continue; }
         variants++;
@@ -161,18 +163,23 @@ async function productsBatch(storeId: string, ids: string[]) {
       // produto avulso com o código de uma variação: inativa
       await admin.from('products').update({ is_active: false }).eq('store_id', storeId).neq('id', pid).in('code', vcodes);
       const pl = imageLinks(det.midia);
-      if (pl.length) images.unshift({ productId: pid!, links: pl, label: null });
+      const keep = [...pl, ...variacoes.flatMap((v) => imageLinks(v.midia))];
+      images.unshift({ productId: pid!, links: pl, label: null, keep });
       continue;
     }
 
     // simples / composto
     const code = String(det.codigo || '').trim();
     if (!code) continue;
+    // variação avulsa (filha de um produto pai): é tratada dentro do pai
+    if (det.variacao?.produtoPai?.id) continue;
+    const { data: isVar } = await admin.from('product_variants').select('id, products!inner(store_id)').eq('sku', code).eq('products.store_id', storeId).limit(1);
+    if (isVar?.length) continue;
     const stock = toStock(det.estoque?.saldoVirtualTotal ?? (await saldos(token, [id])).get(String(id)));
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
     if (pid) {
-      await admin.from('products').update({ bling_code: code, stock, is_active: active }).eq('id', pid);
+      await admin.from('products').update({ bling_code: code, stock, is_active: active, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
       updated++;
     } else {
       const { data: ins, error } = await admin.from('products').insert({
@@ -183,17 +190,32 @@ async function productsBatch(storeId: string, ids: string[]) {
       pid = ins.id; created++;
     }
     const pl = imageLinks(det.midia);
-    if (pl.length) images.push({ productId: pid!, links: pl, label: null });
+    images.push({ productId: pid!, links: pl, label: null, keep: pl });
   }
   return { created, updated, variants, failed, variantCodes, images, errors: errors.slice(0, 10) };
 }
 
 // Baixa as fotos (links do Bling expiram) e guarda no MPZ; ignora as que já existem.
-async function imagesBatch(storeId: string, jobs: ImgJob[]) {
-  let added = 0;
-  for (const job of jobs.slice(0, 8)) {
+async function imagesBatch(storeId: string, jobs: ImgJob[], max = 8) {
+  let added = 0, removed = 0;
+  for (const job of jobs.slice(0, max)) {
     const { data: p } = await admin.from('products').select('id, image_url').eq('id', job.productId).eq('store_id', storeId).maybeSingle();
     if (!p) continue;
+    if (job.keep) {
+      // remove fotos vindas do Bling que não existem mais lá
+      const keepUrls = new Set<string>();
+      for (const l of job.keep) keepUrls.add(admin.storage.from('product-images').getPublicUrl(`${storeId}/bling/${await sha1(l.split('?')[0])}.jpg`).data.publicUrl);
+      const { data: cur } = await admin.from('product_images').select('id, image_url').eq('product_id', p.id);
+      const gone = (cur ?? []).filter((i: any) => String(i.image_url).includes(`/${storeId}/bling/`) && !keepUrls.has(i.image_url));
+      if (gone.length) {
+        await admin.from('product_images').delete().in('id', gone.map((g: any) => g.id));
+        removed += gone.length;
+        if (gone.some((g: any) => g.image_url === p.image_url)) {
+          const first = (cur ?? []).find((i: any) => keepUrls.has(i.image_url))?.image_url ?? null;
+          await admin.from('products').update({ image_url: first }).eq('id', p.id); p.image_url = first;
+        }
+      }
+    }
     const { data: imgs } = await admin.from('product_images').select('id, image_url, sort_order, label').eq('product_id', p.id);
     const have = new Map((imgs ?? []).map((i: any) => [i.image_url, i]));
     let order = Math.max(-1, ...(imgs ?? []).map((i: any) => i.sort_order ?? 0)) + 1;
@@ -221,7 +243,7 @@ async function imagesBatch(storeId: string, jobs: ImgJob[]) {
       if (!p.image_url) { await admin.from('products').update({ image_url: url }).eq('id', p.id); p.image_url = url; }
     }
   }
-  return { added };
+  return { added, removed };
 }
 
 // Agendado: só estoque e situação, a partir da listagem (rápido).
@@ -250,7 +272,37 @@ async function cronStock(storeId: string) {
   return { total: all.length, updated };
 }
 
-async function syncCustomers(storeId: string) {
+const blingDate = (d: Date) => new Date(d.getTime() - 3 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
+
+// Automático: estoque + produtos alterados (nome, descrição, fotos, variantes) + clientes. Nunca preço.
+async function cronAuto(storeId: string) {
+  const startedAt = new Date();
+  const stock = await cronStock(storeId);
+  const { data: c } = await admin.from('bling_connections').select('last_product_sync_at, pending_product_ids, last_customer_sync_at').eq('store_id', storeId).maybeSingle();
+  let pending: string[] = Array.isArray(c?.pending_product_ids) ? c!.pending_product_ids.map(String) : [];
+  const token = await getToken(storeId);
+  const since = c?.last_product_sync_at ? new Date(new Date(c.last_product_sync_at).getTime() - 10 * 60e3) : new Date(Date.now() - 24 * 3600e3);
+  for (let page = 1; page <= 20; page++) {
+    const b = await bling(token, `/produtos?pagina=${page}&limite=100&criterio=5&dataAlteracaoInicial=${encodeURIComponent(blingDate(since))}`);
+    const rows = b?.data ?? [];
+    for (const r of rows) if (r.situacao !== 'E') pending.push(String(r.id));
+    if (rows.length < 100) break;
+    await wait(350);
+  }
+  pending = [...new Set(pending)];
+  const now = pending.slice(0, 25);
+  const res = now.length ? await productsBatch(storeId, now, false) : null;
+  const imgs = res?.images.length ? await imagesBatch(storeId, res.images, 60) : null;
+  let customers: unknown = null;
+  try {
+    customers = await syncCustomers(storeId, blingDate(c?.last_customer_sync_at ? new Date(new Date(c.last_customer_sync_at).getTime() - 10 * 60e3) : new Date(Date.now() - 24 * 3600e3)));
+    await admin.from('bling_connections').update({ last_customer_sync_at: startedAt.toISOString() }).eq('store_id', storeId);
+  } catch (e) { customers = { error: (e as Error).message }; }
+  await admin.from('bling_connections').update({ last_product_sync_at: startedAt.toISOString(), pending_product_ids: pending.slice(25) }).eq('store_id', storeId);
+  return { stock, products: res && { ...res, images: undefined }, images: imgs, customers, pending: pending.length - now.length };
+}
+
+async function syncCustomers(storeId: string, since?: string) {
   const token = await getToken(storeId);
   const { data: profiles } = await admin.from('customer_profiles').select('id, cpf_cnpj, customer_code').eq('store_id', storeId);
   const byDoc = new Map<string, string>();
@@ -262,7 +314,7 @@ async function syncCustomers(storeId: string) {
   }
   let updated = 0, created = 0, total = 0, failed = 0;
   for (let page = 1; page <= 50; page++) {
-    const b = await bling(token, `/contatos?pagina=${page}&limite=100`);
+    const b = await bling(token, `/contatos?pagina=${page}&limite=100${since ? `&dataAlteracaoInicial=${encodeURIComponent(since)}` : ''}`);
     const rows = b?.data ?? [];
     total += rows.length;
     for (const c of rows) {
@@ -313,7 +365,7 @@ Deno.serve(async (req) => {
       const { data: conns } = await admin.from('bling_connections').select('store_id').not('access_token', 'is', null);
       const out: Record<string, unknown> = {};
       for (const c of conns ?? []) {
-        try { out[c.store_id] = await cronStock(c.store_id); } catch (e) { out[c.store_id] = { error: (e as Error).message }; }
+        try { out[c.store_id] = await cronAuto(c.store_id); } catch (e) { out[c.store_id] = { error: (e as Error).message }; }
       }
       return json(out);
     }
@@ -332,7 +384,7 @@ Deno.serve(async (req) => {
     }
     if (action === 'products_batch') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter((x: string) => /^\d+$/.test(x)).slice(0, 10);
-      return json(await productsBatch(storeId, ids));
+      return json(await productsBatch(storeId, ids, body.with_price !== false));
     }
     if (action === 'images_batch') return json(await imagesBatch(storeId, Array.isArray(body.jobs) ? body.jobs : []));
     if (action === 'customers') return json(await syncCustomers(storeId));
