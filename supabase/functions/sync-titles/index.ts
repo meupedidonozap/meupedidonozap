@@ -136,17 +136,19 @@ Deno.serve(async (req) => {
     return json({ ok: true, codes: [...codes], priority });
   }
 
-  // Pedidos que a view do ERP não retorna mais (excluídos/cancelados lá): status C. Voltando na view, o upsert restaura.
+  // Pedidos que a view do ERP não retorna mais (excluídos/cancelados lá) são apagados da plataforma com seus itens.
   if (raw?.action === "mark_missing_orders" && typeof raw.store_slug === "string" && Array.isArray(raw.codes)) {
     const codes = [...new Set(raw.codes.map((c: unknown) => String(c ?? "").trim()).filter((c: string) => /^\d{1,12}$/.test(c)))].slice(0, 500) as string[];
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: st } = await sb.from("stores").select("id").eq("slug", raw.store_slug).maybeSingle();
     if (!st) return json({ error: "Loja não encontrada" }, 404);
     if (!codes.length) return json({ ok: true, marked: 0 });
-    const { data, error } = await sb.from("erp_orders").update({ status: "C" })
-      .eq("store_id", st.id).in("codigo_importacao", codes).neq("status", "F").select("id");
+    const { data, error } = await sb.from("erp_orders").delete()
+      .eq("store_id", st.id).in("codigo_importacao", codes).neq("status", "F").select("external_key");
     if (error) return json({ error: error.message }, 500);
-    return json({ ok: true, marked: (data || []).length });
+    const keys = (data || []).map((r: { external_key: string }) => r.external_key);
+    if (keys.length) await sb.from("erp_order_items").delete().eq("store_id", st.id).in("order_key", keys);
+    return json({ ok: true, marked: keys.length, deleted: keys.length });
   }
 
   {
