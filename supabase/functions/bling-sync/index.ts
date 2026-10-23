@@ -43,6 +43,7 @@ async function bling(token: string, path: string) {
 
 const wait = (ms: number) => new Promise((s) => setTimeout(s, ms));
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const toStock = (n: unknown) => Math.max(0, Math.round(Number(n ?? 0) || 0));
 
 // "Cor:Lilás;Tamanho:P" -> { color, size }
 function parseVariation(nome: string) {
@@ -79,162 +80,166 @@ async function sha1(s: string) {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Baixa a foto do Bling (links internos expiram) e guarda no armazenamento da loja; evita repetidas.
-async function addImages(storeId: string, productId: string, links: string[], label: string | null, state: { added: number }) {
-  if (!links.length) return;
-  const { data: imgs } = await admin.from('product_images').select('image_url, sort_order').eq('product_id', productId);
-  const have = new Set((imgs ?? []).map((i: any) => i.image_url));
-  let order = Math.max(-1, ...(imgs ?? []).map((i: any) => i.sort_order ?? 0)) + 1;
-  for (const link of links) {
-    const key = await sha1(link.split('?')[0]);
-    const path = `${storeId}/bling/${key}.jpg`;
-    const { data: pub } = admin.storage.from('product-images').getPublicUrl(path);
-    if (have.has(pub.publicUrl)) continue;
-    try {
-      const r = await fetch(link);
-      if (!r.ok) continue;
-      const buf = new Uint8Array(await r.arrayBuffer());
-      const { error } = await admin.storage.from('product-images').upload(path, buf, { upsert: true, contentType: r.headers.get('content-type') || 'image/jpeg' });
-      if (error) { console.error('upload', error.message); continue; }
-    } catch (e) { console.error('foto', (e as Error).message); continue; }
-    await admin.from('product_images').insert({ product_id: productId, image_url: pub.publicUrl, sort_order: order++, label });
-    have.add(pub.publicUrl);
-    state.added++;
-  }
-  const { data: p } = await admin.from('products').select('image_url').eq('id', productId).maybeSingle();
-  if (!p?.image_url) {
-    const { data: first } = await admin.from('product_images').select('image_url').eq('product_id', productId).order('sort_order').limit(1).maybeSingle();
-    if (first) await admin.from('products').update({ image_url: first.image_url }).eq('id', productId);
-  }
-}
-
-async function syncProducts(storeId: string, withImages = false) {
-  const token = await getToken(storeId);
+async function listAll(token: string) {
   const all: any[] = [];
-  for (let page = 1; page <= 50; page++) {
-    // criterio=5: todos (ativos e inativos) para espelhar a situação do Bling
+  for (let page = 1; page <= 100; page++) {
     const b = await bling(token, `/produtos?pagina=${page}&limite=100&criterio=5`);
     const rows = b?.data ?? [];
     all.push(...rows);
     if (rows.length < 100) break;
     await wait(350);
   }
-  const stockByCode = new Map<string, number>();
-  for (const it of all) if (it.codigo) stockByCode.set(String(it.codigo).trim(), Math.max(0, Math.round(Number(it.estoque?.saldoVirtualTotal ?? 0))));
+  return all;
+}
 
-  const { data: existing } = await admin.from('products').select('id, code, bling_code, is_active, has_variants').eq('store_id', storeId);
-  const byBling = new Map<string, any>(), byCode = new Map<string, any>();
-  for (const p of existing ?? []) {
-    if (p.bling_code) byBling.set(String(p.bling_code).trim(), p);
-    if (p.code) byCode.set(String(p.code).trim(), p);
+async function saldos(token: string, ids: (string | number)[]) {
+  const out = new Map<string, number>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const q = ids.slice(i, i + 50).map((id) => `idsProdutos[]=${id}`).join('&');
+    try {
+      const s = await bling(token, `/estoques/saldos?${q}`);
+      for (const r of s?.data ?? []) out.set(String(r.produto?.id), toStock(r.saldoVirtualTotal));
+    } catch (e) { console.error('saldos', (e as Error).message); }
+    await wait(350);
   }
-  const { data: vars } = await admin.from('product_variants').select('id, sku, product_id, products!inner(store_id)').eq('products.store_id', storeId);
+  return out;
+}
+
+type ImgJob = { productId: string; links: string[]; label: string | null };
+
+// Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
+async function productsBatch(storeId: string, ids: string[]) {
+  const token = await getToken(storeId);
+  let created = 0, updated = 0, variants = 0, failed = 0;
+  const variantCodes: string[] = [], images: ImgJob[] = [], errors: string[] = [];
+  for (const id of ids) {
+    let det: any;
+    try { det = (await bling(token, `/produtos/${id}`))?.data; } catch (e) { failed++; errors.push(`${id}: ${(e as Error).message}`); continue; }
+    await wait(350);
+    if (!det || det.situacao === 'E') continue;
+    const active = (det.situacao ?? 'A') === 'A';
+    const price = Number(det.preco ?? 0) || 0;
+    const desc = String(det.descricaoCurta ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
+    const unit = String(det.unidade || '').trim().slice(0, 10) || undefined;
+    const variacoes: any[] = det.formato === 'V' ? (det.variacoes ?? []).filter((v: any) => v?.codigo && v.situacao !== 'E') : [];
+
+    if (det.formato === 'V' && variacoes.length) {
+      const vcodes = variacoes.map((v) => String(v.codigo).trim());
+      variantCodes.push(...vcodes);
+      const st = await saldos(token, variacoes.map((v) => v.id).filter(Boolean));
+      const code = String(det.codigo || '').trim() || commonPrefix(vcodes) || vcodes[0];
+      const stockOf = (v: any) => ((v.situacao ?? 'A') === 'A' ? (st.get(String(v.id)) ?? toStock(v.estoque?.saldoVirtualTotal)) : 0);
+      const total = variacoes.reduce((s, v) => s + stockOf(v), 0);
+      const parentPrice = price || Number(variacoes[0]?.preco ?? 0) || 0;
+      const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
+      let pid = ex?.id as string | undefined;
+      if (pid) {
+        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total }).eq('id', pid);
+        updated++;
+      } else {
+        const { data: ins, error } = await admin.from('products').insert({
+          store_id: storeId, code, bling_code: code, name: String(det.nome ?? code).slice(0, 250), description: desc,
+          base_price: parentPrice, price_table_4: parentPrice, stock: total, has_variants: true, is_active: active, ...(unit ? { unit } : {}),
+        }).select('id').single();
+        if (error) { failed++; errors.push(`${code}: ${error.message}`); continue; }
+        pid = ins.id; created++;
+      }
+      const { data: curVars } = await admin.from('product_variants').select('id, sku').eq('product_id', pid);
+      const bySku = new Map((curVars ?? []).map((v: any) => [String(v.sku).trim(), v.id]));
+      for (const v of variacoes) {
+        const sku = String(v.codigo).trim();
+        const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
+        const vp = Number(v.preco ?? 0) || parentPrice;
+        const row = { product_id: pid, sku, color, size, stock: stockOf(v), price: vp, price_table_4: vp };
+        const vid = bySku.get(sku);
+        const { error } = vid ? await admin.from('product_variants').update(row).eq('id', vid) : await admin.from('product_variants').insert(row);
+        if (error) { errors.push(`${sku}: ${error.message}`); continue; }
+        variants++;
+        const l = imageLinks(v.midia);
+        if (l.length) images.push({ productId: pid!, links: l, label: color || size });
+      }
+      // produto avulso com o código de uma variação: inativa
+      await admin.from('products').update({ is_active: false }).eq('store_id', storeId).neq('id', pid).in('code', vcodes);
+      const pl = imageLinks(det.midia);
+      if (pl.length) images.unshift({ productId: pid!, links: pl, label: null });
+      continue;
+    }
+
+    // simples / composto
+    const code = String(det.codigo || '').trim();
+    if (!code) continue;
+    const stock = toStock(det.estoque?.saldoVirtualTotal ?? (await saldos(token, [id])).get(String(id)));
+    const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
+    let pid = ex?.id as string | undefined;
+    if (pid) {
+      await admin.from('products').update({ bling_code: code, stock, is_active: active }).eq('id', pid);
+      updated++;
+    } else {
+      const { data: ins, error } = await admin.from('products').insert({
+        store_id: storeId, code, bling_code: code, name: String(det.nome ?? code).slice(0, 250), description: desc,
+        base_price: price, price_table_4: price, stock, is_active: active, ...(unit ? { unit } : {}),
+      }).select('id').single();
+      if (error) { failed++; errors.push(`${code}: ${error.message}`); continue; }
+      pid = ins.id; created++;
+    }
+    const pl = imageLinks(det.midia);
+    if (pl.length) images.push({ productId: pid!, links: pl, label: null });
+  }
+  return { created, updated, variants, failed, variantCodes, images, errors: errors.slice(0, 10) };
+}
+
+// Baixa as fotos (links do Bling expiram) e guarda no MPZ; ignora as que já existem.
+async function imagesBatch(storeId: string, jobs: ImgJob[]) {
+  let added = 0;
+  for (const job of jobs.slice(0, 8)) {
+    const { data: p } = await admin.from('products').select('id, image_url').eq('id', job.productId).eq('store_id', storeId).maybeSingle();
+    if (!p) continue;
+    const { data: imgs } = await admin.from('product_images').select('image_url, sort_order').eq('product_id', p.id);
+    const have = new Set((imgs ?? []).map((i: any) => i.image_url));
+    let order = Math.max(-1, ...(imgs ?? []).map((i: any) => i.sort_order ?? 0)) + 1;
+    for (const link of job.links.slice(0, 10)) {
+      const path = `${storeId}/bling/${await sha1(link.split('?')[0])}.jpg`;
+      const url = admin.storage.from('product-images').getPublicUrl(path).data.publicUrl;
+      if (have.has(url)) continue;
+      try {
+        const r = await fetch(link, { signal: AbortSignal.timeout(15000) });
+        if (!r.ok) continue;
+        const buf = new Uint8Array(await r.arrayBuffer());
+        const { error } = await admin.storage.from('product-images').upload(path, buf, { upsert: true, contentType: r.headers.get('content-type') || 'image/jpeg' });
+        if (error) { console.error('upload', error.message); continue; }
+      } catch (e) { console.error('foto', (e as Error).message); continue; }
+      await admin.from('product_images').insert({ product_id: p.id, image_url: url, sort_order: order++, label: job.label });
+      have.add(url); added++;
+      if (!p.image_url) { await admin.from('products').update({ image_url: url }).eq('id', p.id); p.image_url = url; }
+    }
+  }
+  return { added };
+}
+
+// Agendado: só estoque e situação, a partir da listagem (rápido).
+async function cronStock(storeId: string) {
+  const token = await getToken(storeId);
+  const all = await listAll(token);
+  const { data: prods } = await admin.from('products').select('id, code, bling_code, is_active, has_variants').eq('store_id', storeId);
+  const byCode = new Map<string, any>();
+  for (const p of prods ?? []) { if (p.code) byCode.set(String(p.code).trim(), p); if (p.bling_code) byCode.set(String(p.bling_code).trim(), p); }
+  const { data: vars } = await admin.from('product_variants').select('id, sku, stock, products!inner(store_id)').eq('products.store_id', storeId);
   const varBySku = new Map<string, any>();
   for (const v of vars ?? []) if (v.sku) varBySku.set(String(v.sku).trim(), v);
-
-  let created = 0, stockUpdated = 0, skipped = 0, statusChanged = 0, variantsUpdated = 0, oldDeactivated = 0;
-  const img = { added: 0 };
-  const variantCodes = new Set<string>();
-
-  // 1) Produtos com variação: um produto pai + variantes
-  for (const it of all.filter((x) => x.formato === 'V' && x.situacao !== 'E')) {
-    let det: any;
-    try { det = (await bling(token, `/produtos/${it.id}`))?.data; } catch (e) { console.error('det', it.id, (e as Error).message); skipped++; continue; }
-    await wait(350);
-    const variacoes: any[] = (det?.variacoes ?? []).filter((v: any) => v?.codigo && v.situacao !== 'E');
-    if (!variacoes.length) continue;
-    const vcodes = variacoes.map((v) => String(v.codigo).trim());
-    vcodes.forEach((c) => variantCodes.add(c));
-    // saldo das variações que não vieram na listagem
-    const missing = variacoes.filter((v) => !stockByCode.has(String(v.codigo).trim()) && v.id);
-    if (missing.length) {
-      try {
-        const q = missing.map((v) => `idsProdutos[]=${v.id}`).join('&');
-        const s = await bling(token, `/estoques/saldos?${q}`);
-        for (const r of s?.data ?? []) {
-          const v = missing.find((m) => String(m.id) === String(r.produto?.id));
-          if (v) stockByCode.set(String(v.codigo).trim(), Math.max(0, Math.round(Number(r.saldoVirtualTotal ?? 0))));
-        }
-      } catch (e) { console.error('saldos', (e as Error).message); }
-      await wait(350);
-    }
-    const parentCode = String(det.codigo || it.codigo || '').trim() || commonPrefix(vcodes) || vcodes[0];
-    const active = (det.situacao ?? it.situacao ?? 'A') === 'A';
-    const price = Number(det.preco ?? it.preco ?? variacoes[0]?.preco ?? 0) || 0;
-    const totalStock = variacoes.reduce((s, v) => s + ((v.situacao ?? 'A') === 'A' ? (stockByCode.get(String(v.codigo).trim()) ?? 0) : 0), 0);
-    let parent = byBling.get(parentCode) ?? byCode.get(parentCode);
-    if (parent) {
-      if (parent.is_active !== active) statusChanged++;
-      await admin.from('products').update({ bling_code: parentCode, has_variants: true, is_active: active, stock: totalStock }).eq('id', parent.id);
-      stockUpdated++;
-    } else {
-      const { data: ins, error } = await admin.from('products').insert({
-        store_id: storeId, code: parentCode, bling_code: parentCode, name: String(det.nome ?? it.nome ?? parentCode).slice(0, 250),
-        description: String(det.descricaoCurta ?? '').replace(/<[^>]+>/g, '').slice(0, 2000), base_price: price, price_table_4: price,
-        stock: totalStock, has_variants: true, is_active: active,
-      }).select('id, code, bling_code, is_active, has_variants').single();
-      if (error) { console.error('insert pai', parentCode, error.message); skipped++; continue; }
-      parent = ins; created++; byCode.set(parentCode, ins); byBling.set(parentCode, ins);
-    }
-    for (const v of variacoes) {
-      const sku = String(v.codigo).trim();
-      const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
-      const vActive = (v.situacao ?? 'A') === 'A';
-      const vprice = Number(v.preco ?? 0) || price;
-      const stock = vActive ? (stockByCode.get(sku) ?? 0) : 0;
-      const ex = varBySku.get(sku);
-      if (ex) {
-        await admin.from('product_variants').update({ product_id: parent.id, color, size, stock, price: vprice, price_table_4: vprice }).eq('id', ex.id);
-      } else {
-        const { data: nv, error } = await admin.from('product_variants').insert({ product_id: parent.id, sku, color, size, stock, price: vprice, price_table_4: vprice }).select('id, sku, product_id').single();
-        if (error) { console.error('variante', sku, error.message); continue; }
-        varBySku.set(sku, nv);
-      }
-      variantsUpdated++;
-      // produto avulso antigo com o mesmo código da variação: inativa (não apaga, preserva histórico)
-      const old = byCode.get(sku) ?? byBling.get(sku);
-      if (old && old.id !== parent.id && old.is_active) {
-        await admin.from('products').update({ is_active: false }).eq('id', old.id);
-        old.is_active = false; oldDeactivated++;
-      }
-      if (withImages) await addImages(storeId, parent.id, imageLinks(v.midia), color || size, img);
-    }
-    if (withImages) await addImages(storeId, parent.id, imageLinks(det.midia), null, img);
-  }
-
-  // 2) Produtos simples
+  let updated = 0;
   for (const it of all) {
     const code = String(it.codigo ?? '').trim();
-    if (!code || it.formato === 'V' || variantCodes.has(code)) { continue; }
-    if (it.situacao === 'E') { skipped++; continue; } // excluído no Bling
-    const blingActive = (it.situacao ?? 'A') === 'A'; // Bling manda no status Ativo/Inativo
-    const stock = stockByCode.get(code) ?? 0;
+    if (!code || it.situacao === 'E') continue;
+    const stock = (it.situacao ?? 'A') === 'A' ? toStock(it.estoque?.saldoVirtualTotal) : 0;
     const v = varBySku.get(code);
-    if (v) { await admin.from('product_variants').update({ stock }).eq('id', v.id); stockUpdated++; continue; }
-    let found = byBling.get(code) ?? byCode.get(code);
-    if (found) {
-      if (found.is_active !== blingActive) statusChanged++;
-      await admin.from('products').update({ stock, bling_code: code, is_active: blingActive }).eq('id', found.id);
-      stockUpdated++;
-    } else {
-      const { data: ins, error } = await admin.from('products').insert({
-        store_id: storeId, code, bling_code: code, name: String(it.nome ?? code).slice(0, 250),
-        description: '', base_price: Number(it.preco ?? 0) || 0, price_table_4: Number(it.preco ?? 0) || 0, stock, is_active: blingActive,
-      }).select('id').single();
-      if (error) { console.error('insert', code, error.message); skipped++; continue; }
-      created++; found = ins;
-    }
-    if (withImages) {
-      const links = imageLinks(it.midia);
-      let l = links;
-      if (!l.length) {
-        try { l = imageLinks((await bling(token, `/produtos/${it.id}`))?.data?.midia); } catch (_) { l = []; }
-        await wait(350);
-      }
-      await addImages(storeId, found.id, l, null, img);
-    }
+    if (v) { if (v.stock !== stock) { await admin.from('product_variants').update({ stock }).eq('id', v.id); updated++; } continue; }
+    const p = byCode.get(code);
+    if (!p) continue;
+    const active = (it.situacao ?? 'A') === 'A';
+    if (p.has_variants) { if (p.is_active !== active) { await admin.from('products').update({ is_active: active }).eq('id', p.id); updated++; } continue; }
+    await admin.from('products').update({ stock, is_active: active }).eq('id', p.id); updated++;
   }
-  return { total: all.length, created, stockUpdated, statusChanged, skipped, variantsUpdated, imagesAdded: img.added, oldDeactivated };
+  return { total: all.length, updated };
 }
 
 async function syncCustomers(storeId: string) {
@@ -300,7 +305,7 @@ Deno.serve(async (req) => {
       const { data: conns } = await admin.from('bling_connections').select('store_id').not('access_token', 'is', null);
       const out: Record<string, unknown> = {};
       for (const c of conns ?? []) {
-        try { out[c.store_id] = await syncProducts(c.store_id); } catch (e) { out[c.store_id] = { error: (e as Error).message }; }
+        try { out[c.store_id] = await cronStock(c.store_id); } catch (e) { out[c.store_id] = { error: (e as Error).message }; }
       }
       return json(out);
     }
@@ -313,7 +318,15 @@ Deno.serve(async (req) => {
     const { data: isAdm } = await admin.rpc('is_store_admin', { _user_id: user.id, _store_id: storeId });
     const { data: isPlat } = await admin.rpc('is_platform_admin', { _user_id: user.id });
     if (!isAdm && !isPlat) return json({ error: 'forbidden' }, 403);
-    if (action === 'products') return json(await syncProducts(storeId, true));
+    if (action === 'list') {
+      const all = await listAll(await getToken(storeId));
+      return json({ items: all.filter((x) => x.situacao !== 'E').map((x) => ({ id: String(x.id), codigo: String(x.codigo ?? '').trim(), formato: x.formato })) });
+    }
+    if (action === 'products_batch') {
+      const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter((x: string) => /^\d+$/.test(x)).slice(0, 10);
+      return json(await productsBatch(storeId, ids));
+    }
+    if (action === 'images_batch') return json(await imagesBatch(storeId, Array.isArray(body.jobs) ? body.jobs : []));
     if (action === 'customers') return json(await syncCustomers(storeId));
     if (action === 'set_status') {
       const pid = String(body.product_id || '');
@@ -336,6 +349,6 @@ Deno.serve(async (req) => {
     return json({ error: 'ação inválida' }, 400);
   } catch (e) {
     console.error(e);
-    return json({ error: (e as Error).message }, 500);
+    return json({ error: (e as Error).message });
   }
 });
