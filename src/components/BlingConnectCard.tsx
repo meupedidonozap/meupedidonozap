@@ -26,7 +26,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
     setBusy(false);
     if (error || data?.error) { setMsg('Erro: ' + (data?.error || error?.message)); return; }
     setMsg(action === 'products'
-      ? `Produtos: ${data.total} lidos, ${data.created} novos (inativos, para completar preço/fotos), ${data.stockUpdated} com estoque atualizado.`
+      ? `Produtos: ${data.total} lidos, ${data.created} novos (inativos, para completar preço/fotos), ${data.stockUpdated} com estoque atualizado, ${data.variantsUpdated ?? 0} variantes, ${data.imagesAdded ?? 0} fotos novas${data.oldDeactivated ? `, ${data.oldDeactivated} produtos avulsos antigos inativados` : ''}.`
       : `Clientes: ${data.total} lidos, ${data.created ?? 0} criados, ${data.updated} atualizados${data.failed ? `, ${data.failed} com erro` : ''}.`);
   };
 

@@ -45,7 +45,7 @@ const wait = (ms: number) => new Promise((s) => setTimeout(s, ms));
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
 // "Cor:Lilás;Tamanho:P" -> { color, size }
-export function parseVariation(nome: string) {
+function parseVariation(nome: string) {
   let color: string | null = null, size: string | null = null;
   const extra: string[] = [];
   for (const part of String(nome || '').split(';')) {
@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
     const { data: isAdm } = await admin.rpc('is_store_admin', { _user_id: user.id, _store_id: storeId });
     const { data: isPlat } = await admin.rpc('is_platform_admin', { _user_id: user.id });
     if (!isAdm && !isPlat) return json({ error: 'forbidden' }, 403);
-    if (action === 'products') return json(await syncProducts(storeId));
+    if (action === 'products') return json(await syncProducts(storeId, true));
     if (action === 'customers') return json(await syncCustomers(storeId));
     if (action === 'set_status') {
       const pid = String(body.product_id || '');
