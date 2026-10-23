@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ShoppingCart } from 'lucide-react';
 import type { Product } from '@/types';
 import { formatCurrency } from '@/lib/formatters';
@@ -53,18 +53,22 @@ export default function VariantDialog({
     return () => { carouselApi.off('select', onSelect); };
   }, [carouselApi, onSelect]);
 
+  // Skip the slide→color sync when the slide change came from clicking a color
+  const skipSlideSync = useRef(false);
+
   // When user selects a color, scroll to matching image
   const handleColorSelect = (color: string) => {
     setSelectedVariant(prev => ({ ...prev, color, size: undefined }));
     if (carouselApi && images.length > 0) {
       const idx = images.findIndex(img => img.label?.toLowerCase() === color.toLowerCase());
-      if (idx >= 0) carouselApi.scrollTo(idx);
+      if (idx >= 0 && idx !== currentSlide) { skipSlideSync.current = true; carouselApi.scrollTo(idx); }
     }
   };
 
-  // When carousel slides, auto-select matching color
+  // When the customer slides the carousel, auto-select matching color
   useEffect(() => {
     if (!hasImages || !carouselApi) return;
+    if (skipSlideSync.current) { skipSlideSync.current = false; return; }
     const label = images[currentSlide]?.label;
     if (label && uniqueColors.some(c => c?.toLowerCase() === label.toLowerCase())) {
       setSelectedVariant(prev => {
@@ -72,7 +76,8 @@ export default function VariantDialog({
         return { ...prev, color: uniqueColors.find(c => c?.toLowerCase() === label.toLowerCase()), size: undefined };
       });
     }
-  }, [currentSlide, hasImages, images, uniqueColors, carouselApi, setSelectedVariant]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSlide]);
 
   const variants = product?.variants ?? [];
   const norm = (x?: string) => (x || '').trim().toLowerCase();

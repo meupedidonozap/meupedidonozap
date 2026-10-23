@@ -194,13 +194,21 @@ async function imagesBatch(storeId: string, jobs: ImgJob[]) {
   for (const job of jobs.slice(0, 8)) {
     const { data: p } = await admin.from('products').select('id, image_url').eq('id', job.productId).eq('store_id', storeId).maybeSingle();
     if (!p) continue;
-    const { data: imgs } = await admin.from('product_images').select('image_url, sort_order').eq('product_id', p.id);
-    const have = new Set((imgs ?? []).map((i: any) => i.image_url));
+    const { data: imgs } = await admin.from('product_images').select('id, image_url, sort_order, label').eq('product_id', p.id);
+    const have = new Map((imgs ?? []).map((i: any) => [i.image_url, i]));
     let order = Math.max(-1, ...(imgs ?? []).map((i: any) => i.sort_order ?? 0)) + 1;
     for (const link of job.links.slice(0, 10)) {
       const path = `${storeId}/bling/${await sha1(link.split('?')[0])}.jpg`;
       const url = admin.storage.from('product-images').getPublicUrl(path).data.publicUrl;
-      if (have.has(url)) continue;
+      const existing: any = have.get(url);
+      if (existing) {
+        // foto já existe (ex.: igual à do produto pai): liga à cor da variação
+        if (job.label && !existing.label) {
+          await admin.from('product_images').update({ label: job.label }).eq('id', existing.id);
+          existing.label = job.label;
+        }
+        continue;
+      }
       try {
         const r = await fetch(link, { signal: AbortSignal.timeout(15000) });
         if (!r.ok) continue;
@@ -209,7 +217,7 @@ async function imagesBatch(storeId: string, jobs: ImgJob[]) {
         if (error) { console.error('upload', error.message); continue; }
       } catch (e) { console.error('foto', (e as Error).message); continue; }
       await admin.from('product_images').insert({ product_id: p.id, image_url: url, sort_order: order++, label: job.label });
-      have.add(url); added++;
+      have.set(url, { id: null, label: job.label }); added++;
       if (!p.image_url) { await admin.from('products').update({ image_url: url }).eq('id', p.id); p.image_url = url; }
     }
   }
