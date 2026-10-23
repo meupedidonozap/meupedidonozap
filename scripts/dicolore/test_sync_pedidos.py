@@ -47,10 +47,57 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(queries[0][2], (date(2026, 10, 19), date(2026, 10, 20)))
         self.assertEqual(queries[1][2], (date(2026, 10, 18), date(2026, 10, 19)))
 
-    def test_90_days_is_one_single_query(self):
-        queries = list(sync.query_windows(sync.parse_args(['--dias', '90']), date(2026, 10, 23)))
+    def test_consulta_unica_is_one_single_query(self):
+        queries = list(sync.query_windows(sync.parse_args(['--dias', '90', '--consulta-unica']), date(2026, 10, 23)))
         self.assertEqual(len(queries), 1)
         self.assertEqual(queries[0][2], (date(2026, 7, 26), date(2026, 10, 24)))
+
+    def _batch_cursor(self, codes, slow=()):
+        class Cursor:
+            batches = []
+            def execute(self, sql, params):
+                self.sql = sql
+                self.params = params
+                if sql == sync.BATCH_SQL:
+                    lote = list(params[0])
+                    if any(c in slow for c in lote):
+                        raise sync.psycopg2.errors.QueryCanceled()
+                    self.batches.append(lote)
+            def fetchall(self):
+                if self.sql == sync.CODES_SQL:
+                    return [{'pedcod': c} for c in codes]
+                if self.sql == sync.BATCH_SQL:
+                    return [dict(codigo_importacao=c, cliente_codigo='1', status='N',
+                                 ordem_faturamento=None, nota_fiscal_numero=None) for c in self.params[0]
+                            if c not in slow]
+                return []
+        return Cursor()
+
+    def test_120_codes_in_batches_of_50(self):
+        codes = [str(i) for i in range(1, 121)]
+        cur = self._batch_cursor(codes)
+        posted = lambda p: {'ok': True, 'ordersUpserted': len(p['orders'])}
+        with patch.object(sync, 'post', side_effect=posted) as post:
+            total = sync.sync_por_lotes(cur, sync.parse_args(['--dias', '90']), date(2026, 10, 23))
+        self.assertEqual([len(b) for b in cur.batches], [50, 50, 20])
+        self.assertEqual(post.call_count, 3)
+        self.assertEqual(total, 120)
+
+    def test_slow_batch_is_split_and_others_continue(self):
+        codes = [str(i) for i in range(1, 11)]
+        cur = self._batch_cursor(codes, slow={'3'})
+        posted = lambda p: {'ok': True, 'ordersUpserted': len(p['orders'])}
+        with patch.object(sync, 'post', side_effect=posted):
+            total = sync.sync_por_lotes(cur, sync.parse_args(['--dias', '90', '--lote', '5']), date(2026, 10, 23))
+        self.assertEqual(total, 9)
+        gravados = sorted(c for b in cur.batches for c in b)
+        self.assertEqual(gravados, sorted(c for c in codes if c != '3'))
+
+    def test_dias_default_uses_batches_not_single_query(self):
+        args = sync.parse_args(['--somente-pedidos', '--dias', '90'])
+        with patch.object(sync, 'sync_por_lotes', return_value=0) as lotes:
+            sync.sync_pedidos(None, object(), args)
+        lotes.assert_called_once()
 
     def test_nf_and_of_from_erp_preserved_and_no_item_reads(self):
         row = dict(codigo_importacao='722199', cliente_codigo='89141', status='F',
