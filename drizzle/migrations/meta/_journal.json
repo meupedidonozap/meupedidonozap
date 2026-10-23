@@ -127,6 +127,13 @@
       "when": 1792677904762,
       "tag": "0017_customer_approval_status",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792746851996,
+      "tag": "0018_bling_auto_sync_cursor",
+      "breakpoints": true
     }
   ]
 }
