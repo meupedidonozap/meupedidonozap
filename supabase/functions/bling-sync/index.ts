@@ -41,7 +41,74 @@ async function bling(token: string, path: string) {
   throw new Error('Bling: limite de requisições');
 }
 
-async function syncProducts(storeId: string) {
+const wait = (ms: number) => new Promise((s) => setTimeout(s, ms));
+const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+// "Cor:Lilás;Tamanho:P" -> { color, size }
+export function parseVariation(nome: string) {
+  let color: string | null = null, size: string | null = null;
+  const extra: string[] = [];
+  for (const part of String(nome || '').split(';')) {
+    const [k, ...rest] = part.split(':');
+    const v = rest.join(':').trim();
+    if (!v) continue;
+    const key = norm(k);
+    if (key.startsWith('cor')) color = v;
+    else if (key.startsWith('tam') || key === 'numero' || key === 'num') size = v;
+    else extra.push(v);
+  }
+  if (!color && !size && extra.length) color = extra.join(' / ');
+  else if (extra.length) size = [size, ...extra].filter(Boolean).join(' / ');
+  return { color, size };
+}
+
+function commonPrefix(codes: string[]) {
+  if (!codes.length) return '';
+  let p = codes[0];
+  for (const c of codes) while (!c.startsWith(p)) p = p.slice(0, -1);
+  return p.replace(/[-_. ]+$/, '');
+}
+
+function imageLinks(midia: any): string[] {
+  const im = midia?.imagens ?? {};
+  return [...(im.internas ?? []), ...(im.externas ?? [])].map((i: any) => String(i?.link || '')).filter(Boolean);
+}
+
+async function sha1(s: string) {
+  const h = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(s));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Baixa a foto do Bling (links internos expiram) e guarda no armazenamento da loja; evita repetidas.
+async function addImages(storeId: string, productId: string, links: string[], label: string | null, state: { added: number }) {
+  if (!links.length) return;
+  const { data: imgs } = await admin.from('product_images').select('image_url, sort_order').eq('product_id', productId);
+  const have = new Set((imgs ?? []).map((i: any) => i.image_url));
+  let order = Math.max(-1, ...(imgs ?? []).map((i: any) => i.sort_order ?? 0)) + 1;
+  for (const link of links) {
+    const key = await sha1(link.split('?')[0]);
+    const path = `${storeId}/bling/${key}.jpg`;
+    const { data: pub } = admin.storage.from('product-images').getPublicUrl(path);
+    if (have.has(pub.publicUrl)) continue;
+    try {
+      const r = await fetch(link);
+      if (!r.ok) continue;
+      const buf = new Uint8Array(await r.arrayBuffer());
+      const { error } = await admin.storage.from('product-images').upload(path, buf, { upsert: true, contentType: r.headers.get('content-type') || 'image/jpeg' });
+      if (error) { console.error('upload', error.message); continue; }
+    } catch (e) { console.error('foto', (e as Error).message); continue; }
+    await admin.from('product_images').insert({ product_id: productId, image_url: pub.publicUrl, sort_order: order++, label });
+    have.add(pub.publicUrl);
+    state.added++;
+  }
+  const { data: p } = await admin.from('products').select('image_url').eq('id', productId).maybeSingle();
+  if (!p?.image_url) {
+    const { data: first } = await admin.from('product_images').select('image_url').eq('product_id', productId).order('sort_order').limit(1).maybeSingle();
+    if (first) await admin.from('products').update({ image_url: first.image_url }).eq('id', productId);
+  }
+}
+
+async function syncProducts(storeId: string, withImages = false) {
   const token = await getToken(storeId);
   const all: any[] = [];
   for (let page = 1; page <= 50; page++) {
@@ -50,41 +117,124 @@ async function syncProducts(storeId: string) {
     const rows = b?.data ?? [];
     all.push(...rows);
     if (rows.length < 100) break;
-    await new Promise((s) => setTimeout(s, 350));
+    await wait(350);
   }
-  const { data: existing } = await admin.from('products').select('id, code, bling_code, is_active').eq('store_id', storeId);
+  const stockByCode = new Map<string, number>();
+  for (const it of all) if (it.codigo) stockByCode.set(String(it.codigo).trim(), Math.max(0, Math.round(Number(it.estoque?.saldoVirtualTotal ?? 0))));
+
+  const { data: existing } = await admin.from('products').select('id, code, bling_code, is_active, has_variants').eq('store_id', storeId);
   const byBling = new Map<string, any>(), byCode = new Map<string, any>();
   for (const p of existing ?? []) {
     if (p.bling_code) byBling.set(String(p.bling_code).trim(), p);
     if (p.code) byCode.set(String(p.code).trim(), p);
   }
-  const { data: vars } = await admin.from('product_variants').select('id, sku, products!inner(store_id)').eq('products.store_id', storeId);
-  const varBySku = new Map<string, string>();
-  for (const v of vars ?? []) if (v.sku) varBySku.set(String(v.sku).trim(), v.id);
+  const { data: vars } = await admin.from('product_variants').select('id, sku, product_id, products!inner(store_id)').eq('products.store_id', storeId);
+  const varBySku = new Map<string, any>();
+  for (const v of vars ?? []) if (v.sku) varBySku.set(String(v.sku).trim(), v);
 
-  let created = 0, stockUpdated = 0, skipped = 0, statusChanged = 0;
+  let created = 0, stockUpdated = 0, skipped = 0, statusChanged = 0, variantsUpdated = 0, oldDeactivated = 0;
+  const img = { added: 0 };
+  const variantCodes = new Set<string>();
+
+  // 1) Produtos com variação: um produto pai + variantes
+  for (const it of all.filter((x) => x.formato === 'V' && x.situacao !== 'E')) {
+    let det: any;
+    try { det = (await bling(token, `/produtos/${it.id}`))?.data; } catch (e) { console.error('det', it.id, (e as Error).message); skipped++; continue; }
+    await wait(350);
+    const variacoes: any[] = (det?.variacoes ?? []).filter((v: any) => v?.codigo && v.situacao !== 'E');
+    if (!variacoes.length) continue;
+    const vcodes = variacoes.map((v) => String(v.codigo).trim());
+    vcodes.forEach((c) => variantCodes.add(c));
+    // saldo das variações que não vieram na listagem
+    const missing = variacoes.filter((v) => !stockByCode.has(String(v.codigo).trim()) && v.id);
+    if (missing.length) {
+      try {
+        const q = missing.map((v) => `idsProdutos[]=${v.id}`).join('&');
+        const s = await bling(token, `/estoques/saldos?${q}`);
+        for (const r of s?.data ?? []) {
+          const v = missing.find((m) => String(m.id) === String(r.produto?.id));
+          if (v) stockByCode.set(String(v.codigo).trim(), Math.max(0, Math.round(Number(r.saldoVirtualTotal ?? 0))));
+        }
+      } catch (e) { console.error('saldos', (e as Error).message); }
+      await wait(350);
+    }
+    const parentCode = String(det.codigo || it.codigo || '').trim() || commonPrefix(vcodes) || vcodes[0];
+    const active = (det.situacao ?? it.situacao ?? 'A') === 'A';
+    const price = Number(det.preco ?? it.preco ?? variacoes[0]?.preco ?? 0) || 0;
+    const totalStock = variacoes.reduce((s, v) => s + ((v.situacao ?? 'A') === 'A' ? (stockByCode.get(String(v.codigo).trim()) ?? 0) : 0), 0);
+    let parent = byBling.get(parentCode) ?? byCode.get(parentCode);
+    if (parent) {
+      if (parent.is_active !== active) statusChanged++;
+      await admin.from('products').update({ bling_code: parentCode, has_variants: true, is_active: active, stock: totalStock }).eq('id', parent.id);
+      stockUpdated++;
+    } else {
+      const { data: ins, error } = await admin.from('products').insert({
+        store_id: storeId, code: parentCode, bling_code: parentCode, name: String(det.nome ?? it.nome ?? parentCode).slice(0, 250),
+        description: String(det.descricaoCurta ?? '').replace(/<[^>]+>/g, '').slice(0, 2000), base_price: price, price_table_4: price,
+        stock: totalStock, has_variants: true, is_active: active,
+      }).select('id, code, bling_code, is_active, has_variants').single();
+      if (error) { console.error('insert pai', parentCode, error.message); skipped++; continue; }
+      parent = ins; created++; byCode.set(parentCode, ins); byBling.set(parentCode, ins);
+    }
+    for (const v of variacoes) {
+      const sku = String(v.codigo).trim();
+      const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
+      const vActive = (v.situacao ?? 'A') === 'A';
+      const vprice = Number(v.preco ?? 0) || price;
+      const stock = vActive ? (stockByCode.get(sku) ?? 0) : 0;
+      const ex = varBySku.get(sku);
+      if (ex) {
+        await admin.from('product_variants').update({ product_id: parent.id, color, size, stock, price: vprice, price_table_4: vprice }).eq('id', ex.id);
+      } else {
+        const { data: nv, error } = await admin.from('product_variants').insert({ product_id: parent.id, sku, color, size, stock, price: vprice, price_table_4: vprice }).select('id, sku, product_id').single();
+        if (error) { console.error('variante', sku, error.message); continue; }
+        varBySku.set(sku, nv);
+      }
+      variantsUpdated++;
+      // produto avulso antigo com o mesmo código da variação: inativa (não apaga, preserva histórico)
+      const old = byCode.get(sku) ?? byBling.get(sku);
+      if (old && old.id !== parent.id && old.is_active) {
+        await admin.from('products').update({ is_active: false }).eq('id', old.id);
+        old.is_active = false; oldDeactivated++;
+      }
+      if (withImages) await addImages(storeId, parent.id, imageLinks(v.midia), color || size, img);
+    }
+    if (withImages) await addImages(storeId, parent.id, imageLinks(det.midia), null, img);
+  }
+
+  // 2) Produtos simples
   for (const it of all) {
     const code = String(it.codigo ?? '').trim();
-    if (!code || it.formato === 'V') { skipped++; continue; } // pai de variação: filhos vêm com código próprio
+    if (!code || it.formato === 'V' || variantCodes.has(code)) { continue; }
     if (it.situacao === 'E') { skipped++; continue; } // excluído no Bling
     const blingActive = (it.situacao ?? 'A') === 'A'; // Bling manda no status Ativo/Inativo
-    const stock = Math.max(0, Math.round(Number(it.estoque?.saldoVirtualTotal ?? 0)));
-    const varId = varBySku.get(code);
-    if (varId) { await admin.from('product_variants').update({ stock }).eq('id', varId); stockUpdated++; continue; }
-    const found = byBling.get(code) ?? byCode.get(code);
+    const stock = stockByCode.get(code) ?? 0;
+    const v = varBySku.get(code);
+    if (v) { await admin.from('product_variants').update({ stock }).eq('id', v.id); stockUpdated++; continue; }
+    let found = byBling.get(code) ?? byCode.get(code);
     if (found) {
       if (found.is_active !== blingActive) statusChanged++;
       await admin.from('products').update({ stock, bling_code: code, is_active: blingActive }).eq('id', found.id);
       stockUpdated++;
-      continue;
+    } else {
+      const { data: ins, error } = await admin.from('products').insert({
+        store_id: storeId, code, bling_code: code, name: String(it.nome ?? code).slice(0, 250),
+        description: '', base_price: Number(it.preco ?? 0) || 0, price_table_4: Number(it.preco ?? 0) || 0, stock, is_active: blingActive,
+      }).select('id').single();
+      if (error) { console.error('insert', code, error.message); skipped++; continue; }
+      created++; found = ins;
     }
-    const { error } = await admin.from('products').insert({
-      store_id: storeId, code, bling_code: code, name: String(it.nome ?? code).slice(0, 250),
-      description: '', base_price: Number(it.preco ?? 0) || 0, price_table_4: Number(it.preco ?? 0) || 0, stock, is_active: blingActive,
-    });
-    if (error) { console.error('insert', code, error.message); skipped++; } else created++;
+    if (withImages) {
+      const links = imageLinks(it.midia);
+      let l = links;
+      if (!l.length) {
+        try { l = imageLinks((await bling(token, `/produtos/${it.id}`))?.data?.midia); } catch (_) { l = []; }
+        await wait(350);
+      }
+      await addImages(storeId, found.id, l, null, img);
+    }
   }
-  return { total: all.length, created, stockUpdated, statusChanged, skipped };
+  return { total: all.length, created, stockUpdated, statusChanged, skipped, variantsUpdated, imagesAdded: img.added, oldDeactivated };
 }
 
 async function syncCustomers(storeId: string) {
