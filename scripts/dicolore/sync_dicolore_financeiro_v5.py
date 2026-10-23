@@ -136,11 +136,17 @@ def parse_args(argv=None):
     parser.add_argument("--max-pendentes", type=int, default=int(os.getenv("PEDIDOS_MAX_PENDENTES", "40")))
     parser.add_argument("--com-itens", action="store_true", help="Atualiza itens após cada cabeçalho (mais lento).")
     parser.add_argument("--por-dia", action="store_true", help="Modo antigo: uma consulta por dia.")
+    parser.add_argument("--consulta-unica", action="store_true",
+                        help="Modo v13: uma única consulta para o período inteiro (pode estourar o tempo).")
+    parser.add_argument("--lote", type=int, default=int(os.getenv("PEDIDOS_LOTE", "50")),
+                        help="Pedidos por consulta no modo em lotes (padrão 50).")
+    parser.add_argument("--timeout-lote", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_LOTE", "120")),
+                        help="Limite por lote, em segundos (padrão 120).")
     parser.add_argument("--timeout-sql", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_SQL", "300")),
                         help="Limite por consulta, em segundos (padrão 300).")
     args = parser.parse_args(argv)
-    if args.dias < 1 or args.timeout_sql < 1:
-        parser.error("Dias e tempo limite precisam ser positivos.")
+    if args.dias < 1 or args.timeout_sql < 1 or args.lote < 1 or args.timeout_lote < 1:
+        parser.error("Dias, lote e tempos limite precisam ser positivos.")
     if args.pedido and any(not code.strip().isdigit() for code in args.pedido):
         parser.error("Use o código numérico ERP em --pedido.")
     return args
