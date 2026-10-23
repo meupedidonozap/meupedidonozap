@@ -1,5 +1,5 @@
-"""DiColore v9: pedidos por dia, OF/NF sem itens por padrão; --pedido para busca individual.
-Não altera configurações nem escreve no ERP. --com-itens é opcional."""
+"""DiColore v14: pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
+--pedido para busca individual. Não altera configurações nem escreve no ERP. --com-itens é opcional."""
 import argparse
 from decimal import Decimal
 from datetime import timedelta
@@ -136,11 +136,17 @@ def parse_args(argv=None):
     parser.add_argument("--max-pendentes", type=int, default=int(os.getenv("PEDIDOS_MAX_PENDENTES", "40")))
     parser.add_argument("--com-itens", action="store_true", help="Atualiza itens após cada cabeçalho (mais lento).")
     parser.add_argument("--por-dia", action="store_true", help="Modo antigo: uma consulta por dia.")
+    parser.add_argument("--consulta-unica", action="store_true",
+                        help="Modo v13: uma única consulta para o período inteiro (pode estourar o tempo).")
+    parser.add_argument("--lote", type=int, default=int(os.getenv("PEDIDOS_LOTE", "50")),
+                        help="Pedidos por consulta no modo em lotes (padrão 50).")
+    parser.add_argument("--timeout-lote", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_LOTE", "120")),
+                        help="Limite por lote, em segundos (padrão 120).")
     parser.add_argument("--timeout-sql", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_SQL", "300")),
                         help="Limite por consulta, em segundos (padrão 300).")
     args = parser.parse_args(argv)
-    if args.dias < 1 or args.timeout_sql < 1:
-        parser.error("Dias e tempo limite precisam ser positivos.")
+    if args.dias < 1 or args.timeout_sql < 1 or args.lote < 1 or args.timeout_lote < 1:
+        parser.error("Dias, lote e tempos limite precisam ser positivos.")
     if args.pedido and any(not code.strip().isdigit() for code in args.pedido):
         parser.error("Use o código numérico ERP em --pedido.")
     return args
@@ -150,7 +156,7 @@ def main():
     args = parse_args()
     if not SYNC_TOKEN or not DB["dbname"] or not DB["user"]:
         raise RuntimeError("Configuração incompleta: confira banco e token nos arquivos .env existentes.")
-    log("v11: conectando ao ERP (limite de conexão: 15s)...")
+    log("v14: conectando ao ERP (limite de conexão: 15s)...")
     config = dict(DB)
     config["options"] = ("-c default_transaction_read_only=on "
                          f"-c statement_timeout={args.timeout_sql * 1000} -c lock_timeout=5000")
@@ -312,17 +318,83 @@ def mark_missing(codes):
     log(f"{result.get('marked', 0)} pedidos não existem mais no ERP; removidos da plataforma: {', '.join(codes)}")
 
 
+# v14: lista leve de códigos direto na tabela de pedidos (mesmos filtros da view).
+CODES_SQL = ("SELECT pedcod::text AS pedcod FROM pe001 "
+             "WHERE peddatemi >= %s AND peddatemi < %s AND pedmcpcod <= 0 AND pedempcod::text = '1' "
+             "ORDER BY peddatemi DESC")
+BATCH_SQL = "SELECT * FROM vw_mpz_pedido WHERE codigo_importacao = ANY(%s)"
+
+
+def chunked(items, size):
+    return [items[i:i + size] for i in range(0, len(items), size)]
+
+
+def list_period_codes(cur, args, today=None):
+    today = today or date.today()
+    start = today - timedelta(days=args.dias - 1)
+    log(f"Etapa A: listando códigos de pedidos de {start} a {today} (tabela pe001)...")
+    started = time.monotonic()
+    cur.execute(CODES_SQL, (start, today + timedelta(days=1)))
+    codes = list(dict.fromkeys(str(r["pedcod"]).strip() for r in cur.fetchall() if r.get("pedcod")))
+    log(f"Etapa A: {len(codes)} códigos em {time.monotonic() - started:.1f}s.")
+    return codes
+
+
+def sync_por_lotes(cur, args, today=None):
+    """Lê a view em lotes pequenos de códigos e grava cada lote antes de seguir."""
+    codes = list_period_codes(cur, args, today)
+    if not codes:
+        log("CONCLUÍDO: nenhum pedido no período.")
+        return 0
+    cur.execute("SELECT set_config('statement_timeout', %s, false)", (str(args.timeout_lote * 1000),))
+    fila = chunked(codes, args.lote)
+    n_lotes = len(fila)
+    total, lidos, skipped, numero = 0, 0, [], 0
+    while fila:
+        lote = fila.pop(0)
+        numero += 1
+        started = time.monotonic()
+        try:
+            cur.execute(BATCH_SQL, (lote,))
+            orders = [normalize_order(row) for row in cur.fetchall()]
+        except psycopg2.errors.QueryCanceled:
+            if len(lote) > 1:
+                meio = len(lote) // 2
+                log(f"Lote {numero}: {len(lote)} pedidos excederam {args.timeout_lote}s; dividindo em 2.")
+                fila[0:0] = [lote[:meio], lote[meio:]]
+            else:
+                log(f"Pedido {lote[0]}: excedeu {args.timeout_lote}s sozinho; pulado.")
+                skipped.append(lote[0])
+            continue
+        lidos += len(lote)
+        if orders:
+            result = post({"store_slug": STORE_SLUG, "orders": orders})
+            total += result["ordersUpserted"]
+            if args.com_itens:
+                sync_items(cur, orders)
+        log(f"Lote {numero} ({lidos}/{len(codes)} códigos, ~{n_lotes} lotes): {len(orders)} pedidos em "
+            f"{time.monotonic() - started:.1f}s, gravados.")
+    if skipped:
+        log(f"AVISO: {len(skipped)} pedidos pulados por tempo: {', '.join(skipped)} "
+            "(tente depois com --pedido CODIGO).")
+    log(f"CONCLUÍDO: {total} pedidos confirmados em lotes. "
+        + ("Itens atualizados." if args.com_itens else "Itens existentes preservados; não consultados."))
+    return total
+
+
 def sync_pedidos(conn, cur, args):
     total = 0
     missing = []
     if args.pendentes and not args.pedido:
         codes = fetch_pending_codes(args.max_pendentes)
-        log(f"v11: {len(codes)} pedidos sem OF/NF a consultar por código.")
+        log(f"v14: {len(codes)} pedidos sem OF/NF a consultar por código.")
         if not codes:
             log("CONCLUÍDO: nenhum pedido pendente de OF/NF.")
             return
         args.pedido = codes
         args.pular_falhas = True
+    if not args.pedido and not args.consulta_unica and not args.por_dia:
+        return sync_por_lotes(cur, args)
     for label, sql, params in query_windows(args):
         log(f"Lendo {label}: vw_mpz_pedido (limite {args.timeout_sql}s)...")
         started = time.monotonic()
