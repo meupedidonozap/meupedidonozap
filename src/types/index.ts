@@ -141,6 +141,8 @@ export interface StoreSettings {
   useBlingIntegration?: boolean;
   /** Vitrine: exibe a aba "Cadastrar" para o cliente criar conta sozinho (padrão: sim). */
   allowCustomerSignup?: boolean;
+  /** Exige código do cliente para baixar XML (padrão: só DiColore). */
+  requireCustomerCodeForDownload?: boolean;
   requireLoginToBrowse?: boolean;
   approvalSupportWhatsapp?: string;
   /** WhatsApp (DDI+DDD+numero) que recebe o aviso quando um pedido é liberado p/ transmissão (ERP). */
