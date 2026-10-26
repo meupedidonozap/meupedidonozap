@@ -1,4 +1,4 @@
-"""DiColore v14: pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
+"""DiColore v16 (financeiro por período em lotes): pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
 --pedido para busca individual. Não altera configurações nem escreve no ERP. --com-itens é opcional."""
 import argparse
 from decimal import Decimal
@@ -163,7 +163,7 @@ def main():
     args = parse_args()
     if not SYNC_TOKEN or not DB["dbname"] or not DB["user"]:
         raise RuntimeError("Configuração incompleta: confira banco e token nos arquivos .env existentes.")
-    log("v14: conectando ao ERP (limite de conexão: 15s)...")
+    log("v16: conectando ao ERP (limite de conexão: 15s)...")
     config = dict(DB)
     config["options"] = ("-c default_transaction_read_only=on "
                          f"-c statement_timeout={args.timeout_sql * 1000} -c lock_timeout=5000")

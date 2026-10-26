@@ -176,7 +176,8 @@ def _status_e_boletos():
     sincronizar_status_pedidos()
     if time.monotonic() - _ultimo_boletos >= MONITOR_INTERVALO_BOLETOS or _ultimo_boletos == 0.0:
         _ultimo_boletos = time.monotonic()
-        log.info("[boletos] Enviando boletos dos títulos emitidos nos últimos 30 dias...")
+        log.info("[boletos] Enviando títulos, notas fiscais e boletos dos últimos %s dias...",
+                 _env_int("MONITOR_BOLETOS_DIAS", 30))
         sincronizar_status_pedidos(["--somente-boletos", "--boletos-dias",
                                     str(_env_int("MONITOR_BOLETOS_DIAS", 30))], "boletos")
 
