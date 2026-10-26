@@ -484,6 +484,7 @@ export default function CheckoutPage() {
             createdByRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
             ownerRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
             ownerName: seller.sellerName,
+            ...(seller.isSeller && !seller.isTelevendas && seller.sellerCodes?.[0] ? { sellerCode: String(seller.sellerCodes[0]) } : {}),
           } : (!sellerOrder ? { createdByName: formData.name, createdByRole: 'cliente' } : {})),
           ...(seller.isTelevendas ? { isTelevendas: true, televendasName: seller.sellerName || undefined, televendasErpCode: seller.erpCode || undefined } : {}),
           ...(() => {
