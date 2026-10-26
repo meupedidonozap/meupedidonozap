@@ -1,4 +1,4 @@
-"""DiColore v14: pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
+"""DiColore v16 (financeiro por período em lotes): pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
 --pedido para busca individual. Não altera configurações nem escreve no ERP. --com-itens é opcional."""
 import argparse
 from decimal import Decimal
@@ -134,6 +134,8 @@ def parse_args(argv=None):
     parser.add_argument("--nota", action="append", help="NF do boleto; pode repetir. Ignora datas.")
     parser.add_argument("--boletos-dias", type=int, default=None,
                         help="Só boletos de títulos emitidos nos últimos N dias (monitor usa 30).")
+    parser.add_argument("--de", help="Data inicial dos títulos/notas/boletos (ex.: 01/09/2026).")
+    parser.add_argument("--ate", help="Data final (ex.: 26/10/2026); padrão hoje.")
     parser.add_argument("--dias", type=int, default=int(os.getenv("PEDIDOS_DIAS", "15")))
     parser.add_argument("--pedido", action="append", help="Código ERP; pode repetir. Ignora --dias.")
     parser.add_argument("--pendentes", action="store_true",
@@ -161,7 +163,7 @@ def main():
     args = parse_args()
     if not SYNC_TOKEN or not DB["dbname"] or not DB["user"]:
         raise RuntimeError("Configuração incompleta: confira banco e token nos arquivos .env existentes.")
-    log("v14: conectando ao ERP (limite de conexão: 15s)...")
+    log("v16: conectando ao ERP (limite de conexão: 15s)...")
     config = dict(DB)
     config["options"] = ("-c default_transaction_read_only=on "
                          f"-c statement_timeout={args.timeout_sql * 1000} -c lock_timeout=5000")
@@ -179,8 +181,11 @@ def run_connected(conn, args):
     register_safe_temporals(conn)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    if args.somente_boletos or args.nota:
-        return sync_boletos(cur, notas=args.nota, dias_emissao=args.boletos_dias)
+    if args.nota:
+        return sync_boletos(cur, notas=args.nota)
+    if args.somente_boletos:
+        de, ate = periodo_boletos(args)
+        return sync_financeiro_periodo(cur, de, ate)
     if args.somente_pedidos or args.pedido:
         return sync_pedidos(conn, cur, args)
 
@@ -207,7 +212,71 @@ def run_connected(conn, args):
     sync_pedidos(conn, cur, args)
 
 
-def sync_boletos(cur, notas=None, dias_emissao=None):
+BOLETOS_NOTAS_LOTE = int(os.getenv("BOLETOS_NOTAS_LOTE", "30"))
+
+
+def parse_data(texto):
+    texto = texto.strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(texto, fmt).date()
+        except ValueError:
+            pass
+    raise ValueError(f"Data inválida: {texto} (use 01/09/2026)")
+
+
+def periodo_boletos(args):
+    hoje = date.today()
+    if args.de:
+        de = parse_data(args.de)
+        ate = parse_data(args.ate) if args.ate else hoje
+    else:
+        de = hoje - timedelta(days=args.boletos_dias or 30)
+        ate = hoje
+    return de, ate
+
+
+def sync_financeiro_periodo(cur, de, ate):
+    """v16: títulos + notas fiscais + boletos de um período, em etapas leves."""
+    log(f"Financeiro de {de:%d/%m/%Y} até {ate:%d/%m/%Y}")
+    # 1) Títulos emitidos no período
+    t0 = time.monotonic()
+    cur.execute("SELECT * FROM dw_titulo WHERE data_emissao BETWEEN %s AND %s", (de, ate))
+    titles = [{k: to_json(v) for k, v in row.items()} for row in cur.fetchall()]
+    log(f"Títulos: {len(titles)} lidos em {time.monotonic() - t0:.1f}s")
+    for i in range(0, len(titles), TITLES_BATCH):
+        res = post({"store_slug": STORE_SLUG, "titles": titles[i:i + TITLES_BATCH]})
+        log(f"  Títulos {i + 1}-{i + len(titles[i:i + TITLES_BATCH])}: {res.get('titlesUpserted')} gravados")
+    # 2) Notas fiscais emitidas no período
+    t0 = time.monotonic()
+    try:
+        cur.execute("SELECT * FROM dw_nota_fiscal WHERE data_emissao BETWEEN %s AND %s", (de, ate))
+        invoices = [{k: to_json(v) for k, v in row.items()} for row in cur.fetchall()]
+        log(f"Notas fiscais: {len(invoices)} lidas em {time.monotonic() - t0:.1f}s")
+        for i in range(0, len(invoices), INVOICES_BATCH):
+            chunk = invoices[i:i + INVOICES_BATCH]
+            res = post({"store_slug": STORE_SLUG, "invoices": chunk})
+            log(f"  Notas {i + 1}-{i + len(chunk)}: {res.get('invoicesUpserted')} gravadas")
+    except psycopg2.Error as e:
+        log(f"Notas fiscais: falha na leitura ({e.__class__.__name__}); seguindo para os boletos.")
+    # 3) Boletos: só as NFs com título em aberto no período, em lotes pequenos
+    notas = sorted({str(t.get("codigo")) for t in titles
+                    if t.get("codigo") and str(t.get("status") or "").upper() != "PAGO"})
+    log(f"Boletos: {len(notas)} NFs com título em aberto no período")
+    total = 0
+    lotes = [notas[i:i + BOLETOS_NOTAS_LOTE] for i in range(0, len(notas), BOLETOS_NOTAS_LOTE)]
+    for n, lote in enumerate(lotes, 1):
+        t0 = time.monotonic()
+        try:
+            total += sync_boletos(cur, notas=lote, silencioso=True)
+            log(f"  Lote {n}/{len(lotes)}: {len(lote)} NFs em {time.monotonic() - t0:.1f}s (total {total} boletos)")
+        except psycopg2.errors.QueryCanceled:
+            log(f"  Lote {n}/{len(lotes)}: excedeu o tempo; pulado, tenta no próximo ciclo.")
+    log(f"CONCLUÍDO: {len(titles)} títulos, {total} boletos gravados na plataforma.")
+    return total
+
+
+def sync_boletos(cur, notas=None, dias_emissao=None, silencioso=False):
     """Envia os PDFs da dw_arquivo_boleto dos títulos não pagos.
     notas: lista de NFs (ignora datas). dias_emissao: só títulos emitidos nos últimos N dias."""
     sql = """
@@ -224,7 +293,8 @@ def sync_boletos(cur, notas=None, dias_emissao=None):
     if notas:
         sql += " AND b.nota::text = ANY(%s)"
         params.append([n.strip() for n in notas])
-        log(f"Boletos: buscando NF {', '.join(params[0])}...")
+        if not silencioso:
+            log(f"Boletos: buscando NF {', '.join(params[0])}...")
     else:
         sql += " AND t.data_vencimento >= current_date - %s"
         params.append(BOLETO_DIAS_ATRAS)
@@ -257,7 +327,8 @@ def sync_boletos(cur, notas=None, dias_emissao=None):
         if len(batch) >= BOLETOS_BATCH:
             flush()
     flush()
-    log(f"Boletos: {lidos} lidos no ERP, {total} gravados na plataforma")
+    if not silencioso:
+        log(f"Boletos: {lidos} lidos no ERP, {total} gravados na plataforma")
     return total
 
 
