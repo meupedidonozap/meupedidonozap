@@ -1,3 +1,4 @@
+import { getOrderCreator, CREATOR_LABEL } from '@/lib/orderCreator';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { BlingConnectCard } from '@/components/BlingConnectCard';
 import { PaymentSettingsCard } from '@/components/PaymentSettingsCard';
