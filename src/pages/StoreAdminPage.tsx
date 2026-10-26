@@ -376,11 +376,22 @@ export default function StoreAdminPage() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderSellerFilter, setOrderSellerFilter] = useState('all');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [orderCreatorFilter, setOrderCreatorFilter] = useState('all');
+  const [orderFromDate, setOrderFromDate] = useState('');
+  const [orderToDate, setOrderToDate] = useState('');
   const searchedOrders = useMemo(() => {
     const term = orderSearch.trim().toLowerCase();
     const digits = term.replace(/\D/g, '');
+    const fromMs = orderFromDate ? new Date(`${orderFromDate}T00:00:00`).getTime() : null;
+    const toMs = orderToDate ? new Date(`${orderToDate}T23:59:59.999`).getTime() : null;
     return scopedOrders.filter((o: any) => {
       if (orderStatusFilter !== 'all' && o.status !== orderStatusFilter) return false;
+      if (orderCreatorFilter !== 'all' && getOrderCreator(o).role !== orderCreatorFilter) return false;
+      if (fromMs || toMs) {
+        const t = new Date(o.createdAt || o.created_at).getTime();
+        if (fromMs && t < fromMs) return false;
+        if (toMs && t > toMs) return false;
+      }
       if (orderSellerFilter !== 'all') {
         const code = whatsappToSellerCode.get(last8(o?.customer?.whatsapp || '')) || '';
         if (orderSellerFilter === 'none') {
@@ -397,11 +408,25 @@ export default function StoreAdminPage() {
       if (digits.length >= 3 && haystack.replace(/\D/g, '').includes(digits)) return true;
       return false;
     });
-  }, [scopedOrders, orderSearch, orderSellerFilter, orderStatusFilter, whatsappToSellerCode, customerCodeLookup, sellerByCode]);
+  }, [scopedOrders, orderSearch, orderSellerFilter, orderStatusFilter, orderCreatorFilter, orderFromDate, orderToDate, whatsappToSellerCode, customerCodeLookup, sellerByCode]);
+  const exportCreatorReport = () => {
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [['Pedido', 'Data', 'Cliente', 'Código cliente', 'WhatsApp', 'Quem fez', 'Nome de quem fez', 'Login', 'Status', 'Total']];
+    searchedOrders.forEach((o: any) => {
+      const cr = getOrderCreator(o);
+      rows.push([o.orderNumber, new Date(o.createdAt || o.created_at).toLocaleString('pt-BR'), o.customer?.name, resolveCustomerCode(o.customer), o.customer?.whatsapp,
+        CREATOR_LABEL[cr.role], cr.name, cr.login, statusConfig[o.status]?.label || o.status, Number(o.total || 0).toFixed(2).replace('.', ',')]);
+    });
+    const csv = '\ufeff' + rows.map(r => r.map(esc).join(';')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `pedidos_quem_fez_${orderFromDate || 'inicio'}_${orderToDate || 'hoje'}.csv`;
+    a.click();
+  };
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPageSize, setOrdersPageSize] = useState(20);
   const ordersTotalPages = Math.max(1, Math.ceil(searchedOrders.length / ordersPageSize));
-  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, searchedOrders.length, orderSearch, orderSellerFilter, orderStatusFilter]);
+  useEffect(() => { setOrdersPage(1); }, [ordersPageSize, searchedOrders.length, orderSearch, orderSellerFilter, orderStatusFilter, orderCreatorFilter, orderFromDate, orderToDate]);
   const pagedOrders = useMemo(
     () => searchedOrders.slice((ordersPage - 1) * ordersPageSize, ordersPage * ordersPageSize),
     [searchedOrders, ordersPage, ordersPageSize],
@@ -1615,10 +1640,24 @@ export default function StoreAdminPage() {
                       <option key={key} value={key}>{cfg.label}</option>
                     ))}
                   </select>
-                  {(orderSearch.trim() || orderSellerFilter !== 'all' || orderStatusFilter !== 'all') && (
+                  <select
+                    className="h-10 rounded-md border bg-background px-2 text-sm"
+                    value={orderCreatorFilter}
+                    onChange={(e) => setOrderCreatorFilter(e.target.value)}
+                  >
+                    <option value="all">Quem fez: todos</option>
+                    <option value="cliente">Próprio cliente (sorteio)</option>
+                    <option value="vendedor">Vendedor</option>
+                    <option value="televendas">Televendas</option>
+                    <option value="admin">Painel / Admin</option>
+                  </select>
+                  <Input type="date" className="h-10 w-auto" value={orderFromDate} onChange={(e) => setOrderFromDate(e.target.value)} title="De" />
+                  <Input type="date" className="h-10 w-auto" value={orderToDate} onChange={(e) => setOrderToDate(e.target.value)} title="Até" />
+                  <Button variant="outline" size="sm" onClick={exportCreatorReport}>Exportar</Button>
+                  {(orderSearch.trim() || orderSellerFilter !== 'all' || orderStatusFilter !== 'all' || orderCreatorFilter !== 'all' || orderFromDate || orderToDate) && (
                     <div className="flex items-center gap-2">
                       <span className="whitespace-nowrap text-xs text-muted-foreground">{searchedOrders.length} encontrado(s)</span>
-                      <Button variant="ghost" size="sm" onClick={() => { setOrderSearch(''); setOrderSellerFilter('all'); setOrderStatusFilter('all'); }}>
+                      <Button variant="ghost" size="sm" onClick={() => { setOrderSearch(''); setOrderSellerFilter('all'); setOrderStatusFilter('all'); setOrderCreatorFilter('all'); setOrderFromDate(''); setOrderToDate(''); }}>
                         Limpar
                       </Button>
                     </div>
@@ -1717,6 +1756,15 @@ export default function StoreAdminPage() {
                           {(order.customer as any)?.isTelevendas && (
                             <p className="text-xs text-primary">Televendas: {(order.customer as any)?.televendasName || 'Sim'}</p>
                           )}
+                          {order.origem !== 'mesa' && (() => {
+                            const cr = getOrderCreator(order as any);
+                            const cls = cr.role === 'cliente' ? 'bg-primary text-primary-foreground' : cr.role === 'admin' ? 'bg-muted text-muted-foreground' : 'bg-secondary text-secondary-foreground';
+                            return (
+                              <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>
+                                {CREATOR_LABEL[cr.role]}{cr.role !== 'cliente' && cr.name ? `: ${cr.name}` : ''}{cr.login ? ` (${cr.login})` : ''}
+                              </span>
+                            );
+                          })()}
 
                         </TableCell>
                          <TableCell>
