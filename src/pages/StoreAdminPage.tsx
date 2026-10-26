@@ -406,7 +406,7 @@ export default function StoreAdminPage() {
     });
   }, [bulkCandidates]);
 
-  // Código do cliente vindo do ERP (cadastro sincronizado). Sem ele, o XML não pode ser gerado.
+  // Código do cliente vindo do ERP. Só bloqueia o XML quando a loja exige (padrão: só DiColore).
   const orderErpCustomerCode = (order: any): string => {
     const cp: any = findOrderProfile(order, customerProfiles as any[]);
     return String(cp?.customerCode || order?.customer?.customerCode || '').trim();
@@ -449,7 +449,7 @@ export default function StoreAdminPage() {
     for (let i = 0; i < list.length; i++) {
       const order = list[i];
       setBulkProgress({ done: i + 1, total: list.length });
-      if (bulkFormat === 'xml' && !orderErpCustomerCode(order)) {
+      if (bulkFormat === 'xml' && requiresCustomerCode(store) && !orderErpCustomerCode(order)) {
         toast.error(`Pedido #${order.orderNumber}: cliente sem código do ERP — XML não gerado.`);
         continue;
       }
@@ -567,6 +567,7 @@ export default function StoreAdminPage() {
   const [useStockIntegration, setUseStockIntegration] = useState(false);
   const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [allowCustomerSignup, setAllowCustomerSignup] = useState(true);
+  const [requireCustomerCodeForDownload, setRequireCustomerCodeForDownload] = useState(false);
   const [requireLoginToBrowse, setRequireLoginToBrowse] = useState(false);
   const [approvalSupportWhatsapp, setApprovalSupportWhatsapp] = useState('');
   const [erpWhatsapp, setErpWhatsapp] = useState('');
@@ -640,6 +641,7 @@ export default function StoreAdminPage() {
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
     setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setAllowCustomerSignup((store.settings as any)?.allowCustomerSignup !== false);
+    setRequireCustomerCodeForDownload(requiresCustomerCode(store));
     setRequireLoginToBrowse((store.settings as any)?.requireLoginToBrowse === true);
     setApprovalSupportWhatsapp(String((store.settings as any)?.approvalSupportWhatsapp || ''));
     setErpWhatsapp(String((store.settings as any)?.erpReleaseWhatsapp || ''));
@@ -956,6 +958,7 @@ export default function StoreAdminPage() {
           useStockIntegration,
           useBlingIntegration,
           allowCustomerSignup,
+          requireCustomerCodeForDownload,
           requireLoginToBrowse,
           approvalSupportWhatsapp: approvalSupportWhatsapp.replace(/\D/g, ''),
           erpReleaseWhatsapp: erpWhatsapp.replace(/\D/g, ''),
@@ -2375,6 +2378,16 @@ export default function StoreAdminPage() {
                   <Input value={approvalSupportWhatsapp} onChange={e => setApprovalSupportWhatsapp(e.target.value)} placeholder="(47) 99210-1332" />
                 </div>
                 <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>Salvar</Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Download de arquivo (XML)</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <label className="flex items-center gap-3 text-sm">
+                  <Switch checked={requireCustomerCodeForDownload} onCheckedChange={setRequireCustomerCodeForDownload} />
+                  Usar código do cliente para baixar arquivo? {requireCustomerCodeForDownload ? 'Sim' : 'Não'}
+                </label>
+                <p className="text-xs text-muted-foreground">Sim: o XML só é baixado se o cliente tiver código do ERP. Clique em Salvar acima para gravar.</p>
               </CardContent>
             </Card>
             {(store.slug === 'dicolore' || store.slug === 'dicoloresenses') && (
