@@ -63,6 +63,7 @@ interface StoreLike {
 export interface CustomerExtra {
   cpfCnpj?: string;
   sellerCode?: string;
+  sellerName?: string;
   isTelevendas?: boolean;
   discountRules?: DiscountRule[];
   transportadora?: string;
@@ -156,7 +157,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
   <cgcCliente>${escapeXml(formatCgc(cpfCnpj))}</cgcCliente>
   <nomeCliente>${escapeXml(order.customer.name)}</nomeCliente>
   <cgcRepresentante>${escapeXml(onlyDigits(rep.cgc))}</cgcRepresentante>
-  <nomeRepresentante>${escapeXml(rep.nome || '')}</nomeRepresentante>
+  <nomeRepresentante>${escapeXml(extra.sellerName || rep.nome || '')}</nomeRepresentante>
   <codigoRepresentante>${escapeXml(sellerCode)}</codigoRepresentante>
   <pedidoTelevendas>${televendas}</pedidoTelevendas>
   <formaPagamento>${escapeXml(formaCodigo)}</formaPagamento>
