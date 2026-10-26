@@ -9,6 +9,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useSellerMode } from '@/hooks/useSellerMode';
 import { canEditOrder } from '@/lib/orderOwnership';
 import { resolveStorePriceTable } from '@/lib/pricing';
+import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { formatCurrency } from '@/lib/formatters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -59,8 +60,13 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
 
   const release = async () => {
     if (!order) return;
-    const code = String((order.customer as any)?.customerCode || '').trim();
-    if (!code) { toast.error('Cliente sem cadastro no ERP. Cadastre no ERP e sincronize antes de transmitir.'); return; }
+    const c: any = order.customer || {};
+    const issues = getReleaseIssues({ customer: c, items: order.items as any, sellerCode: c.sellerCode || seller.erpCode || '' });
+    if (issues.length) {
+      toast.error(`Pedido continua Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
+      setEditing(true);
+      return;
+    }
     if (!confirm(`Liberar o pedido #${order.orderNumber} para transmissão ao ERP?`)) return;
     // Abre o WhatsApp antes de qualquer await (iOS bloqueia depois).
     const s = store?.settings || {};

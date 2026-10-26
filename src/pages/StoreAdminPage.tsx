@@ -3747,6 +3747,29 @@ export default function StoreAdminPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Pedido incompleto: não libera, continua pendente */}
+      <AlertDialog open={!!releaseIssues} onOpenChange={(open) => { if (!open) setReleaseIssues(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pedido #{releaseIssues?.order?.orderNumber} incompleto</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>O pedido continua <b>Pendente</b>. Complete antes de liberar para transmissão:</p>
+                <ul className="mt-2 list-disc pl-5 text-destructive">
+                  {releaseIssues?.issues.map((i) => <li key={i}>{i}</li>)}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const o = releaseIssues?.order; setReleaseIssues(null); if (o) setEditingOrder(o); }}>
+              Editar pedido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Dicolore: confirmar liberação do pedido para o ERP */}
       <AlertDialog open={!!pendingErpRelease} onOpenChange={(open) => { if (!open) setPendingErpRelease(null); }}>
         <AlertDialogContent>
