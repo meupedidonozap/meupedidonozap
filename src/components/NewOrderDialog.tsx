@@ -303,6 +303,7 @@ export default function NewOrderDialog({
             createdByName: sellerMode.sellerName,
             ownerRole: sellerMode.isTelevendas ? 'televendas' : 'vendedor',
             ownerName: sellerMode.sellerName,
+            ...(!sellerMode.isTelevendas && !(customer as any).sellerCode && sellerMode.sellerCodes[0] ? { sellerCode: String(sellerMode.sellerCodes[0]) } : {}),
             ...(sellerMode.isTelevendas ? { isTelevendas: true, televendasName: sellerMode.sellerName, televendasErpCode: sellerMode.erpCode } : {}),
           } : {}),
         } as any,

@@ -23,6 +23,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder, useDeleteServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
 import { useStoreVisits } from '@/hooks/useStoreVisits';
+import { resolveOrderSellerCode } from '@/lib/orderSellerCode';
+import { useStoreUsers as useStoreUsersForSeller } from '@/hooks/useStoreUsers';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
 import { fetchAddressByCep } from '@/lib/cepLookup';
@@ -246,6 +248,10 @@ export default function StoreAdminPage() {
   // Sellers (Dicolore / Dicolore SENSES)
   const usesSellerRule = ['dicolore', 'dicoloresenses'].includes(store?.slug || '');
   const { data: sellers = [] } = useAllStoreSellers(isAdmin && usesSellerRule ? store?.id : undefined);
+  const { data: sellerStoreUsers = [] } = useStoreUsersForSeller(store?.id);
+  const orderSeller = (order: any) => resolveOrderSellerCode(
+    (findOrderProfile(order, customerProfiles as any[]) as any)?.sellerCode, order?.customer,
+    { storeUsers: sellerStoreUsers as any[], sellers: sellers as any[] });
   const createSeller = useCreateStoreSeller();
   const updateSeller = useUpdateStoreSeller();
   const deleteSeller = useDeleteStoreSeller();
@@ -423,7 +429,8 @@ export default function StoreAdminPage() {
     const cp: any = findOrderProfile(order, customerProfiles as any[]);
     return {
       cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
-      sellerCode: cp?.sellerCode || order.customer.sellerCode || '',
+      sellerCode: orderSeller(order).code,
+      sellerName: orderSeller(order).name,
       isTelevendas,
       kitMap,
       transportadora: cp?.transportadora || order.customer.transportadora || '',
@@ -456,6 +463,10 @@ export default function StoreAdminPage() {
     for (let i = 0; i < list.length; i++) {
       const order = list[i];
       setBulkProgress({ done: i + 1, total: list.length });
+      if (bulkFormat === 'xml' && !orderSeller(order).code) {
+        toast.error(`Pedido #${order.orderNumber}: sem código do vendedor — XML não gerado.`);
+        continue;
+      }
       if (bulkFormat === 'xml' && requiresCustomerCode(store) && !orderErpCustomerCode(order)) {
         toast.error(`Pedido #${order.orderNumber}: cliente sem código do ERP — XML não gerado.`);
         continue;
@@ -3713,6 +3724,10 @@ export default function StoreAdminPage() {
             <Button onClick={async () => {
               if (!downloadOrder) return;
               const order = downloadOrder;
+              if (downloadFormat === 'xml' && !orderSeller(order).code) {
+                toast.error('Pedido sem código do vendedor. Informe o vendedor no cadastro do cliente antes de baixar o XML.');
+                return;
+              }
               if (downloadFormat === 'xml' && requiresCustomerCode(store) && !orderErpCustomerCode(order)) {
                 toast.error('Cliente sem código do ERP. Sincronize o cadastro do cliente antes de baixar o XML.');
                 return;
