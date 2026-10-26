@@ -129,6 +129,11 @@ def post(payload, tries=2):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--somente-pedidos", action="store_true")
+    parser.add_argument("--somente-boletos", action="store_true",
+                        help="Envia só os PDFs de boletos dos títulos em aberto.")
+    parser.add_argument("--nota", action="append", help="NF do boleto; pode repetir. Ignora datas.")
+    parser.add_argument("--boletos-dias", type=int, default=None,
+                        help="Só boletos de títulos emitidos nos últimos N dias (monitor usa 30).")
     parser.add_argument("--dias", type=int, default=int(os.getenv("PEDIDOS_DIAS", "15")))
     parser.add_argument("--pedido", action="append", help="Código ERP; pode repetir. Ignora --dias.")
     parser.add_argument("--pendentes", action="store_true",
@@ -174,6 +179,8 @@ def run_connected(conn, args):
     register_safe_temporals(conn)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+    if args.somente_boletos or args.nota:
+        return sync_boletos(cur, notas=args.nota, dias_emissao=args.boletos_dias)
     if args.somente_pedidos or args.pedido:
         return sync_pedidos(conn, cur, args)
 
@@ -195,8 +202,15 @@ def run_connected(conn, args):
         log(f"Notas {i + 1}-{i + len(chunk)}: {res.get('invoicesUpserted')} gravadas")
 
     # 3) Boletos dos títulos em aberto/vencidos
-    cur.execute(
-        """
+    sync_boletos(cur, notas=args.nota, dias_emissao=args.boletos_dias)
+
+    sync_pedidos(conn, cur, args)
+
+
+def sync_boletos(cur, notas=None, dias_emissao=None):
+    """Envia os PDFs da dw_arquivo_boleto dos títulos não pagos.
+    notas: lista de NFs (ignora datas). dias_emissao: só títulos emitidos nos últimos N dias."""
+    sql = """
         SELECT b.empresa::text AS filial_codigo, b.nota::text AS nota,
                b.serie::text AS serie, b.parcela::text AS parcela, b.arquivo
           FROM dw_arquivo_boleto b
@@ -205,31 +219,46 @@ def run_connected(conn, args):
            AND t.parcela = b.serie::text || b.parcela::text
            AND t.filial_codigo = b.empresa::text
          WHERE t.status <> 'PAGO'
-           AND t.data_vencimento >= current_date - %s
-        """,
-        (BOLETO_DIAS_ATRAS,),
-    )
-    batch, total = [], 0
-    for row in cur:
+    """
+    params = []
+    if notas:
+        sql += " AND b.nota::text = ANY(%s)"
+        params.append([n.strip() for n in notas])
+        log(f"Boletos: buscando NF {', '.join(params[0])}...")
+    else:
+        sql += " AND t.data_vencimento >= current_date - %s"
+        params.append(BOLETO_DIAS_ATRAS)
+        if dias_emissao:
+            sql += " AND t.data_emissao >= current_date - %s"
+            params.append(dias_emissao)
+            log(f"Boletos: títulos em aberto emitidos nos últimos {dias_emissao} dias...")
+        else:
+            log("Boletos: todos os títulos em aberto...")
+    cur.execute(sql, params)
+    batch, total, lidos = [], 0, 0
+
+    def flush():
+        nonlocal total, batch
+        if not batch:
+            return
+        res = post({"store_slug": STORE_SLUG, "boletos": batch})
+        total += res.get("boletosSaved", 0)
+        for err in res.get("boletoErrors", []):
+            log(f"  aviso: {err}")
+        batch = []
+
+    for row in cur.fetchall():
+        lidos += 1
         batch.append({
             "filial_codigo": row["filial_codigo"], "nota": row["nota"],
             "serie": row["serie"], "parcela": row["parcela"],
             "arquivo_base64": base64.b64encode(bytes(row["arquivo"])).decode(),
         })
         if len(batch) >= BOLETOS_BATCH:
-            res = post({"store_slug": STORE_SLUG, "boletos": batch})
-            total += res.get("boletosSaved", 0)
-            for err in res.get("boletoErrors", []):
-                log(f"  aviso: {err}")
-            batch = []
-    if batch:
-        res = post({"store_slug": STORE_SLUG, "boletos": batch})
-        total += res.get("boletosSaved", 0)
-        for err in res.get("boletoErrors", []):
-            log(f"  aviso: {err}")
-    log(f"{total} boletos enviados")
-
-    sync_pedidos(conn, cur, args)
+            flush()
+    flush()
+    log(f"Boletos: {lidos} lidos no ERP, {total} gravados na plataforma")
+    return total
 
 
 def normalize_order(row):
