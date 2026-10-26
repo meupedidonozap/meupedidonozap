@@ -155,6 +155,13 @@ function findOrderProfile(order: any, profiles: any[]): any {
 }
 
 
+
+/** Exige código do cliente para baixar XML? Padrão: só DiColore. */
+export function requiresCustomerCode(store?: { slug?: string; settings?: any } | null): boolean {
+  const v = (store?.settings as any)?.requireCustomerCodeForDownload;
+  return typeof v === 'boolean' ? v : store?.slug === 'dicolore';
+}
+
 export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -3706,7 +3713,7 @@ export default function StoreAdminPage() {
             <Button onClick={async () => {
               if (!downloadOrder) return;
               const order = downloadOrder;
-              if (downloadFormat === 'xml' && !orderErpCustomerCode(order)) {
+              if (downloadFormat === 'xml' && requiresCustomerCode(store) && !orderErpCustomerCode(order)) {
                 toast.error('Cliente sem código do ERP. Sincronize o cadastro do cliente antes de baixar o XML.');
                 return;
               }
