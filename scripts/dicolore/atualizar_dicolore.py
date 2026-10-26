@@ -161,12 +161,27 @@ def iniciar_status_pedidos_em_segundo_plano() -> bool:
         log.info("[status-pedidos] Busca anterior ainda em andamento; aguardando.")
         return False
     log.info("[status-pedidos] Buscando OF/NF no ERP (segundo plano)...")
-    _status_thread = threading.Thread(target=sincronizar_status_pedidos, daemon=True)
+    _status_thread = threading.Thread(target=_status_e_boletos, daemon=True)
     _status_thread.start()
     return True
 
 
-def sincronizar_status_pedidos() -> bool:
+_ultimo_boletos = 0.0
+MONITOR_INTERVALO_BOLETOS = _env_int("MONITOR_INTERVALO_BOLETOS", 1800)
+
+
+def _status_e_boletos():
+    """Depois do OF/NF, envia os boletos novos (a cada 30 min por padrão)."""
+    global _ultimo_boletos
+    sincronizar_status_pedidos()
+    if time.monotonic() - _ultimo_boletos >= MONITOR_INTERVALO_BOLETOS or _ultimo_boletos == 0.0:
+        _ultimo_boletos = time.monotonic()
+        log.info("[boletos] Enviando boletos dos títulos emitidos nos últimos 30 dias...")
+        sincronizar_status_pedidos(["--somente-boletos", "--boletos-dias",
+                                    str(_env_int("MONITOR_BOLETOS_DIAS", 30))], "boletos")
+
+
+def sincronizar_status_pedidos(extra=None, tag="status-pedidos") -> bool:
     """Envia ao MPZ os pedidos do ERP com OF/NF atualizadas (bolinhas da aba Pedidos)."""
     import subprocess
     if not SYNC_PEDIDOS_ERP.exists():
@@ -184,7 +199,7 @@ def sincronizar_status_pedidos() -> bool:
             lines.put(None)
     try:
         process = subprocess.Popen(
-            [sys.executable, "-u", str(SYNC_PEDIDOS_ERP), "--somente-pedidos", "--pendentes"],
+            [sys.executable, "-u", str(SYNC_PEDIDOS_ERP)] + (extra or ["--somente-pedidos", "--pendentes"]),
             cwd=str(_BASE), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, encoding="utf-8", errors="replace", bufsize=1)
         if process.stdout is None:
@@ -203,7 +218,7 @@ def sincronizar_status_pedidos() -> bool:
             if line is None:
                 break
             if line:
-                log.info("[status-pedidos] %s", line)
+                log.info("[%s] %s", tag, line)
         code = process.wait(timeout=5)
         if code != 0:
             log.error("[status-pedidos] Encerrado com erro (código %s); confira a etapa acima.", code)
