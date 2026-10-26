@@ -479,6 +479,7 @@ export default function CheckoutPage() {
             ie: (customerProfile as any)?.ie || undefined,
             transportadora: (customerProfile as any)?.transportadora || undefined,
           } : {}),
+          ...(user?.email ? { createdByUserEmail: user.email } : {}),
           ...(seller.sellerName ? {
             createdByName: seller.sellerName,
             createdByRole: seller.isTelevendas ? 'televendas' : (seller.isSeller ? 'vendedor' : undefined),
