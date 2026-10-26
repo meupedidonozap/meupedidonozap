@@ -24,6 +24,7 @@ import { useServiceOrders, useCreateServiceOrder, useDeleteServiceOrder } from '
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
 import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { resolveOrderSellerCode } from '@/lib/orderSellerCode';
+import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { useStoreUsers as useStoreUsersForSeller } from '@/hooks/useStoreUsers';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
@@ -610,6 +611,7 @@ export default function StoreAdminPage() {
 
   // Dicolore: confirmação para liberar pedido ao ERP via WhatsApp
   const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number; priceTable?: string } | null>(null);
+  const [releaseIssues, setReleaseIssues] = useState<{ order: any; issues: string[] } | null>(null);
   const [erpWhatsappByTable, setErpWhatsappByTable] = useState<Record<string, string>>({});
   const resolveErpWhatsapp = (priceTable?: string) => {
     const s = (store?.settings as any) || {};
@@ -1805,8 +1807,9 @@ export default function StoreAdminPage() {
                             <div className="flex items-center gap-1">
                               <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
                                 if (['dicolore', 'dicoloresenses'].includes(store.slug) && value === 'liberado_transmissao') {
-                                  if (!orderErpCustomerCode(order)) {
-                                    toast.error('Cliente sem cadastro no ERP. Baixe o XML do cliente, cadastre no ERP e sincronize antes de transmitir.');
+                                  const issues = getReleaseIssues({ customer: order.customer, items: order.items as any, customerCode: orderErpCustomerCode(order), sellerCode: orderSeller(order).code });
+                                  if (issues.length) {
+                                    setReleaseIssues({ order, issues });
                                     return;
                                   }
                                   setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber, priceTable: (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : undefined });
