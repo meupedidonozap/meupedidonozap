@@ -170,16 +170,17 @@ _ultimo_boletos = 0.0
 MONITOR_INTERVALO_BOLETOS = _env_int("MONITOR_INTERVALO_BOLETOS", 1800)
 
 
-def _status_e_boletos():
-    """Depois do OF/NF, envia os boletos novos (a cada 30 min por padrão)."""
+def _status_e_boletos() -> bool:
+    """Depois do OF/NF, envia títulos, notas e boletos (a cada 30 min por padrão)."""
     global _ultimo_boletos
-    sincronizar_status_pedidos()
+    ok = sincronizar_status_pedidos()
     if time.monotonic() - _ultimo_boletos >= MONITOR_INTERVALO_BOLETOS or _ultimo_boletos == 0.0:
         _ultimo_boletos = time.monotonic()
         log.info("[boletos] Enviando títulos, notas fiscais e boletos dos últimos %s dias...",
                  _env_int("MONITOR_BOLETOS_DIAS", 30))
         sincronizar_status_pedidos(["--somente-boletos", "--boletos-dias",
                                     str(_env_int("MONITOR_BOLETOS_DIAS", 30))], "boletos")
+    return ok
 
 
 def sincronizar_status_pedidos(extra=None, tag="status-pedidos") -> bool:
@@ -868,7 +869,7 @@ if __name__ == "__main__":
     if args.monitorar and args.tarefa == "pedidos":
         sys.exit(_loop_dedicado("pedidos-erp", MONITOR_INTERVALO_PEDIDOS_DEDICADO, lambda: transmitir_pedidos()))
     if args.monitorar and args.tarefa == "status":
-        sys.exit(_loop_dedicado("status-pedidos", MONITOR_INTERVALO_STATUS_PEDIDOS, sincronizar_status_pedidos))
+        sys.exit(_loop_dedicado("status-pedidos", MONITOR_INTERVALO_STATUS_PEDIDOS, _status_e_boletos))
 
     if args.transmitir_pedidos or args.dry_pedidos:
         sys.exit(0 if transmitir_pedidos(dry=args.dry_pedidos) else 1)
