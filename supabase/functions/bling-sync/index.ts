@@ -107,10 +107,38 @@ async function saldos(token: string, ids: (string | number)[]) {
 
 type ImgJob = { productId: string; links: string[]; label: string | null; keep?: string[] };
 
+// Categoria do Bling -> categoria da loja no MPZ (cria se não existir, casa pelo nome).
+async function categoryResolver(storeId: string, token: string) {
+  const { data: cats } = await admin.from('categories').select('id, name, sort_order').eq('store_id', storeId);
+  const byName = new Map((cats ?? []).map((c: any) => [norm(c.name), c.id as string]));
+  let order = Math.max(0, ...(cats ?? []).map((c: any) => c.sort_order ?? 0));
+  const byBlingId = new Map<string, string | null>();
+  return async (cat: any): Promise<string | null> => {
+    const bid = String(cat?.id ?? '');
+    if (!bid || bid === '0') return null;
+    if (byBlingId.has(bid)) return byBlingId.get(bid)!;
+    let name = String(cat?.descricao ?? cat?.nome ?? '').trim();
+    if (!name) {
+      try { const r = (await bling(token, `/categorias/produtos/${bid}`))?.data; name = String(r?.descricao ?? r?.nome ?? '').trim(); } catch (_) { /* ignora */ }
+      await wait(350);
+    }
+    if (!name) { byBlingId.set(bid, null); return null; }
+    let id = byName.get(norm(name)) ?? null;
+    if (!id) {
+      const { data: ins } = await admin.from('categories').insert({ store_id: storeId, name: name.slice(0, 120), sort_order: ++order }).select('id').single();
+      id = ins?.id ?? null;
+      if (id) byName.set(norm(name), id);
+    }
+    byBlingId.set(bid, id);
+    return id;
+  };
+}
+
 // Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
 // withPrice=false (automático): atualiza tudo menos preço de itens já existentes.
 async function productsBatch(storeId: string, ids: string[], withPrice = true) {
   const token = await getToken(storeId);
+  const resolveCat = await categoryResolver(storeId, token);
   let created = 0, updated = 0, variants = 0, failed = 0;
   const variantCodes: string[] = [], images: ImgJob[] = [], errors: string[] = [];
   for (const id of ids) {
@@ -122,6 +150,8 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
     const price = Number(det.preco ?? 0) || 0;
     const desc = String(det.descricaoCurta ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
     const unit = String(det.unidade || '').trim().slice(0, 10) || undefined;
+    const catId = await resolveCat(det.categoria);
+    const catPatch = catId ? { category_id: catId } : {};
     const variacoes: any[] = det.formato === 'V' ? (det.variacoes ?? []).filter((v: any) => v?.codigo && v.situacao !== 'E') : [];
 
     if (det.formato === 'V' && variacoes.length) {
