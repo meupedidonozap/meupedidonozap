@@ -333,7 +333,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
           <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
             <TabsList className={`grid w-full ${(showCodeTab ? 1 : 0) + 1 + (allowSignup ? 1 : 0) === 3 ? 'grid-cols-3' : (showCodeTab || allowSignup) ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {showCodeTab && <TabsTrigger value="code">Código/Usuário</TabsTrigger>}
-              <TabsTrigger value="login">Entrar</TabsTrigger>
+              <TabsTrigger value="login">{showCodeTab ? 'Repres./Admin' : 'Entrar'}</TabsTrigger>
               {allowSignup && <TabsTrigger value="register">Cadastrar</TabsTrigger>}
             </TabsList>
             {showCodeTab && <TabsContent value="code">
