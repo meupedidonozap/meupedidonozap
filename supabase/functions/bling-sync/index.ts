@@ -107,10 +107,38 @@ async function saldos(token: string, ids: (string | number)[]) {
 
 type ImgJob = { productId: string; links: string[]; label: string | null; keep?: string[] };
 
+// Categoria do Bling -> categoria da loja no MPZ (cria se não existir, casa pelo nome).
+async function categoryResolver(storeId: string, token: string) {
+  const { data: cats } = await admin.from('categories').select('id, name, sort_order').eq('store_id', storeId);
+  const byName = new Map((cats ?? []).map((c: any) => [norm(c.name), c.id as string]));
+  let order = Math.max(0, ...(cats ?? []).map((c: any) => c.sort_order ?? 0));
+  const byBlingId = new Map<string, string | null>();
+  return async (cat: any): Promise<string | null> => {
+    const bid = String(cat?.id ?? '');
+    if (!bid || bid === '0') return null;
+    if (byBlingId.has(bid)) return byBlingId.get(bid)!;
+    let name = String(cat?.descricao ?? cat?.nome ?? '').trim();
+    if (!name) {
+      try { const r = (await bling(token, `/categorias/produtos/${bid}`))?.data; name = String(r?.descricao ?? r?.nome ?? '').trim(); } catch (_) { /* ignora */ }
+      await wait(350);
+    }
+    if (!name) { byBlingId.set(bid, null); return null; }
+    let id = byName.get(norm(name)) ?? null;
+    if (!id) {
+      const { data: ins } = await admin.from('categories').insert({ store_id: storeId, name: name.slice(0, 120), sort_order: ++order }).select('id').single();
+      id = ins?.id ?? null;
+      if (id) byName.set(norm(name), id);
+    }
+    byBlingId.set(bid, id);
+    return id;
+  };
+}
+
 // Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
 // withPrice=false (automático): atualiza tudo menos preço de itens já existentes.
 async function productsBatch(storeId: string, ids: string[], withPrice = true) {
   const token = await getToken(storeId);
+  const resolveCat = await categoryResolver(storeId, token);
   let created = 0, updated = 0, variants = 0, failed = 0;
   const variantCodes: string[] = [], images: ImgJob[] = [], errors: string[] = [];
   for (const id of ids) {
@@ -122,6 +150,8 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
     const price = Number(det.preco ?? 0) || 0;
     const desc = String(det.descricaoCurta ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
     const unit = String(det.unidade || '').trim().slice(0, 10) || undefined;
+    const catId = await resolveCat(det.categoria);
+    const catPatch = catId ? { category_id: catId } : {};
     const variacoes: any[] = det.formato === 'V' ? (det.variacoes ?? []).filter((v: any) => v?.codigo && v.situacao !== 'E') : [];
 
     if (det.formato === 'V' && variacoes.length) {
@@ -135,12 +165,12 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
       const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
       let pid = ex?.id as string | undefined;
       if (pid) {
-        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
+        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
         updated++;
       } else {
         const { data: ins, error } = await admin.from('products').insert({
           store_id: storeId, code, bling_code: code, name: String(det.nome ?? code).slice(0, 250), description: desc,
-          base_price: parentPrice, price_table_4: parentPrice, stock: total, has_variants: true, is_active: active, ...(unit ? { unit } : {}),
+          base_price: parentPrice, price_table_4: parentPrice, stock: total, has_variants: true, is_active: active, ...catPatch, ...(unit ? { unit } : {}),
         }).select('id').single();
         if (error) { failed++; errors.push(`${code}: ${error.message}`); continue; }
         pid = ins.id; created++;
@@ -179,12 +209,12 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
     if (pid) {
-      await admin.from('products').update({ bling_code: code, stock, is_active: active, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
+      await admin.from('products').update({ bling_code: code, stock, is_active: active, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
       updated++;
     } else {
       const { data: ins, error } = await admin.from('products').insert({
         store_id: storeId, code, bling_code: code, name: String(det.nome ?? code).slice(0, 250), description: desc,
-        base_price: price, price_table_4: price, stock, is_active: active, ...(unit ? { unit } : {}),
+        base_price: price, price_table_4: price, stock, is_active: active, ...catPatch, ...(unit ? { unit } : {}),
       }).select('id').single();
       if (error) { failed++; errors.push(`${code}: ${error.message}`); continue; }
       pid = ins.id; created++;
