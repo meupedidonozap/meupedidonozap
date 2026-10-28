@@ -1,3 +1,4 @@
+import { effectiveMinOrder } from '@/lib/minOrder';
 import { useState, useMemo, useEffect } from 'react';
 
 import { Helmet } from 'react-helmet-async';
@@ -553,7 +554,7 @@ export default function ProductStorePage() {
                     <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{formatCurrency(cart.total)}</span></div>
                   </div>
                   {(() => {
-                    const minOrder = store.settings?.minOrderValue || 0;
+                    const minOrder = effectiveMinOrder(store, !!isSellerMode);
                     const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
                     const missing = Math.max(0, minOrder - effectiveTotal);
                     if (minOrder > 0 && missing > 0) {
@@ -578,7 +579,7 @@ export default function ProductStorePage() {
                       )
                     )}
                     {(() => {
-                      const minOrder = store.settings?.minOrderValue || 0;
+                      const minOrder = effectiveMinOrder(store, !!isSellerMode);
                       const effectiveTotal = cart.subtotal - (cart.quantityDiscount || 0);
                       const belowMin = minOrder > 0 && effectiveTotal < minOrder;
                       return belowMin ? (
