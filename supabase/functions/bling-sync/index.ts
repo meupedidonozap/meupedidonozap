@@ -165,12 +165,12 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
       const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
       let pid = ex?.id as string | undefined;
       if (pid) {
-        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
+        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
         updated++;
       } else {
         const { data: ins, error } = await admin.from('products').insert({
           store_id: storeId, code, bling_code: code, name: String(det.nome ?? code).slice(0, 250), description: desc,
-          base_price: parentPrice, price_table_4: parentPrice, stock: total, has_variants: true, is_active: active, ...(unit ? { unit } : {}),
+          base_price: parentPrice, price_table_4: parentPrice, stock: total, has_variants: true, is_active: active, ...catPatch, ...(unit ? { unit } : {}),
         }).select('id').single();
         if (error) { failed++; errors.push(`${code}: ${error.message}`); continue; }
         pid = ins.id; created++;
@@ -209,12 +209,12 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
     if (pid) {
-      await admin.from('products').update({ bling_code: code, stock, is_active: active, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
+      await admin.from('products').update({ bling_code: code, stock, is_active: active, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
       updated++;
     } else {
       const { data: ins, error } = await admin.from('products').insert({
         store_id: storeId, code, bling_code: code, name: String(det.nome ?? code).slice(0, 250), description: desc,
-        base_price: price, price_table_4: price, stock, is_active: active, ...(unit ? { unit } : {}),
+        base_price: price, price_table_4: price, stock, is_active: active, ...catPatch, ...(unit ? { unit } : {}),
       }).select('id').single();
       if (error) { failed++; errors.push(`${code}: ${error.message}`); continue; }
       pid = ins.id; created++;
