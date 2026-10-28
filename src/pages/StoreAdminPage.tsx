@@ -349,11 +349,9 @@ export default function StoreAdminPage() {
   const pendingCustomersCount = useMemo(() => scopedCustomerProfiles.filter((cp: any) => cp.approvalStatus === 'pending').length, [scopedCustomerProfiles]);
   const scopedOrders = useMemo(() => {
     if (!restrictBySeller) return orders;
-    return orders.filter((o: any) => {
-      const code = whatsappToSellerCode.get(last8(o?.customer?.whatsapp || ''));
-      return code ? sellerCodeSet.has(code) : false;
-    });
-  }, [orders, restrictBySeller, sellerCodeSet, whatsappToSellerCode]);
+    const inPortfolio = buildPortfolioMatcher(customerProfiles as any[], userSellerCodes || []);
+    return orders.filter(inPortfolio);
+  }, [orders, restrictBySeller, customerProfiles, userSellerCodes]);
 
   // Visits analytics state
   const [visitsStartDate, setVisitsStartDate] = useState<Date | undefined>(() => {
