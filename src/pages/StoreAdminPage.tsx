@@ -1,3 +1,4 @@
+import { buildPortfolioMatcher } from '@/lib/orderPortfolio';
 import { getOrderCreator, CREATOR_LABEL } from '@/lib/orderCreator';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { BlingConnectCard } from '@/components/BlingConnectCard';
@@ -738,13 +739,13 @@ export default function StoreAdminPage() {
 
   // Filter orders by date range
   const filteredOrders = useMemo(() => {
-    return orders.filter(o => {
+    return scopedOrders.filter(o => {
       const d = new Date(o.createdAt);
       if (startDate && d < startOfDay(startDate)) return false;
       if (endDate && d > endOfDay(endDate)) return false;
       return true;
     });
-  }, [orders, startDate, endDate]);
+  }, [scopedOrders, startDate, endDate]);
 
   const stats = useMemo(() => {
     const isServicos = store?.type === 'SERVICOS';
