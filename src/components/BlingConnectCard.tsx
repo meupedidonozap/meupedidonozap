@@ -89,6 +89,13 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
       {connected && (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Sincronizar (inclui preços)</Button>
+          <Button size="sm" variant="destructive" disabled={busy} onClick={async () => {
+            if (!confirm('Isso EXCLUI todos os produtos, variantes e fotos desta loja e importa tudo de novo do Bling. Continuar?')) return;
+            setBusy(true); setMsg('Excluindo produtos...');
+            try { const r = await call({ action: 'clear_products' }); setMsg(`${r.deleted} produtos excluídos. Importando do Bling...`); }
+            catch (e) { setMsg('Erro: ' + (e as Error).message); setBusy(false); return; }
+            await importProducts();
+          }}>Limpar tudo e reimportar</Button>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Importar clientes</Button>
         </div>
       )}
