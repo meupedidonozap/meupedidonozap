@@ -410,7 +410,7 @@ export default function CustomerAuthDialog({
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {step === "auth" && (allowSignup ? "Entrar ou Cadastrar" : "Entrar")}
+            {step === "auth" && (allowSignup ? "Entrar ou Cadastrar" : "Confirmar")}
             {step === "profile" && "Complete seu Cadastro"}
             {step === "forgot" && "Redefinir Senha"}
           </DialogTitle>
@@ -422,7 +422,7 @@ export default function CustomerAuthDialog({
               className={`grid w-full ${(showCodeTab ? 1 : 0) + 1 + (allowSignup ? 1 : 0) === 3 ? "grid-cols-3" : showCodeTab || allowSignup ? "grid-cols-2" : "grid-cols-1"}`}
             >
               {showCodeTab && <TabsTrigger value="code">Código/Usuário</TabsTrigger>}
-              <TabsTrigger value="login">{showCodeTab ? "Repres./Admin" : "Entrar"}</TabsTrigger>
+              <TabsTrigger value="login">{showCodeTab ? "Repres./Admin" : "Confirmar"}</TabsTrigger>
               {allowSignup && <TabsTrigger value="register">Cadastrar</TabsTrigger>}
             </TabsList>
             {showCodeTab && (
