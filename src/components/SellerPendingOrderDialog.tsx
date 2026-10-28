@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Pencil, Send, Lock, Save } from 'lucide-react';
+import { Loader2, Pencil, Send, Lock, Save, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { mapOrder } from '@/hooks/useOrders';
-import { useProducts } from '@/hooks/useProducts';
-import { useCategories } from '@/hooks/useCategories';
 import { useSellerMode } from '@/hooks/useSellerMode';
 import { canEditOrder } from '@/lib/orderOwnership';
-import { resolveStorePriceTable } from '@/lib/pricing';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { formatCurrency } from '@/lib/formatters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import EditOrderDialog from '@/components/EditOrderDialog';
+import { useNavigate } from 'react-router-dom';
+import { useSellerContext } from '@/contexts/SellerContext';
+import { useCart } from '@/contexts/CartContext';
+import { mapProfile } from '@/hooks/useCustomerProfile';
+import { setEditingQuote } from '@/lib/quoteEditing';
+import { claimCustomerOrder } from '@/lib/orderOwnership';
 import type { Order } from '@/types';
 
 type Props = { orderId: string | null; store: any; onClose: () => void };
@@ -22,9 +24,9 @@ type Props = { orderId: string | null; store: any; onClose: () => void };
 export default function SellerPendingOrderDialog({ orderId, store, onClose }: Props) {
   const qc = useQueryClient();
   const seller = useSellerMode(store?.id);
-  const { data: products = [] } = useProducts(orderId ? store?.id : undefined);
-  const { data: categories = [] } = useCategories(orderId ? store?.id : undefined);
-  const [editing, setEditing] = useState(false);
+  const navigate = useNavigate();
+  const { selectCustomer } = useSellerContext();
+  const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [obs, setObs] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -58,13 +60,52 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
     refresh();
   };
 
+  // Abre o pedido na MESMA tela de criação (catálogo + carrinho), já com os itens.
+  // goToCheckout=true leva direto à finalização, onde o vendedor pode trocar o cliente.
+  const openEditor = async (goToCheckout = false) => {
+    if (!order || !store) return;
+    setBusy(true);
+    try {
+      const c: any = order.customer || {};
+      const claimed = claimCustomerOrder(order.customer as any, viewer as any);
+      if (claimed !== order.customer) {
+        const { error: cErr } = await supabase.from('orders').update({ customer: claimed } as any).eq('id', order.id).select().single();
+        if (cErr) throw cErr;
+      }
+      let profile: any = null;
+      if (c.customerCode) {
+        const { data } = await supabase.from('customer_profiles').select('*').eq('store_id', store.id).eq('customer_code', c.customerCode).limit(1);
+        profile = data?.[0];
+      }
+      if (!profile && c.cpfCnpj) {
+        const { data } = await supabase.from('customer_profiles').select('*').eq('store_id', store.id).eq('cpf_cnpj', c.cpfCnpj).limit(1);
+        profile = data?.[0];
+      }
+      if (profile) selectCustomer({ ...mapProfile(profile), customerCode: profile.customer_code || undefined });
+      else if (!goToCheckout) throw new Error('Cliente do pedido não encontrado no cadastro. Use "Trocar cliente".');
+      setCartStore(store.id);
+      clearCart();
+      for (const it of (order.items as any[]) || []) {
+        if (it?.productId) addItem({ ...it, discountPercent: undefined });
+      }
+      setEditingQuote({ id: order.id, storeId: store.id, customerName: profile?.name || c.name || 'Pedido' });
+      toast.success(goToCheckout ? 'Escolha o novo cliente e salve o pedido' : 'Pedido carregado para edição');
+      onClose();
+      navigate(goToCheckout ? `/${store.slug}/checkout` : `/${store.slug}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao abrir o pedido');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const release = async () => {
     if (!order) return;
     const c: any = order.customer || {};
     const issues = getReleaseIssues({ customer: c, items: order.items as any, sellerCode: c.sellerCode || seller.erpCode || '' });
     if (issues.length) {
       toast.error(`Pedido continua Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
-      setEditing(true);
+      openEditor(false);
       return;
     }
     if (!confirm(`Liberar o pedido #${order.orderNumber} para transmissão ao ERP?`)) return;
@@ -82,13 +123,9 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
     onClose();
   };
 
-  const priceTable = order
-    ? resolveStorePriceTable(store?.slug, (order.customer as any)?.priceTable)
-    : undefined;
-
   return (
     <>
-      <Dialog open={!!orderId && !editing} onOpenChange={(o) => !o && onClose()}>
+      <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           {isLoading || !order ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : (
             <>
@@ -121,7 +158,8 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
               {editable ? (
                 <div className="grid gap-2 sm:flex sm:justify-end">
                   <Button variant="outline" disabled={busy} onClick={saveObs}><Save className="mr-1 h-4 w-4" /> Salvar observação</Button>
-                  <Button variant="secondary" disabled={busy} onClick={() => setEditing(true)}><Pencil className="mr-1 h-4 w-4" /> Editar itens</Button>
+                  <Button variant="outline" disabled={busy} onClick={() => openEditor(true)}><UserRound className="mr-1 h-4 w-4" /> Trocar cliente</Button>
+                  <Button variant="secondary" disabled={busy} onClick={() => openEditor(false)}><Pencil className="mr-1 h-4 w-4" /> Editar pedido</Button>
                   <Button disabled={busy} onClick={release}><Send className="mr-1 h-4 w-4" /> Liberar p/ transmissão</Button>
                 </div>
               ) : (
@@ -134,17 +172,6 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
           )}
         </DialogContent>
       </Dialog>
-      <EditOrderDialog
-        open={editing}
-        onOpenChange={(v) => { if (!v) { setEditing(false); refresh(); } }}
-        order={(order as Order) || null}
-        products={products as any}
-        discountRules={store?.settings?.discountRules || []}
-        categories={categories as any}
-        materialApoio={store?.settings?.materialApoio}
-        store={store}
-        priceTable={priceTable as any}
-      />
     </>
   );
 }
