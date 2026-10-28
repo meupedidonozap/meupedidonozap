@@ -388,6 +388,22 @@ Deno.serve(async (req) => {
     }
     if (action === 'images_batch') return json(await imagesBatch(storeId, Array.isArray(body.jobs) ? body.jobs : []));
     if (action === 'customers') return json(await syncCustomers(storeId));
+    if (action === 'clear_products') {
+      const { data: ps } = await admin.from('products').select('id').eq('store_id', storeId);
+      const ids = (ps ?? []).map((p: any) => p.id);
+      for (let i = 0; i < ids.length; i += 100) {
+        const chunk = ids.slice(i, i + 100);
+        await admin.from('product_kit_items').delete().in('kit_product_id', chunk);
+        await admin.from('product_kit_items').delete().in('component_product_id', chunk);
+        await admin.from('product_images').delete().in('product_id', chunk);
+        await admin.from('product_variants').delete().in('product_id', chunk);
+        await admin.from('product_assembly').delete().in('product_id', chunk);
+        const { error } = await admin.from('products').delete().in('id', chunk);
+        if (error) return json({ error: 'Falha ao excluir: ' + error.message });
+      }
+      await admin.from('bling_connections').update({ last_product_sync_at: null, pending_product_ids: [] }).eq('store_id', storeId);
+      return json({ deleted: ids.length });
+    }
     if (action === 'set_status') {
       const pid = String(body.product_id || '');
       const { data: p } = await admin.from('products').select('code, bling_code').eq('id', pid).eq('store_id', storeId).maybeSingle();
