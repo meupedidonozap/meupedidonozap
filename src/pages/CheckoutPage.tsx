@@ -114,6 +114,9 @@ export default function CheckoutPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
+  useEffect(() => {
+    if (hasOpenCustomerDraft(store?.id)) setSellerCustomerDialogOpen(true);
+  }, [store?.id]);
   const [onlineCheckout, setOnlineCheckout] = useState<any>(null);
 
   // Dicolore ERP payment codes
