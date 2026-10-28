@@ -1,5 +1,6 @@
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { useState, useEffect, useRef } from 'react';
+import { hasOpenCustomerDraft } from '@/lib/customerDraft';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
