@@ -141,6 +141,13 @@
       "when": 1793035477511,
       "tag": "0019_block_incomplete_release",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793189188572,
+      "tag": "0020_restrict_kitchen_orders_policy",
+      "breakpoints": true
     }
   ]
 }
