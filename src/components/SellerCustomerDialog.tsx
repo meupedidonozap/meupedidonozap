@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { loadCustomerDraft, saveCustomerDraft, clearCustomerDraft } from '@/lib/customerDraft';
 import { Search, UserPlus, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,12 +27,13 @@ interface Props {
   onSelected: (customer: SellerCustomer) => void;
 }
 
-export default function SellerCustomerDialog({ open, onOpenChange, storeId, storeSlug, sellerCodes, onSelected }: Props) {
+export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenChange, storeId, storeSlug, sellerCodes, onSelected }: Props) {
   const defaultPriceTable = resolveStorePriceTable(storeSlug);
   const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId);
   const createCustomer = useCreateCustomerProfileAdmin();
-  const [search, setSearch] = useState('');
-  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [draft] = useState(() => loadCustomerDraft(storeId));
+  const [search, setSearch] = useState(draft?.search ?? '');
+  const [mode, setMode] = useState<'existing' | 'new'>(draft?.mode ?? 'existing');
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [duplicate, setDuplicate] = useState<string | null>(null);
 
@@ -46,11 +48,36 @@ export default function SellerCustomerDialog({ open, onOpenChange, storeId, stor
     setDuplicate(msg);
     return msg;
   };
-  const [form, setForm] = useState({
+  const emptyForm = {
     name: '', whatsapp: '', cpfCnpj: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
     priceTable: String(defaultPriceTable), sellerCode: sellerCodes[0] || '',
-  });
+  };
+  const [form, setForm] = useState<typeof emptyForm>(() => ({ ...emptyForm, ...(draft?.form || {}) }));
+
+  // Guarda o rascunho para não perder o que foi digitado ao sair para outro app.
+  const latest = useRef({ form, mode, search, open });
+  latest.current = { form, mode, search, open };
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => saveCustomerDraft(storeId, latest.current), 300);
+    return () => clearTimeout(t);
+  }, [form, mode, search, open, storeId]);
+  useEffect(() => {
+    const flush = () => { if (latest.current.open) saveCustomerDraft(storeId, latest.current); };
+    const onVis = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pagehide', flush);
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('pagehide', flush); };
+  }, [storeId]);
+
+  const onOpenChange = (o: boolean) => {
+    if (!o) {
+      clearCustomerDraft(storeId);
+      setForm(emptyForm); setSearch(''); setMode('existing'); setDuplicate(null);
+    }
+    parentOnOpenChange(o);
+  };
 
   const scoped = useMemo(() => {
     const codes = new Set(sellerCodes.map(c => c.trim()));
