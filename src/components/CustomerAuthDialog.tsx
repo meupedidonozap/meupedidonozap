@@ -1,23 +1,47 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
-import { fetchAddressByCep } from '@/lib/cepLookup';
-import { formatPhone, formatCEP } from '@/lib/formatters';
-import { buildCustomerEmail, buildCustomerPassword } from '@/lib/customerAuth';
-
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useUpsertCustomerProfile } from "@/hooks/useCustomerProfile";
+import { fetchAddressByCep } from "@/lib/cepLookup";
+import { formatPhone, formatCEP } from "@/lib/formatters";
+import { buildCustomerEmail, buildCustomerPassword } from "@/lib/customerAuth";
 
 const brazilianStates = [
-  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
-  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
 ];
 
 interface CustomerAuthDialogProps {
@@ -34,83 +58,120 @@ interface CustomerAuthDialogProps {
   startAtProfile?: boolean;
 }
 
-type Step = 'auth' | 'profile' | 'forgot';
+type Step = "auth" | "profile" | "forgot";
 
-export function ApprovalNotice({ kind, supportWhatsapp }: { kind: 'success' | 'duplicate' | 'pending'; supportWhatsapp?: string }) {
-  const digits = (supportWhatsapp || '').replace(/\D/g, '');
-  const full = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
+export function ApprovalNotice({
+  kind,
+  supportWhatsapp,
+}: {
+  kind: "success" | "duplicate" | "pending";
+  supportWhatsapp?: string;
+}) {
+  const digits = (supportWhatsapp || "").replace(/\D/g, "");
+  const full = digits ? (digits.startsWith("55") ? digits : `55${digits}`) : "";
   const local = full.slice(2);
   const pretty = local.length >= 10 ? `(${local.slice(0, 2)}) ${local.slice(2)}` : digits;
-  const title = kind === 'success' ? 'CADASTRO REALIZADO COM SUCESSO' : kind === 'duplicate' ? 'CADASTRO JÁ REALIZADO' : 'CADASTRO EM ANÁLISE';
+  const title =
+    kind === "success"
+      ? "CADASTRO REALIZADO COM SUCESSO"
+      : kind === "duplicate"
+        ? "CADASTRO JÁ REALIZADO"
+        : "CADASTRO EM ANÁLISE";
   return (
     <div className="space-y-3 py-2 text-center">
       <p className="text-lg font-bold text-primary">{title}</p>
       <p className="font-medium">Aguarde a aprovação.</p>
       {full && (
         <p className="text-sm text-muted-foreground">
-          Dúvidas? Acesse o contato no WhatsApp{' '}
-          <a className="font-semibold text-primary underline" target="_blank" rel="noopener noreferrer"
-            href={`https://wa.me/${full}?text=${encodeURIComponent('Olá! Fiz meu cadastro na loja e aguardo aprovação.')}`}>{pretty}</a>
+          Dúvidas? Acesse o contato no WhatsApp{" "}
+          <a
+            className="font-semibold text-primary underline"
+            target="_blank"
+            rel="noopener noreferrer"
+            href={`https://wa.me/${full}?text=${encodeURIComponent("Olá! Fiz meu cadastro na loja e aguardo aprovação.")}`}
+          >
+            {pretty}
+          </a>
         </p>
       )}
     </div>
   );
 }
 
-export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeSlug, allowSignup = true, requireApproval = false, startAtProfile = false, supportWhatsapp }: CustomerAuthDialogProps) {
-  const [notice, setNotice] = useState<'success' | 'duplicate' | null>(null);
-  useEffect(() => { if (!open) setNotice(null); }, [open]);
+export default function CustomerAuthDialog({
+  open,
+  onOpenChange,
+  storeId,
+  storeSlug,
+  allowSignup = true,
+  requireApproval = false,
+  startAtProfile = false,
+  supportWhatsapp,
+}: CustomerAuthDialogProps) {
+  const [notice, setNotice] = useState<"success" | "duplicate" | null>(null);
+  useEffect(() => {
+    if (!open) setNotice(null);
+  }, [open]);
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
-  const showCodeTab = storeSlug === 'dicolore' || storeSlug === 'dicoloresenses';
+  const showCodeTab = storeSlug === "dicolore" || storeSlug === "dicoloresenses";
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
-  const [step, setStep] = useState<Step>('auth');
-  const [authTab, setAuthTab] = useState<'code' | 'login' | 'register'>(showCodeTab ? 'code' : 'login');
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [codeLoginData, setCodeLoginData] = useState({ codigo: '', password: '' });
+  const [step, setStep] = useState<Step>("auth");
+  const [authTab, setAuthTab] = useState<"code" | "login" | "register">(showCodeTab ? "code" : "login");
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [codeLoginData, setCodeLoginData] = useState({ codigo: "", password: "" });
   const [showCodePwd, setShowCodePwd] = useState(false);
-  const [registerData, setRegisterData] = useState({ email: '', password: '' });
-  const [forgotEmail, setForgotEmail] = useState('');
+  const [registerData, setRegisterData] = useState({ email: "", password: "" });
+  const [forgotEmail, setForgotEmail] = useState("");
   const [showLoginPwd, setShowLoginPwd] = useState(false);
   const [showRegPwd, setShowRegPwd] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: '', cpfCnpj: '', ie: '', whatsapp: '', cep: '', uf: '', city: '',
-    neighborhood: '', address: '', number: '', complement: '',
+    name: "",
+    cpfCnpj: "",
+    ie: "",
+    whatsapp: "",
+    cep: "",
+    uf: "",
+    city: "",
+    neighborhood: "",
+    address: "",
+    number: "",
+    complement: "",
   });
 
   // Reset step when dialog closes
   useEffect(() => {
     if (!open) {
-      setStep('auth');
+      setStep("auth");
     } else if (startAtProfile) {
-      setStep('profile');
+      setStep("profile");
     }
   }, [open, startAtProfile]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
-      toast.error('Preencha todos os campos');
+      toast.error("Preencha todos os campos");
       return;
     }
     setLoading(true);
     const { error } = await signIn(loginData.email, loginData.password);
     setLoading(false);
     if (error) {
-      toast.error(error.message === 'Invalid login credentials' ? 'Email ou senha incorretos' : error.message);
+      toast.error(error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message);
     } else {
       const { data: authData } = await supabase.auth.getUser();
       const uid = authData.user?.id;
       const { data: prof } = uid
-        ? await supabase.from('customer_profiles').select('id').eq('user_id', uid).eq('store_id', storeId).maybeSingle()
+        ? await supabase.from("customer_profiles").select("id").eq("user_id", uid).eq("store_id", storeId).maybeSingle()
         : { data: null };
       if (!prof && allowSignup) {
-        toast.info('Você ainda não tem cadastro nesta loja. Preencha seus dados.');
-        setStep('profile');
+        toast.info("Você ainda não tem cadastro nesta loja. Preencha seus dados.");
+        setStep("profile");
         return;
       }
-      toast.success('Login realizado!');
+      toast.success("Login realizado!");
       onOpenChange(false);
     }
   };
@@ -120,10 +181,10 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     const codigo = codeLoginData.codigo.trim();
     const password = codeLoginData.password.trim();
     if (!codigo || !password) {
-      toast.error('Preencha código e senha');
+      toast.error("Preencha código e senha");
       return;
     }
-    const slug = (storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || 'loja');
+    const slug = storeSlug || window.location.pathname.split("/").filter(Boolean)[0] || "loja";
     const email = buildCustomerEmail(codigo, slug);
     setLoading(true);
     let { error } = await signIn(email, password);
@@ -137,33 +198,32 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     }
     setLoading(false);
     if (error) {
-      toast.error('Código ou senha incorretos. Confira com o seu representante.');
+      toast.error("Código ou senha incorretos. Confira com o seu representante.");
     } else {
-      toast.success('Login realizado!');
+      toast.success("Login realizado!");
       onOpenChange(false);
     }
   };
 
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registerData.email || !registerData.password) {
-      toast.error('Preencha todos os campos');
+      toast.error("Preencha todos os campos");
       return;
     }
     if (registerData.password.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres');
+      toast.error("A senha deve ter pelo menos 6 caracteres");
       return;
     }
     setLoading(true);
     const { hasSession, error } = await signUp(registerData.email, registerData.password);
     setLoading(false);
     if (error) {
-      const msg = (error.message || '').toLowerCase();
+      const msg = (error.message || "").toLowerCase();
       if (
-        msg.includes('already registered') ||
-        msg.includes('user already exists') ||
-        (error as any).code === 'user_already_exists'
+        msg.includes("already registered") ||
+        msg.includes("user already exists") ||
+        (error as any).code === "user_already_exists"
       ) {
         // A conta de acesso é única na plataforma, mas o cadastro de cliente é por loja.
         // Se a senha confere, abre o cadastro desta loja quando ainda não existir.
@@ -173,44 +233,55 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
           const { data: authData } = await supabase.auth.getUser();
           const uid = authData.user?.id;
           const { data: prof } = uid
-            ? await supabase.from('customer_profiles').select('id').eq('user_id', uid).eq('store_id', storeId).maybeSingle()
+            ? await supabase
+                .from("customer_profiles")
+                .select("id")
+                .eq("user_id", uid)
+                .eq("store_id", storeId)
+                .maybeSingle()
             : { data: null };
           setLoading(false);
           if (!prof) {
-            toast.success('Conta encontrada! Preencha seus dados para esta loja.');
-            setStep('profile');
+            toast.success("Conta encontrada! Preencha seus dados para esta loja.");
+            setStep("profile");
             return;
           }
-          if (requireApproval) { setNotice('duplicate'); return; }
-          toast.success('Login realizado!');
+          if (requireApproval) {
+            setNotice("duplicate");
+            return;
+          }
+          toast.success("Login realizado!");
           onOpenChange(false);
           return;
         }
         setLoading(false);
-        toast.info('Este e-mail já tem acesso no Meu Pedido no Zap (outra loja). Entre com a mesma senha ou use "Esqueci a senha" — depois complete seus dados para esta loja.', { duration: 8000 });
-        setLoginData({ email: registerData.email, password: '' });
-        setAuthTab('login');
-      } else if (msg.includes('password')) {
-        toast.error('Senha inválida. Use pelo menos 6 caracteres.');
+        toast.info(
+          'Este e-mail já tem acesso no Meu Pedido no Zap (outra loja). Entre com a mesma senha ou use "Esqueci a senha" — depois complete seus dados para esta loja.',
+          { duration: 8000 },
+        );
+        setLoginData({ email: registerData.email, password: "" });
+        setAuthTab("login");
+      } else if (msg.includes("password")) {
+        toast.error("Senha inválida. Use pelo menos 6 caracteres.");
       } else {
         toast.error(error.message);
       }
     } else if (hasSession) {
-      toast.success('Conta criada! Preencha seus dados.');
-      setStep('profile');
+      toast.success("Conta criada! Preencha seus dados.");
+      setStep("profile");
     } else {
-      toast.error('Não foi possível criar a conta. Tente novamente.');
+      toast.error("Não foi possível criar a conta. Tente novamente.");
     }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) {
-      toast.error('Informe o email');
+      toast.error("Informe o email");
       return;
     }
     setLoading(true);
-    const slug = storeSlug || window.location.pathname.split('/').filter(Boolean)[0] || '';
+    const slug = storeSlug || window.location.pathname.split("/").filter(Boolean)[0] || "";
     const redirectTo = slug
       ? `${window.location.origin}/${slug}/redefinir-senha`
       : `${window.location.origin}/redefinir-senha`;
@@ -221,22 +292,22 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Link enviado! Verifique seu email.');
-      setForgotEmail('');
-      setStep('auth');
+      toast.success("Link enviado! Verifique seu email.");
+      setForgotEmail("");
+      setStep("auth");
     }
   };
 
   const handleCepChange = async (value: string) => {
     const formatted = formatCEP(value);
-    setProfileData(prev => ({ ...prev, cep: formatted }));
-    const cleaned = formatted.replace(/\D/g, '');
+    setProfileData((prev) => ({ ...prev, cep: formatted }));
+    const cleaned = formatted.replace(/\D/g, "");
     if (cleaned.length === 8) {
       setCepLoading(true);
       const result = await fetchAddressByCep(cleaned);
       setCepLoading(false);
       if (result) {
-        setProfileData(prev => ({
+        setProfileData((prev) => ({
           ...prev,
           uf: result.uf,
           city: result.city,
@@ -244,7 +315,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
           address: result.address,
         }));
       } else {
-        toast.error('CEP não encontrado');
+        toast.error("CEP não encontrado");
       }
     }
   };
@@ -252,28 +323,35 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileData.name || !profileData.whatsapp || !profileData.uf || !profileData.city || !profileData.address) {
-      toast.error('Preencha os campos obrigatórios');
+      toast.error("Preencha os campos obrigatórios");
       return;
     }
     if (requireApproval) {
-      const doc = profileData.cpfCnpj.replace(/\D/g, '');
-      if (doc.length !== 11 && doc.length !== 14) { toast.error('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido'); return; }
-      if (profileData.cep.replace(/\D/g, '').length !== 8 || !profileData.neighborhood || !profileData.number) {
-        toast.error('Preencha o endereço completo: CEP, bairro e número'); return;
+      const doc = profileData.cpfCnpj.replace(/\D/g, "");
+      if (doc.length !== 11 && doc.length !== 14) {
+        toast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido");
+        return;
       }
-      if (profileData.whatsapp.replace(/\D/g, '').length < 10) { toast.error('Informe um telefone de contato válido'); return; }
+      if (profileData.cep.replace(/\D/g, "").length !== 8 || !profileData.neighborhood || !profileData.number) {
+        toast.error("Preencha o endereço completo: CEP, bairro e número");
+        return;
+      }
+      if (profileData.whatsapp.replace(/\D/g, "").length < 10) {
+        toast.error("Informe um telefone de contato válido");
+        return;
+      }
     }
     if (!user?.id) {
-      toast.error('Sessão não encontrada. Feche esta janela, faça login e tente novamente.');
+      toast.error("Sessão não encontrada. Feche esta janela, faça login e tente novamente.");
       return;
     }
     setLoading(true);
     try {
       if (requireApproval) {
-        const doc = profileData.cpfCnpj.replace(/\D/g, '');
-        const { data: existing } = await supabase.rpc('find_customer_by_document', { p_store_id: storeId, p_doc: doc });
+        const doc = profileData.cpfCnpj.replace(/\D/g, "");
+        const { data: existing } = await supabase.rpc("find_customer_by_document", { p_store_id: storeId, p_doc: doc });
         if (Array.isArray(existing) && existing.length > 0) {
-          setNotice('duplicate');
+          setNotice("duplicate");
           return;
         }
       }
@@ -281,7 +359,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         userId: user.id,
         storeId,
         name: profileData.name,
-        cpfCnpj: profileData.cpfCnpj.replace(/\D/g, ''),
+        cpfCnpj: profileData.cpfCnpj.replace(/\D/g, ""),
         whatsapp: profileData.whatsapp,
         cep: profileData.cep,
         uf: profileData.uf,
@@ -292,15 +370,22 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
         complement: profileData.complement || undefined,
       });
       if (profileData.ie.trim() && user?.id) {
-        await supabase.from('customer_profiles').update({ ie: profileData.ie.trim() }).eq('user_id', user.id).eq('store_id', storeId);
+        await supabase
+          .from("customer_profiles")
+          .update({ ie: profileData.ie.trim() })
+          .eq("user_id", user.id)
+          .eq("store_id", storeId);
       }
-      if (requireApproval) { setNotice('success'); return; }
-      toast.success('Cadastro completo!', { duration: 8000 });
+      if (requireApproval) {
+        setNotice("success");
+        return;
+      }
+      toast.success("Cadastro completo!", { duration: 8000 });
       onOpenChange(false);
     } catch (err: any) {
-      const msg = err.message?.includes('row-level security')
-        ? 'Sua sessão expirou. Feche esta janela, faça login novamente e tente salvar.'
-        : err.message || 'Erro ao salvar perfil';
+      const msg = err.message?.includes("row-level security")
+        ? "Sua sessão expirou. Feche esta janela, faça login novamente e tente salvar."
+        : err.message || "Erro ao salvar perfil";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -312,7 +397,9 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <ApprovalNotice kind={notice} supportWhatsapp={supportWhatsapp} />
-          <Button className="w-full" onClick={() => onOpenChange(false)}>OK</Button>
+          <Button className="w-full" onClick={() => onOpenChange(false)}>
+            OK
+          </Button>
         </DialogContent>
       </Dialog>
     );
@@ -323,54 +410,97 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {step === 'auth' && (allowSignup ? 'Entrar ou Cadastrar' : 'Entrar')}
-            {step === 'profile' && 'Complete seu Cadastro'}
-            {step === 'forgot' && 'Redefinir Senha'}
+            {step === "auth" && (allowSignup ? "Entrar ou Cadastrar" : "Entrar")}
+            {step === "profile" && "Complete seu Cadastro"}
+            {step === "forgot" && "Redefinir Senha"}
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'auth' && (
-          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as 'code' | 'login' | 'register')}>
-            <TabsList className={`grid w-full ${(showCodeTab ? 1 : 0) + 1 + (allowSignup ? 1 : 0) === 3 ? 'grid-cols-3' : (showCodeTab || allowSignup) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {step === "auth" && (
+          <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as "code" | "login" | "register")}>
+            <TabsList
+              className={`grid w-full ${(showCodeTab ? 1 : 0) + 1 + (allowSignup ? 1 : 0) === 3 ? "grid-cols-3" : showCodeTab || allowSignup ? "grid-cols-2" : "grid-cols-1"}`}
+            >
               {showCodeTab && <TabsTrigger value="code">Código/Usuário</TabsTrigger>}
-              <TabsTrigger value="login">{showCodeTab ? 'Repres./Admin' : 'Entrar'}</TabsTrigger>
+              <TabsTrigger value="login">{showCodeTab ? "Repres./Admin" : "Entrar"}</TabsTrigger>
               {allowSignup && <TabsTrigger value="register">Cadastrar</TabsTrigger>}
             </TabsList>
-            {showCodeTab && <TabsContent value="code">
-              <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
-                <p className="text-xs text-muted-foreground">
-                  Já é cliente? Entre com o <strong>código ou usuário</strong> e a <strong>senha</strong> que seu representante enviou.
-                </p>
-                <div className="grid gap-2">
-                  <Label htmlFor="code-login">Código ou usuário</Label>
-                  <Input id="code-login" autoFocus value={codeLoginData.codigo} onChange={e => setCodeLoginData(p => ({ ...p, codigo: e.target.value }))} placeholder="Ex: 96133 ou ervadoce" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="code-pwd">Senha</Label>
-                  <div className="relative">
-                    <Input id="code-pwd" type={showCodePwd ? 'text' : 'password'} value={codeLoginData.password} onChange={e => setCodeLoginData(p => ({ ...p, password: e.target.value }))} placeholder="Senha enviada pelo representante" className="pr-10" />
-                    <button type="button" onClick={() => setShowCodePwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showCodePwd ? 'Ocultar senha' : 'Mostrar senha'}>
-                      {showCodePwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+            {showCodeTab && (
+              <TabsContent value="code">
+                <form onSubmit={handleCodeLogin} className="space-y-4 pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    Já é cliente? Entre com o <strong>código ou usuário</strong> e a <strong>senha</strong> que seu
+                    representante enviou.
+                  </p>
+                  <div className="grid gap-2">
+                    <Label htmlFor="code-login">Código ou usuário</Label>
+                    <Input
+                      id="code-login"
+                      autoFocus
+                      value={codeLoginData.codigo}
+                      onChange={(e) => setCodeLoginData((p) => ({ ...p, codigo: e.target.value }))}
+                      placeholder="Ex: 96133 ou ervadoce"
+                    />
                   </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Entrar
-                </Button>
-              </form>
-            </TabsContent>}
+                  <div className="grid gap-2">
+                    <Label htmlFor="code-pwd">Senha</Label>
+                    <div className="relative">
+                      <Input
+                        id="code-pwd"
+                        type={showCodePwd ? "text" : "password"}
+                        value={codeLoginData.password}
+                        onChange={(e) => setCodeLoginData((p) => ({ ...p, password: e.target.value }))}
+                        placeholder="Senha enviada pelo representante"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCodePwd((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                        aria-label={showCodePwd ? "Ocultar senha" : "Mostrar senha"}
+                      >
+                        {showCodePwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Confirmar
+                  </Button>
+                </form>
+              </TabsContent>
+            )}
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4 pt-4">
                 <div className="grid gap-2">
                   <Label htmlFor="login-email">Email</Label>
-                  <Input id="login-email" type="email" value={loginData.email} onChange={e => setLoginData(p => ({ ...p, email: e.target.value }))} placeholder="seu@email.com" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    value={loginData.email}
+                    onChange={(e) => setLoginData((p) => ({ ...p, email: e.target.value }))}
+                    placeholder="seu@email.com"
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="login-password">Senha</Label>
                   <div className="relative">
-                    <Input id="login-password" type={showLoginPwd ? 'text' : 'password'} value={loginData.password} onChange={e => setLoginData(p => ({ ...p, password: e.target.value }))} placeholder="••••••" className="pr-10" />
-                    <button type="button" onClick={() => setShowLoginPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showLoginPwd ? 'Ocultar senha' : 'Mostrar senha'}>
+                    <Input
+                      id="login-password"
+                      type={showLoginPwd ? "text" : "password"}
+                      value={loginData.password}
+                      onChange={(e) => setLoginData((p) => ({ ...p, password: e.target.value }))}
+                      placeholder="••••••"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPwd((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      tabIndex={-1}
+                      aria-label={showLoginPwd ? "Ocultar senha" : "Mostrar senha"}
+                    >
                       {showLoginPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
@@ -381,7 +511,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
                 </Button>
                 <button
                   type="button"
-                  onClick={() => setStep('forgot')}
+                  onClick={() => setStep("forgot")}
                   className="block w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline"
                 >
                   Esqueci minha senha
@@ -392,13 +522,32 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
               <form onSubmit={handleRegister} className="space-y-4 pt-4">
                 <div className="grid gap-2">
                   <Label htmlFor="reg-email">Email</Label>
-                  <Input id="reg-email" type="email" value={registerData.email} onChange={e => setRegisterData(p => ({ ...p, email: e.target.value }))} placeholder="seu@email.com" />
+                  <Input
+                    id="reg-email"
+                    type="email"
+                    value={registerData.email}
+                    onChange={(e) => setRegisterData((p) => ({ ...p, email: e.target.value }))}
+                    placeholder="seu@email.com"
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="reg-password">Senha</Label>
                   <div className="relative">
-                    <Input id="reg-password" type={showRegPwd ? 'text' : 'password'} value={registerData.password} onChange={e => setRegisterData(p => ({ ...p, password: e.target.value }))} placeholder="Crie uma senha simples (mín. 6 caracteres)" className="pr-10" />
-                    <button type="button" onClick={() => setShowRegPwd(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1} aria-label={showRegPwd ? 'Ocultar senha' : 'Mostrar senha'}>
+                    <Input
+                      id="reg-password"
+                      type={showRegPwd ? "text" : "password"}
+                      value={registerData.password}
+                      onChange={(e) => setRegisterData((p) => ({ ...p, password: e.target.value }))}
+                      placeholder="Crie uma senha simples (mín. 6 caracteres)"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPwd((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      tabIndex={-1}
+                      aria-label={showRegPwd ? "Ocultar senha" : "Mostrar senha"}
+                    >
                       {showRegPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
@@ -413,18 +562,16 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
           </Tabs>
         )}
 
-        {step === 'forgot' && (
+        {step === "forgot" && (
           <form onSubmit={handleForgotPassword} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Enviaremos um link no seu email para criar uma nova senha.
-            </p>
+            <p className="text-sm text-muted-foreground">Enviaremos um link no seu email para criar uma nova senha.</p>
             <div className="grid gap-2">
               <Label htmlFor="forgot-email">Email</Label>
               <Input
                 id="forgot-email"
                 type="email"
                 value={forgotEmail}
-                onChange={e => setForgotEmail(e.target.value)}
+                onChange={(e) => setForgotEmail(e.target.value)}
                 placeholder="seu@email.com"
                 autoFocus
               />
@@ -435,7 +582,7 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
             </Button>
             <button
               type="button"
-              onClick={() => setStep('auth')}
+              onClick={() => setStep("auth")}
               className="block w-full text-center text-sm text-muted-foreground hover:text-foreground hover:underline"
             >
               Voltar
@@ -443,44 +590,82 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
           </form>
         )}
 
-        {step === 'profile' && (
+        {step === "profile" && (
           <form onSubmit={handleProfileSubmit} className="space-y-4">
             <p className="text-sm text-muted-foreground">Preencha seus dados para finalizar o cadastro.</p>
 
             <div className="grid gap-2">
               <Label htmlFor="prof-name">Nome completo / Razão social *</Label>
-              <Input id="prof-name" value={profileData.name} onChange={e => setProfileData(p => ({ ...p, name: e.target.value.toUpperCase() }))} placeholder="NOME COMPLETO" />
+              <Input
+                id="prof-name"
+                value={profileData.name}
+                onChange={(e) => setProfileData((p) => ({ ...p, name: e.target.value.toUpperCase() }))}
+                placeholder="NOME COMPLETO"
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="prof-doc">CPF/CNPJ{requireApproval ? ' *' : ''}</Label>
-                <Input id="prof-doc" inputMode="numeric" value={profileData.cpfCnpj} onChange={e => setProfileData(p => ({ ...p, cpfCnpj: e.target.value.replace(/[^\d./-]/g, '').slice(0, 18) }))} placeholder="Somente números" />
+                <Label htmlFor="prof-doc">CPF/CNPJ{requireApproval ? " *" : ""}</Label>
+                <Input
+                  id="prof-doc"
+                  inputMode="numeric"
+                  value={profileData.cpfCnpj}
+                  onChange={(e) =>
+                    setProfileData((p) => ({ ...p, cpfCnpj: e.target.value.replace(/[^\d./-]/g, "").slice(0, 18) }))
+                  }
+                  placeholder="Somente números"
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="prof-ie">Inscrição Estadual</Label>
-                <Input id="prof-ie" value={profileData.ie} onChange={e => setProfileData(p => ({ ...p, ie: e.target.value }))} placeholder="Opcional" />
+                <Input
+                  id="prof-ie"
+                  value={profileData.ie}
+                  onChange={(e) => setProfileData((p) => ({ ...p, ie: e.target.value }))}
+                  placeholder="Opcional"
+                />
               </div>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="prof-whatsapp">WhatsApp / Telefone *</Label>
-              <Input id="prof-whatsapp" value={profileData.whatsapp} onChange={e => setProfileData(p => ({ ...p, whatsapp: formatPhone(e.target.value) }))} placeholder="(47) 99999-9999" />
+              <Input
+                id="prof-whatsapp"
+                value={profileData.whatsapp}
+                onChange={(e) => setProfileData((p) => ({ ...p, whatsapp: formatPhone(e.target.value) }))}
+                placeholder="(47) 99999-9999"
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="prof-cep">CEP{requireApproval ? ' *' : ''}</Label>
+                <Label htmlFor="prof-cep">CEP{requireApproval ? " *" : ""}</Label>
                 <div className="relative">
-                  <Input id="prof-cep" value={profileData.cep} onChange={e => handleCepChange(e.target.value)} placeholder="00000-000" />
-                  {cepLoading && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                  <Input
+                    id="prof-cep"
+                    value={profileData.cep}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    placeholder="00000-000"
+                  />
+                  {cepLoading && (
+                    <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="prof-uf">UF *</Label>
-                <Select value={profileData.uf} onValueChange={value => setProfileData(p => ({ ...p, uf: value }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{brazilianStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                <Select value={profileData.uf} onValueChange={(value) => setProfileData((p) => ({ ...p, uf: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brazilianStates.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -488,28 +673,48 @@ export default function CustomerAuthDialog({ open, onOpenChange, storeId, storeS
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="prof-city">Cidade *</Label>
-                <Input id="prof-city" value={profileData.city} onChange={e => setProfileData(p => ({ ...p, city: e.target.value }))} />
+                <Input
+                  id="prof-city"
+                  value={profileData.city}
+                  onChange={(e) => setProfileData((p) => ({ ...p, city: e.target.value }))}
+                />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="prof-neighborhood">Bairro{requireApproval ? ' *' : ''}</Label>
-                <Input id="prof-neighborhood" value={profileData.neighborhood} onChange={e => setProfileData(p => ({ ...p, neighborhood: e.target.value }))} />
+                <Label htmlFor="prof-neighborhood">Bairro{requireApproval ? " *" : ""}</Label>
+                <Input
+                  id="prof-neighborhood"
+                  value={profileData.neighborhood}
+                  onChange={(e) => setProfileData((p) => ({ ...p, neighborhood: e.target.value }))}
+                />
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="prof-address">Endereço *</Label>
-                <Input id="prof-address" value={profileData.address} onChange={e => setProfileData(p => ({ ...p, address: e.target.value }))} />
+                <Input
+                  id="prof-address"
+                  value={profileData.address}
+                  onChange={(e) => setProfileData((p) => ({ ...p, address: e.target.value }))}
+                />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="prof-number">Número{requireApproval ? ' *' : ''}</Label>
-                <Input id="prof-number" value={profileData.number} onChange={e => setProfileData(p => ({ ...p, number: e.target.value }))} />
+                <Label htmlFor="prof-number">Número{requireApproval ? " *" : ""}</Label>
+                <Input
+                  id="prof-number"
+                  value={profileData.number}
+                  onChange={(e) => setProfileData((p) => ({ ...p, number: e.target.value }))}
+                />
               </div>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="prof-complement">Complemento</Label>
-              <Input id="prof-complement" value={profileData.complement} onChange={e => setProfileData(p => ({ ...p, complement: e.target.value }))} />
+              <Input
+                id="prof-complement"
+                value={profileData.complement}
+                onChange={(e) => setProfileData((p) => ({ ...p, complement: e.target.value }))}
+              />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
