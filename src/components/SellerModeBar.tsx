@@ -6,6 +6,7 @@ import CheckinDialog from '@/components/CheckinDialog';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 import { resolveStorePriceTable } from '@/lib/pricing';
 import { useOpenVisit, formatDuration, DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
+import { hasOpenCustomerDraft } from '@/lib/customerDraft';
 
 interface Props {
   storeId: string;
@@ -27,7 +28,7 @@ interface Props {
 export default function SellerModeBar({
   storeId, storeSlug, sellerCodes, selectedCustomer, onSelect, onChangeCustomer, salesForce,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => hasOpenCustomerDraft(storeId));
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
