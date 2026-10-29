@@ -22,12 +22,13 @@ function effectiveStatus(t: any): 'ABERTO' | 'VENCIDO' | 'PAGO' {
   return 'ABERTO';
 }
 
-export default function TitlesPanel({ storeId, sellerCodes, customerCode, startDate, dateField = 'data_vencimento' }: {
+export default function TitlesPanel({ storeId, sellerCodes, customerCode, startDate, dateField = 'data_vencimento', company }: {
   storeId: string;
   sellerCodes?: string[];
   customerCode?: string;
   startDate?: string;
   dateField?: 'data_emissao' | 'data_vencimento';
+  company?: string;
 }) {
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
@@ -39,7 +40,7 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const { data: titles = [], isLoading } = useQuery({
-    queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode, startDate, dateField, term],
+    queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode, startDate, dateField, term, company],
     queryFn: async () => {
       // Busca direta no banco: com termo, procura em todo o histórico (sem limite de memória).
       let orFilter = '';
@@ -61,6 +62,7 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
           .order('data_vencimento', { ascending: false }).range(from, from + pageSize - 1);
         if (customerCode) q = q.eq('cliente_codigo', customerCode);
         if (startDate) q = q.gte(dateField, startDate);
+        if (company) q = q.eq('filial_codigo', company);
         if (orFilter) q = q.or(orFilter);
         const { data, error } = await q;
         if (error) throw error;
