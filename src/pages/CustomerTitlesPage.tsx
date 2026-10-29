@@ -58,6 +58,7 @@ export default function CustomerTitlesPage() {
               customerCode={code}
               startDate={store.settings.titlesStartDate}
               dateField={store.settings.titlesDateField}
+            company={store.settings.titlesCompany}
             />
           </>
 

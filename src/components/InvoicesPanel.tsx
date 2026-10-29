@@ -24,10 +24,11 @@ function periodStart(period: Period): string | undefined {
   return localDay(date);
 }
 
-export default function InvoicesPanel({ storeId, customerCode, startDate }: {
+export default function InvoicesPanel({ storeId, customerCode, startDate, company }: {
   storeId: string;
   customerCode?: string;
   startDate?: string;
+  company?: string;
 }) {
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<Period>('hoje');
@@ -48,7 +49,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
   }, [search]);
 
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['customer-invoices', storeId, customerCode, selectedStart, term],
+    queryKey: ['customer-invoices', storeId, customerCode, selectedStart, term, company],
     queryFn: async () => {
       // Busca direta no banco: com termo, procura em todo o histórico.
       let orFilter = '';
@@ -72,6 +73,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate }: {
           .range(from, from + pageSize - 1);
         if (customerCode) query = query.eq('cliente_codigo', customerCode);
         if (selectedStart) query = query.gte('data_emissao', selectedStart);
+        if (company) query = query.eq('filial_codigo', company);
         if (orFilter) query = query.or(orFilter);
         const { data, error } = await query;
         if (error) throw error;

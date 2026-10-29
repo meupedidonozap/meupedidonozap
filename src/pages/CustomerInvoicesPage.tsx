@@ -40,7 +40,7 @@ export default function CustomerInvoicesPage() {
         ) : profileLoading ? loader : !code ? (
           <div className="py-16 text-center text-muted-foreground"><FileText className="mx-auto h-12 w-12 opacity-30" /><p className="mt-4">Seu cadastro ainda não possui código de cliente. Fale com seu representante.</p></div>
         ) : (
-          <InvoicesPanel storeId={store.id} customerCode={code} startDate={store.settings.titlesStartDate} />
+          <InvoicesPanel storeId={store.id} customerCode={code} startDate={store.settings.titlesStartDate} company={store.settings.titlesCompany} />
         )}
       </main>
     </div>

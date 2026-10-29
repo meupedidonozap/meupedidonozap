@@ -708,7 +708,7 @@ export default function CheckoutPage() {
         <PendingOrdersCard storeId={store.id} />
       </div>
 
-      <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} />
+      <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} company={(store?.settings as any)?.titlesCompany} />
       <AlertDialog open={!!finalizeAsk} onOpenChange={(o) => { if (!o) { setFinalizeAsk(null); setReleaseConfirm(false); } }}>
         <AlertDialogContent>
           {finalizeAsk === 'ask-payment' ? (

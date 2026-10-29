@@ -291,11 +291,12 @@ export default function SellerPortalPage() {
             sellerCodes={codes}
             startDate={store.settings.titlesStartDate}
             dateField={store.settings.titlesDateField}
+            company={store.settings.titlesCompany}
           />
         )}
 
         {section === 'notas' && (
-          <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} />
+          <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} company={store.settings.titlesCompany} />
         )}
 
         {section === 'atendimento' && (

@@ -622,6 +622,7 @@ export default function StoreAdminPage() {
   const [sfReasons, setSfReasons] = useState<string[]>([]);
   const [sfNewReason, setSfNewReason] = useState('');
   const [titlesStartDate, setTitlesStartDate] = useState('');
+  const [titlesCompany, setTitlesCompany] = useState('todas');
   const [titlesDateField, setTitlesDateField] = useState<'data_emissao' | 'data_vencimento'>('data_vencimento');
 
   const [settingsInitialized, setSettingsInitialized] = useState(false);
@@ -697,6 +698,7 @@ export default function StoreAdminPage() {
     setSfMaxDistance(String((store.settings as any)?.maxCheckinDistanceMeters ?? 300));
     setSfReasons(((store.settings as any)?.visitReasons as string[]) ?? DEFAULT_VISIT_REASONS);
     setTitlesStartDate((store.settings as any)?.titlesStartDate || '');
+    setTitlesCompany((store.settings as any)?.titlesCompany || 'todas');
     setTitlesDateField((store.settings as any)?.titlesDateField === 'data_emissao' ? 'data_emissao' : 'data_vencimento');
     setSettingsInitialized(true);
   }
@@ -1016,6 +1018,7 @@ export default function StoreAdminPage() {
           visitReasons: sfReasons,
           titlesStartDate: titlesStartDate || undefined,
           titlesDateField,
+          titlesCompany: titlesCompany === 'todas' ? undefined : titlesCompany,
 
           materialApoio: {
             enabled: maEnabled,
@@ -1292,12 +1295,12 @@ export default function StoreAdminPage() {
 
           {store.slug === 'dicolore' && isAdmin && (
             <TabsContent value="titulos" className="animate-fade-in">
-              <TitlesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} dateField={(store.settings as any)?.titlesDateField} />
+              <TitlesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} dateField={(store.settings as any)?.titlesDateField} company={(store.settings as any)?.titlesCompany} />
             </TabsContent>
           )}
           {store.slug === 'dicolore' && isAdmin && (
             <TabsContent value="notas" className="animate-fade-in">
-              <InvoicesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} />
+              <InvoicesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} company={(store.settings as any)?.titlesCompany} />
             </TabsContent>
           )}
 
@@ -2556,6 +2559,18 @@ export default function StoreAdminPage() {
                         <SelectContent>
                           <SelectItem value="data_vencimento">Data de vencimento</SelectItem>
                           <SelectItem value="data_emissao">Data de emissão</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label>Empresa exibida</Label>
+                      <Select value={titlesCompany} onValueChange={setTitlesCompany}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todas">Todas as empresas</SelectItem>
+                          <SelectItem value="1">Somente empresa 1</SelectItem>
+                          <SelectItem value="2">Somente empresa 2</SelectItem>
+                          <SelectItem value="3">Somente empresa 3</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

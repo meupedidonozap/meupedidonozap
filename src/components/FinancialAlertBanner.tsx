@@ -9,20 +9,21 @@ interface Props {
   customerCode?: string;
   customerName?: string;
   isSellerMode?: boolean;
+  company?: string;
 }
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 /** Aviso (não bloqueante) de parcelas vencidas do cliente ativo. */
-export default function FinancialAlertBanner({ storeId, slug, customerCode, customerName, isSellerMode }: Props) {
+export default function FinancialAlertBanner({ storeId, slug, customerCode, customerName, isSellerMode, company }: Props) {
   const code = (customerCode || '').trim();
   const { data } = useQuery({
-    queryKey: ['overdue-titles', storeId, code],
+    queryKey: ['overdue-titles', storeId, code, company],
     enabled: !!storeId && !!code,
     staleTime: 60_000,
     queryFn: async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const { data, error } = await supabase
+      let q = supabase
         .from('customer_titles')
         .select('valor_saldo, valor_total, valor_pago, data_vencimento, status, data_quitacao')
         .eq('store_id', storeId!)
@@ -30,6 +31,8 @@ export default function FinancialAlertBanner({ storeId, slug, customerCode, cust
         .lt('data_vencimento', today)
         .is('data_quitacao', null)
         .neq('status', 'PAGO');
+      if (company) q = q.eq('filial_codigo', company);
+      const { data, error } = await q;
       if (error) throw error;
       const rows = (data || []).filter((t: any) => {
         const saldo = Number(t.valor_saldo ?? Number(t.valor_total) - Number(t.valor_pago));

@@ -163,6 +163,8 @@ export interface StoreSettings {
   titlesStartDate?: string;
   /** Financeiro ERP: campo usado para aplicar a data mínima. */
   titlesDateField?: 'data_emissao' | 'data_vencimento';
+  /** Financeiro ERP: empresa (filial) exibida; vazio = todas. Não apaga o histórico. */
+  titlesCompany?: string;
 }
 
 
