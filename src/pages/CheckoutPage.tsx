@@ -385,8 +385,15 @@ export default function CheckoutPage() {
     toast.success('Arquivo baixado!');
   };
 
-  const handleSendWhatsApp = async (asQuote = false) => {
+  const handleSendWhatsApp = async (asQuote = false, opts: { decided?: boolean; release?: boolean } = {}) => {
     if (!validateForm()) return;
+    if (!opts.decided) {
+      const step = nextFinalizeStep({
+        storeSlug: store?.slug, isEditing: !!editingQuote, sellerOrder, asQuote,
+        formaCodigo: paymentFormaCodigo, condicaoCodigo: paymentCondicaoCodigo,
+      });
+      if (step !== 'save') { setReleaseConfirm(false); setFinalizeAsk(step); return; }
+    }
     // Nenhum item pode ser fechado sem preço válido na tabela do cliente.
     if (cart.items.some(i => !(Number(i.price) > 0))) {
       toast.error('Alguns itens não têm preço para a sua tabela. Remova-os para continuar.');
