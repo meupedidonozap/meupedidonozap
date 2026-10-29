@@ -183,14 +183,14 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
       </div>
 
       <Tabs value={period} onValueChange={(value) => setPeriod(value as Period)}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="hoje">Hoje</TabsTrigger>
+          <TabsTrigger value="30dias">30 dias</TabsTrigger>
           <TabsTrigger value="mes">Este mês</TabsTrigger>
           <TabsTrigger value="90dias">90 dias</TabsTrigger>
           <TabsTrigger value="todos">Todas</TabsTrigger>
         </TabsList>
       </Tabs>
-      {hasSearch && <p className="text-xs text-muted-foreground">Pesquisando em todo o histórico de notas.</p>}
 
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -210,9 +210,14 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
                     {!customerCode && customer?.city && <p className="text-muted-foreground">{customer.city}</p>}
                     <p className="font-medium">NF {invoice.numero}{invoice.serie ? ` • Série ${invoice.serie}` : ''}</p>
                     <p className="text-muted-foreground">Cliente {invoice.cliente_codigo}{invoice.pedido_codigo ? ` • Pedido ${invoice.pedido_codigo}` : ''}</p>
-                    <p className="flex items-center gap-1 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Emissão: {fmtDate(invoice.data_emissao)}{invoice.data_entrega ? ` • Entrega: ${fmtDate(invoice.data_entrega)}` : ''}</p>
-                    {invoice.mensagem_nota_fiscal && <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{invoice.mensagem_nota_fiscal}</p>}
+                    <p className="flex items-center gap-1 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Emissão: {fmtDate(invoice.data_emissao)}</p>
                     {invoice.chave_nfe && <p className="mt-2 break-all text-xs text-muted-foreground">Chave NFe: {invoice.chave_nfe}</p>}
+                    {invoice.pedido_codigo && (
+                      <details className="mt-2 text-xs text-muted-foreground">
+                        <summary className="cursor-pointer font-medium text-foreground">Ver itens da nota</summary>
+                        <InvoiceItems storeId={storeId} filial={invoice.filial_codigo} pedido={invoice.pedido_codigo} />
+                      </details>
+                    )}
                     <details className="mt-2 text-xs text-muted-foreground">
                       <summary className="cursor-pointer font-medium text-foreground">Ver detalhes fiscais</summary>
                       <div className="mt-2 grid gap-1 sm:grid-cols-2">
