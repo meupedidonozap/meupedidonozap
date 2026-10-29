@@ -1,4 +1,7 @@
 import { effectiveMinOrder } from '@/lib/minOrder';
+import { nextFinalizeStep, type FinalizeStep } from '@/lib/finalizeEditFlow';
+import { getReleaseIssues } from '@/lib/orderReleaseCheck';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef } from 'react';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -121,6 +124,8 @@ export default function CheckoutPage() {
   const [onlineCheckout, setOnlineCheckout] = useState<any>(null);
 
   // Dicolore ERP payment codes
+  const [finalizeAsk, setFinalizeAsk] = useState<FinalizeStep | null>(null);
+  const [releaseConfirm, setReleaseConfirm] = useState(false);
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
   const [paymentCondicaoCodigo, setPaymentCondicaoCodigo] = useState<string>('');
 
@@ -704,6 +709,52 @@ export default function CheckoutPage() {
       </div>
 
       <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} />
+      <AlertDialog open={!!finalizeAsk} onOpenChange={(o) => { if (!o) { setFinalizeAsk(null); setReleaseConfirm(false); } }}>
+        <AlertDialogContent>
+          {finalizeAsk === 'ask-payment' ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Forma/Condição de pagamento não selecionada</AlertDialogTitle>
+                <AlertDialogDescription>Deseja alterar as Condições de pagamento agora?</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setFinalizeAsk(null); handleSendWhatsApp(false, { decided: true }); }}>Não, só salvar</Button>
+                <Button onClick={() => { setFinalizeAsk(null); setTimeout(() => document.getElementById('checkout-pagamento')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); }}>Sim, alterar agora</Button>
+              </AlertDialogFooter>
+            </>
+          ) : !releaseConfirm ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Finalizar pedido</AlertDialogTitle>
+                <AlertDialogDescription>Deseja liberar p/ transmissão agora?</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setFinalizeAsk(null); handleSendWhatsApp(false, { decided: true }); }}>Não, deixar Pendente</Button>
+                <Button onClick={() => setReleaseConfirm(true)}>Sim</Button>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Liberar p/ transmissão</AlertDialogTitle>
+                <AlertDialogDescription>O pedido será salvo e liberado para transmissão ao ERP.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setFinalizeAsk(null); setReleaseConfirm(false); }}>Cancelar</Button>
+                <Button onClick={() => {
+                  // Abre o WhatsApp no clique (iOS bloqueia depois de await).
+                  const st: any = store?.settings || {};
+                  const pt = String(activePriceTable || '');
+                  const wa = String((pt && st.erpReleaseWhatsappByTable?.[pt]) || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
+                  if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido do cliente "${formData.name}" pode ser transmitido`)}`, '_blank');
+                  setFinalizeAsk(null); setReleaseConfirm(false);
+                  handleSendWhatsApp(false, { decided: true, release: true });
+                }}>Liberar p/ transmissão</Button>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
       {editingQuote && (sellerOrder || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} />}
 
       {isSellerMode && (
@@ -885,7 +936,7 @@ export default function CheckoutPage() {
               </Card>
             )}
 
-            <Card>
+            <Card id="checkout-pagamento">
               <CardHeader><CardTitle>Pagamento e Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
