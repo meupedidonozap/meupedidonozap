@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-type Period = 'hoje' | 'todos' | 'mes' | '90dias';
+type Period = 'hoje' | '30dias' | 'todos' | 'mes' | '90dias';
 
 const fmtDate = (value?: string | null) => value ? value.split('-').reverse().join('/') : '-';
 
@@ -20,8 +20,41 @@ function periodStart(period: Period): string | undefined {
   if (period === 'todos') return undefined;
   const date = new Date();
   if (period === 'mes') date.setDate(1);
+  else if (period === '30dias') date.setDate(date.getDate() - 30);
   else if (period === '90dias') date.setDate(date.getDate() - 90);
   return localDay(date);
+}
+
+function InvoiceItems({ storeId, filial, pedido }: { storeId: string; filial: string; pedido: string }) {
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['invoice-items', storeId, filial, pedido],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('erp_order_items').select('*')
+        .eq('store_id', storeId).eq('order_key', `${filial || '1'}|${pedido}`).order('produto_codigo');
+      if (error) throw error;
+      return (data || []).filter((it) => Number(it.quantidade_faturada) > 0);
+    },
+  });
+  if (isLoading) return <Loader2 className="mx-auto my-2 h-4 w-4 animate-spin" />;
+  if (!items.length) return <p className="py-2 text-muted-foreground">Itens ainda não sincronizados.</p>;
+  return (
+    <div className="mt-2 overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead><tr className="border-b text-left">
+          <th className="p-1">Código</th><th className="p-1">Produto</th>
+          <th className="p-1 text-right">Qtd</th><th className="p-1 text-right">Unit.</th><th className="p-1 text-right">Total</th>
+        </tr></thead>
+        <tbody>{items.map((it) => (
+          <tr key={it.id} className="border-b">
+            <td className="p-1">{it.produto_codigo}</td><td className="p-1 text-foreground">{it.produto_descricao || ''}</td>
+            <td className="p-1 text-right">{Number(it.quantidade_faturada).toLocaleString('pt-BR')}</td>
+            <td className="p-1 text-right">{formatCurrency(Number(it.valor_unitario))}</td>
+            <td className="p-1 text-right">{formatCurrency(Number(it.quantidade_faturada) * Number(it.valor_unitario))}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function InvoicesPanel({ storeId, customerCode, startDate, company }: {
@@ -33,14 +66,12 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<Period>('hoje');
   const [status, setStatus] = useState('todos');
-  const hasSearch = search.trim().length > 0;
   const selectedStart = useMemo(() => {
-    // Com pesquisa, procura em todo o histórico permitido.
-    const quickStart = hasSearch ? undefined : periodStart(period);
+    const quickStart = periodStart(period);
     if (!startDate) return quickStart;
     if (!quickStart) return startDate;
     return quickStart > startDate ? quickStart : startDate;
-  }, [period, startDate, hasSearch]);
+  }, [period, startDate]);
 
   const [term, setTerm] = useState('');
   useEffect(() => {
@@ -152,14 +183,14 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
       </div>
 
       <Tabs value={period} onValueChange={(value) => setPeriod(value as Period)}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="hoje">Hoje</TabsTrigger>
+          <TabsTrigger value="30dias">30 dias</TabsTrigger>
           <TabsTrigger value="mes">Este mês</TabsTrigger>
           <TabsTrigger value="90dias">90 dias</TabsTrigger>
           <TabsTrigger value="todos">Todas</TabsTrigger>
         </TabsList>
       </Tabs>
-      {hasSearch && <p className="text-xs text-muted-foreground">Pesquisando em todo o histórico de notas.</p>}
 
       {isLoading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -179,9 +210,14 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
                     {!customerCode && customer?.city && <p className="text-muted-foreground">{customer.city}</p>}
                     <p className="font-medium">NF {invoice.numero}{invoice.serie ? ` • Série ${invoice.serie}` : ''}</p>
                     <p className="text-muted-foreground">Cliente {invoice.cliente_codigo}{invoice.pedido_codigo ? ` • Pedido ${invoice.pedido_codigo}` : ''}</p>
-                    <p className="flex items-center gap-1 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Emissão: {fmtDate(invoice.data_emissao)}{invoice.data_entrega ? ` • Entrega: ${fmtDate(invoice.data_entrega)}` : ''}</p>
-                    {invoice.mensagem_nota_fiscal && <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{invoice.mensagem_nota_fiscal}</p>}
+                    <p className="flex items-center gap-1 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Emissão: {fmtDate(invoice.data_emissao)}</p>
                     {invoice.chave_nfe && <p className="mt-2 break-all text-xs text-muted-foreground">Chave NFe: {invoice.chave_nfe}</p>}
+                    {invoice.pedido_codigo && (
+                      <details className="mt-2 text-xs text-muted-foreground">
+                        <summary className="cursor-pointer font-medium text-foreground">Ver itens da nota</summary>
+                        <InvoiceItems storeId={storeId} filial={invoice.filial_codigo} pedido={invoice.pedido_codigo} />
+                      </details>
+                    )}
                     <details className="mt-2 text-xs text-muted-foreground">
                       <summary className="cursor-pointer font-medium text-foreground">Ver detalhes fiscais</summary>
                       <div className="mt-2 grid gap-1 sm:grid-cols-2">
