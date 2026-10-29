@@ -148,6 +148,13 @@
       "when": 1793189188572,
       "tag": "0020_restrict_kitchen_orders_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793318271079,
+      "tag": "0021_erp_items_own_customer",
+      "breakpoints": true
     }
   ]
 }
