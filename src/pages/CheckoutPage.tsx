@@ -575,7 +575,21 @@ export default function CheckoutPage() {
         }).eq('id', editingQuote.id).select().single();
         if (upErr) throw upErr;
         setEditingQuote(null);
-        toast.success(byCustomer ? 'Pedido corrigido e reenviado à empresa' : asQuote ? `Orçamento atualizado para ${formData.name}` : `Orçamento finalizado como pedido para ${formData.name}`);
+        let released = false;
+        if (opts.release) {
+          const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items as any });
+          if (issues.length) {
+            toast.error(`Pedido salvo como Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
+          } else {
+            const { error: relErr } = await supabase.from('orders').update({ status: 'liberado_transmissao' }).eq('id', editingQuote.id).select().single();
+            if (relErr) toast.error(`Pedido salvo como Pendente. Não foi possível liberar: ${relErr.message}`, { duration: 8000 });
+            else released = true;
+          }
+        }
+        if (opts.decided && !opts.release && !asQuote && (!paymentFormaCodigo || !paymentCondicaoCodigo) && store.slug === 'dicolore') {
+          toast.warning('O pedido só será transmitido com a Condição e a Forma de pagamento selecionadas.', { duration: 8000 });
+        }
+        toast.success(released ? `Pedido salvo e liberado para transmissão` : byCustomer ? 'Pedido corrigido e reenviado à empresa' : asQuote ? `Orçamento atualizado para ${formData.name}` : `Pedido salvo como Pendente para ${formData.name}`);
         setTimeout(() => { clearCart(); if (sellerOrder) clearSelectedCustomer(); navigate(byCustomer ? `/${store.slug}/pedidos` : `/${store.slug}/vendedor/vendas`); }, 1200);
         return;
       }
