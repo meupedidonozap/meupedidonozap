@@ -183,7 +183,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
       </div>
 
       <Tabs value={period} onValueChange={(value) => setPeriod(value as Period)}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-5 [&>button]:px-1 [&>button]:text-xs sm:[&>button]:text-sm">
           <TabsTrigger value="hoje">Hoje</TabsTrigger>
           <TabsTrigger value="30dias">30 dias</TabsTrigger>
           <TabsTrigger value="mes">Este mês</TabsTrigger>

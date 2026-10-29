@@ -1,0 +1,1 @@
+CREATE POLICY "ERP order items visible to own customer" ON public.erp_order_items FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.customer_profiles cp WHERE cp.user_id = auth.uid() AND cp.store_id = erp_order_items.store_id AND NULLIF(btrim(cp.customer_code),'') IS NOT NULL AND btrim(cp.customer_code) = btrim(erp_order_items.cliente_codigo)));
