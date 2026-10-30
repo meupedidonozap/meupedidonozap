@@ -279,7 +279,8 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
           </SelectContent>
         </Select>
       )}
-      {isTv && <p className="text-sm text-muted-foreground">Pedidos emitidos por você (televendas) comparados com o total da carteira dos vendedores que você atende.</p>}
+      {isTv && <p className="text-sm text-muted-foreground">Notas faturadas de pedidos emitidos por você (televendas) comparadas com o total faturado da carteira dos vendedores que você atende.</p>}
+      {isTv && data && data.tvFlagged === 0 && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">Pedidos do televendas ainda não sincronizados — rode a atualização de pedidos no computador do ERP.</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.filter(c => !c.hide).map(c => (
           <Card key={c.k} role="button" onClick={() => setOpen(c.k)} className="cursor-pointer transition hover:border-primary">
