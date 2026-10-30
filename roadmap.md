@@ -28,6 +28,8 @@
 - [x] Configurações no painel: período de não atendidos, distância máxima e motivos
 
 ## Financeiro ERP DiColore
+- [x] Separar notas pelo representante da NF e corrigir acesso aos 8.496 itens históricos
+- [x] Validar regras reais de vendedor/televendas/cliente, quatro testes e itens da NF 209426 no painel autenticado
 - [x] Filtrar títulos por data mínima configurável de emissão ou vencimento sem apagar histórico
 - [x] Autorizar títulos pelo código do cliente para cliente, vendedor da carteira, televendas e administrador
 - [x] Integrar Notas Fiscais pela VIEW `dw_nota_fiscal` para cliente, vendedor, televendas e administrador
