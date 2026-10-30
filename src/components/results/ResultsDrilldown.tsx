@@ -118,13 +118,13 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
         });
         visits = vis.map(v => ({ date: v.checked_in_at, value: 1, dur: Number(v.duration_seconds) || 0 }));
       }
-      // customer names for ERP codes
-      const names = new Map<string, string>();
+      // customer names for ERP codes (plain object so cached data stays compatible)
+      const names: Record<string, string> = {};
       {
         const cs = Array.from(new Set(orders.map(o => o.customer))).filter(Boolean);
         for (let i = 0; i < cs.length; i += 200) {
           const { data } = await supabase.from('customer_profiles').select('customer_code, name').eq('store_id', storeId).in('customer_code', cs.slice(i, i + 200));
-          (data || []).forEach(p => names.set(p.customer_code, p.name));
+          (data || []).forEach(p => { names[p.customer_code] = p.name; });
         }
       }
       return { orders, invoices, visits, names, portfolio };
