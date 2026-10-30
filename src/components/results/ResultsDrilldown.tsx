@@ -118,13 +118,13 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
         });
         visits = vis.map(v => ({ date: v.checked_in_at, value: 1, dur: Number(v.duration_seconds) || 0 }));
       }
-      // customer names for ERP codes
-      const names = new Map<string, string>();
+      // customer names for ERP codes (plain object so cached data stays compatible)
+      const names: Record<string, string> = {};
       {
         const cs = Array.from(new Set(orders.map(o => o.customer))).filter(Boolean);
         for (let i = 0; i < cs.length; i += 200) {
           const { data } = await supabase.from('customer_profiles').select('customer_code, name').eq('store_id', storeId).in('customer_code', cs.slice(i, i + 200));
-          (data || []).forEach(p => names.set(p.customer_code, p.name));
+          (data || []).forEach(p => { names[p.customer_code] = p.name; });
         }
       }
       return { orders, invoices, visits, names, portfolio };
@@ -151,7 +151,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     data.orders.filter(o => inCurMonth(o.date)).forEach(o => m.set(o.customer, (m.get(o.customer) || 0) + o.value));
     const pf = new Map<string, number>();
     data.portfolio.filter(o => inCurMonth(o.date)).forEach(o => pf.set(o.customer, (pf.get(o.customer) || 0) + o.value));
-    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, v]) => ({ name: data.names.get(c) ? `${c} - ${data.names.get(c)}` : c, value: v, portfolio: pf.get(c) || 0 }));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, v]) => ({ name: data.names[c] ? `${c} - ${data.names[c]}` : c, value: v, portfolio: pf.get(c) || 0 }));
   }, [data]);
 
   // Por vendedor: total da carteira x parte do televendas no mês
