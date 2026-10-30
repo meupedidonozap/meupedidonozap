@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, FileText, Loader2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
+import { matchesInvoiceSeller, normalizeInvoiceSeller } from '@/lib/invoiceSeller';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,8 +27,9 @@ function periodStart(period: Period): string | undefined {
 }
 
 function InvoiceItems({ storeId, filial, pedido }: { storeId: string; filial: string; pedido: string }) {
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['invoice-items', storeId, filial, pedido],
+  const { data: items = [], isLoading, isError } = useQuery({
+    queryKey: ['invoice-items-v2', storeId, filial, pedido],
+    enabled: !!pedido && pedido !== '0',
     queryFn: async () => {
       const { data, error } = await supabase.from('erp_order_items').select('*')
         .eq('store_id', storeId).eq('order_key', `${filial || '1'}|${pedido}`).order('produto_codigo');
@@ -36,6 +38,7 @@ function InvoiceItems({ storeId, filial, pedido }: { storeId: string; filial: st
     },
   });
   if (isLoading) return <Loader2 className="mx-auto my-2 h-4 w-4 animate-spin" />;
+  if (isError) return <p className="py-2 text-destructive">Não foi possível carregar os itens da nota.</p>;
   if (!items.length) return <p className="py-2 text-muted-foreground">Itens ainda não sincronizados.</p>;
   return (
     <div className="mt-2 overflow-x-auto">
@@ -57,15 +60,17 @@ function InvoiceItems({ storeId, filial, pedido }: { storeId: string; filial: st
   );
 }
 
-export default function InvoicesPanel({ storeId, customerCode, startDate, company }: {
+export default function InvoicesPanel({ storeId, customerCode, startDate, company, sellerCodes }: {
   storeId: string;
   customerCode?: string;
   startDate?: string;
   company?: string;
+  sellerCodes?: string[];
 }) {
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<Period>('hoje');
   const [status, setStatus] = useState('todos');
+  const [representative, setRepresentative] = useState('todos');
   const selectedStart = useMemo(() => {
     const quickStart = periodStart(period);
     if (!startDate) return quickStart;
@@ -80,9 +85,10 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
   }, [search]);
 
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['customer-invoices', storeId, customerCode, selectedStart, term, company],
+    queryKey: ['customer-invoices-v2', storeId, customerCode, selectedStart, term, company, sellerCodes],
     queryFn: async () => {
-      // Busca direta no banco: com termo, procura em todo o histórico.
+      if (sellerCodes?.length === 0) return [];
+      // RLS restricts notes by NF representative; period remains active during search.
       let orFilter = '';
       if (term) {
         const parts = [`numero.eq.${term}`, `pedido_codigo.eq.${term}`, `cliente_codigo.eq.${term}`, `chave_nfe.eq.${term}`];
@@ -111,7 +117,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
         rows.push(...(data || []));
         if (!data || data.length < pageSize) break;
       }
-      return rows;
+      return rows.filter((invoice) => matchesInvoiceSeller(invoice.vendedor_codigo, sellerCodes));
     },
   });
 
@@ -140,13 +146,18 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
     const nfNum = (v: unknown) => Number(String(v || '').replace(/\D/g, '')) || 0;
     return invoices.filter((invoice) => {
       if (status !== 'todos' && invoice.status !== status) return false;
+      if (representative !== 'todos' && normalizeInvoiceSeller(invoice.vendedor_codigo) !== representative) return false;
       if (!term) return true;
       const customer = customerNames[invoice.cliente_codigo];
       return [invoice.numero, invoice.serie, invoice.pedido_codigo, invoice.cliente_codigo,
         invoice.chave_nfe, invoice.status, customer?.name, customer?.city]
         .some((value) => String(value || '').toLowerCase().includes(term));
     }).sort((a, b) => nfNum(b.numero) - nfNum(a.numero));
-  }, [invoices, search, customerNames, status]);
+  }, [invoices, search, customerNames, status, representative]);
+
+  const representatives = useMemo(() =>
+    [...new Set(invoices.map((invoice) => normalizeInvoiceSeller(invoice.vendedor_codigo)).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })), [invoices]);
 
   const statuses = useMemo(
     () => [...new Set(invoices.map((invoice) => invoice.status).filter(Boolean))].sort(),
@@ -168,7 +179,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Quantidade faturada</p><p className="text-xl font-bold">{products.toLocaleString('pt-BR')}</p></CardContent></Card>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_180px]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)}
@@ -179,6 +190,13 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
             {statuses.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={representative} onValueChange={setRepresentative}>
+          <SelectTrigger aria-label="Filtrar por vendedor da NF"><SelectValue placeholder="Vendedor da NF" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os vendedores</SelectItem>
+            {representatives.map((code) => <SelectItem key={code} value={code}>Vendedor {code}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -211,9 +229,10 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
                     {!customerCode && customer?.city && <p className="text-muted-foreground">{customer.city}</p>}
                     <p className="font-medium">NF {invoice.numero}{invoice.serie ? ` • Série ${invoice.serie}` : ''}</p>
                     <p className="text-muted-foreground">Cliente {invoice.cliente_codigo}{invoice.pedido_codigo ? ` • Pedido ${invoice.pedido_codigo}` : ''}</p>
+                    <p className="text-muted-foreground">Vendedor da NF: {invoice.vendedor_codigo || '-'}</p>
                     <p className="flex items-center gap-1 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Emissão: {fmtDate(invoice.data_emissao)}</p>
                     {invoice.chave_nfe && <p className="mt-2 break-all text-xs text-muted-foreground">Chave NFe: {invoice.chave_nfe}</p>}
-                    {invoice.pedido_codigo && (
+                    {invoice.pedido_codigo && invoice.pedido_codigo !== '0' && (
                       <details className="mt-2 text-xs text-muted-foreground">
                         <summary className="cursor-pointer font-medium text-foreground">Ver itens da nota</summary>
                         <InvoiceItems storeId={storeId} filial={invoice.filial_codigo} pedido={invoice.pedido_codigo} />

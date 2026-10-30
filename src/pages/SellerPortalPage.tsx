@@ -296,7 +296,7 @@ export default function SellerPortalPage() {
         )}
 
         {section === 'notas' && (
-          <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} company={store.settings.titlesCompany} />
+          <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} company={store.settings.titlesCompany} sellerCodes={store.slug === 'dicolore' && !seller.isAdmin ? seller.sellerCodes : undefined} />
         )}
 
         {section === 'atendimento' && (
