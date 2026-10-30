@@ -282,6 +282,7 @@ export default function SellerPortalPage() {
             userId={user?.id}
             userEmail={user?.email}
             company={(store.settings as any)?.titlesCompany}
+            erpCode={seller.erpCode}
           />
         )}
 

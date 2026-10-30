@@ -162,6 +162,13 @@
       "when": 1793322146303,
       "tag": "0022_invoice_representative_access_and_item_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793360262736,
+      "tag": "0023_erp_orders_televendas",
+      "breakpoints": true
     }
   ]
 }

@@ -114,11 +114,21 @@ class SyncTests(unittest.TestCase):
             sync.sync_pedidos(None, cur, sync.parse_args(['--pedido', '722199']))
         payload = post.call_args.args[0]
         self.assertNotIn('order_items', payload)
-        self.assertEqual(len(cur.queries), 1)
+        self.assertEqual(len(cur.queries), 2)
+        self.assertFalse(any('vw_mpz_pedido_item' in q[0] for q in cur.queries))
         order = payload['orders'][0]
         self.assertEqual((order['ordem_faturamento'], order['nota_fiscal_numero'], order['status']),
                          ('236784', '209490/55', 'F'))
         self.assertEqual(order['valor_total_com_impostos'], 79.90)
+
+    def test_televendas_flag_and_operator_from_pe001(self):
+        class Cursor:
+            def execute(self, sql, params): pass
+            def fetchall(self):
+                return [{'pedcod': '98721', 'pedtelven': 'S', 'pedotvcod': 9}]
+        orders = sync.enrich_televendas(Cursor(), [{'codigo_importacao': '98721'}, {'codigo_importacao': '1'}])
+        self.assertEqual((orders[0]['pedido_televendas'], orders[0]['televendas_codigo']), ('S', '9'))
+        self.assertNotIn('pedido_televendas', orders[1])
 
     def test_http_200_without_confirmation_is_failure(self):
         response = SimpleNamespace(status_code=200, raise_for_status=lambda: None,
