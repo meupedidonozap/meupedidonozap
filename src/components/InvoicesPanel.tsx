@@ -137,6 +137,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
 
   const list = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const nfNum = (v: unknown) => Number(String(v || '').replace(/\D/g, '')) || 0;
     return invoices.filter((invoice) => {
       if (status !== 'todos' && invoice.status !== status) return false;
       if (!term) return true;
@@ -144,7 +145,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
       return [invoice.numero, invoice.serie, invoice.pedido_codigo, invoice.cliente_codigo,
         invoice.chave_nfe, invoice.status, customer?.name, customer?.city]
         .some((value) => String(value || '').toLowerCase().includes(term));
-    });
+    }).sort((a, b) => nfNum(b.numero) - nfNum(a.numero));
   }, [invoices, search, customerNames, status]);
 
   const statuses = useMemo(
