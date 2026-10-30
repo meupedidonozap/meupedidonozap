@@ -122,7 +122,7 @@ MONITOR_MIN_ENTRE = {
     "clientes": _env_int("MONITOR_MIN_ENTRE_CLIENTES", 600),
 }
 MONITOR_SYNC_INICIAL = os.getenv("MONITOR_SINCRONIZAR_AO_INICIAR", "sim").strip().lower() in ("sim", "s", "1", "true")
-MONITOR_PORTA_TRAVA = _env_int("MONITOR_PORTA_TRAVA", 47653) + {"todos": 0, "pedidos": 1, "cadastros": 2, "status": 3}.get(TAREFA, 0)
+MONITOR_PORTA_TRAVA = _env_int("MONITOR_PORTA_TRAVA", 47653) + {"todos": 0, "pedidos": 1, "cadastros": 2, "status": 3, "titulos": 4, "boletos": 5}.get(TAREFA, 0)
 MONITOR_INTERVALO_PEDIDOS_DEDICADO = _env_int("MONITOR_INTERVALO_PEDIDOS_DEDICADO", 30)
 # Transmissão de pedidos MPZ -> ERP (integrador_pedidos.py na pasta importacao)
 IMPORTACAO_DIR = _BASE / "importacao"
@@ -181,6 +181,23 @@ def _status_e_boletos() -> bool:
         sincronizar_status_pedidos(["--somente-boletos", "--boletos-dias",
                                     str(_env_int("MONITOR_BOLETOS_DIAS", 30))], "boletos")
     return ok
+
+
+MONITOR_INTERVALO_TITULOS = _env_int("MONITOR_INTERVALO_TITULOS", 600)
+MONITOR_INTERVALO_BOLETOS_DEDICADO = _env_int("MONITOR_INTERVALO_BOLETOS_DEDICADO", 3600)
+TITULOS_HORA_COMPLETO = _env_int("TITULOS_HORA_COMPLETO", 6)
+_ultimo_completo = None
+
+
+def _titulos_ciclo() -> bool:
+    """v17: a cada ciclo, atualização rápida; 1x por dia (a partir das 6h), todos desde a data do admin."""
+    global _ultimo_completo
+    from datetime import date as _d, datetime as _dt
+    if _ultimo_completo != _d.today() and _dt.now().hour >= TITULOS_HORA_COMPLETO:
+        _ultimo_completo = _d.today()
+        log.info("[titulos] Atualização diária completa (desde a data do admin)...")
+        return sincronizar_status_pedidos(["--titulos", "completo"], "titulos")
+    return sincronizar_status_pedidos(["--titulos", "rapido"], "titulos")
 
 
 def sincronizar_status_pedidos(extra=None, tag="status-pedidos") -> bool:
@@ -887,7 +904,7 @@ if __name__ == "__main__":
     parser.add_argument("--only", nargs="+", choices=list(ENTIDADES), help="Limita a alguns itens (padrão: todos).")
     parser.add_argument("--transmitir-pedidos", action="store_true", help="Só transmite os pedidos liberados ao ERP e sai.")
     parser.add_argument("--dry-pedidos", action="store_true", help="Só gera o XML dos pedidos liberados, sem enviar.")
-    parser.add_argument("--tarefa", choices=["todos", "pedidos", "cadastros", "status"], default="todos",
+    parser.add_argument("--tarefa", choices=["todos", "pedidos", "cadastros", "status", "titulos", "boletos"], default="todos",
                         help="v12: monitor separado. pedidos=só transmissão; cadastros=estoque/preços/clientes; status=OF/NF.")
     args = parser.parse_args()
 
@@ -895,6 +912,12 @@ if __name__ == "__main__":
         sys.exit(_loop_dedicado("pedidos-erp", MONITOR_INTERVALO_PEDIDOS_DEDICADO, lambda: transmitir_pedidos()))
     if args.monitorar and args.tarefa == "status":
         sys.exit(_loop_dedicado("status-pedidos", MONITOR_INTERVALO_STATUS_PEDIDOS, _status_e_boletos))
+
+    if args.monitorar and args.tarefa == "titulos":
+        sys.exit(_loop_dedicado("titulos", MONITOR_INTERVALO_TITULOS, _titulos_ciclo))
+    if args.monitorar and args.tarefa == "boletos":
+        sys.exit(_loop_dedicado("boletos", MONITOR_INTERVALO_BOLETOS_DEDICADO,
+                                lambda: sincronizar_status_pedidos(["--boletos-abertos"], "boletos")))
 
     if args.transmitir_pedidos or args.dry_pedidos:
         sys.exit(0 if transmitir_pedidos(dry=args.dry_pedidos) else 1)
