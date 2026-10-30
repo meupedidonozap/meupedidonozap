@@ -715,10 +715,12 @@ export type Database = {
           operacao_codigo: string | null
           ordem_faturamento: string | null
           pedido_origem: string | null
+          pedido_televendas: boolean
           quantidade_total: number
           status: string
           store_id: string
           tabela_preco_codigo: string | null
+          televendas_codigo: string | null
           updated_at: string
           valor_desconto: number
           valor_faturado: number
@@ -742,10 +744,12 @@ export type Database = {
           operacao_codigo?: string | null
           ordem_faturamento?: string | null
           pedido_origem?: string | null
+          pedido_televendas?: boolean
           quantidade_total?: number
           status?: string
           store_id: string
           tabela_preco_codigo?: string | null
+          televendas_codigo?: string | null
           updated_at?: string
           valor_desconto?: number
           valor_faturado?: number
@@ -769,10 +773,12 @@ export type Database = {
           operacao_codigo?: string | null
           ordem_faturamento?: string | null
           pedido_origem?: string | null
+          pedido_televendas?: boolean
           quantidade_total?: number
           status?: string
           store_id?: string
           tabela_preco_codigo?: string | null
+          televendas_codigo?: string | null
           updated_at?: string
           valor_desconto?: number
           valor_faturado?: number
