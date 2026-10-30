@@ -358,7 +358,9 @@ def enrich_televendas(cur, orders):
                     "WHERE pedempcod::text = '1' AND pedcod::text = ANY(%s)", (codes,))
         tv = {str(r["pedcod"]).strip(): r for r in cur.fetchall()}
     except Exception as e:
-        cur.connection.rollback()
+        conn = getattr(cur, "connection", None)
+        if conn is not None:
+            conn.rollback()
         log(f"AVISO: não foi possível ler pedtelven/pedotvcod ({e}); pedidos enviados sem marca de televendas.")
         return orders
     for o in orders:
