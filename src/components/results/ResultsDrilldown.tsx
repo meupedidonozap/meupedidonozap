@@ -151,7 +151,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     data.orders.filter(o => inCurMonth(o.date)).forEach(o => m.set(o.customer, (m.get(o.customer) || 0) + o.value));
     const pf = new Map<string, number>();
     data.portfolio.filter(o => inCurMonth(o.date)).forEach(o => pf.set(o.customer, (pf.get(o.customer) || 0) + o.value));
-    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, v]) => ({ name: data.names.get(c) ? `${c} - ${data.names.get(c)}` : c, value: v, portfolio: pf.get(c) || 0 }));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, v]) => ({ name: data.names[c] ? `${c} - ${data.names[c]}` : c, value: v, portfolio: pf.get(c) || 0 }));
   }, [data]);
 
   // Por vendedor: total da carteira x parte do televendas no mês
