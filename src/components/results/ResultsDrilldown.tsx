@@ -65,28 +65,23 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
         orders = rows.filter(o => !['orcamento', 'cancelado'].includes(o.status)).map(o => ({
           date: o.created_at, value: Number(o.total) || 0, customer: o.customer?.name || o.customer?.customerCode || '-', items: o.items || [],
         }));
-      } else {
-        const rows = await fetchAll<any>((f, t) => {
-          let q = supabase.from('erp_orders').select('external_key, data_emissao, valor_total, cliente_codigo, status')
-            .eq('store_id', storeId).gte('data_emissao', since).range(f, t);
-          if (codeVariants.length) q = q.in('vendedor_codigo', codeVariants);
-          return q;
-        });
-        orders = rows.filter(o => String(o.status || '').toUpperCase() !== 'C').map(o => ({
-          date: o.data_emissao, value: Number(o.valor_total) || 0, customer: o.cliente_codigo, key: o.external_key,
-        }));
       }
       let invoices: DatedValue[] = [];
       let visits: { date: string; value: number; dur: number }[] = [];
       if (!isTv) {
+        // Mesma base da tela Notas Fiscais: representante da NF (notrepcod)
         const inv = await fetchAll<any>((f, t) => {
-          let q = supabase.from('customer_invoices').select('data_emissao, valor_total_nota_fiscal, filial_codigo')
+          let q = supabase.from('customer_invoices').select('data_emissao, valor_total_nota_fiscal, filial_codigo, cliente_codigo, pedido_codigo')
             .eq('store_id', storeId).gte('data_emissao', since).range(f, t);
           if (codeVariants.length) q = q.in('vendedor_codigo', codeVariants);
           if (company) q = q.eq('filial_codigo', company);
           return q;
         });
         invoices = inv.map(i => ({ date: i.data_emissao, value: Number(i.valor_total_nota_fiscal) || 0 }));
+        orders = inv.map(i => ({
+          date: i.data_emissao, value: Number(i.valor_total_nota_fiscal) || 0, customer: i.cliente_codigo,
+          key: i.pedido_codigo && i.pedido_codigo !== '0' ? `${i.filial_codigo}|${i.pedido_codigo}` : undefined,
+        }));
         const vis = await fetchAll<any>((f, t) => {
           let q = supabase.from('customer_visits').select('checked_in_at, duration_seconds, seller_code, seller_user_id')
             .eq('store_id', storeId).gte('checked_in_at', since).range(f, t);
