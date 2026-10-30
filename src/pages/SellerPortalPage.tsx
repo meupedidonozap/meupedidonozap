@@ -29,6 +29,8 @@ import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
 import ErpOrdersPanel from '@/components/ErpOrdersPanel';
 import SellerPendingOrderDialog from '@/components/SellerPendingOrderDialog';
+import ResultsDrilldown from '@/components/results/ResultsDrilldown';
+import { useAuth } from '@/hooks/useAuth';
 
 type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -50,6 +52,7 @@ export default function SellerPortalPage() {
   const qc = useQueryClient();
   const { data: store, isLoading } = useStoreBySlug(slug || '');
   const seller = useSellerMode(store?.id);
+  const { user } = useAuth();
   const { selectCustomer } = useSellerContext();
   const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [search, setSearch] = useState('');
@@ -272,17 +275,14 @@ export default function SellerPortalPage() {
         )}
 
         {section === 'resultados' && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { t: 'Pedidos do mês', v: String(mOrders.length) },
-              { t: 'Total vendido no mês', v: formatCurrency(sum(mOrders)) },
-              { t: 'Faturado no mês', v: formatCurrency(sum(mBilled)) },
-              { t: 'Orçamentos em aberto', v: `${mQuotes.length} • ${formatCurrency(sum(mQuotes))}` },
-            ].map(k => (
-              <Card key={k.t}><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm text-muted-foreground"><TrendingUp className="h-4 w-4" />{k.t}</CardTitle></CardHeader>
-                <CardContent className="text-2xl font-bold">{k.v}</CardContent></Card>
-            ))}
-          </div>
+          <ResultsDrilldown
+            storeId={store.id}
+            mode={seller.isAdmin ? 'admin' : seller.isTelevendas ? 'televendas' : 'vendedor'}
+            sellerCodes={seller.sellerCodes}
+            userId={user?.id}
+            userEmail={user?.email}
+            company={(store.settings as any)?.titlesCompany}
+          />
         )}
 
         {section === 'titulos' && (
