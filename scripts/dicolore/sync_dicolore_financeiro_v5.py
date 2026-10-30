@@ -1,4 +1,4 @@
-"""DiColore v16 (financeiro por período em lotes): pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
+"""DiColore v17 (títulos e boletos com monitores próprios) / v16 (financeiro por período em lotes): pedidos por período lidos em lotes de códigos (cada lote gravado na hora);
 --pedido para busca individual. Não altera configurações nem escreve no ERP. --com-itens é opcional."""
 import argparse
 from decimal import Decimal
@@ -136,6 +136,11 @@ def parse_args(argv=None):
                         help="Só boletos de títulos emitidos nos últimos N dias (monitor usa 30).")
     parser.add_argument("--de", help="Data inicial dos títulos/notas/boletos (ex.: 01/09/2026).")
     parser.add_argument("--ate", help="Data final (ex.: 26/10/2026); padrão hoje.")
+    parser.add_argument("--titulos", choices=["rapido", "completo"],
+                        help="v17: rapido=em aberto + quitados/emitidos nos últimos dias; completo=todos desde a data do admin.")
+    parser.add_argument("--boletos-abertos", action="store_true",
+                        help="v17: boletos de todos os títulos em aberto desde a data do admin.")
+    parser.add_argument("--dias-recentes", type=int, default=int(os.getenv("TITULOS_DIAS_RECENTES", "5")))
     parser.add_argument("--dias", type=int, default=int(os.getenv("PEDIDOS_DIAS", "15")))
     parser.add_argument("--pedido", action="append", help="Código ERP; pode repetir. Ignora --dias.")
     parser.add_argument("--pendentes", action="store_true",
@@ -183,6 +188,10 @@ def run_connected(conn, args):
 
     if args.nota:
         return sync_boletos(cur, notas=args.nota)
+    if args.titulos:
+        return sync_titulos(cur, args.titulos, args)
+    if args.boletos_abertos:
+        return sync_boletos_abertos(cur, args)
     if args.somente_boletos:
         de, ate = periodo_boletos(args)
         return sync_financeiro_periodo(cur, de, ate)
@@ -273,6 +282,93 @@ def sync_financeiro_periodo(cur, de, ate):
         except psycopg2.errors.QueryCanceled:
             log(f"  Lote {n}/{len(lotes)}: excedeu o tempo; pulado, tenta no próximo ciclo.")
     log(f"CONCLUÍDO: {len(titles)} títulos, {total} boletos gravados na plataforma.")
+    return total
+
+
+SUPABASE_URL = "https://buvhdqpbpbwpzidzmdqh.supabase.co"
+ANON_KEY = ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1dmhkcXBicGJ3cHppZHptZHFoIiwi"
+            "cm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MjkxNjAsImV4cCI6MjA4NjMwNTE2MH0.-9GJg347r5JKvbRwNTd2RnOmIgi99KTN1xMl46WJ6mg")
+
+
+def data_inicio_admin(args):
+    """Data mínima definida pelo admin (Títulos > data mínima). --de ou TITULOS_DE têm prioridade."""
+    if args.de:
+        return parse_data(args.de)
+    if os.getenv("TITULOS_DE"):
+        return parse_data(os.environ["TITULOS_DE"])
+    try:
+        r = requests.get(f"{SUPABASE_URL}/rest/v1/stores", timeout=20,
+                         params={"slug": f"eq.{STORE_SLUG}", "select": "settings"},
+                         headers={"apikey": ANON_KEY, "Authorization": f"Bearer {ANON_KEY}"})
+        r.raise_for_status()
+        rows = r.json()
+        d = (rows[0].get("settings") or {}).get("titlesStartDate") if rows else None
+        if d:
+            return parse_data(str(d)[:10])
+    except Exception as e:
+        log(f"Aviso: não li a data do admin ({e.__class__.__name__}); usando 365 dias.")
+    return date.today() - timedelta(days=365)
+
+
+def enviar_titulos(rows):
+    total = 0
+    for i in range(0, len(rows), TITLES_BATCH):
+        res = post({"store_slug": STORE_SLUG, "titles": rows[i:i + TITLES_BATCH]})
+        total += res.get("titlesUpserted") or 0
+        log(f"  Títulos {i + 1}-{i + len(rows[i:i + TITLES_BATCH])}: {res.get('titlesUpserted')} gravados")
+    return total
+
+
+def sync_titulos(cur, modo, args):
+    """v17: atualiza status/baixas de TODOS os clientes.
+    rapido: títulos em aberto + quitados ou emitidos nos últimos N dias (a cada poucos minutos).
+    completo: todos os títulos desde a data definida pelo admin (1x por dia), mês a mês."""
+    de = data_inicio_admin(args)
+    hoje = date.today()
+    t0 = time.monotonic()
+    if modo == "rapido":
+        rec = hoje - timedelta(days=args.dias_recentes)
+        cur.execute("""SELECT * FROM dw_titulo
+                        WHERE data_emissao >= %s
+                          AND (status <> 'PAGO' OR data_quitacao >= %s OR data_emissao >= %s)""",
+                    (de, rec, rec))
+        rows = [{k: to_json(v) for k, v in r.items()} for r in cur.fetchall()]
+        log(f"Títulos (rápido, desde {de:%d/%m/%Y}): {len(rows)} lidos em {time.monotonic() - t0:.1f}s")
+        n = enviar_titulos(rows)
+        log(f"CONCLUÍDO: {n} títulos atualizados.")
+        return n
+    total, ini = 0, de
+    while ini <= hoje:
+        fim = min((ini.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1), hoje)
+        t0 = time.monotonic()
+        try:
+            cur.execute("SELECT * FROM dw_titulo WHERE data_emissao BETWEEN %s AND %s", (ini, fim))
+            rows = [{k: to_json(v) for k, v in r.items()} for r in cur.fetchall()]
+            log(f"Títulos {ini:%d/%m/%Y}-{fim:%d/%m/%Y}: {len(rows)} lidos em {time.monotonic() - t0:.1f}s")
+            total += enviar_titulos(rows)
+        except psycopg2.errors.QueryCanceled:
+            log(f"  {ini:%m/%Y}: excedeu o tempo; tenta no próximo ciclo.")
+        ini = fim + timedelta(days=1)
+    log(f"CONCLUÍDO (completo desde {de:%d/%m/%Y}): {total} títulos atualizados.")
+    return total
+
+
+def sync_boletos_abertos(cur, args):
+    """v17: boletos de todos os títulos em aberto desde a data do admin, em lotes de NFs."""
+    de = data_inicio_admin(args)
+    cur.execute("SELECT DISTINCT codigo FROM dw_titulo WHERE status <> 'PAGO' AND data_emissao >= %s", (de,))
+    notas = sorted({str(r["codigo"]) for r in cur.fetchall() if r.get("codigo")})
+    log(f"Boletos: {len(notas)} NFs com título em aberto desde {de:%d/%m/%Y}")
+    total = 0
+    lotes = [notas[i:i + BOLETOS_NOTAS_LOTE] for i in range(0, len(notas), BOLETOS_NOTAS_LOTE)]
+    for n, lote in enumerate(lotes, 1):
+        t0 = time.monotonic()
+        try:
+            total += sync_boletos(cur, notas=lote, silencioso=True)
+            log(f"  Lote {n}/{len(lotes)}: {len(lote)} NFs em {time.monotonic() - t0:.1f}s (total {total})")
+        except psycopg2.errors.QueryCanceled:
+            log(f"  Lote {n}/{len(lotes)}: excedeu o tempo; pulado.")
+    log(f"CONCLUÍDO: {total} boletos gravados.")
     return total
 
 
