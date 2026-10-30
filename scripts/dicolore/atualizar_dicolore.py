@@ -560,12 +560,37 @@ def atualizar_painel(entidades: list, ver_navegador: bool = False) -> list:
                     pass
 
             page.on("response", _ao_responder)
-            page.goto(ADMIN_URL, timeout=30000)
+            page.goto(ADMIN_URL, timeout=60000, wait_until="domcontentloaded")
 
-            # ATENÇÃO: seletores de login iguais aos do script anterior.
-            page.fill('input[type="email"], input[name="email"]', ADMIN_USER)
-            page.fill('input[type="password"], input[name="password"]', ADMIN_PASS)
-            page.click('button[type="submit"]')
+            # Espera aparecer o formulário de login OU o painel já logado.
+            campo_email = page.locator('input[type="email"], input[name="email"]').first
+            aba_painel = page.get_by_text(entidades[0].aba_painel, exact=False).first
+            logado = False
+            for _ in range(60):  # até ~60s
+                try:
+                    if campo_email.is_visible():
+                        break
+                    if aba_painel.is_visible():
+                        logado = True
+                        break
+                except Exception:
+                    pass
+                page.wait_for_timeout(1000)
+            else:
+                log.error("Login não apareceu. URL atual: %s | Título: %s", page.url, page.title())
+                raise RuntimeError("Tela de login/painel não carregou em 60s")
+
+            if logado:
+                log.info("Painel já estava logado; pulando login.")
+            else:
+                campo_email.fill(ADMIN_USER)
+                page.fill('input[type="password"], input[name="password"]', ADMIN_PASS)
+                page.click('button[type="submit"]')
+                try:
+                    aba_painel.wait_for(state="visible", timeout=45000)
+                except Exception:
+                    log.error("Após login o painel não abriu. URL: %s | Título: %s", page.url, page.title())
+                    raise
 
             for ent in entidades:
                 try:
