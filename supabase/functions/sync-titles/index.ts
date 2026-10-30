@@ -262,6 +262,11 @@ Deno.serve(async (req) => {
     ordem_faturamento: o.ordem_faturamento || null,
     nota_fiscal_numero: o.nota_fiscal_numero && o.nota_fiscal_numero !== "0" ? o.nota_fiscal_numero : null,
     pedido_origem: o.pedido_origem || null,
+    // pe001.pedtelven / pe001.pedotvcod (enviados pelo script local)
+    ...((o as any).pedido_televendas !== undefined ? {
+      pedido_televendas: String((o as any).pedido_televendas || "").trim().toUpperCase() === "S" || (o as any).pedido_televendas === true,
+      televendas_codigo: String((o as any).televendas_codigo ?? "").trim().replace(/^0+(?=\d)/, "") || null,
+    } : {}),
   }));
   // O ERP às vezes devolve um código interno (não numérico) no lugar do parceiro: usa o cliente do pedido do site.
   const badCodes = orderRows.filter((r) => !/^\d+$/.test(String(r.cliente_codigo || "").trim()));

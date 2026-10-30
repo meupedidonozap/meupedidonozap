@@ -348,6 +348,29 @@ def normalize_order(row):
     return order
 
 
+def enrich_televendas(cur, orders):
+    """v15: marca pedidos do televendas (pe001.pedtelven = S) e a operadora (pe001.pedotvcod)."""
+    codes = [o["codigo_importacao"] for o in orders if o.get("codigo_importacao")]
+    if not codes:
+        return orders
+    try:
+        cur.execute("SELECT pedcod::text AS pedcod, pedtelven, pedotvcod FROM pe001 "
+                    "WHERE pedempcod::text = '1' AND pedcod::text = ANY(%s)", (codes,))
+        tv = {str(r["pedcod"]).strip(): r for r in cur.fetchall()}
+    except Exception as e:
+        cur.connection.rollback()
+        log(f"AVISO: não foi possível ler pedtelven/pedotvcod ({e}); pedidos enviados sem marca de televendas.")
+        return orders
+    for o in orders:
+        r = tv.get(o["codigo_importacao"])
+        if r is None:
+            continue
+        o["pedido_televendas"] = str(r.get("pedtelven") or "").strip().upper()
+        cod = r.get("pedotvcod")
+        o["televendas_codigo"] = "" if cod in (None, "", 0, "0") else str(cod).strip()
+    return orders
+
+
 def query_windows(args, today=None):
     if args.pedido:
         for code in dict.fromkeys(c.strip() for c in args.pedido):
@@ -457,6 +480,7 @@ def sync_por_lotes(cur, args, today=None):
         try:
             cur.execute(BATCH_SQL, (lote,))
             orders = [normalize_order(row) for row in cur.fetchall()]
+            orders = enrich_televendas(cur, orders)
         except psycopg2.errors.QueryCanceled:
             if len(lote) > 1:
                 meio = len(lote) // 2
@@ -501,6 +525,7 @@ def sync_pedidos(conn, cur, args):
         try:
             cur.execute(sql, params)
             orders = [normalize_order(row) for row in cur.fetchall()]
+            orders = enrich_televendas(cur, orders)
         except psycopg2.errors.QueryCanceled:
             if getattr(args, "pular_falhas", False):
                 log(f"{label}: excedeu {args.timeout_sql}s; pulado, tenta no próximo ciclo.")
