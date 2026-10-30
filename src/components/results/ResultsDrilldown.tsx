@@ -1,3 +1,4 @@
+import { televendasOrderKeys, isTelevendasInvoice } from '@/lib/televendasSplit';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Loader2, Minus, TrendingUp, Users, Package, MapPin, ShoppingCart, Receipt, DollarSign } from 'lucide-react';
@@ -78,20 +79,31 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     queryFn: async () => {
       let orders: { date: string; value: number; customer: string; key?: string; items?: any[]; seller?: string }[] = [];
       let portfolio: { date: string; value: number; customer: string; key: string; seller: string }[] = [];
+      let tvFlagged = 0;
       if (isTv) {
-        // Carteira dos vendedores atendidos (pedidos ERP) e, dentro dela, os pedidos do televendas
-        // (pe001.pedtelven = S e pe001.pedotvcod = código da operadora logada).
-        const rows = await fetchAll<any>((f, t) => {
-          let q = supabase.from('erp_orders').select('external_key, data_emissao, valor_total, cliente_codigo, vendedor_codigo, pedido_televendas, televendas_codigo')
+        // Base igual ao relatório RTV307A: NFs dos vendedores atendidos (carteira); a parte do
+        // televendas são as NFs cujo pedido foi emitido pela operadora (pedtelven=S, pedotvcod).
+        const inv = await fetchAll<any>((f, t) => {
+          let q = supabase.from('customer_invoices').select('data_emissao, valor_total_nota_fiscal, filial_codigo, cliente_codigo, pedido_codigo, vendedor_codigo')
             .eq('store_id', storeId).gte('data_emissao', since).range(f, t);
           if (codeVariants.length) q = q.in('vendedor_codigo', codeVariants);
           if (company) q = q.eq('filial_codigo', company);
           return q;
         });
-        const me = normCode(erpCode);
-        portfolio = rows.filter(r => r.data_emissao).map(r => ({ date: r.data_emissao, value: Number(r.valor_total) || 0, customer: r.cliente_codigo, key: r.external_key, seller: normCode(r.vendedor_codigo) }));
-        orders = rows.filter(r => r.data_emissao && r.pedido_televendas && (!me || normCode(r.televendas_codigo) === me))
-          .map(r => ({ date: r.data_emissao, value: Number(r.valor_total) || 0, customer: r.cliente_codigo, key: r.external_key, seller: normCode(r.vendedor_codigo) }));
+        const tvRows = await fetchAll<any>((f, t) => {
+          let q = supabase.from('erp_orders').select('external_key, pedido_televendas, televendas_codigo')
+            .eq('store_id', storeId).eq('pedido_televendas', true).range(f, t);
+          if (company) q = q.eq('filial_codigo', company);
+          return q;
+        });
+        const keys = televendasOrderKeys(tvRows, erpCode || '');
+        tvFlagged = keys.size;
+        const mapped = inv.filter(i => i.data_emissao).map(i => ({
+          date: i.data_emissao, value: Number(i.valor_total_nota_fiscal) || 0, customer: i.cliente_codigo,
+          key: `${i.filial_codigo}|${i.pedido_codigo}`, seller: normCode(i.vendedor_codigo), isTv: isTelevendasInvoice(i, keys),
+        }));
+        portfolio = mapped;
+        orders = mapped.filter(m => m.isTv);
       }
       let invoices: DatedValue[] = [];
       let visits: { date: string; value: number; dur: number }[] = [];
@@ -127,7 +139,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
           (data || []).forEach(p => { names[p.customer_code] = p.name; });
         }
       }
-      return { orders, invoices, visits, names, portfolio };
+      return { orders, invoices, visits, names, portfolio, tvFlagged };
     },
   });
 
@@ -267,7 +279,8 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
           </SelectContent>
         </Select>
       )}
-      {isTv && <p className="text-sm text-muted-foreground">Pedidos emitidos por você (televendas) comparados com o total da carteira dos vendedores que você atende.</p>}
+      {isTv && <p className="text-sm text-muted-foreground">Notas faturadas de pedidos emitidos por você (televendas) comparadas com o total faturado da carteira dos vendedores que você atende.</p>}
+      {isTv && data && data.tvFlagged === 0 && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">Pedidos do televendas ainda não sincronizados — rode a atualização de pedidos no computador do ERP.</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.filter(c => !c.hide).map(c => (
           <Card key={c.k} role="button" onClick={() => setOpen(c.k)} className="cursor-pointer transition hover:border-primary">
