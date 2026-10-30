@@ -150,10 +150,10 @@ def parse_args(argv=None):
     parser.add_argument("--por-dia", action="store_true", help="Modo antigo: uma consulta por dia.")
     parser.add_argument("--consulta-unica", action="store_true",
                         help="Modo v13: uma única consulta para o período inteiro (pode estourar o tempo).")
-    parser.add_argument("--lote", type=int, default=int(os.getenv("PEDIDOS_LOTE", "50")),
-                        help="Pedidos por consulta no modo em lotes (padrão 50).")
-    parser.add_argument("--timeout-lote", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_LOTE", "120")),
-                        help="Limite por lote, em segundos (padrão 120).")
+    parser.add_argument("--lote", type=int, default=int(os.getenv("PEDIDOS_LOTE", "20")),
+                        help="Pedidos por consulta no modo em lotes (padrão 20).")
+    parser.add_argument("--timeout-lote", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_LOTE", "180")),
+                        help="Limite por lote, em segundos (padrão 180).")
     parser.add_argument("--timeout-sql", type=int, default=int(os.getenv("PEDIDOS_TIMEOUT_SQL", "300")),
                         help="Limite por consulta, em segundos (padrão 300).")
     args = parser.parse_args(argv)
