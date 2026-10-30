@@ -224,7 +224,8 @@ def sincronizar_status_pedidos(extra=None, tag="status-pedidos") -> bool:
         if process.stdout is None:
             raise RuntimeError("Não foi possível ler o progresso.")
         threading.Thread(target=read_output, args=(process.stdout,), daemon=True).start()
-        deadline = time.monotonic() + max(30, _env_int("MONITOR_TIMEOUT_STATUS_PEDIDOS", 600))
+        deadline = time.monotonic() + (_env_int("MONITOR_TIMEOUT_TITULOS", 7200) if tag in ("titulos", "boletos")
+                                        else max(30, _env_int("MONITOR_TIMEOUT_STATUS_PEDIDOS", 600)))
         while True:
             if time.monotonic() >= deadline:
                 log.error("[status-pedidos] Limite do ciclo atingido; etapas já confirmadas preservadas. "
