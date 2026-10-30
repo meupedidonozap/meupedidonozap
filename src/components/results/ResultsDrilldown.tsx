@@ -1,3 +1,4 @@
+import { televendasOrderKeys, isTelevendasInvoice } from '@/lib/televendasSplit';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Loader2, Minus, TrendingUp, Users, Package, MapPin, ShoppingCart, Receipt, DollarSign } from 'lucide-react';
@@ -138,7 +139,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
           (data || []).forEach(p => { names[p.customer_code] = p.name; });
         }
       }
-      return { orders, invoices, visits, names, portfolio };
+      return { orders, invoices, visits, names, portfolio, tvFlagged };
     },
   });
 
