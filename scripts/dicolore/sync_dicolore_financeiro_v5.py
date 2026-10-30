@@ -168,7 +168,7 @@ def main():
     args = parse_args()
     if not SYNC_TOKEN or not DB["dbname"] or not DB["user"]:
         raise RuntimeError("Configuração incompleta: confira banco e token nos arquivos .env existentes.")
-    log("v16: conectando ao ERP (limite de conexão: 15s)...")
+    log("v17: conectando ao ERP (limite de conexão: 15s)...")
     config = dict(DB)
     config["options"] = ("-c default_transaction_read_only=on "
                          f"-c statement_timeout={args.timeout_sql * 1000} -c lock_timeout=5000")
