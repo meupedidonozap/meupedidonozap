@@ -2218,6 +2218,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_read_erp_item: {
+        Args: {
+          _item_customer: string
+          _order_key: string
+          _store_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       find_customer_by_document: {
         Args: { p_doc: string; p_store_id: string }
         Returns: {
@@ -2242,6 +2251,10 @@ export type Database = {
       }
       has_customer_portfolio_access: {
         Args: { _customer_code: string; _store_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_invoice_seller_access: {
+        Args: { _seller_code: string; _store_id: string; _user_id: string }
         Returns: boolean
       }
       has_store_permission: {
