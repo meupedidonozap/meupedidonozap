@@ -137,8 +137,23 @@ async function categoryResolver(storeId: string, token: string) {
 // Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
 // withPrice=false (automático): atualiza tudo menos preço de itens já existentes.
 // onlyNew=true: produtos que já existem no MPZ só recebem estoque (preço, fotos e status ficam como estão).
+// Saldo virtual: desconta pedidos em aberto no MPZ (ainda não despachados) do saldo vindo do Bling.
+let RES: { p: Map<string, number>; v: Map<string, number> } | null = null;
+async function loadRes(storeId: string) {
+  const { data } = await admin.rpc('store_reserved_stock', { _store_id: storeId });
+  const p = new Map<string, number>(), v = new Map<string, number>();
+  for (const r of (data ?? []) as any[]) {
+    if (r.variant_id) v.set(r.variant_id, (v.get(r.variant_id) ?? 0) + Number(r.qty || 0));
+    if (r.product_id) p.set(r.product_id, (p.get(r.product_id) ?? 0) + Number(r.qty || 0));
+  }
+  RES = { p, v };
+}
+const netP = (id: string | undefined, n: number) => Math.max(0, n - (id ? RES?.p.get(id) ?? 0 : 0));
+const netV = (id: string | undefined, n: number) => Math.max(0, n - (id ? RES?.v.get(id) ?? 0 : 0));
+
 async function productsBatch(storeId: string, ids: string[], withPrice = true, onlyNew = false) {
   const token = await getToken(storeId);
+  await loadRes(storeId);
   const resolveCat = await categoryResolver(storeId, token);
   let created = 0, updated = 0, variants = 0, failed = 0;
   const variantCodes: string[] = [], images: ImgJob[] = [], errors: string[] = [];
@@ -167,8 +182,8 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true, o
       let pid = ex?.id as string | undefined;
       const existed = !!pid;
       if (pid) {
-        if (onlyNew) await admin.from('products').update({ stock: total }).eq('id', pid);
-        else await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
+        if (onlyNew) await admin.from('products').update({ stock: netP(pid, total) }).eq('id', pid);
+        else await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: netP(pid, total), ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
         updated++;
       } else {
         const { data: ins, error } = await admin.from('products').insert({
@@ -185,7 +200,7 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true, o
         const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
         const vp = Number(v.preco ?? 0) || parentPrice;
         const vid = bySku.get(sku);
-        const row: Record<string, unknown> = (onlyNew && vid) ? { stock: stockOf(v) } : { product_id: pid, sku, color, size, stock: stockOf(v) };
+        const row: Record<string, unknown> = (onlyNew && vid) ? { stock: netV(vid, stockOf(v)) } : { product_id: pid, sku, color, size, stock: netV(vid, stockOf(v)) };
         if (!(onlyNew && vid) && (withPrice || !vid)) { row.price = vp; row.price_table_4 = vp; }
         const { error } = vid ? await admin.from('product_variants').update(row).eq('id', vid) : await admin.from('product_variants').insert(row);
         if (error) { errors.push(`${sku}: ${error.message}`); continue; }
@@ -213,12 +228,12 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true, o
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
     if (pid && onlyNew) {
-      await admin.from('products').update({ stock }).eq('id', pid);
+      await admin.from('products').update({ stock: netP(pid, stock) }).eq('id', pid);
       updated++;
       continue;
     }
     if (pid) {
-      await admin.from('products').update({ bling_code: code, stock, is_active: active, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
+      await admin.from('products').update({ bling_code: code, stock: netP(pid, stock), is_active: active, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
       updated++;
     } else {
       const { data: ins, error } = await admin.from('products').insert({
@@ -289,6 +304,7 @@ async function imagesBatch(storeId: string, jobs: ImgJob[], max = 8) {
 async function cronStock(storeId: string) {
   const token = await getToken(storeId);
   const all = await listAll(token);
+  await loadRes(storeId);
   const { data: prods } = await admin.from('products').select('id, code, bling_code, is_active, has_variants').eq('store_id', storeId);
   const byCode = new Map<string, any>();
   for (const p of prods ?? []) { if (p.code) byCode.set(String(p.code).trim(), p); if (p.bling_code) byCode.set(String(p.bling_code).trim(), p); }
@@ -299,8 +315,9 @@ async function cronStock(storeId: string) {
   for (const it of all) {
     const code = String(it.codigo ?? '').trim();
     if (!code || it.situacao === 'E') continue;
-    const stock = (it.situacao ?? 'A') === 'A' ? toStock(it.estoque?.saldoVirtualTotal) : 0;
+    const base = (it.situacao ?? 'A') === 'A' ? toStock(it.estoque?.saldoVirtualTotal) : 0;
     const v = varBySku.get(code);
+    const stock = v ? netV(v.id, base) : netP(byCode.get(code)?.id, base);
     if (v) { if (v.stock !== stock) { await admin.from('product_variants').update({ stock }).eq('id', v.id); updated++; } continue; }
     const p = byCode.get(code);
     if (!p) continue;
