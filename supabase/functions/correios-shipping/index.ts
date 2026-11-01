@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { originCep, destinyCep, weight, services } = body;
+    const { originCep, destinyCep, weight, services, length, width, height } = body;
 
     if (!originCep || !destinyCep) {
       return new Response(JSON.stringify({ error: 'CEP de origem e destino são obrigatórios' }), {
@@ -116,6 +116,56 @@ Deno.serve(async (req) => {
     const safeWeight = Math.max(weight || 0.3, 0.3);
 
     const enabledServices = Array.isArray(services) && services.length > 0 ? services : ['PAC', 'SEDEX'];
+
+    // Super Frete (real-time quote with discounts); falls back to regional table on failure
+    const sfToken = Deno.env.get('SUPERFRETE_TOKEN');
+    if (sfToken) {
+      try {
+        const codes: Record<string, string> = { PAC: '1', SEDEX: '2', MINI: '17' };
+        const svc = enabledServices.map((s: string) => codes[s]).filter(Boolean).join(',') || '1,2';
+        const resp = await fetch('https://api.superfrete.com/api/v0/calculator', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sfToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'MeuPedidoNoZap (contato@meupedidonozap.online)',
+          },
+          body: JSON.stringify({
+            from: { postal_code: cleanOrigin },
+            to: { postal_code: cleanDestiny },
+            services: svc,
+            options: { own_hand: false, receipt: false, insurance_value: 0, use_insurance_value: false },
+            package: {
+              weight: safeWeight,
+              height: Math.max(Number(height) || 2, 2),
+              width: Math.max(Number(width) || 11, 11),
+              length: Math.max(Number(length) || 16, 16),
+            },
+          }),
+        });
+        if (resp.ok) {
+          const arr = await resp.json();
+          const sfOptions = (Array.isArray(arr) ? arr : [])
+            .filter((o: any) => !o.error && !o.has_error && Number(o.price) > 0)
+            .map((o: any) => ({
+              code: `SF-${o.id}`,
+              name: o.name || (o.company?.name ?? 'Frete'),
+              price: Math.round(Number(o.price) * 100) / 100,
+              deadline: Number(o.delivery_time ?? o.delivery_range?.max ?? 0),
+            }));
+          if (sfOptions.length > 0) {
+            return new Response(JSON.stringify({ options: sfOptions, provider: 'superfrete' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } else {
+          console.error('SuperFrete error', resp.status, await resp.text());
+        }
+      } catch (e) {
+        console.error('SuperFrete failed', e);
+      }
+    }
     const options = [
       {
         code: '04510',
