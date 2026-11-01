@@ -828,7 +828,7 @@ export default function CheckoutPage() {
                       value={deliveryType}
                       onValueChange={v => {
                         setDeliveryType(v as 'entrega' | 'retirada');
-                        if (v === 'retirada') setSelectedNeighborhoodId('');
+                        if (v === 'retirada') { setSelectedNeighborhoodId(''); setSelectedShipping(''); }
                       }}
                       className="grid grid-cols-2 gap-2"
                     >
