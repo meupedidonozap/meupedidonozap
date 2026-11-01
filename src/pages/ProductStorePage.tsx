@@ -1,3 +1,4 @@
+import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { useState, useMemo, useEffect } from 'react';
@@ -67,7 +68,7 @@ export default function ProductStorePage() {
   const { data: allProducts = [] } = useProducts(store?.id);
   const { data: techMaterials = [] } = useTechnicalMaterials(store?.slug === 'dicolore' ? store?.id : undefined);
   const productsWithMaterial = useMemo(() => new Set(techMaterials.filter(m => m.isActive).flatMap(m => m.productIds)), [techMaterials]);
-  const { cart, itemDiscounts, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
+  const { cart, itemDiscounts, discountRules, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
   const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
   const {
@@ -112,6 +113,16 @@ export default function ProductStorePage() {
 
   // Sync the customer's price table into the cart (default 4 for visitors/unknown).
   const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
+
+  // Promoções com Qtd. mínima 0: mostra o preço promocional já no catálogo, sem estar no carrinho
+  const previewPct = (product: Product): number => {
+    if (product.hasVariants) return 0;
+    const inCartPct = itemDiscounts[`${product.id}-`];
+    if (inCartPct) return inCartPct;
+    const category = categories.find(c => c.id === product.categoryId);
+    const virtual = [{ productId: product.id, name: product.name, price: 0, quantity: 0, groupId: product.groupId || category?.name || undefined, categoryId: product.categoryId || undefined } as any];
+    return computeGroupDiscounts(virtual, discountRules, activePriceTable).itemDiscounts[`${product.id}-`] || 0;
+  };
   useEffect(() => {
     setCustomerPriceTable(activePriceTable);
   }, [activePriceTable, setCustomerPriceTable]);
@@ -685,9 +696,8 @@ export default function ProductStorePage() {
                   )}
                     {(() => {
                       const base = resolveProductPrice(product, activePriceTable);
-                      const pct = product.hasVariants ? 0 : (itemDiscounts[`${product.id}-`] || 0);
-                      const inCart = cart.items.some(i => i.productId === product.id && !i.variantId);
-                      if (pct > 0 && inCart) {
+                      const pct = previewPct(product);
+                      if (pct > 0) {
                         return (
                           <div>
                             <div className="flex items-center gap-1">
@@ -741,8 +751,8 @@ export default function ProductStorePage() {
                       <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         {(() => {
                           const base = resolveProductPrice(product, activePriceTable);
-                          const pct = product.hasVariants ? 0 : (itemDiscounts[`${product.id}-`] || 0);
-                          if (pct > 0 && cartQty > 0) {
+                          const pct = previewPct(product);
+                          if (pct > 0) {
                             return (
                               <div>
                                 <div className="flex items-center gap-1">

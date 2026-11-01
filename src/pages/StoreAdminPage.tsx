@@ -2129,7 +2129,7 @@ export default function StoreAdminPage() {
                     <div className="grid gap-1">
                       <Label className="text-sm">Qtd. Mínima *</Label>
                       <Input
-                        type="number" min="1" placeholder="ex: 6"
+                        type="number" min="0" placeholder="ex: 6 (0 = sempre)"
                         value={newRule.minQuantity}
                         onChange={e => setNewRule(r => ({ ...r, minQuantity: e.target.value }))}
                       />
@@ -2236,7 +2236,7 @@ export default function StoreAdminPage() {
                           .map(rule => editingRuleId === rule.id ? (
                           <TableRow key={rule.id}>
                             <TableCell>{rule.scope && rule.scope !== 'group' ? <Badge variant="outline" className="font-mono">{rule.scope === 'category' ? 'Categoria: ' + (rule.targetLabel || categories.find(c => c.id === rule.categoryId)?.name || '?') : rule.scope === 'product' ? 'Produto: ' + (rule.targetLabel || products.find(p => p.id === rule.productId)?.name || '?') : rule.groupId}</Badge> : <Input className="h-8" value={editRule.groupId} onChange={e => setEditRule(r => ({ ...r, groupId: e.target.value }))} />}</TableCell>
-                            <TableCell><Input className="h-8 w-20" type="number" min="1" value={editRule.minQuantity} onChange={e => setEditRule(r => ({ ...r, minQuantity: e.target.value }))} /></TableCell>
+                            <TableCell><Input className="h-8 w-20" type="number" min="0" value={editRule.minQuantity} onChange={e => setEditRule(r => ({ ...r, minQuantity: e.target.value }))} /></TableCell>
                             <TableCell><Input className="h-8 w-20" type="number" min="1" max="100" value={editRule.discountPercent} onChange={e => setEditRule(r => ({ ...r, discountPercent: e.target.value }))} /></TableCell>
                             <TableCell>
                               <Select value={editRule.priceTable} onValueChange={v => setEditRule(r => ({ ...r, priceTable: v }))}>
