@@ -345,17 +345,17 @@ export default function ProductFormDialog({
 
       // Upload multi-images for variants
       const uploadedImages: { imageUrl: string; label?: string }[] = [];
-      if (hasVariants && productImages.length > 0) {
+      if (productImages.length > 0) {
         for (const img of productImages) {
           if (img.file) {
             const url = await uploadProductImage(img.file, storeId);
-            uploadedImages.push({ imageUrl: url, label: img.label || undefined });
+            uploadedImages.push({ imageUrl: url, label: (hasVariants && img.label) || undefined });
           } else if (img.url) {
-            uploadedImages.push({ imageUrl: img.url, label: img.label || undefined });
+            uploadedImages.push({ imageUrl: img.url, label: (hasVariants && img.label) || undefined });
           }
         }
-        // Use first image as main image if no single image was uploaded
-        if (!imageFile && uploadedImages.length > 0) {
+        // Use first image as main image if no main image exists
+        if (!imageFile && uploadedImages.length > 0 && (hasVariants || !imageUrl)) {
           imageUrl = uploadedImages[0].imageUrl;
         }
       }
@@ -822,10 +822,10 @@ export default function ProductFormDialog({
           )}
 
           {/* Multi-Image Upload (shown when has variants) */}
-          {hasVariants && (
+          {(
             <div className="space-y-3 rounded-lg border p-4">
               <div className="flex items-center justify-between">
-                <Label>Fotos do Produto</Label>
+                <Label>{hasVariants ? 'Fotos do Produto' : 'Mais fotos do produto'}</Label>
                 <Button
                   type="button"
                   variant="outline"
@@ -865,18 +865,22 @@ export default function ProductFormDialog({
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
-                      <Input
-                        value={img.label}
-                        onChange={e => updateImageLabel(i, e.target.value)}
-                        placeholder="Ex: Azul"
-                        className="h-7 text-xs"
-                      />
+                      {hasVariants && (
+                        <Input
+                          value={img.label}
+                          onChange={e => updateImageLabel(i, e.target.value)}
+                          placeholder="Ex: Azul"
+                          className="h-7 text-xs"
+                        />
+                      )}
                     </div>
                   );
                 })}
               </div>
               {productImages.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-2">Nenhuma foto adicionada. Adicione fotos para cada variação de cor.</p>
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  {hasVariants ? 'Nenhuma foto adicionada. Adicione fotos para cada variação de cor.' : 'Adicione fotos extras para mostrar mais detalhes do produto.'}
+                </p>
               )}
             </div>
           )}
