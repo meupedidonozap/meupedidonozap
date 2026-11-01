@@ -293,7 +293,8 @@ export function useUpdateProduct() {
 
       // Replace images if provided
       if (product.images !== undefined) {
-        await supabase.from('product_images').delete().eq('product_id', product.id);
+        const { error: dError } = await supabase.from('product_images').delete().eq('product_id', product.id);
+        if (dError) throw dError;
         if (product.images.length > 0) {
           const { error: iError } = await supabase.from('product_images').insert(
             product.images.map((img, idx) => ({

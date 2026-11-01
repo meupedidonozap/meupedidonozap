@@ -398,7 +398,7 @@ export default function ProductFormDialog({
           blingCode: blingCode.trim(),
           hasVariants,
           variants: variantData,
-          images: hasVariants ? uploadedImages : [],
+          images: uploadedImages,
           durationMinutes: isSalon ? Number(durationMinutes) || 30 : undefined,
           professionalIds: isSalon ? professionalIds : undefined,
         });
@@ -440,7 +440,7 @@ export default function ProductFormDialog({
           blingCode: blingCode.trim(),
           hasVariants,
           variants: variantData,
-          images: hasVariants ? uploadedImages : [],
+          images: uploadedImages,
           durationMinutes: isSalon ? Number(durationMinutes) || 30 : undefined,
           professionalIds: isSalon ? professionalIds : undefined,
         });
