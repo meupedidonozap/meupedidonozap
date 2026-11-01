@@ -136,7 +136,8 @@ async function categoryResolver(storeId: string, token: string) {
 
 // Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
 // withPrice=false (automático): atualiza tudo menos preço de itens já existentes.
-async function productsBatch(storeId: string, ids: string[], withPrice = true) {
+// onlyNew=true: produtos que já existem no MPZ só recebem estoque (preço, fotos e status ficam como estão).
+async function productsBatch(storeId: string, ids: string[], withPrice = true, onlyNew = false) {
   const token = await getToken(storeId);
   const resolveCat = await categoryResolver(storeId, token);
   let created = 0, updated = 0, variants = 0, failed = 0;
@@ -164,8 +165,10 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
       const parentPrice = price || Number(variacoes[0]?.preco ?? 0) || 0;
       const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
       let pid = ex?.id as string | undefined;
+      const existed = !!pid;
       if (pid) {
-        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
+        if (onlyNew) await admin.from('products').update({ stock: total }).eq('id', pid);
+        else await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
         updated++;
       } else {
         const { data: ins, error } = await admin.from('products').insert({
@@ -182,14 +185,15 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
         const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
         const vp = Number(v.preco ?? 0) || parentPrice;
         const vid = bySku.get(sku);
-        const row: Record<string, unknown> = { product_id: pid, sku, color, size, stock: stockOf(v) };
-        if (withPrice || !vid) { row.price = vp; row.price_table_4 = vp; }
+        const row: Record<string, unknown> = (onlyNew && vid) ? { stock: stockOf(v) } : { product_id: pid, sku, color, size, stock: stockOf(v) };
+        if (!(onlyNew && vid) && (withPrice || !vid)) { row.price = vp; row.price_table_4 = vp; }
         const { error } = vid ? await admin.from('product_variants').update(row).eq('id', vid) : await admin.from('product_variants').insert(row);
         if (error) { errors.push(`${sku}: ${error.message}`); continue; }
         variants++;
         const l = imageLinks(v.midia);
-        if (l.length) images.push({ productId: pid!, links: l, label: color || size });
+        if (l.length && !(onlyNew && vid)) images.push({ productId: pid!, links: l, label: color || size });
       }
+      if (onlyNew && existed) continue;
       // produto avulso com o código de uma variação: inativa
       await admin.from('products').update({ is_active: false }).eq('store_id', storeId).neq('id', pid).in('code', vcodes);
       const pl = imageLinks(det.midia);
