@@ -348,6 +348,17 @@ export default function CheckoutPage() {
     setShippingLoading(false);
   };
 
+  // CEP já preenchido pelo cadastro: calcula o frete automaticamente.
+  const autoQuotedCep = useRef('');
+  const cepDigits = (formData.cep || '').replace(/\D/g, '');
+  useEffect(() => {
+    if (!shippingEnabled || cepDigits.length !== 8) return;
+    if (autoQuotedCep.current === cepDigits) return;
+    autoQuotedCep.current = cepDigits;
+    fetchShippingQuote(cepDigits);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shippingEnabled, cepDigits]);
+
   const generateOrderMessage = () => {
     const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
       computeGroupDiscounts(cart.items, discountRules, activePriceTable);
@@ -910,6 +921,13 @@ export default function CheckoutPage() {
                   )}
                   {!shippingLoading && !shippingQuoted && (
                     <p className="text-sm text-muted-foreground">Digite o CEP acima para calcular o frete.</p>
+                  )}
+                  {!shippingLoading && (
+                    <Button type="button" variant="outline" size="sm"
+                      disabled={(formData.cep || '').replace(/\D/g, '').length !== 8}
+                      onClick={() => fetchShippingQuote((formData.cep || '').replace(/\D/g, ''))}>
+                      <Truck className="mr-2 h-4 w-4" /> Calcular frete
+                    </Button>
                   )}
                   {!shippingLoading && shippingQuoted && shippingOptions.length === 0 && (
                     <p className="text-sm text-destructive">Não foi possível calcular o frete para este CEP.</p>
