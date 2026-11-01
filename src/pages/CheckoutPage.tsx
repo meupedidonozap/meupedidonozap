@@ -260,7 +260,7 @@ export default function CheckoutPage() {
       return false;
     }
 
-    const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
+    const isPickup = isPickupSel || !offersDelivery;
     const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
     for (const field of required) {
       if (!formData[field as keyof typeof formData]) {
@@ -283,7 +283,7 @@ export default function CheckoutPage() {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
-    if (offersDelivery && shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
+    if (offersDelivery && !isPickupSel && shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
       toast.error('Selecione a modalidade de frete');
       return false;
     }
@@ -302,8 +302,9 @@ export default function CheckoutPage() {
     ? neighborhoods!.find(n => n.id === selectedNeighborhoodId)
     : undefined;
 
+  const isPickupSel = offersDelivery && deliveryType === 'retirada';
   let deliveryFee = 0;
-  if (!offersDelivery) {
+  if (!offersDelivery || isPickupSel) {
     deliveryFee = 0;
   } else if (shippingEnabled) {
     deliveryFee = shippingFee;
@@ -460,7 +461,7 @@ export default function CheckoutPage() {
         computeGroupDiscounts(cart.items, discountRules, activePriceTable);
       const liveTotalDiscount = cart.couponDiscount + liveQtyDiscount;
       const liveTotal = Math.max(0, cart.subtotal - liveTotalDiscount) + deliveryFee;
-      const isPickup = (hasNeighborhoods && deliveryType === 'retirada') || !offersDelivery;
+      const isPickup = isPickupSel || !offersDelivery;
       const observationsFinal = [
         !offersDelivery ? '' : (isPickup ? '[RETIRAR NA LOJA]' : (selectedNeighborhood ? `[ENTREGA: ${selectedNeighborhood.name}]` : '')),
         formData.observations || '',
@@ -820,7 +821,7 @@ export default function CheckoutPage() {
             <Card>
               <CardHeader><CardTitle>Endereço de Entrega</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                {hasNeighborhoods && (
+                {offersDelivery && (
                   <div className="space-y-2">
                     <Label>Modalidade *</Label>
                     <RadioGroup
@@ -833,7 +834,7 @@ export default function CheckoutPage() {
                     >
                       <label htmlFor="dt-entrega" className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer ${deliveryType === 'entrega' ? 'border-primary bg-primary/5' : ''}`}>
                         <RadioGroupItem value="entrega" id="dt-entrega" />
-                        <span className="font-medium">🛵 Entregar</span>
+                        <span className="font-medium">🚚 Entregar</span>
                       </label>
                       <label htmlFor="dt-retirada" className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer ${deliveryType === 'retirada' ? 'border-primary bg-primary/5' : ''}`}>
                         <RadioGroupItem value="retirada" id="dt-retirada" />
@@ -866,7 +867,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {hasNeighborhoods && deliveryType === 'retirada' ? (
+                {isPickupSel ? (
                   <div className="rounded-md border border-dashed bg-muted/40 p-4 text-sm">
                     O pedido será retirado no endereço da loja. Não há taxa de entrega.
                   </div>
@@ -912,7 +913,7 @@ export default function CheckoutPage() {
             )}
 
             {/* Shipping options */}
-            {shippingEnabled && (
+            {shippingEnabled && !isPickupSel && (
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-5 w-5" /> Frete</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -1095,7 +1096,7 @@ export default function CheckoutPage() {
                       <span className="font-semibold">{formatCurrency(deliveryFee)}</span>
                     </div>
                   )}
-                  {hasNeighborhoods && deliveryType === 'retirada' && (
+                  {isPickupSel && (
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Retirar na loja</span><span>Sem taxa</span>
                     </div>
