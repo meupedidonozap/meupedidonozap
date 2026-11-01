@@ -102,9 +102,17 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
             await importProducts();
           }}>Limpar tudo e reimportar</Button>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Importar clientes</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={async () => {
+            setBusy(true); setMsg('Enviando pedidos ao Bling...');
+            try {
+              const r = await call({ action: 'send_orders' });
+              setMsg(`${r.sent} pedido(s) enviado(s) ao Bling${r.failed ? `, ${r.failed} com erro: ${r.errors.join(' | ')}` : ''}.`);
+            } catch (e) { setMsg('Erro: ' + (e as Error).message); }
+            setBusy(false);
+          }}>Enviar pedidos ao Bling</Button>
         </div>
       )}
-      {connected && <p className="text-xs text-muted-foreground"><strong>Sincronizar</strong>: só produtos novos e estoque (preço, fotos e status do MPZ ficam como estão). <strong>Atualizar</strong>: traz preço, fotos, status e produtos do Bling. <strong>Limpar e reimportar</strong>: apaga e importa tudo de novo. Automático a cada 5 min igual ao Sincronizar.</p>}
+      {connected && <p className="text-xs text-muted-foreground"><strong>Sincronizar</strong>: só produtos novos e estoque (preço, fotos e status do MPZ ficam como estão). <strong>Atualizar</strong>: traz preço, fotos, status e produtos do Bling. <strong>Limpar e reimportar</strong>: apaga e importa tudo de novo. Automático a cada 5 min igual ao Sincronizar. <strong>Pedidos</strong>: novos pedidos (online só depois de pagos) vão sozinhos ao Bling a cada 5 min.</p>}
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
     </div>
   );

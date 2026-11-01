@@ -964,6 +964,10 @@ export type Database = {
       }
       orders: {
         Row: {
+          bling_attempts: number
+          bling_error: string | null
+          bling_order_id: string | null
+          bling_sent_at: string | null
           client_order_id: string | null
           created_at: string
           customer: Json
@@ -998,6 +1002,10 @@ export type Database = {
           xml_downloaded_at: string | null
         }
         Insert: {
+          bling_attempts?: number
+          bling_error?: string | null
+          bling_order_id?: string | null
+          bling_sent_at?: string | null
           client_order_id?: string | null
           created_at?: string
           customer?: Json
@@ -1032,6 +1040,10 @@ export type Database = {
           xml_downloaded_at?: string | null
         }
         Update: {
+          bling_attempts?: number
+          bling_error?: string | null
+          bling_order_id?: string | null
+          bling_sent_at?: string | null
           client_order_id?: string | null
           created_at?: string
           customer?: Json

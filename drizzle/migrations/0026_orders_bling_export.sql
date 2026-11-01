@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS bling_order_id text, ADD COLUMN IF NOT EXISTS bling_sent_at timestamptz, ADD COLUMN IF NOT EXISTS bling_error text, ADD COLUMN IF NOT EXISTS bling_attempts integer NOT NULL DEFAULT 0;
