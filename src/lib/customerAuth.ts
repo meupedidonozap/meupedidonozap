@@ -24,3 +24,16 @@ export function buildCustomerPassword(value: string): string {
   const v = (value || '').trim();
   return v.length >= 6 ? v : `dico${v}`;
 }
+
+/**
+ * Cadastro por loja: cada loja tem sua própria conta de acesso, mesmo com o
+ * mesmo e-mail. Usa o alias "nome+slug@dominio" (entregue na mesma caixa).
+ */
+export function buildStoreScopedEmail(email: string, slug: string): string {
+  const e = (email || '').trim().toLowerCase();
+  const at = e.lastIndexOf('@');
+  const safeSlug = (slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (at < 1 || !safeSlug) return e;
+  const local = e.slice(0, at).split('+')[0];
+  return `${local}+${safeSlug}@${e.slice(at + 1)}`;
+}

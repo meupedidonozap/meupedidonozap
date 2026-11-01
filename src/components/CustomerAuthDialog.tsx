@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUpsertCustomerProfile } from "@/hooks/useCustomerProfile";
 import { fetchAddressByCep } from "@/lib/cepLookup";
 import { formatPhone, formatCEP } from "@/lib/formatters";
-import { buildCustomerEmail, buildCustomerPassword } from "@/lib/customerAuth";
+import { buildCustomerEmail, buildCustomerPassword, buildStoreScopedEmail } from "@/lib/customerAuth";
 
 const brazilianStates = [
   "AC",
@@ -149,6 +149,8 @@ export default function CustomerAuthDialog({
     }
   }, [open, startAtProfile]);
 
+  const currentSlug = () => storeSlug || window.location.pathname.split("/").filter(Boolean)[0] || "";
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
@@ -156,7 +158,9 @@ export default function CustomerAuthDialog({
       return;
     }
     setLoading(true);
-    const { error } = await signIn(loginData.email, loginData.password);
+    const scopedLogin = buildStoreScopedEmail(loginData.email, currentSlug());
+    let { error } = await signIn(scopedLogin, loginData.password);
+    if (error) ({ error } = await signIn(loginData.email, loginData.password));
     setLoading(false);
     if (error) {
       toast.error(error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message);
@@ -216,7 +220,9 @@ export default function CustomerAuthDialog({
       return;
     }
     setLoading(true);
-    const { hasSession, error } = await signUp(registerData.email, registerData.password);
+    // Conta própria desta loja: o mesmo e-mail pode ter cadastro em outras lojas.
+    const scopedEmail = buildStoreScopedEmail(registerData.email, currentSlug());
+    const { hasSession, error } = await signUp(scopedEmail, registerData.password);
     setLoading(false);
     if (error) {
       const msg = (error.message || "").toLowerCase();
@@ -228,7 +234,7 @@ export default function CustomerAuthDialog({
         // A conta de acesso é única na plataforma, mas o cadastro de cliente é por loja.
         // Se a senha confere, abre o cadastro desta loja quando ainda não existir.
         setLoading(true);
-        const { error: loginErr } = await signIn(registerData.email, registerData.password);
+        const { error: loginErr } = await signIn(scopedEmail, registerData.password);
         if (!loginErr) {
           const { data: authData } = await supabase.auth.getUser();
           const uid = authData.user?.id;
@@ -256,7 +262,7 @@ export default function CustomerAuthDialog({
         }
         setLoading(false);
         toast.info(
-          'Este e-mail já tem acesso no Meu Pedido no Zap (outra loja). Entre com a mesma senha ou use "Esqueci a senha" — depois complete seus dados para esta loja.',
+          "Este e-mail já está cadastrado nesta loja. Entre com sua senha ou use \"Esqueci a senha\".",
           { duration: 8000 },
         );
         setLoginData({ email: registerData.email, password: "" });
@@ -285,9 +291,10 @@ export default function CustomerAuthDialog({
     const redirectTo = slug
       ? `${window.location.origin}/${slug}/redefinir-senha`
       : `${window.location.origin}/redefinir-senha`;
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+    const { error } = await supabase.auth.resetPasswordForEmail(buildStoreScopedEmail(forgotEmail, slug), {
       redirectTo,
     });
+    await supabase.auth.resetPasswordForEmail(forgotEmail, { redirectTo });
     setLoading(false);
     if (error) {
       toast.error(error.message);
