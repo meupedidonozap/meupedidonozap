@@ -1,4 +1,5 @@
 import { HelmetProvider } from "react-helmet-async";
+import { ThemeProvider } from "next-themes";
 import TechnicalMaterialsPage from './pages/TechnicalMaterialsPage';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -56,6 +57,7 @@ const App = () => (
     client={queryClient}
     persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7 }}
   >
+    <ThemeProvider attribute="class" defaultTheme="light" storageKey="mpz-theme" enableSystem={false}>
     <TooltipProvider>
       <CartProvider>
         <SellerProvider>
@@ -87,6 +89,7 @@ const App = () => (
         </SellerProvider>
       </CartProvider>
     </TooltipProvider>
+    </ThemeProvider>
   </PersistQueryClientProvider>
   </HelmetProvider>
 );

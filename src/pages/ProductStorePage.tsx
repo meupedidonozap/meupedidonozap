@@ -1,3 +1,4 @@
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { useState, useMemo, useEffect } from 'react';
 
@@ -393,6 +394,7 @@ export default function ProductStorePage() {
               </ScrollArea>
             </SheetContent>
           </Sheet>
+          <ThemeToggle />
           {store.slug === 'dicolore' && techMaterials.some(m => m.isActive) && (
             <Button variant="outline" size="sm" asChild className="h-9 rounded-full px-3">
               <Link to={`/${store.slug}/material-tecnico`}>{materialLabel(store.settings)}</Link>
