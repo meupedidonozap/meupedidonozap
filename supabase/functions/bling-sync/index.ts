@@ -411,6 +411,108 @@ async function syncCustomers(storeId: string, since?: string) {
   return { total, created, updated, failed };
 }
 
+// ===== Envio de pedidos MPZ -> Bling (POST /pedidos/vendas) =====
+async function blingSend(token: string, method: string, path: string, payload: unknown) {
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch(`${API}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) });
+    if (r.status === 429) { await wait(1200); continue; }
+    const b = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const fields = (b?.error?.fields ?? []).map((f: any) => f?.msg || f?.element).filter(Boolean).join('; ');
+      throw new Error(`Bling ${r.status}: ${b?.error?.description || b?.error?.message || 'erro'}${fields ? ' — ' + fields : ''}`);
+    }
+    return b;
+  }
+  throw new Error('Bling: limite de requisições');
+}
+
+async function ensureContact(token: string, c: any): Promise<number> {
+  const doc = String(c?.cpfCnpj || c?.cpf_cnpj || '').replace(/\D/g, '');
+  if (doc) {
+    const f = await bling(token, `/contatos?numeroDocumento=${doc}`);
+    if (f?.data?.[0]?.id) return f.data[0].id;
+  }
+  const tel = String(c?.whatsapp || '').replace(/\D/g, '');
+  const payload: any = {
+    nome: String(c?.name || 'Cliente MPZ').slice(0, 120),
+    tipo: doc.length === 14 ? 'J' : 'F',
+    situacao: 'A',
+    celular: tel || undefined,
+    email: c?.email || undefined,
+    endereco: { geral: {
+      endereco: c?.address || '', numero: c?.number || 'S/N', complemento: c?.complement || '',
+      bairro: c?.neighborhood || '', cep: String(c?.cep || '').replace(/\D/g, ''), municipio: c?.city || '', uf: c?.uf || '',
+    } },
+  };
+  if (doc) payload.numeroDocumento = doc;
+  const r = await blingSend(token, 'POST', '/contatos', payload);
+  return r?.data?.id;
+}
+
+async function exportOrder(storeId: string, token: string, order: any) {
+  // evita duplicar: procura pelo número da loja
+  const numeroLoja = `MPZ-${order.order_number}`;
+  const ex = await bling(token, `/pedidos/vendas?numerosLojas[]=${encodeURIComponent(numeroLoja)}`).catch(() => null);
+  if (ex?.data?.[0]?.id) return String(ex.data[0].id);
+  const contatoId = await ensureContact(token, order.customer);
+  const items = Array.isArray(order.items) ? order.items : [];
+  const pids = [...new Set(items.map((i: any) => i.productId).filter(Boolean))];
+  const vids = [...new Set(items.map((i: any) => i.variantId).filter(Boolean))];
+  const { data: prods } = pids.length ? await admin.from('products').select('id, code, bling_code').in('id', pids) : { data: [] as any[] };
+  const { data: vars } = vids.length ? await admin.from('product_variants').select('id, sku').in('id', vids) : { data: [] as any[] };
+  const pMap = new Map((prods ?? []).map((p: any) => [p.id, String(p.bling_code || p.code || '').trim()]));
+  const vMap = new Map((vars ?? []).map((v: any) => [v.id, String(v.sku || '').trim()]));
+  const itens = [];
+  for (const it of items) {
+    const codigo = (it.variantId && vMap.get(it.variantId)) || pMap.get(it.productId) || String(it.code || '').trim();
+    const linha: any = {
+      codigo, unidade: 'UN', quantidade: Number(it.quantity) || 1, valor: Number(it.price) || 0,
+      descricao: [it.name, it.variantName || [it.color, it.size].filter(Boolean).join(' / ')].filter(Boolean).join(' - ').slice(0, 120),
+    };
+    if (codigo) {
+      const f = await bling(token, `/produtos?codigos[]=${encodeURIComponent(codigo)}&criterio=5`).catch(() => null);
+      if (f?.data?.[0]?.id) linha.produto = { id: f.data[0].id };
+    }
+    itens.push(linha);
+  }
+  const data = String(order.created_at).slice(0, 10);
+  const payload: any = {
+    numeroLoja, data, dataSaida: data, dataPrevista: data,
+    contato: { id: contatoId },
+    itens,
+    desconto: { valor: Number(order.discount) || 0, unidade: 'REAL' },
+    transporte: { frete: Number(order.delivery_fee) || 0, fretePorConta: 0,
+      volumes: order.shipping_service ? [{ servico: String(order.shipping_service) }] : undefined },
+    observacoes: [`Pedido MPZ #${order.order_number}`, `Pagamento: ${order.payment_method || '-'}${order.payment_status === 'paid' ? ' (pago)' : ''}`, order.shipping_service ? `Frete: ${order.shipping_service}` : '', order.observations || ''].filter(Boolean).join(' | ').slice(0, 1000),
+  };
+  const r = await blingSend(token, 'POST', '/pedidos/vendas', payload);
+  return String(r?.data?.id ?? '');
+}
+
+async function exportOrders(storeId: string, onlyId?: string) {
+  const token = await getToken(storeId);
+  let q = admin.from('orders').select('*').eq('store_id', storeId).is('bling_order_id', null);
+  if (onlyId) q = q.eq('id', onlyId);
+  else q = q.not('status', 'in', '(orcamento,cancelado)').lt('bling_attempts', 5)
+    .gte('created_at', new Date(Date.now() - 15 * 86400e3).toISOString())
+    // pedidos com pagamento online só vão depois de pagos
+    .or('payment_status.is.null,payment_status.eq.paid,payment_status.eq.manual,payment_status.eq.pending_manual');
+  const { data: orders } = await q.order('created_at').limit(20);
+  let sent = 0, failed = 0; const errors: string[] = [];
+  for (const o of orders ?? []) {
+    try {
+      const id = await exportOrder(storeId, token, o);
+      await admin.from('orders').update({ bling_order_id: id, bling_sent_at: new Date().toISOString(), bling_error: null }).eq('id', o.id);
+      sent++;
+    } catch (e) {
+      const msg = (e as Error).message.slice(0, 500);
+      await admin.from('orders').update({ bling_error: msg, bling_attempts: (o.bling_attempts ?? 0) + 1 }).eq('id', o.id);
+      failed++; errors.push(`#${o.order_number}: ${msg}`);
+    }
+  }
+  return { sent, failed, errors };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -421,7 +523,7 @@ Deno.serve(async (req) => {
       const { data: conns } = await admin.from('bling_connections').select('store_id').not('access_token', 'is', null);
       const out: Record<string, unknown> = {};
       for (const c of conns ?? []) {
-        try { out[c.store_id] = await cronAuto(c.store_id); } catch (e) { out[c.store_id] = { error: (e as Error).message }; }
+        try { const auto = await cronAuto(c.store_id); let ped: unknown; try { ped = await exportOrders(c.store_id); } catch (e) { ped = { error: (e as Error).message }; } out[c.store_id] = { ...(auto as any), pedidos: ped }; } catch (e) { out[c.store_id] = { error: (e as Error).message }; }
       }
       return json(out);
     }
@@ -443,6 +545,7 @@ Deno.serve(async (req) => {
       return json(await productsBatch(storeId, ids, body.with_price !== false, body.only_new === true));
     }
     if (action === 'images_batch') return json(await imagesBatch(storeId, Array.isArray(body.jobs) ? body.jobs : []));
+    if (action === 'send_orders') return json(await exportOrders(storeId, body.order_id ? String(body.order_id) : undefined));
     if (action === 'customers') return json(await syncCustomers(storeId));
     if (action === 'clear_products') {
       const { data: ps } = await admin.from('products').select('id').eq('store_id', storeId);
