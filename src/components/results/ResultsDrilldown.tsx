@@ -2,10 +2,10 @@ import { televendasOrderKeys, isTelevendasInvoice } from '@/lib/televendasSplit'
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, Loader2, Minus, TrendingUp, Users, Package, MapPin, ShoppingCart, Receipt, DollarSign } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
-import { comparePeriods, type DatedValue, type PeriodCompare } from '@/lib/periodCompare';
+import { comparePeriods, monthlyBuckets, type DatedValue, type PeriodCompare } from '@/lib/periodCompare';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -61,7 +61,18 @@ function Change({ v }: { v: number | null }) {
 export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, userEmail, company, erpCode }: Props) {
   const [open, setOpen] = useState<Metric | null>(null);
   const [adminSeller, setAdminSeller] = useState<string>('all');
-  const since = iso(startPrevMonth());
+  const [period, setPeriod] = useState<string>('atual');
+  const multi = period.startsWith('m') ? Number(period.slice(1)) : 0;
+  const refDate = useMemo(() => {
+    if (/^\d{4}-\d{2}$/.test(period)) { const [y, m] = period.split('-').map(Number); return new Date(y, m, 0, 23, 59, 59); }
+    return new Date();
+  }, [period]);
+  const since = multi ? iso(new Date(refDate.getFullYear(), refDate.getMonth() - multi + 1, 1))
+    : iso(new Date(refDate.getFullYear(), refDate.getMonth() - 1, 1));
+  const monthOptions = useMemo(() => {
+    const n = new Date(); const nm = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    return Array.from({ length: 24 }, (_, i) => { const d = new Date(n.getFullYear(), n.getMonth() - i, 1); return { v: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, l: `${nm[d.getMonth()]}/${d.getFullYear()}` }; });
+  }, []);
   const isTv = mode === 'televendas';
 
   const { data: sellers = [] } = useQuery({
@@ -143,8 +154,12 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     },
   });
 
-  const now = new Date();
-  const inCurMonth = (d: string) => { const x = new Date(d.length === 10 ? d + 'T12:00' : d); return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear(); };
+  const now = refDate;
+  const inCurMonth = (d: string) => {
+    const x = new Date(d.length === 10 ? d + 'T12:00' : d);
+    if (multi) return x >= new Date(since + 'T00:00') && x <= now;
+    return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear();
+  };
 
   const cmp = useMemo(() => {
     if (!data) return null;
@@ -154,8 +169,12 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
       portfolio: comparePeriods(data.portfolio, now),
       invoices: comparePeriods(data.invoices, now),
       visits: comparePeriods(durRows, now),
+      mOrders: monthlyBuckets(data.orders, multi || 1, now),
+      mPortfolio: monthlyBuckets(data.portfolio, multi || 1, now),
+      mInvoices: monthlyBuckets(data.invoices, multi || 1, now),
+      mVisits: monthlyBuckets(durRows, multi || 1, now),
     };
-  }, [data]);
+  }, [data, multi, now]);
 
   const topClients = useMemo(() => {
     if (!data) return [];
@@ -164,7 +183,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     const pf = new Map<string, number>();
     data.portfolio.filter(o => inCurMonth(o.date)).forEach(o => pf.set(o.customer, (pf.get(o.customer) || 0) + o.value));
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, v]) => ({ name: data.names[c] ? `${c} - ${data.names[c]}` : c, value: v, portfolio: pf.get(c) || 0 }));
-  }, [data]);
+  }, [data, period]);
 
   // Por vendedor: total da carteira x parte do televendas no mês
   const bySeller = useMemo(() => {
@@ -174,10 +193,10 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     data.orders.filter(o => inCurMonth(o.date)).forEach(o => { const e = m.get(o.seller!) || { tv: 0, total: 0 }; e.tv += o.value; m.set(o.seller!, e); });
     const nm = new Map((sellers as any[]).map(s => [normCode(s.code), s.name]));
     return [...m.entries()].sort((a, b) => b[1].total - a[1].total).map(([c, v]) => ({ name: nm.get(c) ? `${c} - ${nm.get(c)}` : c, ...v }));
-  }, [data, sellers]);
+  }, [data, sellers, period]);
 
   const { data: topProducts = [], isLoading: prodLoading } = useQuery({
-    queryKey: ['results-products', storeId, mode, codeVariants.join(','), data?.orders.length],
+    queryKey: ['results-products', storeId, mode, codeVariants.join(','), data?.orders.length, period],
     enabled: open === 'produtos' && !!data,
     queryFn: async () => {
       const m = new Map<string, { name: string; qty: number; total: number; portfolioQty?: number }>();
@@ -215,24 +234,58 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
   const totalDur = data.visits.filter(v => inCurMonth(v.date)).reduce((a, v) => a + v.dur, 0);
   const curVisits = cmp.visits.current.count;
 
+  const sumB = (b: { count: number; total: number }[]) => b.reduce((a, x) => ({ count: a.count + x.count, total: a.total + x.total }), { count: 0, total: 0 });
+  const mo = sumB(cmp.mOrders), mp = sumB(cmp.mPortfolio), mi = sumB(cmp.mInvoices), mv = sumB(cmp.mVisits);
+  const curVal = (c: PeriodCompare, m: { count: number; total: number }, money: boolean) => multi ? (money ? m.total : m.count) : (money ? c.current.total : c.current.count);
+  const chg = (v: number | null) => multi ? undefined : v;
   const cards: { k: Metric; t: string; icon: any; v: string; change?: number | null; hide?: boolean }[] = [
-    { k: 'pedidos', t: isTv ? 'Pedidos emitidos no mês' : 'Pedidos do mês', icon: ShoppingCart, v: String(cmp.orders.current.count), change: cmp.orders.changeCount },
-    { k: 'vendido', t: isTv ? 'Total vendido pelo televendas' : 'Total vendido no mês', icon: DollarSign, v: formatCurrency(cmp.orders.current.total), change: cmp.orders.changeTotal },
-    { k: 'carteira', t: 'Total da carteira no mês', icon: TrendingUp, v: formatCurrency(cmp.portfolio.current.total), change: cmp.portfolio.changeTotal, hide: !isTv },
-    { k: 'faturado', t: 'Faturado no mês (NF)', icon: Receipt, v: formatCurrency(cmp.invoices.current.total), change: cmp.invoices.changeTotal, hide: isTv },
-    { k: 'visitas', t: 'Atendimentos no mês', icon: MapPin, v: `${curVisits} • hoje ${cmp.visits.today}`, change: cmp.visits.changeCount, hide: isTv },
+    { k: 'pedidos', t: isTv ? 'Pedidos emitidos no mês' : 'Pedidos do mês', icon: ShoppingCart, v: String(curVal(cmp.orders, mo, false)), change: chg(cmp.orders.changeCount) },
+    { k: 'vendido', t: isTv ? 'Total vendido pelo televendas' : 'Total vendido no mês', icon: DollarSign, v: formatCurrency(curVal(cmp.orders, mo, true)), change: chg(cmp.orders.changeTotal) },
+    { k: 'carteira', t: 'Total da carteira no mês', icon: TrendingUp, v: formatCurrency(curVal(cmp.portfolio, mp, true)), change: chg(cmp.portfolio.changeTotal), hide: !isTv },
+    { k: 'faturado', t: 'Faturado no mês (NF)', icon: Receipt, v: formatCurrency(curVal(cmp.invoices, mi, true)), change: chg(cmp.invoices.changeTotal), hide: isTv },
+    { k: 'visitas', t: 'Atendimentos no mês', icon: MapPin, v: multi ? String(mv.count) : `${curVisits} • hoje ${cmp.visits.today}`, change: chg(cmp.visits.changeCount), hide: isTv },
     { k: 'clientes', t: 'Top 10 clientes', icon: Users, v: topClients[0] ? topClients[0].name.slice(0, 22) : '-' },
     { k: 'produtos', t: 'Top 20 produtos', icon: Package, v: 'Ver ranking' },
   ];
 
+  const bucketsFor = (c: PeriodCompare) => c === cmp.portfolio ? cmp.mPortfolio : c === cmp.invoices ? cmp.mInvoices : c === cmp.visits ? cmp.mVisits : cmp.mOrders;
   const detail = (c: PeriodCompare, money: boolean, label: string) => {
     const f = (n: number) => money ? formatCurrency(n) : String(n);
+    if (multi) {
+      const b = bucketsFor(c); const tot = sumB(b);
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-md border p-2"><div className="text-[11px] text-muted-foreground">Total últimos {multi} meses</div><div className="font-bold">{f(money ? tot.total : tot.count)}</div></div>
+            <div className="rounded-md border p-2"><div className="text-[11px] text-muted-foreground">Média por mês</div><div className="font-bold">{f(Math.round((money ? tot.total : tot.count) / multi * 100) / 100)}</div></div>
+          </div>
+          <div className="h-60">
+            <ResponsiveContainer>
+              <BarChart data={b}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="label" fontSize={11} />
+                <YAxis fontSize={11} width={money ? 70 : 35} tickFormatter={(v) => money ? `${Math.round(v / 1000)}k` : v} />
+                <Tooltip formatter={(v: any) => f(Number(v))} />
+                <Bar name={money ? 'Valor' : 'Quantidade'} dataKey={money ? 'total' : 'count'} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="max-h-64 overflow-auto rounded-md border text-sm">
+            <table className="w-full">
+              <thead className="sticky top-0 bg-muted"><tr><th className="p-1.5 text-left">Mês</th><th className="p-1.5 text-right">Qtd</th>{money && <th className="p-1.5 text-right">Valor</th>}</tr></thead>
+              <tbody>{b.map(x => <tr key={x.key} className="border-t"><td className="p-1.5">{x.label}</td><td className="p-1.5 text-right">{x.count}</td>{money && <td className="p-1.5 text-right">{formatCurrency(x.total)}</td>}</tr>)}</tbody>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
+      );
+    }
     const pick = (x: { count: number; total: number }) => money ? x.total : x.count;
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
-            { t: 'Mês atual (até hoje)', v: f(pick(c.current)) },
+            { t: period === 'atual' ? 'Mês atual (até hoje)' : 'Mês escolhido', v: f(pick(c.current)) },
             { t: `Mês anterior até dia ${c.day}`, v: f(pick(c.previousSameDays)) },
             { t: 'Mês anterior completo', v: f(pick(c.previous)) },
             { t: 'Variação mesmo período', v: <Change v={money ? c.changeTotal : c.changeCount} /> },
@@ -246,7 +299,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
               <YAxis fontSize={11} width={money ? 70 : 35} tickFormatter={(v) => money ? `${Math.round(v / 1000)}k` : v} />
               <Tooltip formatter={(v: any) => f(Number(v))} labelFormatter={(d) => `Dia ${d}`} />
               <Legend />
-              <Line type="monotone" name="Mês atual" dataKey={money ? 'atual' : 'atualQtd'} stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              <Line type="monotone" name={period === 'atual' ? 'Mês atual' : 'Mês escolhido'} dataKey={money ? 'atual' : 'atualQtd'} stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
               <Line type="monotone" name="Mês anterior" dataKey={money ? 'anterior' : 'anteriorQtd'} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -296,6 +349,16 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" />{open && titles[open]}</DialogTitle></DialogHeader>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="atual">Mês atual x mês anterior</SelectItem>
+              <SelectItem value="m3">Últimos 3 meses</SelectItem>
+              <SelectItem value="m6">Últimos 6 meses</SelectItem>
+              <SelectItem value="m12">Últimos 12 meses</SelectItem>
+              {monthOptions.slice(1).map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
           {open === 'pedidos' && detail(cmp.orders, false, 'Quantidade de pedidos colocados, comparando os mesmos dias do mês anterior.')}
           {open === 'vendido' && detail(cmp.orders, true, isTv ? 'Valor dos pedidos emitidos por você no ERP (pedido televendas).' : 'Valor dos pedidos colocados.')}
           {open === 'carteira' && (

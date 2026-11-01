@@ -59,3 +59,25 @@ export function comparePeriods(rows: DatedValue[], now: Date = new Date()): Peri
     series,
   };
 }
+
+export interface MonthBucket { key: string; label: string; count: number; total: number }
+
+/** Monthly totals for the last `months` months ending at `now`'s month (oldest first). */
+export function monthlyBuckets(rows: DatedValue[], months: number, now: Date = new Date()): MonthBucket[] {
+  const names = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const out: MonthBucket[] = [];
+  const idx = new Map<string, MonthBucket>();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const b = { key, label: `${names[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`, count: 0, total: 0 };
+    out.push(b); idx.set(key, b);
+  }
+  for (const r of rows) {
+    const d = parse(r.date);
+    if (isNaN(d.getTime()) || d > now) continue;
+    const b = idx.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    if (b) { b.count++; b.total += Number(r.value) || 0; }
+  }
+  return out;
+}
