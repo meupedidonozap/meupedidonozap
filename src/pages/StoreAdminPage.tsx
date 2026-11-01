@@ -1887,10 +1887,21 @@ export default function StoreAdminPage() {
                                   setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber, priceTable: (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : undefined });
                                   return;
                                 }
+                                const mpPaid = value === 'cancelado' && order.paymentStatus === 'paid' && (store?.settings as any)?.paymentGateway?.provider === 'mercadopago';
+                                if (mpPaid) {
+                                  if (!confirm(`O pedido #${order.orderNumber} foi pago pelo Mercado Pago. Cancelar e estornar o valor ao cliente agora?`)) return;
+                                }
                                 setUpdatingStatusId(order.id);
                                 try {
+                                  if (mpPaid) {
+                                    const { data, error } = await supabase.functions.invoke('mercadopago', { body: { action: 'refund', orderId: order.id } });
+                                    if (error || data?.error) throw new Error(data?.error || 'Falha no estorno');
+                                    qc.invalidateQueries({ queryKey: ['orders'] });
+                                    toast.success('Pedido cancelado e valor estornado pelo Mercado Pago.');
+                                    return;
+                                  }
                                   await updateOrderStatus.mutateAsync({ id: order.id, status: value as OrderStatus });
-                                  toast.success('Status atualizado!');
+                                  toast.success(value === 'cancelado' && order.paymentStatus === 'paid' ? 'Pedido cancelado. Pagamento fora do Mercado Pago: devolva pelo app do banco.' : 'Status atualizado!');
                                 } catch (err: any) {
                                   toast.error(err?.message || 'Erro ao atualizar status');
                                 } finally {
