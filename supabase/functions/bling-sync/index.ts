@@ -136,7 +136,8 @@ async function categoryResolver(storeId: string, token: string) {
 
 // Processa até 10 produtos do Bling (pelo id). Retorna códigos das variações e fotos a baixar.
 // withPrice=false (automático): atualiza tudo menos preço de itens já existentes.
-async function productsBatch(storeId: string, ids: string[], withPrice = true) {
+// onlyNew=true: produtos que já existem no MPZ só recebem estoque (preço, fotos e status ficam como estão).
+async function productsBatch(storeId: string, ids: string[], withPrice = true, onlyNew = false) {
   const token = await getToken(storeId);
   const resolveCat = await categoryResolver(storeId, token);
   let created = 0, updated = 0, variants = 0, failed = 0;
@@ -164,8 +165,10 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
       const parentPrice = price || Number(variacoes[0]?.preco ?? 0) || 0;
       const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
       let pid = ex?.id as string | undefined;
+      const existed = !!pid;
       if (pid) {
-        await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
+        if (onlyNew) await admin.from('products').update({ stock: total }).eq('id', pid);
+        else await admin.from('products').update({ bling_code: code, has_variants: true, is_active: active, stock: total, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: parentPrice, price_table_4: parentPrice } : {}) }).eq('id', pid);
         updated++;
       } else {
         const { data: ins, error } = await admin.from('products').insert({
@@ -182,14 +185,15 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
         const { color, size } = parseVariation(v.variacao?.nome ?? v.nome ?? '');
         const vp = Number(v.preco ?? 0) || parentPrice;
         const vid = bySku.get(sku);
-        const row: Record<string, unknown> = { product_id: pid, sku, color, size, stock: stockOf(v) };
-        if (withPrice || !vid) { row.price = vp; row.price_table_4 = vp; }
+        const row: Record<string, unknown> = (onlyNew && vid) ? { stock: stockOf(v) } : { product_id: pid, sku, color, size, stock: stockOf(v) };
+        if (!(onlyNew && vid) && (withPrice || !vid)) { row.price = vp; row.price_table_4 = vp; }
         const { error } = vid ? await admin.from('product_variants').update(row).eq('id', vid) : await admin.from('product_variants').insert(row);
         if (error) { errors.push(`${sku}: ${error.message}`); continue; }
         variants++;
         const l = imageLinks(v.midia);
-        if (l.length) images.push({ productId: pid!, links: l, label: color || size });
+        if (l.length && !(onlyNew && vid)) images.push({ productId: pid!, links: l, label: color || size });
       }
+      if (onlyNew && existed) continue;
       // produto avulso com o código de uma variação: inativa
       await admin.from('products').update({ is_active: false }).eq('store_id', storeId).neq('id', pid).in('code', vcodes);
       const pl = imageLinks(det.midia);
@@ -208,6 +212,11 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true) {
     const stock = toStock(det.estoque?.saldoVirtualTotal ?? (await saldos(token, [id])).get(String(id)));
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
+    if (pid && onlyNew) {
+      await admin.from('products').update({ stock }).eq('id', pid);
+      updated++;
+      continue;
+    }
     if (pid) {
       await admin.from('products').update({ bling_code: code, stock, is_active: active, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
       updated++;
@@ -295,16 +304,16 @@ async function cronStock(storeId: string) {
     if (v) { if (v.stock !== stock) { await admin.from('product_variants').update({ stock }).eq('id', v.id); updated++; } continue; }
     const p = byCode.get(code);
     if (!p) continue;
-    const active = (it.situacao ?? 'A') === 'A';
-    if (p.has_variants) { if (p.is_active !== active) { await admin.from('products').update({ is_active: active }).eq('id', p.id); updated++; } continue; }
-    await admin.from('products').update({ stock, is_active: active }).eq('id', p.id); updated++;
+        // status (ativo/inativo) do MPZ é preservado no automático
+    if (p.has_variants) continue;
+    await admin.from('products').update({ stock }).eq('id', p.id); updated++;
   }
   return { total: all.length, updated };
 }
 
 const blingDate = (d: Date) => new Date(d.getTime() - 3 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
 
-// Automático: estoque + produtos alterados (nome, descrição, fotos, variantes) + clientes. Nunca preço.
+// Automático: estoque + produtos novos + clientes. Não altera preço, fotos nem status de itens existentes.
 async function cronAuto(storeId: string) {
   const startedAt = new Date();
   const stock = await cronStock(storeId);
@@ -321,7 +330,7 @@ async function cronAuto(storeId: string) {
   }
   pending = [...new Set(pending)];
   const now = pending.slice(0, 25);
-  const res = now.length ? await productsBatch(storeId, now, false) : null;
+  const res = now.length ? await productsBatch(storeId, now, false, true) : null;
   const imgs = res?.images.length ? await imagesBatch(storeId, res.images, 60) : null;
   let customers: unknown = null;
   try {
@@ -414,7 +423,7 @@ Deno.serve(async (req) => {
     }
     if (action === 'products_batch') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter((x: string) => /^\d+$/.test(x)).slice(0, 10);
-      return json(await productsBatch(storeId, ids, body.with_price !== false));
+      return json(await productsBatch(storeId, ids, body.with_price !== false, body.only_new === true));
     }
     if (action === 'images_batch') return json(await imagesBatch(storeId, Array.isArray(body.jobs) ? body.jobs : []));
     if (action === 'customers') return json(await syncCustomers(storeId));
