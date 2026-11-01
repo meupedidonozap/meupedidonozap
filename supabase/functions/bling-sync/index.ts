@@ -212,6 +212,11 @@ async function productsBatch(storeId: string, ids: string[], withPrice = true, o
     const stock = toStock(det.estoque?.saldoVirtualTotal ?? (await saldos(token, [id])).get(String(id)));
     const { data: ex } = await admin.from('products').select('id').eq('store_id', storeId).or(`bling_code.eq.${code},code.eq.${code}`).limit(1).maybeSingle();
     let pid = ex?.id as string | undefined;
+    if (pid && onlyNew) {
+      await admin.from('products').update({ stock }).eq('id', pid);
+      updated++;
+      continue;
+    }
     if (pid) {
       await admin.from('products').update({ bling_code: code, stock, is_active: active, ...catPatch, name: String(det.nome ?? code).slice(0, 250), ...(desc ? { description: desc } : {}), ...(withPrice ? { base_price: price, price_table_4: price } : {}) }).eq('id', pid);
       updated++;
