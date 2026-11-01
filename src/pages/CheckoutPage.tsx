@@ -182,6 +182,16 @@ export default function CheckoutPage() {
     return () => clearTimeout(t);
   });
 
+  // CEP já preenchido pelo cadastro: calcula o frete automaticamente.
+  const autoShipRef = useRef<{ cep: string; enabled: boolean; run?: (cep: string) => void }>({ cep: '', enabled: false });
+  const cepDigits = (formData.cep || '').replace(/\D/g, '');
+  useEffect(() => {
+    const s = autoShipRef.current;
+    if (!s.enabled || !s.run || cepDigits.length !== 8 || s.cep === cepDigits) return;
+    s.cep = cepDigits;
+    s.run(cepDigits);
+  });
+
   if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
@@ -348,16 +358,8 @@ export default function CheckoutPage() {
     setShippingLoading(false);
   };
 
-  // CEP já preenchido pelo cadastro: calcula o frete automaticamente.
-  const autoQuotedCep = useRef('');
-  const cepDigits = (formData.cep || '').replace(/\D/g, '');
-  useEffect(() => {
-    if (!shippingEnabled || cepDigits.length !== 8) return;
-    if (autoQuotedCep.current === cepDigits) return;
-    autoQuotedCep.current = cepDigits;
-    fetchShippingQuote(cepDigits);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shippingEnabled, cepDigits]);
+  autoShipRef.current.enabled = shippingEnabled;
+  autoShipRef.current.run = fetchShippingQuote;
 
   const generateOrderMessage = () => {
     const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
