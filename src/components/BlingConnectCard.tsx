@@ -31,7 +31,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
     return data;
   };
 
-  const importProducts = async () => {
+  const importProducts = async (onlyNew = false) => {
     setBusy(true);
     try {
       setMsg('Lendo a lista de produtos do Bling...');
@@ -48,7 +48,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
           const chunk = list.slice(i, i + 10).filter((x: any) => !variantCodes.has(x.codigo));
           setMsg(`Importando produtos ${Math.min(done + i + 10, total)} de ${total}...`);
           if (!chunk.length) continue;
-          const r = await call({ action: 'products_batch', ids: chunk.map((x: any) => x.id) });
+          const r = await call({ action: 'products_batch', ids: chunk.map((x: any) => x.id), ...(onlyNew ? { only_new: true, with_price: false } : {}) });
           tot.created += r.created; tot.updated += r.updated; tot.variants += r.variants; tot.failed += r.failed;
           (r.variantCodes || []).forEach((c: string) => variantCodes.add(c));
           jobs.push(...(r.images || []));
@@ -68,7 +68,8 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
     } finally { setBusy(false); }
   };
 
-  const sync = async (action: 'products' | 'customers') => {
+  const sync = async (action: 'new' | 'products' | 'customers') => {
+    if (action === 'new') return importProducts(true);
     if (action === 'products') return importProducts();
     setBusy(true); setMsg('Sincronizando... pode levar alguns minutos.');
     try {
@@ -88,7 +89,11 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
       </div>
       {connected && (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('products')}>Sincronizar (inclui preços)</Button>
+          <Button size="sm" disabled={busy} onClick={() => sync('new')} title="Traz só produtos novos e estoque. Não muda preço, fotos nem status do que já existe.">Sincronizar</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => {
+            if (!confirm('Atualizar substitui PREÇO, FOTOS e STATUS dos produtos pelos dados do Bling. Continuar?')) return;
+            sync('products');
+          }}>Atualizar</Button>
           <Button size="sm" variant="destructive" disabled={busy} onClick={async () => {
             if (!confirm('Isso EXCLUI todos os produtos, variantes e fotos desta loja e importa tudo de novo do Bling. Continuar?')) return;
             setBusy(true); setMsg('Excluindo produtos...');
@@ -99,7 +104,7 @@ export function BlingConnectCard({ storeId }: { storeId: string }) {
           <Button size="sm" variant="outline" disabled={busy} onClick={() => sync('customers')}>Importar clientes</Button>
         </div>
       )}
-      {connected && <p className="text-xs text-muted-foreground">Automático a cada 15 min: nome, descrição, fotos, estoque, variantes e clientes. Preço só muda ao clicar em Sincronizar.</p>}
+      {connected && <p className="text-xs text-muted-foreground"><strong>Sincronizar</strong>: só produtos novos e estoque (preço, fotos e status do MPZ ficam como estão). <strong>Atualizar</strong>: traz preço, fotos, status e produtos do Bling. <strong>Limpar e reimportar</strong>: apaga e importa tudo de novo. Automático a cada 5 min igual ao Sincronizar.</p>}
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
     </div>
   );
