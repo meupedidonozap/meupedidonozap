@@ -27,3 +27,11 @@ describe('descontos por categoria, grupo e produto', () => {
     expect(r.quantityDiscount).toBe(15);
   });
 });
+
+describe('promoção com quantidade mínima 0', () => {
+  it('aplica o desconto mesmo sem peça no carrinho', () => {
+    const r = { id: 'z', type: 'group', scope: 'product', productId: 'p1', minQuantity: 0, discountPercent: 15, description: '' } as any;
+    const { itemDiscounts } = computeGroupDiscounts([{ productId: 'p1', name: 'x', price: 0, quantity: 0 } as any], [r]);
+    expect(itemDiscounts['p1-']).toBe(15);
+  });
+});
