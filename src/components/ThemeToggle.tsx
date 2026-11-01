@@ -7,8 +7,9 @@ export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const dark = resolvedTheme === 'dark';
   return (
-    <Button variant="ghost" size="icon" aria-label={dark ? 'Usar tema claro' : 'Usar tema escuro'} title={dark ? 'Tema claro' : 'Tema escuro'} onClick={() => setTheme(dark ? 'light' : 'dark')}>
-      {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3" aria-label={dark ? 'Usar tema claro' : 'Usar tema escuro'} onClick={() => setTheme(dark ? 'light' : 'dark')}>
+      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {dark ? 'Claro' : 'Escuro'}
     </Button>
   );
 }
