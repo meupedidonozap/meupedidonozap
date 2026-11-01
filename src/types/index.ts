@@ -434,6 +434,10 @@ export interface Order {
   paymentEnvironment?: 'sandbox' | 'live';
   paidAt?: string;
   shippingService?: string;
+  superfreteId?: string;
+  superfreteStatus?: string;
+  superfreteError?: string;
+  shippingTracking?: string;
   shippingCode?: string;
   shippingDeadline?: number;
   /** Quando o XML foi baixado — pedido fica bloqueado para edição. */
