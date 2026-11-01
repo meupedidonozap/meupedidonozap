@@ -74,6 +74,8 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     return Array.from({ length: 24 }, (_, i) => { const d = new Date(n.getFullYear(), n.getMonth() - i, 1); return { v: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, l: `${nm[d.getMonth()]}/${d.getFullYear()}` }; });
   }, []);
   const isTv = mode === 'televendas';
+  const periodLabel = period === 'atual' ? `Mês atual (${monthOptions[0].l})`
+    : multi ? `Últimos ${multi} meses (soma)` : (monthOptions.find(o => o.v === period)?.l || period);
 
   const { data: sellers = [] } = useQuery({
     queryKey: ['results-sellers', storeId], enabled: mode === 'admin' || mode === 'televendas',
@@ -334,10 +336,15 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
       )}
       {isTv && <p className="text-sm text-muted-foreground">Notas faturadas de pedidos emitidos por você (televendas) comparadas com o total faturado da carteira dos vendedores que você atende.</p>}
       {isTv && data && data.tvFlagged === 0 && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">Pedidos do televendas ainda não sincronizados — rode a atualização de pedidos no computador do ERP.</p>}
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-sm">
+        <span className="text-muted-foreground">Período analisado:</span>
+        <b className="text-primary">{periodLabel}</b>
+        {period !== 'atual' && <button type="button" onClick={() => setPeriod('atual')} className="ml-auto text-xs font-semibold text-primary underline">Voltar ao mês atual</button>}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.filter(c => !c.hide).map(c => (
           <Card key={c.k} role="button" onClick={() => setOpen(c.k)} className="cursor-pointer transition hover:border-primary">
-            <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm text-muted-foreground"><c.icon className="h-4 w-4" />{c.t}</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm text-muted-foreground"><c.icon className="h-4 w-4" />{multi || period !== 'atual' ? c.t.replace(/ (no|do) mês/, '') : c.t}</CardTitle><span className="text-[11px] font-semibold text-primary">{periodLabel}</span></CardHeader>
             <CardContent className="flex items-end justify-between gap-2">
               <span className="truncate text-2xl font-bold">{c.v}</span>
               {c.change !== undefined && <Change v={c.change} />}
