@@ -138,6 +138,8 @@ export default function CheckoutPage() {
   // Delivery type (COMIDA/PIZZARIA)
   const [deliveryType, setDeliveryType] = useState<'entrega' | 'retirada'>('entrega');
   const [selectedNeighborhoodId, setSelectedNeighborhoodId] = useState<string>('');
+  // Endereço diferente do cadastro, só para este pedido
+  const [useOtherAddress, setUseOtherAddress] = useState(false);
 
   // Auto-fill from customer profile
   useEffect(() => {
@@ -155,9 +157,21 @@ export default function CheckoutPage() {
         number: customerProfile.number || prev.number,
         complement: customerProfile.complement || prev.complement,
       }));
+      setUseOtherAddress(!(customerProfile.cep && customerProfile.address));
       setProfileLoaded(true);
     }
   }, [customerProfile, profileLoaded]);
+
+  const restoreProfileAddress = () => {
+    if (!customerProfile) return;
+    setFormData(prev => ({
+      ...prev,
+      cep: customerProfile.cep || '', uf: customerProfile.uf || '', city: customerProfile.city || '',
+      neighborhood: customerProfile.neighborhood || '', address: customerProfile.address || '',
+      number: customerProfile.number || '', complement: customerProfile.complement || '',
+    }));
+    setUseOtherAddress(false);
+  };
 
   // Ao trocar o cliente no Modo Vendedor, recarrega os dados no formulário
   useEffect(() => {
@@ -255,7 +269,7 @@ export default function CheckoutPage() {
       toast.error('Aguarde a verificação do seu acesso e tente novamente');
       return false;
     }
-    if (isSellerMode && !selectedCustomer) {
+    if (dicolore && isSellerMode && !selectedCustomer) {
       toast.error('Selecione o cliente antes de finalizar o pedido');
       return false;
     }
@@ -476,13 +490,14 @@ export default function CheckoutPage() {
           name: formData.name,
           cpfCnpj: formData.cpfCnpj,
           whatsapp: formData.whatsapp,
-          cep: isPickup ? '' : formData.cep,
-          uf: isPickup ? '' : formData.uf,
-          city: isPickup ? '' : formData.city,
-          neighborhood: isPickup ? '' : formData.neighborhood,
-          address: isPickup ? '' : formData.address,
-          number: isPickup ? '' : formData.number,
-          complement: isPickup ? undefined : (formData.complement || undefined),
+          ...((isPickup || useOtherAddress) && customerProfile ? {
+            cep: customerProfile.cep || '', uf: customerProfile.uf || '', city: customerProfile.city || '',
+            neighborhood: customerProfile.neighborhood || '', address: customerProfile.address || '',
+            number: customerProfile.number || '', complement: customerProfile.complement || undefined,
+          } : {
+            cep: formData.cep, uf: formData.uf, city: formData.city, neighborhood: formData.neighborhood,
+            address: formData.address, number: formData.number, complement: formData.complement || undefined,
+          }),
         });
       } catch (profileErr: any) {
         // Não bloqueia o pedido, mas o usuário precisa saber que o cadastro não foi salvo
@@ -871,8 +886,29 @@ export default function CheckoutPage() {
                   <div className="rounded-md border border-dashed bg-muted/40 p-4 text-sm">
                     O pedido será retirado no endereço da loja. Não há taxa de entrega.
                   </div>
+                ) : !useOtherAddress && !hasNeighborhoods ? (
+                  <div className="rounded-md border bg-muted/40 p-4 text-sm space-y-3">
+                    <div>
+                      <p className="font-medium">Endereço do cadastro</p>
+                      <p>{formData.address}{formData.number ? `, ${formData.number}` : ''}{formData.complement ? ` - ${formData.complement}` : ''}</p>
+                      <p>{[formData.neighborhood, `${formData.city}/${formData.uf}`].filter(Boolean).join(' - ')}</p>
+                      <p>CEP {formData.cep}</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setUseOtherAddress(true)}>
+                      Escolher endereço
+                    </Button>
+                  </div>
                 ) : (
                 <>
+                {customerProfile?.cep && customerProfile?.address && !hasNeighborhoods && (
+                  <Button type="button" variant="link" size="sm" className="px-0" onClick={() => {
+                    restoreProfileAddress();
+                    const c = (customerProfile.cep || '').replace(/\D/g, '');
+                    if (c.length === 8) fetchShippingQuote(c);
+                  }}>
+                    Usar endereço do cadastro
+                  </Button>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cep">CEP</Label>
