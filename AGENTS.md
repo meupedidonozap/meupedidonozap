@@ -10,3 +10,6 @@
 - ERP order export resolves customer registrations through the tested shared resolver before building the payload; explicit codes never fall back to a different registration, preventing duplicate login profiles from changing transmitted identity.
 - Windows ERP sync sources and regression tests live under scripts/dicolore; period order refresh lists codes from the base order table, then reads the ERP view in small code batches that are each confirmed before the next (splitting batches that time out), without item reads by default, because the view's per-order subqueries make wide date queries exceed the ERP timeout.
 - Store PIX/card receiving is configured per store in settings.paymentGateway; PIX uses a locally generated BR Code (static key + exact amount) so money goes straight to the store's own account without a gateway API, and payment is confirmed manually in the admin.
+
+- Stock reservation is done by an orders trigger (deduct when status leaves orcamento/cancelado, restore on cancel); Bling sync subtracts open-order reservations from its saldo so the 5-min cron never re-adds reserved units.
+- Mercado Pago refunds run only server-side via the mercadopago function (action refund, store order permission required) and set the order cancelado/refunded.

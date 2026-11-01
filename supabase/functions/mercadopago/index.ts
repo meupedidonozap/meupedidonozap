@@ -70,6 +70,22 @@ Deno.serve(async (req) => {
       const { data: o } = await db.from("orders").select("payment_status").eq("id", order.id).single();
       return json({ paymentStatus: o?.payment_status, lastStatus });
     }
+    if (action === "refund") {
+      // Só administradores da loja podem estornar.
+      const auth = req.headers.get("Authorization") || "";
+      const { data: u } = await db.auth.getUser(auth.replace(/^Bearer\s+/i, ""));
+      const uid = u?.user?.id;
+      if (!uid) return json({ error: "Não autorizado" }, 401);
+      const { data: ok } = await db.rpc("has_store_permission", { _user_id: uid, _store_id: order.store_id, _permission: "can_manage_orders" });
+      if (!ok) return json({ error: "Sem permissão" }, 403);
+      if (order.payment_status !== "paid") return json({ error: "Pedido não está pago" }, 400);
+      const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);
+      const pay = (s.results || []).find((p: any) => p.status === "approved");
+      if (!pay) return json({ error: "Pagamento aprovado não encontrado no Mercado Pago" }, 404);
+      await mp(token, `/v1/payments/${pay.id}/refunds`, { method: "POST", body: "{}", headers: { "X-Idempotency-Key": `refund-${order.id}` } });
+      await db.from("orders").update({ payment_status: "refunded", status: "cancelado" }).eq("id", order.id);
+      return json({ ok: true, refundedPaymentId: String(pay.id) });
+    }
     if (action !== "create") return json({ error: "Ação inválida" }, 400);
     if (order.payment_status === "paid") return json({ error: "Pedido já pago" }, 400);
 
