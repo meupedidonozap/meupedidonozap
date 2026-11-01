@@ -1132,7 +1132,7 @@ export default function CheckoutPage() {
                     disabled={isSubmitting || !storeOpenStatus.open || (effectiveMinOrder(store, !!isSellerMode) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < effectiveMinOrder(store, !!isSellerMode))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
-                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'mabelle' && store.settings.onlinePayments === true ? 'PAGAR PEDIDO' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : 'Enviar pelo WhatsApp')))}
+                    <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'mabelle' && store.settings.onlinePayments === true ? 'PAGAR PEDIDO' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : (store.slug === 'jewosnewborn' ? 'Pagar e enviar pelo WhatsApp' : 'Enviar pelo WhatsApp'))))}
                   </Button>
                   {sellerOrder && store.slug === 'dicolore' && (
                     <Button variant="outline" disabled={isSubmitting} onClick={() => handleSendWhatsApp(true)} className="w-full gap-2">
