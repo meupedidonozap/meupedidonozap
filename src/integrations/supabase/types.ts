@@ -2236,6 +2236,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_order_stock: {
+        Args: { _items: Json; _sign: number; _store_id: string }
+        Returns: undefined
+      }
       can_read_erp_item: {
         Args: {
           _item_customer: string
@@ -2288,6 +2292,7 @@ export type Database = {
         Args: { _code: string; _store_id: string; _user_id: string }
         Returns: boolean
       }
+      order_reserves_stock: { Args: { _status: string }; Returns: boolean }
       portfolio_customer_keys: {
         Args: { _user_id: string }
         Returns: {
@@ -2295,6 +2300,15 @@ export type Database = {
           store_id: string
         }[]
       }
+      store_reserved_stock: {
+        Args: { _store_id: string }
+        Returns: {
+          product_id: string
+          qty: number
+          variant_id: string
+        }[]
+      }
+      store_tracks_stock: { Args: { _store_id: string }; Returns: boolean }
       upsert_customer_push_subscription: {
         Args: {
           p_auth: string
