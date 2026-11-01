@@ -169,6 +169,13 @@
       "when": 1793360262736,
       "tag": "0023_erp_orders_televendas",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793546653787,
+      "tag": "0024_orders_superfrete",
+      "breakpoints": true
     }
   ]
 }

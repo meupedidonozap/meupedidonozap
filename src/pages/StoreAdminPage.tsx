@@ -1800,6 +1800,27 @@ export default function StoreAdminPage() {
                           {order.shippingService && (
                             <p className="mt-1 text-muted-foreground">{order.shippingService} · {formatCurrency(order.deliveryFee)}{order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''}</p>
                           )}
+                          {order.shippingCode?.startsWith('SF-') && (
+                            <div className="mt-1 text-[10px]">
+                              {order.superfreteId
+                                ? <span className="text-primary">✓ No painel SuperFrete{order.shippingTracking ? ` · Rastreio ${order.shippingTracking}` : ''}</span>
+                                : <span className="text-destructive">{order.superfreteError ? `SuperFrete: ${order.superfreteError}` : 'Não enviado ao SuperFrete'}</span>}
+                              <Button size="sm" variant="outline" className="ml-1 h-6 px-2 text-[10px]" onClick={async () => {
+                                const action = order.superfreteId ? 'info' : 'create';
+                                const { data, error } = await supabase.functions.invoke('superfrete-label', { body: { action, orderId: order.id } });
+                                if (error || data?.error) { toast.error(data?.error || error?.message || 'Erro SuperFrete'); }
+                                else toast.success(action === 'create' ? 'Enviado ao SuperFrete' : (data?.shipping_tracking ? `Rastreio: ${data.shipping_tracking}` : 'Etiqueta ainda sem rastreio'));
+                                qc.invalidateQueries({ queryKey: ['orders'] });
+                              }}>{order.superfreteId ? 'Atualizar rastreio' : 'Enviar ao SuperFrete'}</Button>
+                              {order.shippingTracking && (
+                                <Button size="sm" variant="outline" className="ml-1 h-6 px-2 text-[10px]" onClick={() => {
+                                  const phone = String((order.customer as any)?.whatsapp || '').replace(/\D/g, '');
+                                  const msg = `Olá! Seu pedido #${order.orderNumber} foi enviado. Código de rastreio: ${order.shippingTracking} — acompanhe em https://rastreamento.correios.com.br`;
+                                  window.open(`https://wa.me/${phone ? (phone.startsWith('55') ? phone : '55' + phone) : ''}?text=${encodeURIComponent(msg)}`, '_blank');
+                                }}>Enviar rastreio</Button>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           {store.type === 'SERVICOS' ? (
