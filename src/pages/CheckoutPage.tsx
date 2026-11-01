@@ -649,6 +649,10 @@ export default function CheckoutPage() {
 
       const created: any = await createOrder.mutateAsync(orderPayload);
 
+      if (!asQuote && created?.id && String(orderPayload.shippingCode || '').startsWith('SF-')) {
+        supabase.functions.invoke('superfrete-label', { body: { action: 'create', orderId: created.id } }).catch(() => {});
+      }
+
       if (sellerOrder) {
         const storeName = store.name;
         toast.success(asQuote ? `Orçamento salvo para ${formData.name}` : `Pedido registrado para ${formData.name}`, {
