@@ -45,6 +45,7 @@ import { useTechnicalMaterials, materialLabel } from '@/hooks/useTechnicalMateri
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
+import ProductDetailDialog from '@/components/ProductDetailDialog';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import {
   resolveProductPrice,
@@ -103,6 +104,7 @@ export default function ProductStorePage() {
   const [selectedVariant, setSelectedVariant] = useState<{ color?: string; size?: string } | null>(null);
   const [couponInput, setCouponInput] = useState('');
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [detailProduct, setDetailProduct] = useState<any>(null);
 
   useEffect(() => {
     if (store) {
@@ -686,7 +688,7 @@ export default function ProductStorePage() {
               <Card key={product.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-white">
-                    {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-contain" /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Sem foto</div>}
+                    {product.image ? <img src={product.image} alt={product.name} loading="lazy" onClick={() => setDetailProduct(product)} className="h-full w-full cursor-pointer object-contain" /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Sem foto</div>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
@@ -729,7 +731,7 @@ export default function ProductStorePage() {
             {filteredProducts.map(product => (
               <Card key={product.id} className="overflow-hidden transition-shadow hover:shadow-md">
                 <div className="aspect-square overflow-hidden bg-white">
-                  {product.image ? <img src={product.image} alt={product.name} loading="lazy" className="h-full w-full object-contain p-1" /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Sem foto</div>}
+                  {product.image ? <img src={product.image} alt={product.name} loading="lazy" onClick={() => setDetailProduct(product)} className="h-full w-full cursor-pointer object-contain p-1" /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Sem foto</div>}
                 </div>
                 <CardContent className="p-3">
                   <Badge variant="outline" className="mb-1 font-mono text-xs">{product.code}</Badge>
@@ -822,6 +824,13 @@ export default function ProductStorePage() {
         )}
       </main>
 
+      <ProductDetailDialog
+        product={detailProduct}
+        onOpenChange={(o) => { if (!o) setDetailProduct(null); }}
+        canBuy={!!detailProduct && (detailProduct.hasVariants || hasStock(detailProduct, null, stockEnabled))}
+        onAdd={(p) => handleProductClick(p as any)}
+        priceLabel={detailProduct ? (() => { const base = resolveProductPrice(detailProduct, activePriceTable); const pct = previewPct(detailProduct); return pct > 0 ? <p className="text-xl font-bold text-accent">{formatCurrency(base * (1 - pct / 100))} <span className="text-sm text-muted-foreground line-through">{formatCurrency(base)}</span></p> : <p className="text-xl font-bold text-primary">{formatCurrency(base)}</p>; })() : null}
+      />
       {/* Variant Selection Dialog */}
       <VariantDialog
         product={selectedProduct}
@@ -840,7 +849,7 @@ export default function ProductStorePage() {
         <div className="container">
           <div className="grid gap-4 text-sm sm:grid-cols-3">
             <div className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" /><p>{store.address}</p></div>
-            <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /><p>{store.phone}</p></div>
+            <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" />{(() => { const raw = String(store.whatsapp || store.phone || '').replace(/\D/g, ''); if (!raw) return <p>{store.phone}</p>; const num = raw.startsWith('55') && raw.length > 11 ? raw : `55${raw}`; return <a href={`https://wa.me/${num}?text=${encodeURIComponent(`Olá, vim pelo catálogo da loja ${store.name}.`)}`} target="_blank" rel="noopener noreferrer" className="text-primary underline">{store.phone || store.whatsapp}</a>; })()}</div>
             <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-muted-foreground" /><p>Seg-Sex: 08:00-18:00</p></div>
           </div>
         </div>

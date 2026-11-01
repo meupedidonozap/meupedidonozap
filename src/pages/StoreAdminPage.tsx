@@ -250,7 +250,7 @@ export default function StoreAdminPage() {
 
   // Sellers (Dicolore / Dicolore SENSES)
   const usesSellerRule = ['dicolore', 'dicoloresenses'].includes(store?.slug || '');
-  const { data: sellers = [] } = useAllStoreSellers(isAdmin && usesSellerRule ? store?.id : undefined);
+  const { data: sellers = [] } = useAllStoreSellers(isAdmin ? store?.id : undefined);
   const { data: sellerStoreUsers = [] } = useStoreUsersForSeller(store?.id);
   const orderSeller = (order: any) => resolveOrderSellerCode(
     (findOrderProfile(order, customerProfiles as any[]) as any)?.sellerCode, order?.customer,
@@ -3010,7 +3010,7 @@ export default function StoreAdminPage() {
             )}
 
             {/* Sellers management - Dicolore / Dicolore SENSES */}
-            {usesSellerRule && (
+            {true && (
               <Card className="mt-6">
                 <CardHeader><CardTitle>Vendedores (WhatsApp)</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
