@@ -304,16 +304,16 @@ async function cronStock(storeId: string) {
     if (v) { if (v.stock !== stock) { await admin.from('product_variants').update({ stock }).eq('id', v.id); updated++; } continue; }
     const p = byCode.get(code);
     if (!p) continue;
-    const active = (it.situacao ?? 'A') === 'A';
-    if (p.has_variants) { if (p.is_active !== active) { await admin.from('products').update({ is_active: active }).eq('id', p.id); updated++; } continue; }
-    await admin.from('products').update({ stock, is_active: active }).eq('id', p.id); updated++;
+        // status (ativo/inativo) do MPZ é preservado no automático
+    if (p.has_variants) continue;
+    await admin.from('products').update({ stock }).eq('id', p.id); updated++;
   }
   return { total: all.length, updated };
 }
 
 const blingDate = (d: Date) => new Date(d.getTime() - 3 * 3600e3).toISOString().slice(0, 19).replace('T', ' ');
 
-// Automático: estoque + produtos alterados (nome, descrição, fotos, variantes) + clientes. Nunca preço.
+// Automático: estoque + produtos novos + clientes. Não altera preço, fotos nem status de itens existentes.
 async function cronAuto(storeId: string) {
   const startedAt = new Date();
   const stock = await cronStock(storeId);
@@ -330,7 +330,7 @@ async function cronAuto(storeId: string) {
   }
   pending = [...new Set(pending)];
   const now = pending.slice(0, 25);
-  const res = now.length ? await productsBatch(storeId, now, false) : null;
+  const res = now.length ? await productsBatch(storeId, now, false, true) : null;
   const imgs = res?.images.length ? await imagesBatch(storeId, res.images, 60) : null;
   let customers: unknown = null;
   try {
@@ -423,7 +423,7 @@ Deno.serve(async (req) => {
     }
     if (action === 'products_batch') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter((x: string) => /^\d+$/.test(x)).slice(0, 10);
-      return json(await productsBatch(storeId, ids, body.with_price !== false));
+      return json(await productsBatch(storeId, ids, body.with_price !== false, body.only_new === true));
     }
     if (action === 'images_batch') return json(await imagesBatch(storeId, Array.isArray(body.jobs) ? body.jobs : []));
     if (action === 'customers') return json(await syncCustomers(storeId));
