@@ -986,9 +986,13 @@ export type Database = {
           shipping_code: string | null
           shipping_deadline: number | null
           shipping_service: string | null
+          shipping_tracking: string | null
           status: string
           store_id: string
           subtotal: number
+          superfrete_error: string | null
+          superfrete_id: string | null
+          superfrete_status: string | null
           total: number
           user_id: string | null
           xml_downloaded_at: string | null
@@ -1016,9 +1020,13 @@ export type Database = {
           shipping_code?: string | null
           shipping_deadline?: number | null
           shipping_service?: string | null
+          shipping_tracking?: string | null
           status?: string
           store_id: string
           subtotal?: number
+          superfrete_error?: string | null
+          superfrete_id?: string | null
+          superfrete_status?: string | null
           total?: number
           user_id?: string | null
           xml_downloaded_at?: string | null
@@ -1046,9 +1054,13 @@ export type Database = {
           shipping_code?: string | null
           shipping_deadline?: number | null
           shipping_service?: string | null
+          shipping_tracking?: string | null
           status?: string
           store_id?: string
           subtotal?: number
+          superfrete_error?: string | null
+          superfrete_id?: string | null
+          superfrete_status?: string | null
           total?: number
           user_id?: string | null
           xml_downloaded_at?: string | null
