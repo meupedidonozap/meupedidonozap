@@ -80,7 +80,7 @@ export async function uploadProductImage(file: File, storeId: string): Promise<s
   console.log('[uploadProductImage] compressed', { size: compressed.size, type: compressed.type });
 
   const ext = compressed.name.split('.').pop();
-  const fileName = `${storeId}/${Date.now()}.${ext}`;
+  const fileName = `${storeId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
 
   const { error } = await supabase.storage
     .from('product-images')
