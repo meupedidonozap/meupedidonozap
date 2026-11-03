@@ -4,7 +4,7 @@ import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle, FileDown } from '
 import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useAuth } from '@/hooks/useAuth';
-import { useCustomerOrders } from '@/hooks/useCustomerProfile';
+import { useCustomerOrders, useCustomerErpOrders, useCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { setEditingQuote } from '@/lib/quoteEditing';
@@ -24,14 +24,33 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   cancelado: { label: 'Cancelado', color: 'bg-red-100 text-red-700' },
 };
 
+const ERP_STATUS: Record<string, { label: string; color: string }> = {
+  N: { label: 'Sem OF e sem NF', color: 'bg-red-100 text-red-700' },
+  S: { label: 'Com OF e sem NF', color: 'bg-blue-100 text-blue-700' },
+  F: { label: 'Com OF e com NF', color: 'bg-green-100 text-green-700' },
+  C: { label: 'Cancelado', color: 'bg-muted text-muted-foreground' },
+};
+const noZeros = (v: any) => String(v ?? '').trim().replace(/^0+/, '');
+
 export default function OrderHistoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, loading: authLoading } = useAuth();
-  const { data: orders = [], isLoading: ordersLoading } = useCustomerOrders(user?.id, store?.id);
+  const { data: profile } = useCustomerProfile(user?.id, store?.id);
+  const code = profile?.customerCode || '';
+  const { data: localOrders = [], isLoading: ordersLoading } = useCustomerOrders(user?.id, store?.id, code);
+  const { data: erpOrders = [] } = useCustomerErpOrders(store?.id, code);
   const { setStoreId, clearCart, addItem } = useCart();
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const erpKeys = new Set(erpOrders.flatMap((e: any) => [noZeros(e.codigo), noZeros(e.codigo_importacao)]));
+  const orders = [
+    ...localOrders
+      .filter((o: any) => !erpKeys.has(noZeros(o.order_number)) && !(o.erp_order_code && erpKeys.has(noZeros(o.erp_order_code))))
+      .map((o: any) => ({ ...o, _date: o.created_at })),
+    ...erpOrders.map((e: any) => ({ ...e, _erp: true, _date: e.data_emissao })),
+  ].sort((a: any, b: any) => String(b._date || '').localeCompare(String(a._date || '')));
 
   const editOrder = async (id: string) => {
     if (!store) return;
