@@ -499,7 +499,8 @@ export default function StoreAdminPage() {
       }
       try {
         downloadOrderFile(order, store, bulkFormat, buildDownloadExtra(order, !!order?.customer?.isTelevendas));
-        await markXmlDownloaded.mutateAsync({ id: order.id, status: 'entregue' as OrderStatus });
+        // DiColore: o estágio real (Preparando/Entregue) vem do ERP (OF/NF).
+        await markXmlDownloaded.mutateAsync({ id: order.id, status: (['dicolore', 'dicoloresenses'].includes(store.slug) ? 'confirmado' : 'entregue') as OrderStatus });
         ok++;
       } catch (e: any) {
         toast.error(`Pedido #${order.orderNumber}: ${e?.message || 'falha'}`);
