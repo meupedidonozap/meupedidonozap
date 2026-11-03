@@ -354,6 +354,8 @@ export type Database = {
           cpf_cnpj: string
           created_at: string
           customer_code: string
+          erp_error: string | null
+          erp_sent_at: string | null
           geo_attempted_at: string | null
           geo_error: string | null
           geo_formatted: string | null
@@ -384,6 +386,8 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          erp_error?: string | null
+          erp_sent_at?: string | null
           geo_attempted_at?: string | null
           geo_error?: string | null
           geo_formatted?: string | null
@@ -414,6 +418,8 @@ export type Database = {
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          erp_error?: string | null
+          erp_sent_at?: string | null
           geo_attempted_at?: string | null
           geo_error?: string | null
           geo_formatted?: string | null
