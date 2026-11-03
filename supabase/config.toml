@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.mercadopago]
 verify_jwt = false
+
+[functions.api-externa]
+verify_jwt = false
