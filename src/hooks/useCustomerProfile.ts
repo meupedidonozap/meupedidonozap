@@ -178,19 +178,33 @@ export function useUpsertCustomerProfile() {
   });
 }
 
-export function useCustomerOrders(userId: string | undefined, storeId: string | undefined) {
+export function useCustomerOrders(userId: string | undefined, storeId: string | undefined, customerCode?: string) {
+  const code = (customerCode || '').trim();
   return useQuery({
-    queryKey: ['customer-orders', userId, storeId],
+    queryKey: ['customer-orders', userId, storeId, code],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', userId!)
-        .eq('store_id', storeId!)
-        .order('created_at', { ascending: false });
+      let q = supabase.from('orders').select('*').eq('store_id', storeId!);
+      q = code ? q.or(`user_id.eq.${userId},customer->>customerCode.eq.${code}`) : q.eq('user_id', userId!);
+      const { data, error } = await q.order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
     enabled: !!userId && !!storeId,
+  });
+}
+
+/** Pedidos do ERP pelo código do cliente (feitos por ele, vendedor ou televendas). */
+export function useCustomerErpOrders(storeId: string | undefined, customerCode?: string) {
+  const code = (customerCode || '').trim();
+  return useQuery({
+    queryKey: ['customer-erp-orders', storeId, code],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('erp_orders').select('*')
+        .eq('store_id', storeId!).eq('cliente_codigo', code)
+        .order('data_emissao', { ascending: false }).limit(500);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!storeId && !!code,
   });
 }
