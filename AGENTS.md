@@ -14,3 +14,5 @@
 - Stock reservation is done by an orders trigger (deduct when status leaves orcamento/cancelado, restore on cancel); Bling sync subtracts open-order reservations from its saldo so the 5-min cron never re-adds reserved units.
 - Mercado Pago refunds run only server-side via the mercadopago function (action refund, store order permission required) and set the order cancelado/refunded.
 - MPZ orders are exported to Bling (POST /pedidos/vendas) by bling-sync on the 5-min cron and via action send_orders; numeroLoja "MPZ-<order_number>" deduplicates and orders.bling_order_id/bling_error/bling_attempts track state (max 5 retries, online payments only after paid).
+
+- External third-party API for DiColore lives in the api-externa function (x-api-key = EXTERNAL_API_TOKEN); order routes proxy orders-export so the payload stays identical, and customers pending ERP are those with empty customer_code and no erp_sent_at.
