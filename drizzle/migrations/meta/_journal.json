@@ -204,6 +204,13 @@
       "when": 1793732315668,
       "tag": "0028_sync_order_status_from_erp",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793740063432,
+      "tag": "0029_optimize_orders_erp_status_lookup",
+      "breakpoints": true
     }
   ]
 }
