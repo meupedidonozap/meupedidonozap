@@ -197,6 +197,13 @@
       "when": 1793725347632,
       "tag": "0027_customer_reads_orders_by_code",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793732315668,
+      "tag": "0028_sync_order_status_from_erp",
+      "breakpoints": true
     }
   ]
 }
