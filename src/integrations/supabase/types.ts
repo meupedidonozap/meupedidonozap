@@ -2295,6 +2295,10 @@ export type Database = {
         Args: { _permission: string; _store_id: string; _user_id: string }
         Returns: boolean
       }
+      is_own_customer_code: {
+        Args: { _code: string; _store_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_store_admin: {
         Args: { _store_id: string; _user_id: string }
