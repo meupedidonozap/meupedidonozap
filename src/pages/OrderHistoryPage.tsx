@@ -125,6 +125,28 @@ export default function OrderHistoryPage() {
         ) : (
           <div className="space-y-4">
             {orders.map((order: any) => {
+              if (order._erp) {
+                const st = ERP_STATUS[order.status] || { label: order.status, color: 'bg-muted text-muted-foreground' };
+                return (
+                  <Card key={`erp-${order.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold">Pedido #{noZeros(order.codigo_importacao || order.codigo)}</p>
+                          <p className="text-sm text-muted-foreground">{order.data_emissao ? order.data_emissao.split('-').reverse().join('/') : ''}</p>
+                          {order.ordem_faturamento && <p className="text-sm">OF: {order.ordem_faturamento}</p>}
+                          {order.nota_fiscal_numero && <p className="text-sm font-semibold text-primary">NF: {order.nota_fiscal_numero}</p>}
+                        </div>
+                        <Badge className={st.color}>{st.label}</Badge>
+                      </div>
+                      <div className="mt-3 flex justify-between border-t pt-2 font-bold">
+                        <span>Total</span>
+                        <span>{formatCurrency(Number(order.valor_total || 0))}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
               const status = statusLabels[order.status] || { label: order.status, color: 'bg-muted text-muted-foreground' };
               const items = (order.items as any[]) || [];
               const editable = order.status === 'orcamento' && !order.xml_downloaded_at;
