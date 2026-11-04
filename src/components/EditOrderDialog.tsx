@@ -31,9 +31,11 @@ interface EditOrderDialogProps {
   store?: { slug?: string; settings?: any } | null;
   /** Tabela de preço do cliente do pedido (1, 4 ou 9). */
   priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
+  /** Se informado, recalcula automaticamente os preços por esta tabela ao abrir. */
+  autoRecalcTable?: PriceTable | null;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable, autoRecalcTable }: EditOrderDialogProps) {
   const baseTable: PriceTable = normalizePriceTable(priceTable);
   const [tableOverride, setTableOverride] = useState<PriceTable | null>(null);
   const [pendingTable, setPendingTable] = useState<string>('');
