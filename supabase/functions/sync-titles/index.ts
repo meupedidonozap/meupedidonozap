@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
         title_id: title.id, file_name: pdf.name, pdf_base64: bytesToB64(pdf.bytes),
       });
       if (error) throw error;
-      await supabase.from("customer_titles").update({ has_boleto: true }).eq("id", title.id);
+      await supabase.from("customer_titles").update({ has_boleto: true }).eq("id", title.id).neq("status", "PAGO");
       boletosSaved++;
     } catch (e) {
       boletoErrors.push(`${key}: ${(e as Error).message}`);
