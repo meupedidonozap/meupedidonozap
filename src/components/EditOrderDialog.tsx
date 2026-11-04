@@ -248,9 +248,10 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   if (!order) return null;
 
-  // Pedidos já transmitidos (qualquer status != 'pendente') só permitem
-  // EXCLUIR itens — não dá pra aumentar quantidade nem adicionar novos.
-  const removeOnly = order.status !== 'pendente';
+  // Pendente e Orçamento permitem edição completa: o orçamento devolvido ao
+  // cliente precisa receber novos itens e ter a tabela recalculada.
+  // Demais status (já transmitidos) só permitem EXCLUIR itens.
+  const removeOnly = !['pendente', 'orcamento'].includes(order.status);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
