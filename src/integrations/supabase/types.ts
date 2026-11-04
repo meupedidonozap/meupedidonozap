@@ -2267,6 +2267,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_view_product_catalog: {
+        Args: { _product_id: string }
+        Returns: boolean
+      }
+      can_view_store_catalog: { Args: { _store_id: string }; Returns: boolean }
       find_customer_by_document: {
         Args: { p_doc: string; p_store_id: string }
         Returns: {

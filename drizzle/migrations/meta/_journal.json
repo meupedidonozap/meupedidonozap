@@ -225,6 +225,13 @@
       "when": 1793751959584,
       "tag": "0031_purge_paid_title_boletos",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793816991797,
+      "tag": "0032_scope_public_catalog_policies",
+      "breakpoints": true
     }
   ]
 }
