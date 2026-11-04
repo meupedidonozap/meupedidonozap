@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Minus, Trash2, Search } from 'lucide-react';
+import { Plus, Minus, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { repriceItems } from '@/lib/repriceOrder';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +34,11 @@ interface EditOrderDialogProps {
 }
 
 export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {
-  const activeTable: PriceTable = normalizePriceTable(priceTable);
+  const baseTable: PriceTable = normalizePriceTable(priceTable);
+  const [tableOverride, setTableOverride] = useState<PriceTable | null>(null);
+  const [pendingTable, setPendingTable] = useState<string>('');
+  const [updateProfileTable, setUpdateProfileTable] = useState(false);
+  const activeTable: PriceTable = tableOverride ?? baseTable;
   const stockEnabled = store?.settings?.useStockIntegration === true;
   const updateOrder = useUpdateOrder();
   const sellerMode = useSellerMode((order as any)?.storeId);
@@ -63,8 +69,22 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
       setItems(order.items.map(i => ({ ...i })));
       setFormaCodigo(order.customer?.paymentFormaCodigo || '');
       setCondicaoCodigo(order.customer?.paymentCondicaoCodigo || '');
+      setTableOverride(null);
+      setPendingTable('');
+      setUpdateProfileTable(false);
     }
   }, [order]);
+
+  const handleReprice = () => {
+    const t = normalizePriceTable(Number(pendingTable || activeTable) as any);
+    const r = repriceItems(items, products as any[], t);
+    setItems(r.items);
+    setTableOverride(t);
+    if (r.missing.length) {
+      toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
+    }
+    toast.success(`Pedido recalculado pela Tabela ${t} (${r.changed} preço(s) alterado(s)). Faixas de desconto reaplicadas.`);
+  };
 
   const dicolore = isDicoloreFlow(store?.slug, store?.settings);
   const formas = getStoreFormas(store?.settings).filter(f => f.ativo);
@@ -78,9 +98,9 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   // quantityDiscount with current rules to back out the coupon portion.
   const originalCouponDiscount = useMemo(() => {
     if (!order) return 0;
-    const { quantityDiscount: origQty } = computeGroupDiscounts(order.items, discountRules, activeTable);
+    const { quantityDiscount: origQty } = computeGroupDiscounts(order.items, discountRules, baseTable);
     return Math.max(0, (order.discount || 0) - origQty);
-  }, [order, discountRules, activeTable]);
+  }, [order, discountRules, baseTable]);
 
   const { quantityDiscount, itemDiscounts } = useMemo(
     () => computeGroupDiscounts(items, discountRules, activeTable),
@@ -184,7 +204,22 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         };
         updates.customer = newCustomer;
       }
+      if (tableOverride !== null) {
+        updates.customer = { ...(updates.customer || order.customer), priceTable: activeTable };
+      }
       await updateOrder.mutateAsync(updates);
+      if (tableOverride !== null && updateProfileTable) {
+        const code = (order.customer as any)?.customerCode;
+        const storeId = (order as any).storeId;
+        if (code && storeId) {
+          const { error: pErr } = await supabase.from('customer_profiles')
+            .update({ price_table: activeTable }).eq('store_id', storeId).eq('customer_code', code).select();
+          if (pErr) toast.error(`Pedido salvo, mas o cadastro do cliente não foi alterado: ${pErr.message}`);
+          else toast.success(`Cadastro do cliente ${code} alterado para a Tabela ${activeTable}`);
+        } else {
+          toast.warning('Pedido salvo. Cliente sem código: altere a tabela no cadastro manualmente.');
+        }
+      }
       toast.success('Pedido atualizado!');
       onOpenChange(false);
     } catch (err: any) {
@@ -211,6 +246,30 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
           {removeOnly && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
               Este pedido já foi transmitido. Você só pode <strong>excluir itens</strong> que o cliente desistiu — não é possível adicionar produtos ou aumentar quantidades.
+            </div>
+          )}
+          {!removeOnly && (
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tabela de preço do pedido (atual: {activeTable})</Label>
+                  <Select value={pendingTable || String(activeTable)} onValueChange={setPendingTable}>
+                    <SelectTrigger className="h-9 w-[140px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['1', '3', '4', '8', '9', '11'].map(t => <SelectItem key={t} value={t}>Tabela {t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="button" variant="secondary" size="sm" onClick={handleReprice}>
+                  <RefreshCw className="h-3 w-3 mr-1" /> Recalcular
+                </Button>
+              </div>
+              {tableOverride !== null && tableOverride !== baseTable && (
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox checked={updateProfileTable} onCheckedChange={(v) => setUpdateProfileTable(v === true)} />
+                  Alterar também o cadastro do cliente para a Tabela {activeTable}
+                </label>
+              )}
             </div>
           )}
           {/* Current items */}

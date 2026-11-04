@@ -66,7 +66,13 @@ export default function OrderHistoryPage() {
         if (it?.productId) addItem({ ...it, discountPercent: undefined });
       }
       setEditingQuote({ id: order.id, storeId: store.id, customerName: (order.customer as any)?.name || 'Meu pedido', byCustomer: true });
-      toast.success('Pedido carregado no carrinho para edição');
+      const oldTable = (order.customer as any)?.priceTable;
+      const newTable = (profile as any)?.priceTable;
+      if (oldTable && newTable && String(oldTable) !== String(newTable)) {
+        toast.warning(`Sua tabela de preços mudou da Tabela ${oldTable} para a Tabela ${newTable}. Os preços e as faixas de desconto foram recalculados.`, { duration: 10000 });
+      } else {
+        toast.success('Pedido carregado no carrinho para edição');
+      }
       navigate(`/${store.slug}`);
     } catch (e: any) {
       toast.error(e.message || 'Erro ao abrir pedido');
