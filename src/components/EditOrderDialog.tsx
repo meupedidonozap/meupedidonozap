@@ -68,14 +68,29 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   useEffect(() => {
     if (order) {
-      setItems(order.items.map(i => ({ ...i })));
+      const baseItems = order.items.map(i => ({ ...i }));
+      setItems(baseItems);
       setFormaCodigo(order.customer?.paymentFormaCodigo || '');
       setCondicaoCodigo(order.customer?.paymentCondicaoCodigo || '');
       setTableOverride(null);
       setPendingTable('');
       setUpdateProfileTable(false);
+      if (autoRecalcTable) {
+        const t = normalizePriceTable(autoRecalcTable);
+        const r = repriceItems(baseItems, products as any[], t);
+        setItems(r.items);
+        setTableOverride(t);
+        if (r.missing.length) {
+          toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
+        }
+        if (r.changed > 0) {
+          toast.success(`Pedido recalculado pela Tabela ${t}: ${r.changed} preço(s) alterado(s), faixas de desconto reaplicadas. Confira e salve.`, { duration: 8000 });
+        } else if (!r.missing.length) {
+          toast.info(`Tabela ${t} aplicada — preços iguais aos atuais. Confira e salve.`);
+        }
+      }
     }
-  }, [order]);
+  }, [order, autoRecalcTable]);
 
   const handleReprice = () => {
     const t = normalizePriceTable(Number(pendingTable || activeTable) as any);
