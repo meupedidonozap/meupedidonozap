@@ -573,6 +573,7 @@ export default function StoreAdminPage() {
   const selectedSO = useMemo(() => selectedSOId ? serviceOrders.find(s => s.id === selectedSOId) || null : null, [selectedSOId, serviceOrders]);
   const [newOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [recalcWithTable, setRecalcWithTable] = useState<number | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
@@ -2026,6 +2027,7 @@ export default function StoreAdminPage() {
                                 size="icon"
                                 title={order.xmlDownloadedAt && isAdmin ? 'XML baixado — clique para liberar e editar' : order.xmlDownloadedAt ? 'Bloqueado: o XML deste pedido já foi baixado' : 'Editar pedido'}
                                 onClick={async () => {
+                                  setRecalcWithTable(null);
                                   if (order.xmlDownloadedAt) {
                                     if (!isAdmin) { toast.info('Este pedido não pode ser editado: o XML já foi baixado.'); return; }
                                     if (!confirm(`Liberar o pedido #${order.orderNumber} para edição? A marca de "XML baixado" será removida.`)) return;
@@ -2039,6 +2041,23 @@ export default function StoreAdminPage() {
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
+                            )}
+                            {['dicolore', 'dicoloresenses'].includes(store?.slug || '') && ['pendente', 'orcamento'].includes(order.status) && !order.xmlDownloadedAt && (isAdmin || permissions.can_manage_orders) && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" title="Recalcular Tabela">
+                                    <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Recalcular pela tabela</div>
+                                  {['1', '3', '4', '8', '9', '11'].map(t => (
+                                    <DropdownMenuItem key={t} onClick={() => { setEditingOrder(order); setRecalcWithTable(Number(t)); }}>
+                                      Tabela {t}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             )}
                           </div>
                         </TableCell>
@@ -3774,13 +3793,14 @@ export default function StoreAdminPage() {
       />
       <EditOrderDialog
         open={!!editingOrder}
-        onOpenChange={(v) => { if (!v) setEditingOrder(null); }}
+        onOpenChange={(v) => { if (!v) { setEditingOrder(null); setRecalcWithTable(null); } }}
         order={editingOrder}
         products={products}
         discountRules={store?.settings.discountRules || []}
         categories={categories}
         materialApoio={store?.settings.materialApoio}
         store={store}
+        autoRecalcTable={recalcWithTable as any}
         priceTable={(() => {
           if (store?.slug === 'dicoloresenses') return resolveStorePriceTable(store?.slug);
           if (!editingOrder) return resolveStorePriceTable(store?.slug);

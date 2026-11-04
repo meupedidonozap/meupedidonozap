@@ -31,9 +31,11 @@ interface EditOrderDialogProps {
   store?: { slug?: string; settings?: any } | null;
   /** Tabela de preço do cliente do pedido (1, 4 ou 9). */
   priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
+  /** Se informado, recalcula automaticamente os preços por esta tabela ao abrir. */
+  autoRecalcTable?: PriceTable | null;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable, autoRecalcTable }: EditOrderDialogProps) {
   const baseTable: PriceTable = normalizePriceTable(priceTable);
   const [tableOverride, setTableOverride] = useState<PriceTable | null>(null);
   const [pendingTable, setPendingTable] = useState<string>('');
@@ -66,14 +68,29 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   useEffect(() => {
     if (order) {
-      setItems(order.items.map(i => ({ ...i })));
+      const baseItems = order.items.map(i => ({ ...i }));
+      setItems(baseItems);
       setFormaCodigo(order.customer?.paymentFormaCodigo || '');
       setCondicaoCodigo(order.customer?.paymentCondicaoCodigo || '');
       setTableOverride(null);
       setPendingTable('');
       setUpdateProfileTable(false);
+      if (autoRecalcTable) {
+        const t = normalizePriceTable(autoRecalcTable);
+        const r = repriceItems(baseItems, products as any[], t);
+        setItems(r.items);
+        setTableOverride(t);
+        if (r.missing.length) {
+          toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
+        }
+        if (r.changed > 0) {
+          toast.success(`Pedido recalculado pela Tabela ${t}: ${r.changed} preço(s) alterado(s), faixas de desconto reaplicadas. Confira e salve.`, { duration: 8000 });
+        } else if (!r.missing.length) {
+          toast.info(`Tabela ${t} aplicada — preços iguais aos atuais. Confira e salve.`);
+        }
+      }
     }
-  }, [order]);
+  }, [order, autoRecalcTable]);
 
   const handleReprice = () => {
     const t = normalizePriceTable(Number(pendingTable || activeTable) as any);
@@ -231,9 +248,10 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
 
   if (!order) return null;
 
-  // Pedidos já transmitidos (qualquer status != 'pendente') só permitem
-  // EXCLUIR itens — não dá pra aumentar quantidade nem adicionar novos.
-  const removeOnly = order.status !== 'pendente';
+  // Pendente e Orçamento permitem edição completa: o orçamento devolvido ao
+  // cliente precisa receber novos itens e ter a tabela recalculada.
+  // Demais status (já transmitidos) só permitem EXCLUIR itens.
+  const removeOnly = !['pendente', 'orcamento'].includes(order.status);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -409,7 +427,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
             <Badge variant="outline" className="text-[10px]">Dica</Badge>
             {removeOnly
               ? <>Pedido transmitido: somente exclusão de itens é permitida.</>
-              : <>Pedidos <strong>Pendentes</strong> permitem edição completa (adicionar, remover e alterar quantidades).</>}
+              : <>Pedidos <strong>Pendentes e Orçamentos</strong> permitem edição completa (adicionar, remover, alterar quantidades e recalcular a tabela).</>}
           </p>
         </div>
 
