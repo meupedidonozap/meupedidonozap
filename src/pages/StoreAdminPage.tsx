@@ -2027,6 +2027,7 @@ export default function StoreAdminPage() {
                                 size="icon"
                                 title={order.xmlDownloadedAt && isAdmin ? 'XML baixado — clique para liberar e editar' : order.xmlDownloadedAt ? 'Bloqueado: o XML deste pedido já foi baixado' : 'Editar pedido'}
                                 onClick={async () => {
+                                  setRecalcWithTable(null);
                                   if (order.xmlDownloadedAt) {
                                     if (!isAdmin) { toast.info('Este pedido não pode ser editado: o XML já foi baixado.'); return; }
                                     if (!confirm(`Liberar o pedido #${order.orderNumber} para edição? A marca de "XML baixado" será removida.`)) return;
