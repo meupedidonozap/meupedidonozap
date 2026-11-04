@@ -218,6 +218,13 @@
       "when": 1793740681757,
       "tag": "0030_customer_profiles_erp_export_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793751959584,
+      "tag": "0031_purge_paid_title_boletos",
+      "breakpoints": true
     }
   ]
 }
