@@ -123,7 +123,7 @@ MONITOR_MIN_ENTRE = {
 }
 MONITOR_SYNC_INICIAL = os.getenv("MONITOR_SINCRONIZAR_AO_INICIAR", "sim").strip().lower() in ("sim", "s", "1", "true")
 MONITOR_PORTA_TRAVA = _env_int("MONITOR_PORTA_TRAVA", 47653) + {"todos": 0, "pedidos": 1, "cadastros": 2, "status": 3, "titulos": 4, "boletos": 5}.get(TAREFA, 0)
-MONITOR_INTERVALO_PEDIDOS_DEDICADO = _env_int("MONITOR_INTERVALO_PEDIDOS_DEDICADO", 30)
+MONITOR_INTERVALO_PEDIDOS_DEDICADO = _env_int("MONITOR_INTERVALO_PEDIDOS_DEDICADO", 90)
 # Transmissão de pedidos MPZ -> ERP (integrador_pedidos.py na pasta importacao)
 IMPORTACAO_DIR = _BASE / "importacao"
 INTEGRADOR_PEDIDOS = IMPORTACAO_DIR / "integrador_pedidos.py"
@@ -132,7 +132,7 @@ MONITOR_TRANSMITIR_PEDIDOS = os.getenv("MONITOR_TRANSMITIR_PEDIDOS", "sim").stri
 
 
 SYNC_PEDIDOS_ERP = _BASE / "sync_dicolore_financeiro_v5.py"
-MONITOR_INTERVALO_STATUS_PEDIDOS = _env_int("MONITOR_INTERVALO_STATUS_PEDIDOS", 60)
+MONITOR_INTERVALO_STATUS_PEDIDOS = _env_int("MONITOR_INTERVALO_STATUS_PEDIDOS", 180)
 
 
 def _desligar_modo_selecao():
@@ -183,7 +183,7 @@ def _status_e_boletos() -> bool:
     return ok
 
 
-MONITOR_INTERVALO_TITULOS = _env_int("MONITOR_INTERVALO_TITULOS", 600)
+MONITOR_INTERVALO_TITULOS = _env_int("MONITOR_INTERVALO_TITULOS", 1200)
 MONITOR_INTERVALO_BOLETOS_DEDICADO = _env_int("MONITOR_INTERVALO_BOLETOS_DEDICADO", 3600)
 TITULOS_HORA_COMPLETO = _env_int("TITULOS_HORA_COMPLETO", 6)
 _ultimo_completo = None
@@ -912,7 +912,7 @@ if __name__ == "__main__":
     if args.monitorar and args.tarefa == "pedidos":
         sys.exit(_loop_dedicado("pedidos-erp", MONITOR_INTERVALO_PEDIDOS_DEDICADO, lambda: transmitir_pedidos()))
     if args.monitorar and args.tarefa == "status":
-        sys.exit(_loop_dedicado("status-pedidos", MONITOR_INTERVALO_STATUS_PEDIDOS, _status_e_boletos))
+        sys.exit(_loop_dedicado("status-pedidos", MONITOR_INTERVALO_STATUS_PEDIDOS, sincronizar_status_pedidos))
 
     if args.monitorar and args.tarefa == "titulos":
         sys.exit(_loop_dedicado("titulos", MONITOR_INTERVALO_TITULOS, _titulos_ciclo))
