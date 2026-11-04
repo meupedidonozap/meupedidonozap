@@ -3793,7 +3793,7 @@ export default function StoreAdminPage() {
       />
       <EditOrderDialog
         open={!!editingOrder}
-        onOpenChange={(v) => { if (!v) setEditingOrder(null); }}
+        onOpenChange={(v) => { if (!v) { setEditingOrder(null); setRecalcWithTable(null); } }}
         order={editingOrder}
         products={products}
         discountRules={store?.settings.discountRules || []}
