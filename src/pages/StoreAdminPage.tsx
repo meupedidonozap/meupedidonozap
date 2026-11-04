@@ -3800,6 +3800,7 @@ export default function StoreAdminPage() {
         categories={categories}
         materialApoio={store?.settings.materialApoio}
         store={store}
+        autoRecalcTable={recalcWithTable as any}
         priceTable={(() => {
           if (store?.slug === 'dicoloresenses') return resolveStorePriceTable(store?.slug);
           if (!editingOrder) return resolveStorePriceTable(store?.slug);
