@@ -2042,6 +2042,23 @@ export default function StoreAdminPage() {
                                 <Edit2 className="h-4 w-4" />
                               </Button>
                             )}
+                            {['dicolore', 'dicoloresenses'].includes(store?.slug || '') && ['pendente', 'orcamento'].includes(order.status) && !order.xmlDownloadedAt && (isAdmin || permissions.can_manage_orders) && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" title="Recalcular Tabela">
+                                    <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Recalcular pela tabela</div>
+                                  {['1', '3', '4', '8', '9', '11'].map(t => (
+                                    <DropdownMenuItem key={t} onClick={() => { setEditingOrder(order); setRecalcWithTable(Number(t)); }}>
+                                      Tabela {t}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
