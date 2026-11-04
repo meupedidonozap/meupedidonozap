@@ -918,7 +918,7 @@ if __name__ == "__main__":
         sys.exit(_loop_dedicado("titulos", MONITOR_INTERVALO_TITULOS, _titulos_ciclo))
     if args.monitorar and args.tarefa == "boletos":
         sys.exit(_loop_dedicado("boletos", MONITOR_INTERVALO_BOLETOS_DEDICADO,
-                                lambda: sincronizar_status_pedidos(["--boletos-abertos"], "boletos")))
+                                lambda: sincronizar_status_pedidos(["--somente-boletos", "--boletos-dias", "7"], "boletos")))
 
     if args.transmitir_pedidos or args.dry_pedidos:
         sys.exit(0 if transmitir_pedidos(dry=args.dry_pedidos) else 1)
