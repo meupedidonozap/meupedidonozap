@@ -427,7 +427,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
             <Badge variant="outline" className="text-[10px]">Dica</Badge>
             {removeOnly
               ? <>Pedido transmitido: somente exclusão de itens é permitida.</>
-              : <>Pedidos <strong>Pendentes</strong> permitem edição completa (adicionar, remover e alterar quantidades).</>}
+              : <>Pedidos <strong>Pendentes e Orçamentos</strong> permitem edição completa (adicionar, remover, alterar quantidades e recalcular a tabela).</>}
           </p>
         </div>
 
