@@ -137,6 +137,7 @@ export interface StoreSettings {
   offersDelivery?: boolean;
   /** DiColore: liga/desliga a integração de estoque via planilha. */
   useStockIntegration?: boolean;
+  useExternalIntegrator?: boolean;
   /** Loja trabalha com integração Bling (habilita o campo Código BLING e o de-para no XML Bling). */
   useBlingIntegration?: boolean;
   /** Vitrine: exibe a aba "Cadastrar" para o cliente criar conta sozinho (padrão: sim). */
