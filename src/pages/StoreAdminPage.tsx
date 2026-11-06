@@ -611,6 +611,7 @@ export default function StoreAdminPage() {
   const [settingsMinOrder, setSettingsMinOrder] = useState('0');
   const [settingsCnpj, setSettingsCnpj] = useState('');
   const [useStockIntegration, setUseStockIntegration] = useState(false);
+  const [useExternalIntegrator, setUseExternalIntegrator] = useState(false);
   const [useBlingIntegration, setUseBlingIntegration] = useState(false);
   const [allowCustomerSignup, setAllowCustomerSignup] = useState(true);
   const [requireCustomerCodeForDownload, setRequireCustomerCodeForDownload] = useState(false);
@@ -687,6 +688,7 @@ export default function StoreAdminPage() {
     setOffersDelivery(store.settings?.offersDelivery !== false);
     setSettingsCnpj(store.settings?.cnpj || '');
     setUseStockIntegration((store.settings as any)?.useStockIntegration === true);
+    setUseExternalIntegrator((store.settings as any)?.useExternalIntegrator === true);
     setUseBlingIntegration((store.settings as any)?.useBlingIntegration === true);
     setAllowCustomerSignup((store.settings as any)?.allowCustomerSignup !== false);
     setRequireCustomerCodeForDownload(requiresCustomerCode(store));
@@ -1005,6 +1007,7 @@ export default function StoreAdminPage() {
           offersDelivery,
           cnpj: settingsCnpj.replace(/\D/g, ''),
           useStockIntegration,
+          useExternalIntegrator,
           useBlingIntegration,
           allowCustomerSignup,
           requireCustomerCodeForDownload,
@@ -2556,6 +2559,29 @@ export default function StoreAdminPage() {
                   <p className="text-xs text-muted-foreground">
                     Número que recebe a mensagem quando um pedido é marcado como <strong>Liberado p/ Transmissão</strong>.
                     Use DDI + DDD + número (ex.: 5547992491139). Se ficar vazio, o número padrão continua sendo usado.
+                  </p>
+                  <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
+                    {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {store.slug === 'dicolore' && (
+              <Card className="border-accent">
+                <CardHeader><CardTitle>Integrador de Pedidos</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 rounded-md border p-3 sm:max-w-md">
+                    <Label className="cursor-pointer" onClick={() => setUseExternalIntegrator(!useExternalIntegrator)}>
+                      Usar integrador EXTERNO? <strong>{useExternalIntegrator ? 'SIM' : 'NÃO'}</strong>
+                    </Label>
+                    <button type="button" onClick={() => setUseExternalIntegrator(!useExternalIntegrator)}
+                      className="text-muted-foreground hover:text-foreground" aria-label="Alternar integrador externo">
+                      {useExternalIntegrator ? <ToggleRight className="h-6 w-6 text-accent" /> : <ToggleLeft className="h-6 w-6" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>NÃO</strong>: os pedidos liberados são enviados pelo BAT local (1_MONITOR_PEDIDOS). <strong>SIM</strong>: somente a API externa recebe os pedidos e o BAT fica parado. Nunca os dois ao mesmo tempo.
                   </p>
                   <Button onClick={handleSaveSettings} disabled={updateStore.isPending}>
                     {updateStore.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

@@ -49,6 +49,10 @@ Deno.serve(async (req) => {
       const limit = Math.min(Number(url.searchParams.get("limit") || 50), 200);
       const { data: store } = await admin.from("stores").select("id, slug, settings").eq("slug", slug).single();
       if (!store) return json({ error: "store not found" }, 404);
+      // Só um integrador por vez: BAT local (padrão) ou API externa (settings.useExternalIntegrator).
+      const external = (store.settings as any)?.useExternalIntegrator === true;
+      const fromExternal = url.searchParams.get("source") === "externa";
+      if (external !== fromExternal) return json({ orders: [], integrador_ativo: external ? "externo" : "bat" });
 
       const { data: orders, error } = await admin.from("orders")
         .select("id, order_number, customer, items, subtotal, discount, delivery_fee, total, observations, created_at, status, user_id")
