@@ -524,7 +524,7 @@ export default function CheckinDialog({
         </DialogContent>
       </Dialog>
 
-      <CustomerFileDialog customer={fileOf} storeId={storeId} onClose={() => setFileOf(null)} />
+      <CustomerFileDialog customer={fileOf} storeId={storeId || ""} onClose={() => setFileOf(null)} />
 
       {/* Histórico */}
       <Dialog open={!!historyOf} onOpenChange={o => !o && setHistoryOf(null)}>
