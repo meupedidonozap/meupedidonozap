@@ -20,6 +20,7 @@ const TitleSchema = z.object({
   filial_codigo: str, vendedor_codigo: str, cliente_codigo: str, codigo: str,
   nota_fiscal_numero: str, nota_fiscal_serie: str, parcela: str, pedido_codigo: str,
   valor_total: num, valor_pago: num, valor_saldo: num, valor_comissao: num,
+  juros: num, valor_juros: num, valor_pago_liquido: z.union([z.string(), z.number()]).nullish(),
   data_emissao: date, data_vencimento: date, data_quitacao: date, status: str,
 });
 const BoletoSchema = z.object({
@@ -163,8 +164,18 @@ Deno.serve(async (req) => {
 
   // 1) Títulos
   let titlesUpserted = 0;
-  const rows = body.titles.map((t) => ({
+  const rows = body.titles.map((t) => {
+    const paid = t.status.toUpperCase() === "PAGO";
+    const juros = Math.max(t.valor_juros || t.juros || 0, 0);
+    const liqRaw = Number(t.valor_pago_liquido);
+    // Líquido = valor pago sem juros, nunca acima do valor do título.
+    const liquido = paid
+      ? Math.min(Number.isFinite(liqRaw) && t.valor_pago_liquido != null ? liqRaw : Math.max(t.valor_pago - juros, 0), t.valor_total || Infinity)
+      : null;
+    return {
     store_id: store.id,
+    valor_juros: juros,
+    valor_pago_liquido: liquido,
     external_key: keyOf(t.filial_codigo, t.codigo, t.parcela),
     filial_codigo: t.filial_codigo, vendedor_codigo: t.vendedor_codigo, cliente_codigo: t.cliente_codigo,
     codigo: t.codigo, nota_fiscal_numero: t.nota_fiscal_numero, nota_fiscal_serie: t.nota_fiscal_serie,
@@ -174,7 +185,8 @@ Deno.serve(async (req) => {
     valor_comissao: t.valor_comissao,
     data_emissao: t.data_emissao, data_vencimento: t.data_vencimento, data_quitacao: t.data_quitacao,
     status: (t.status || "ABERTO").toUpperCase(),
-  }));
+  };
+  });
   for (let i = 0; i < rows.length; i += 500) {
     const chunk = rows.slice(i, i + 500);
     const { error } = await supabase.from("customer_titles").upsert(chunk, { onConflict: "store_id,external_key" });

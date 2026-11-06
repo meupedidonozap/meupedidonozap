@@ -199,9 +199,9 @@ def run_connected(conn, args):
         return sync_pedidos(conn, cur, args)
 
     # 1) Títulos
-    cur.execute("SELECT * FROM dw_titulo")
+    cur.execute("SELECT * FROM mpz_titulo")
     titles = [{k: to_json(v) for k, v in row.items()} for row in cur.fetchall()]
-    log(f"{len(titles)} títulos lidos da view dw_titulo")
+    log(f"{len(titles)} títulos lidos da view mpz_titulo")
     for i in range(0, len(titles), TITLES_BATCH):
         res = post({"store_slug": STORE_SLUG, "titles": titles[i:i + TITLES_BATCH]})
         log(f"Títulos {i + 1}-{i + len(titles[i:i + TITLES_BATCH])}: {res.get('titlesUpserted')} gravados")
@@ -250,7 +250,7 @@ def sync_financeiro_periodo(cur, de, ate):
     log(f"Financeiro de {de:%d/%m/%Y} até {ate:%d/%m/%Y}")
     # 1) Títulos emitidos no período
     t0 = time.monotonic()
-    cur.execute("SELECT * FROM dw_titulo WHERE data_emissao BETWEEN %s AND %s", (de, ate))
+    cur.execute("SELECT * FROM mpz_titulo WHERE data_emissao BETWEEN %s AND %s", (de, ate))
     titles = [{k: to_json(v) for k, v in row.items()} for row in cur.fetchall()]
     log(f"Títulos: {len(titles)} lidos em {time.monotonic() - t0:.1f}s")
     for i in range(0, len(titles), TITLES_BATCH):
@@ -328,7 +328,7 @@ def sync_titulos(cur, modo, args):
     t0 = time.monotonic()
     if modo == "rapido":
         rec = hoje - timedelta(days=args.dias_recentes)
-        cur.execute("""SELECT * FROM dw_titulo
+        cur.execute("""SELECT * FROM mpz_titulo
                         WHERE data_emissao >= %s
                           AND (status <> 'PAGO' OR data_quitacao >= %s OR data_emissao >= %s)""",
                     (de, rec, rec))
@@ -342,7 +342,7 @@ def sync_titulos(cur, modo, args):
         fim = min((ini.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1), hoje)
         t0 = time.monotonic()
         try:
-            cur.execute("SELECT * FROM dw_titulo WHERE data_emissao BETWEEN %s AND %s", (ini, fim))
+            cur.execute("SELECT * FROM mpz_titulo WHERE data_emissao BETWEEN %s AND %s", (ini, fim))
             rows = [{k: to_json(v) for k, v in r.items()} for r in cur.fetchall()]
             log(f"Títulos {ini:%d/%m/%Y}-{fim:%d/%m/%Y}: {len(rows)} lidos em {time.monotonic() - t0:.1f}s")
             total += enviar_titulos(rows)
@@ -356,7 +356,7 @@ def sync_titulos(cur, modo, args):
 def sync_boletos_abertos(cur, args):
     """v17: boletos de todos os títulos em aberto desde a data do admin, em lotes de NFs."""
     de = data_inicio_admin(args)
-    cur.execute("SELECT DISTINCT codigo FROM dw_titulo WHERE status <> 'PAGO' AND data_emissao >= %s", (de,))
+    cur.execute("SELECT DISTINCT codigo FROM mpz_titulo WHERE status <> 'PAGO' AND data_emissao >= %s", (de,))
     notas = sorted({str(r["codigo"]) for r in cur.fetchall() if r.get("codigo")})
     log(f"Boletos: {len(notas)} NFs com título em aberto desde {de:%d/%m/%Y}")
     total = 0
@@ -379,7 +379,7 @@ def sync_boletos(cur, notas=None, dias_emissao=None, silencioso=False):
         SELECT b.empresa::text AS filial_codigo, b.nota::text AS nota,
                b.serie::text AS serie, b.parcela::text AS parcela, b.arquivo
           FROM dw_arquivo_boleto b
-          JOIN dw_titulo t
+          JOIN mpz_titulo t
             ON t.codigo = b.nota::text
            AND t.parcela = b.serie::text || b.parcela::text
            AND t.filial_codigo = b.empresa::text
