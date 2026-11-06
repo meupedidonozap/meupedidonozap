@@ -503,7 +503,9 @@ export type Database = {
           store_id: string
           updated_at: string
           valor_comissao: number
+          valor_juros: number
           valor_pago: number
+          valor_pago_liquido: number | null
           valor_saldo: number
           valor_total: number
           vendedor_codigo: string
@@ -527,7 +529,9 @@ export type Database = {
           store_id: string
           updated_at?: string
           valor_comissao?: number
+          valor_juros?: number
           valor_pago?: number
+          valor_pago_liquido?: number | null
           valor_saldo?: number
           valor_total?: number
           vendedor_codigo?: string
@@ -551,7 +555,9 @@ export type Database = {
           store_id?: string
           updated_at?: string
           valor_comissao?: number
+          valor_juros?: number
           valor_pago?: number
+          valor_pago_liquido?: number | null
           valor_saldo?: number
           valor_total?: number
           vendedor_codigo?: string

@@ -232,6 +232,13 @@
       "when": 1793816991797,
       "tag": "0032_scope_public_catalog_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793962377107,
+      "tag": "0033_titles_net_paid_interest",
+      "breakpoints": true
     }
   ]
 }
