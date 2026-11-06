@@ -50,10 +50,10 @@ Deno.serve(async (req) => {
       const exportUrl = `${SB_URL}/functions/v1/orders-export`;
       const hdr = { "x-sync-token": Deno.env.get("TITLES_SYNC_TOKEN") || "", "Content-Type": "application/json" };
       if (route === "/pedidos" && req.method === "GET") {
-        const r = await fetch(`${exportUrl}?store_slug=${SLUG}&limit=${limit}`, { headers: hdr });
+        const r = await fetch(`${exportUrl}?store_slug=${SLUG}&limit=${limit}&source=externa`, { headers: hdr });
         const body = await r.json();
         if (!r.ok) return json({ erro: body?.error || "falha" }, r.status);
-        return json({ pedidos: body.orders ?? [] });
+        return json({ pedidos: body.orders ?? [], ...(body.integrador_ativo === "bat" ? { aviso: "integrador externo desativado na loja" } : {}) });
       }
       if (route === "/pedidos/confirmar" && req.method === "POST") {
         const p = listOf(PedidoConf).safeParse(await req.json().catch(() => null));
