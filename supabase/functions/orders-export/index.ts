@@ -176,8 +176,17 @@ Deno.serve(async (req) => {
       const done: string[] = [];
       for (const r of results.slice(0, 200)) {
         if (!r?.order_id) continue;
-        const { data: o } = await admin.from("orders").select("id, store_id, stores(slug)").eq("id", r.order_id).maybeSingle();
+        const { data: o } = await admin.from("orders").select("id, store_id, order_number, stores(slug)").eq("id", r.order_id).maybeSingle();
         if (!o || !ALLOWED_SLUGS.has((o as any).stores?.slug)) continue;
+        // ERP responde "Pedido DW MPZ<n> já importado ... com o Código <cod>" quando o pedido
+        // já existe lá (ex.: confirmação anterior perdida). Trata como sucesso com esse código.
+        const errText = String(r.error || "");
+        const already = r.ok === false
+          ? errText.match(/MPZ\s*(\d+)\D[\s\S]{0,40}?importado[\s\S]{0,60}?C\S{0,3}digo\s+(\d+)/i)
+          : null;
+        if (already && String(already[1]) === String((o as any).order_number)) {
+          r.ok = true; r.erp_order_code = already[2];
+        }
         const patch: Record<string, unknown> = r.ok === false
           ? { erp_error: String(r.error || "erro").slice(0, 1000) }
           : { erp_order_code: String(r.erp_order_code || ""), erp_sent_at: new Date().toISOString(), erp_error: null,
