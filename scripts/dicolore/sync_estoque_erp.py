@@ -20,11 +20,29 @@ from pathlib import Path
 import psycopg2
 import requests
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parent / ".env")
-except ImportError:
-    pass
+_BASE = Path(__file__).resolve().parent
+# Mesmos arquivos lidos pelo monitor de títulos (sync_dicolore_financeiro_v5.py).
+ARQUIVOS_ENV = (_BASE / "dicolore.env", _BASE / ".env",
+                _BASE / "importacao" / "importacao.env", _BASE / "importacao.env")
+
+
+def _carregar_env(arq):
+    try:
+        with open(arq, encoding="utf-8-sig") as f:
+            for linha in f:
+                linha = linha.strip()
+                if not linha or linha.startswith("#") or "=" not in linha:
+                    continue
+                k, v = linha.split("=", 1)
+                k = k.strip(); v = v.strip().strip('"').strip("'")
+                if k and not os.environ.get(k):
+                    os.environ[k] = v
+    except (FileNotFoundError, UnicodeDecodeError):
+        pass
+
+
+for _arq in ARQUIVOS_ENV:
+    _carregar_env(_arq)
 
 
 def _env(*nomes, padrao=None):
@@ -106,7 +124,7 @@ def main():
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args()
     if not SYNC_TOKEN:
-        log("Defina TITLES_SYNC_TOKEN no .env.")
+        log("TITLES_SYNC_TOKEN não encontrado. Procurado em: " + ", ".join(str(a) for a in ARQUIVOS_ENV))
         sys.exit(1)
     if not a.monitorar:
         ciclo(a.dry_run)
