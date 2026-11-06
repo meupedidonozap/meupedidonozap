@@ -22,6 +22,12 @@ function effectiveStatus(t: any): 'ABERTO' | 'VENCIDO' | 'PAGO' {
   return 'ABERTO';
 }
 
+/** Valor líquido pago (sem juros) — base da comissão. */
+export function netPaid(t: any): number {
+  if (t.valor_pago_liquido != null) return Number(t.valor_pago_liquido);
+  return Math.min(Number(t.valor_pago || t.valor_total), Number(t.valor_total));
+}
+
 export default function TitlesPanel({ storeId, sellerCodes, customerCode, startDate, dateField = 'data_vencimento', company }: {
   storeId: string;
   sellerCodes?: string[];
@@ -38,6 +44,8 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
   }, [search]);
   const [filter, setFilter] = useState<Filter>('todos');
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [paidFrom, setPaidFrom] = useState('');
+  const [paidTo, setPaidTo] = useState('');
 
   const { data: titles = [], isLoading } = useQuery({
     queryKey: ['customer-titles', storeId, (sellerCodes || []).join(','), customerCode, startDate, dateField, term, company],
@@ -95,12 +103,16 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
     return enriched.filter((t: any) => [t.cliente_codigo, t._c?.name, t._c?.city, t.codigo, t.nota_fiscal_numero, t.pedido_codigo]
       .some((v) => String(v || '').toLowerCase().includes(s)));
   }, [enriched, search]);
-  const list = filter === 'todos' ? searched : searched.filter((t: any) => t._st === filter);
+  // Período de pagamento (data de quitação) aplicado somente aos títulos pagos.
+  const inPaidRange = (t: any) => t._st !== 'PAGO' || ((!paidFrom || (t.data_quitacao || '') >= paidFrom) && (!paidTo || (t.data_quitacao || '') <= paidTo));
+  const ranged = useMemo(() => searched.filter(inPaidRange), [searched, paidFrom, paidTo]);
+  const list = filter === 'todos' ? ranged : ranged.filter((t: any) => t._st === filter);
 
   const totals = (st: Filter) => {
-    const l = searched.filter((t: any) => t._st === st);
-    const v = l.reduce((a: number, t: any) => a + Number(st === 'PAGO' ? t.valor_pago || t.valor_total : t.valor_total - (t.valor_pago || 0)), 0);
-    return { n: l.length, v };
+    const l = ranged.filter((t: any) => t._st === st);
+    const v = l.reduce((a: number, t: any) => a + (st === 'PAGO' ? netPaid(t) : Number(t.valor_total) - Number(t.valor_pago || 0)), 0);
+    const juros = st === 'PAGO' ? l.reduce((a: number, t: any) => a + Number(t.valor_juros || 0), 0) : 0;
+    return { n: l.length, v, juros };
   };
   const ab = totals('ABERTO'), ve = totals('VENCIDO'), pg = totals('PAGO');
 
@@ -140,6 +152,9 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">{k.t} ({k.s.n})</p>
               <p className={`text-xl font-bold ${k.f === 'VENCIDO' ? 'text-destructive' : ''}`}>{formatCurrency(k.s.v)}</p>
+              {k.f === 'PAGO' && (
+                <p className="text-xs text-muted-foreground">Líquido (sem juros) • Juros recebidos: {formatCurrency(k.s.juros)}</p>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -148,6 +163,14 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-9" placeholder={customerCode ? 'Buscar por NF ou pedido' : 'Buscar por cliente, cidade, código ou NF'} value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2 text-sm">
+        <span className="text-muted-foreground">Pagos entre:</span>
+        <Input type="date" className="w-40" value={paidFrom} onChange={(e) => setPaidFrom(e.target.value)} aria-label="Pago desde" />
+        <span className="text-muted-foreground">e</span>
+        <Input type="date" className="w-40" value={paidTo} onChange={(e) => setPaidTo(e.target.value)} aria-label="Pago até" />
+        {(paidFrom || paidTo) && <Button size="sm" variant="ghost" onClick={() => { setPaidFrom(''); setPaidTo(''); }}>Limpar</Button>}
       </div>
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
@@ -184,7 +207,10 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
                   <Badge variant={t._st === 'VENCIDO' ? 'destructive' : t._st === 'PAGO' ? 'default' : 'outline'}>
                     {t._st === 'VENCIDO' ? 'Vencido' : t._st === 'PAGO' ? 'Pago' : 'Aberto'}
                   </Badge>
-                  <p className="font-bold">{formatCurrency(Number(t.valor_total))}</p>
+                  <p className="font-bold">{formatCurrency(t._st === 'PAGO' ? netPaid(t) : Number(t.valor_total))}</p>
+                  {t._st === 'PAGO' && Number(t.valor_juros) > 0 && (
+                    <p className="text-xs text-muted-foreground">+ juros {formatCurrency(Number(t.valor_juros))} = pago {formatCurrency(Number(t.valor_pago))}</p>
+                  )}
                   {t._st !== 'PAGO' && t.has_boleto && (
                     <Button size="sm" variant="outline" disabled={downloading === t.id} onClick={() => download(t)}>
                       {downloading === t.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />} Boleto
