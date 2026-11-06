@@ -19,6 +19,7 @@ import {
   DEFAULT_VISIT_REASONS, formatDuration, type CustomerVisit,
   OUT_OF_RANGE_REASONS, logGeoChange, reverseGeocode,
 } from '@/hooks/useCustomerVisits';
+import CustomerFileDialog from '@/components/CustomerFileDialog';
 import CustomersMap, { type MapPoint } from '@/components/CustomersMap';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 
@@ -99,6 +100,7 @@ export default function CheckinDialog({
   const [checkoutVisit, setCheckoutVisit] = useState<CustomerVisit | null>(null);
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [fileOf, setFileOf] = useState<CustomerRow | null>(null);
   const [gpsHelp, setGpsHelp] = useState<{ kind: GeoErrorKind; customer: CustomerRow } | null>(null);
   const [view, setView] = useState<'lista' | 'mapa'>('lista');
   const [outRange, setOutRange] = useState<{ customer: CustomerRow; my: { lat: number; lng: number }; geo: { lat: number; lng: number }; dist: number } | null>(null);
@@ -399,8 +401,8 @@ export default function CheckinDialog({
                       const openV = openVisitByCustomer.get(c.id);
                       return (
                         <div key={c.id} className="p-3 space-y-2">
-                          <div>
-                            <p className="text-sm font-semibold">{c.name}</p>
+                          <div role="button" tabIndex={0} className="cursor-pointer rounded hover:bg-muted/50" onClick={() => setFileOf(c)} onKeyDown={e => e.key === 'Enter' && setFileOf(c)}>
+                            <p className="text-sm font-semibold text-primary underline-offset-2 hover:underline">{c.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {c.customer_code ? `#${c.customer_code} • ` : ''}{c.cpf_cnpj || '—'}
                             </p>
@@ -521,6 +523,8 @@ export default function CheckinDialog({
           </div>
         </DialogContent>
       </Dialog>
+
+      <CustomerFileDialog customer={fileOf} storeId={storeId || ""} onClose={() => setFileOf(null)} />
 
       {/* Histórico */}
       <Dialog open={!!historyOf} onOpenChange={o => !o && setHistoryOf(null)}>
