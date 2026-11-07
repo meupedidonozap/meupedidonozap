@@ -1,4 +1,4 @@
-/** Próximo passo ao finalizar a edição de um pedido pelo vendedor/televendas na DiColore. */
+/** Próximo passo ao finalizar um pedido pelo vendedor/televendas na DiColore. */
 export type FinalizeStep = 'save' | 'ask-payment' | 'ask-release';
 
 export function nextFinalizeStep(o: {
@@ -9,7 +9,7 @@ export function nextFinalizeStep(o: {
   formaCodigo?: string;
   condicaoCodigo?: string;
 }): FinalizeStep {
-  if (o.storeSlug !== 'dicolore' || !o.isEditing || !o.sellerOrder || o.asQuote) return 'save';
+  if (o.storeSlug !== 'dicolore' || !o.sellerOrder || o.asQuote) return 'save';
   const has = (v?: string) => !!String(v ?? '').trim();
   if (!has(o.formaCodigo) || !has(o.condicaoCodigo)) return 'ask-payment';
   return 'ask-release';

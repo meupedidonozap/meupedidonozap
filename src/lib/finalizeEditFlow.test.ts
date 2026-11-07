@@ -13,6 +13,13 @@ describe('nextFinalizeStep', () => {
   it('pergunta liberação quando pagamento completo', () => {
     expect(nextFinalizeStep(base)).toBe('ask-release');
   });
+  it('oferece liberação na primeira finalização do vendedor/televendas', () => {
+    expect(nextFinalizeStep({ ...base, isEditing: false, formaCodigo: '4', condicaoCodigo: '71' })).toBe('ask-release');
+  });
+  it('cliente finaliza sem oferta de liberação, inclusive ao editar', () => {
+    expect(nextFinalizeStep({ ...base, sellerOrder: false })).toBe('save');
+    expect(nextFinalizeStep({ ...base, sellerOrder: false, isEditing: false })).toBe('save');
+  });
   it('outra loja salva direto', () => {
     expect(nextFinalizeStep({ ...base, storeSlug: 'dicoloresenses', formaCodigo: '' })).toBe('save');
   });
