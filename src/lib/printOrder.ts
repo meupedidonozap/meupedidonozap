@@ -17,6 +17,12 @@ const paymentMap: Record<string, string> = {
   dinheiro: 'Dinheiro',
 };
 
+function paymentLabel(order: Order): string {
+  const c: any = order.customer || {};
+  const erp = [c.paymentFormaCodigo && `${c.paymentFormaCodigo} - ${c.paymentFormaDescricao || ''}`.trim(), c.paymentCondicaoCodigo && `${c.paymentCondicaoCodigo} - ${c.paymentCondicaoDescricao || ''}`.trim()].filter(Boolean).join(' | ');
+  return erp || paymentMap[order.paymentMethod] || order.paymentMethod;
+}
+
 const shiftMap: Record<string, string> = {
   manha: 'Manhã',
   tarde: 'Tarde',
@@ -125,7 +131,7 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
   ${addressLine2 ? `<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${addressLine2}</div>` : ''}
   <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${addressLine3}</div>
   <div>Entrega: ${shiftMap[order.deliveryShift] || order.deliveryShift}</div>
-  <div>Pagto: ${paymentMap[order.paymentMethod] || order.paymentMethod}</div>
+  <div>Pagto: ${paymentLabel(order)}</div>
   <div class="sep">${sep}</div>
 
   <div class="section-title">ITENS DO PEDIDO</div>
@@ -248,7 +254,7 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
       <div><strong>Nome:</strong> ${customer.name}</div>
       <div><strong>CPF/CNPJ:</strong> ${formatCPFCNPJ(customer.cpfCnpj)}</div>
       <div><strong>Telefone:</strong> ${formatPhone(customer.whatsapp)}</div>
-      <div><strong>Pagamento:</strong> ${paymentMap[order.paymentMethod] || order.paymentMethod}</div>
+      <div><strong>Pagamento:</strong> ${paymentLabel(order)}</div>
       <div><strong>Endereço:</strong> ${addressParts}${addressLine2 ? ', ' + addressLine2 : ''}</div>
       <div><strong>Cidade:</strong> ${addressLine3}</div>
       <div><strong>Entrega:</strong> ${shiftMap[order.deliveryShift] || order.deliveryShift}</div>

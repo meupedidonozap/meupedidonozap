@@ -27,7 +27,9 @@ export async function shareOrderPdf(orderId: string, storeName: string): Promise
   const addr = [[c.address, c.number].filter(Boolean).join(', '), c.neighborhood, [c.city, c.uf].filter(Boolean).join('/')].filter(Boolean).join(' - ');
   if (addr) line(addr);
   if (c.whatsapp) line(`WhatsApp: ${c.whatsapp}`);
-  if (c.paymentMethod || order.payment_method) line(`Pagamento: ${c.paymentMethod || order.payment_method}`);
+  const erpPay = [c.paymentFormaCodigo && `${c.paymentFormaCodigo} - ${c.paymentFormaDescricao || ''}`.trim(), c.paymentCondicaoCodigo && `${c.paymentCondicaoCodigo} - ${c.paymentCondicaoDescricao || ''}`.trim()].filter(Boolean).join(' | ');
+  if (erpPay) line(`Pagamento: ${erpPay}`);
+  else if (c.paymentMethod || order.payment_method) line(`Pagamento: ${c.paymentMethod || order.payment_method}`);
 
   const items: any[] = Array.isArray(order.items) ? order.items : [];
   autoTable(doc, {

@@ -19,3 +19,5 @@
 - DiColore stock comes from the ERP view mpz_produto_estoque via sync-stock-erp (x-sync-token), subtracting MPZ orders not yet transmitted to the ERP; the Sheets route is legacy.
 
 - DiColore customer profiles carry the ERP dw_cliente attributes as same-named columns; api-externa serves customers through the shared dw layout builder and orders carry the customer's CIF/FOB freight, so third-party integrators receive the exact DW contract.
+
+- The "new version" banner shows only for stores listed in public/release.json ("all" for everyone); other stores update silently, so store-specific releases do not interrupt unrelated tenants. Edit that file on each release.
