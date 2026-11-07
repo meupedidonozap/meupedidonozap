@@ -21,3 +21,4 @@
 - DiColore customer profiles carry the ERP dw_cliente attributes as same-named columns; api-externa serves customers through the shared dw layout builder and orders carry the customer's CIF/FOB freight, so third-party integrators receive the exact DW contract.
 
 - The "new version" banner shows only for stores listed in public/release.json ("all" for everyone); other stores update silently, so store-specific releases do not interrupt unrelated tenants. Edit that file on each release.
+- Checkout restores payment choices from the authorized saved order on edit; seller/telesales release uses the same validation for new and edited orders, while PDF previews never save or release orders.

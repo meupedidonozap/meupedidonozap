@@ -1,5 +1,7 @@
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { nextFinalizeStep, type FinalizeStep } from '@/lib/finalizeEditFlow';
+import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
+import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef } from 'react';
@@ -86,6 +88,7 @@ export default function CheckoutPage() {
     seller,
   } = useActiveCustomerProfile(store?.id);
   const sellerOrder = isSellerMode && !!selectedCustomer;
+  const canOfferRelease = sellerOrder && (seller.isSeller || seller.isTelevendas);
   const { data: sellers = [] } = useStoreSellers(store?.id);
   // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
   // com o padrão da loja como único fallback (mesma regra da vitrine).
@@ -128,6 +131,36 @@ export default function CheckoutPage() {
   const [releaseConfirm, setReleaseConfirm] = useState(false);
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
   const [paymentCondicaoCodigo, setPaymentCondicaoCodigo] = useState<string>('');
+  const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
+  const [paymentRestoreError, setPaymentRestoreError] = useState(false);
+  const restoringPayment = !!editingQuote && paymentOrderId !== editingQuote.id;
+
+  // Read the persisted choice for every edit entrypoint, including page reloads.
+  useEffect(() => {
+    if (!editingQuote?.id || !store?.id) return;
+    let cancelled = false;
+    setPaymentRestoreError(false);
+    supabase.from('orders').select('customer,payment_method,delivery_shift,observations')
+      .eq('id', editingQuote.id).eq('store_id', store.id).single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data) {
+          setPaymentRestoreError(true);
+          toast.error('Não foi possível recuperar o pagamento do pedido. Reabra a edição.');
+          return;
+        }
+        const saved = orderPaymentSelection(data.customer);
+        setPaymentFormaCodigo(saved.formaCodigo);
+        setPaymentCondicaoCodigo(saved.condicaoCodigo);
+        setFormData(prev => ({ ...prev,
+          paymentMethod: data.payment_method as PaymentMethod,
+          deliveryShift: data.delivery_shift as DeliveryShift,
+          observations: data.observations || '',
+        }));
+        setPaymentOrderId(editingQuote.id);
+      });
+    return () => { cancelled = true; };
+  }, [editingQuote?.id, store?.id]);
 
   // Shipping state
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -263,6 +296,10 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    if (restoringPayment || paymentRestoreError) {
+      toast.error(paymentRestoreError ? 'Reabra a edição para recuperar o pagamento salvo.' : 'Aguarde o carregamento do pagamento salvo.');
+      return false;
+    }
     // Evita a "janela de corrida": se ainda estamos verificando se o usuário é
     // vendedor da loja, não deixa finalizar (senão o pedido sairia no nome dele).
     if (seller.loading) {
@@ -418,11 +455,35 @@ export default function CheckoutPage() {
     toast.success('Arquivo baixado!');
   };
 
+  const handleDownloadPdf = () => {
+    try {
+      const { quantityDiscount, itemDiscounts: currentDiscounts } = computeGroupDiscounts(cart.items, discountRules, activePriceTable);
+      const discount = cart.couponDiscount + quantityDiscount;
+      const file = buildOrderPdfFile({
+        status: 'orcamento', created_at: new Date().toISOString(),
+        customer: { ...formData, customerCode: customerProfile?.customerCode,
+          paymentFormaCodigo, paymentCondicaoCodigo,
+          paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
+          paymentCondicaoDescricao: condicoes.find(c => c.codigo === paymentCondicaoCodigo)?.descricao,
+        },
+        items: expandKitItems(cart.items.map(item => ({ ...item,
+          discountPercent: currentDiscounts[`${item.productId}-${item.variantId || ''}`] || 0,
+        })), kitMap),
+        subtotal: cart.subtotal, discount, delivery_fee: deliveryFee,
+        total: Math.max(0, cart.subtotal - discount) + deliveryFee,
+        payment_method: formData.paymentMethod, observations: formData.observations,
+      }, store.name);
+      void deliverOrderPdfFile(file).catch(() => toast.error('Não foi possível baixar o PDF.'));
+    } catch {
+      toast.error('Não foi possível gerar o PDF.');
+    }
+  };
+
   const handleSendWhatsApp = async (asQuote = false, opts: { decided?: boolean; release?: boolean } = {}) => {
     if (!validateForm()) return;
     if (!opts.decided) {
       const step = nextFinalizeStep({
-        storeSlug: store?.slug, isEditing: !!editingQuote, sellerOrder, asQuote,
+        storeSlug: store?.slug, isEditing: !!editingQuote, sellerOrder: canOfferRelease, asQuote,
         formaCodigo: paymentFormaCodigo, condicaoCodigo: paymentCondicaoCodigo,
       });
       if (step !== 'save') { setReleaseConfirm(false); setFinalizeAsk(step); return; }
@@ -593,6 +654,8 @@ export default function CheckoutPage() {
 
       if (editingQuote && (sellerOrder || editingQuote.byCustomer)) {
         if (offline) throw new Error('Sem internet: conecte-se para salvar a edição do orçamento');
+        const { data: { user: editingUser }, error: editingAuthError } = await supabase.auth.getUser();
+        if (editingAuthError || !editingUser) throw new Error('Entre novamente para salvar o pedido.');
         waWindow?.close();
         const byCustomer = !sellerOrder && !!editingQuote.byCustomer;
         const { error: upErr } = await supabase.from('orders').update({
@@ -610,7 +673,7 @@ export default function CheckoutPage() {
         if (upErr) throw upErr;
         setEditingQuote(null);
         let released = false;
-        if (opts.release) {
+        if (opts.release && canOfferRelease && !asQuote && store.slug === 'dicolore') {
           const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items as any });
           if (issues.length) {
             toast.error(`Pedido salvo como Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
@@ -649,13 +712,26 @@ export default function CheckoutPage() {
 
       const created: any = await createOrder.mutateAsync(orderPayload);
 
+      let createdReleased = false;
+      if (opts.release && canOfferRelease && !asQuote && store.slug === 'dicolore' && created?.id) {
+        const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items });
+        if (issues.length) {
+          toast.error(`Pedido salvo como Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
+        } else {
+          const { error } = await supabase.from('orders').update({ status: 'liberado_transmissao' })
+            .eq('id', created.id).eq('store_id', store.id).select().single();
+          if (error) toast.error(`Pedido salvo como Pendente. Não foi possível liberar: ${error.message}`, { duration: 8000 });
+          else createdReleased = true;
+        }
+      }
+
       if (!asQuote && created?.id && String(orderPayload.shippingCode || '').startsWith('SF-')) {
         supabase.functions.invoke('superfrete-label', { body: { action: 'create', orderId: created.id } }).catch(() => {});
       }
 
       if (sellerOrder) {
         const storeName = store.name;
-        toast.success(asQuote ? `Orçamento salvo para ${formData.name}` : `Pedido registrado para ${formData.name}`, {
+        toast.success(createdReleased ? 'Pedido salvo e liberado para transmissão' : asQuote ? `Orçamento salvo para ${formData.name}` : `Pedido registrado para ${formData.name}`, {
           duration: 15000,
           action: created?.id ? {
             label: 'Enviar PDF',
@@ -762,6 +838,7 @@ export default function CheckoutPage() {
                 <AlertDialogDescription>Deseja liberar p/ transmissão agora?</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="gap-2">
+                <Button variant="outline" onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4" />Baixar PDF</Button>
                 <Button variant="outline" onClick={() => { setFinalizeAsk(null); handleSendWhatsApp(false, { decided: true }); }}>Não, deixar Pendente</Button>
                 <Button onClick={() => setReleaseConfirm(true)}>Sim</Button>
               </AlertDialogFooter>
@@ -1008,7 +1085,7 @@ export default function CheckoutPage() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="grid gap-1">
                         <Label className="text-xs">{store.slug === 'dicoloresenses' ? 'Condição de Pagamento' : 'Forma de Pagamento (ERP)'}</Label>
-                        <Select value={paymentFormaCodigo} onValueChange={setPaymentFormaCodigo}>
+                        <Select value={paymentFormaCodigo} onValueChange={setPaymentFormaCodigo} disabled={restoringPayment || paymentRestoreError}>
                           <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent className="max-h-[40vh]">
                             {formas.map(f => (
@@ -1019,7 +1096,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="grid gap-1">
                         <Label className="text-xs">{store.slug === 'dicoloresenses' ? 'Prazo de Pagamento' : 'Condição de Pagamento (ERP)'}</Label>
-                        <Select value={paymentCondicaoCodigo} onValueChange={setPaymentCondicaoCodigo}>
+                        <Select value={paymentCondicaoCodigo} onValueChange={setPaymentCondicaoCodigo} disabled={restoringPayment || paymentRestoreError}>
                           <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent className="max-h-[40vh]">
                             {condicoes.map(c => (
@@ -1171,7 +1248,7 @@ export default function CheckoutPage() {
                   )}
                   <Button
                     onClick={() => handleSendWhatsApp()}
-                    disabled={isSubmitting || !storeOpenStatus.open || (effectiveMinOrder(store, !!isSellerMode) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < effectiveMinOrder(store, !!isSellerMode))}
+                    disabled={isSubmitting || restoringPayment || paymentRestoreError || !storeOpenStatus.open || (effectiveMinOrder(store, !!isSellerMode) > 0 && (cart.subtotal - (cart.quantityDiscount || 0)) < effectiveMinOrder(store, !!isSellerMode))}
                     className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
                   >
                     <MessageCircle className="h-4 w-4" /> {isSubmitting ? 'Enviando...' : (!storeOpenStatus.open ? 'Loja fechada' : (store.slug === 'mabelle' && store.settings.onlinePayments === true ? 'PAGAR PEDIDO' : ((sellerOrder || store.slug === 'dicoloresenses') ? 'FINALIZAR PEDIDO' : (store.slug === 'jewosnewborn' ? 'Pagar e enviar pelo WhatsApp' : 'Enviar pelo WhatsApp'))))}

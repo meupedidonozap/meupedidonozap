@@ -7,7 +7,11 @@ import { formatCurrency } from '@/lib/formatters';
 export async function shareOrderPdf(orderId: string, storeName: string): Promise<void> {
   const { data: o, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (error || !o) throw new Error(error?.message || 'Pedido não encontrado');
-  const order: any = o;
+  await deliverOrderPdfFile(buildOrderPdfFile(o, storeName));
+}
+
+/** Also supports an unsaved checkout snapshot without changing order status. */
+export function buildOrderPdfFile(order: any, storeName: string): File {
   const c: any = order.customer || {};
   const isQuote = order.status === 'orcamento';
   const title = isQuote ? 'ORÇAMENTO' : `PEDIDO #${order.order_number ?? ''}`;
@@ -61,13 +65,18 @@ export async function shareOrderPdf(orderId: string, storeName: string): Promise
 
   const name = `${isQuote ? 'Orcamento' : 'Pedido-' + (order.order_number ?? '')}-${(c.name || 'cliente').replace(/[^\w]+/g, '_').slice(0, 30)}.pdf`;
   const file = new File([doc.output('blob')], name, { type: 'application/pdf' });
+  return file;
+}
 
+/** Call directly from a click so mobile sharing retains user activation. */
+export async function deliverOrderPdfFile(file: File): Promise<void> {
+  const name = file.name;
   const nav: any = navigator;
   const isTouch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   // Celular: compartilhamento nativo. Computador (Windows etc.): baixar e abrir.
   if (isTouch && nav.canShare && nav.canShare({ files: [file] })) {
     try {
-      await nav.share({ files: [file], title, text: `${title} - ${storeName}` });
+      await nav.share({ files: [file], title: name });
       return;
     } catch (e: any) {
       if (e?.name === 'AbortError') return;

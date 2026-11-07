@@ -1,5 +1,11 @@
 # Roadmap
 
+## Finalização vendedor/televendas DiColore
+- [x] Preservar forma e condição de pagamento ao editar (testes e restauração com resposta simulada)
+- [x] Oferecer liberação desde a criação, mantendo clientes como pendente (regras testadas e confirmação simulada)
+- [x] Disponibilizar PDF na confirmação; download verificado em desktop e visualização em celular
+- [ ] Confirmar gravação e transmissão real por vendedor/televendas — requer pedido de teste autorizado para envio ao ERP
+
 ## Atualização do aplicativo instalado
 - [x] Avisar quando uma nova versão estiver pronta e oferecer atualização no menu do vendedor
 - [x] Validar detecção e preservação de carrinho/sessão com quatro testes e alerta no navegador
