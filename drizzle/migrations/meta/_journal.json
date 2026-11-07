@@ -239,6 +239,13 @@
       "when": 1793962377107,
       "tag": "0033_titles_net_paid_interest",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794012475384,
+      "tag": "0034_customer_profiles_dw_fields",
+      "breakpoints": true
     }
   ]
 }
