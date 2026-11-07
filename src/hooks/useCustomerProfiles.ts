@@ -26,7 +26,8 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
     ie: row.ie || '',
     priceTable: normalizePriceTable(row.price_table),
     rawPriceTable: row.price_table ?? null,
-  };
+    raw: row,
+  } as any;
 }
 
 export function useStoreCustomerProfiles(storeId: string | undefined) {
