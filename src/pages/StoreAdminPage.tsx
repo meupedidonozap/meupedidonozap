@@ -1,3 +1,5 @@
+import { DwCustomerFields } from '@/components/DwCustomerFields';
+import { dwFormFromRow, dwUpdateFromForm } from '@/lib/dwCustomerFields';
 import { buildPortfolioMatcher } from '@/lib/orderPortfolio';
 import { getOrderCreator, CREATOR_LABEL } from '@/lib/orderCreator';
 import { useState, useRef, useMemo, useEffect } from 'react';
@@ -577,6 +579,7 @@ export default function StoreAdminPage() {
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [dwForm, setDwForm] = useState<Record<string, string>>({});
   const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 3 | 4 | 8 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
@@ -3383,6 +3386,7 @@ export default function StoreAdminPage() {
                         <TableCell className="text-right flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => {
                             setEditingCustomer(cp);
+                            setDwForm(dwFormFromRow((cp as any).raw));
                             setCustomerForm({
                               name: cp.name, whatsapp: cp.whatsapp, address: cp.address,
                               number: cp.number, city: cp.city, uf: cp.uf, cep: cp.cep,
@@ -3489,6 +3493,7 @@ export default function StoreAdminPage() {
                     </div>
                     <div className="grid gap-1"><Label className="text-sm">Transportadora</Label><Input value={customerForm.transportadora} onChange={e => setCustomerForm(f => ({ ...f, transportadora: e.target.value }))} placeholder="Nome da transportadora" /></div>
                     <div className="grid gap-1"><Label className="text-sm">Inscrição Estadual</Label><Input value={customerForm.ie} onChange={e => setCustomerForm(f => ({ ...f, ie: e.target.value }))} placeholder="IE ou ISENTO" /></div>
+                    <DwCustomerFields value={dwForm} onChange={setDwForm} />
                     <div className="grid gap-2 pt-2 border-t">
                       <Label className="text-sm font-semibold">Acesso do Cliente</Label>
                       {editingCustomer?.userId ? (
@@ -3560,6 +3565,7 @@ export default function StoreAdminPage() {
                           if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
+                        { const { error: dwErr } = await supabase.from('customer_profiles').update(dwUpdateFromForm(dwForm) as any).eq('id', editingCustomer.id); if (dwErr) throw dwErr; }
                         if (!editingCustomer.userId && (codigo || login)) {
                           await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
                           toast.success(

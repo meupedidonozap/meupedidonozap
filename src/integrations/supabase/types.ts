@@ -350,27 +350,62 @@ export type Database = {
           approval_status: string
           cep: string
           city: string
+          cliente_classificacao_codigo: string | null
+          cliente_grupo_codigo: string | null
+          cnae: string | null
           complement: string | null
+          condicao_pagamento_codigo: string | null
           cpf_cnpj: string
           created_at: string
           customer_code: string
+          data_fundacao: string | null
+          data_ultima_compra: string | null
+          email_nfe: string | null
+          endereco_entrega_bairro: string | null
+          endereco_entrega_cep: string | null
+          endereco_entrega_cidade: string | null
+          endereco_entrega_complemento: string | null
+          endereco_entrega_numero: string | null
+          endereco_entrega_rua: string | null
+          endereco_entrega_uf: string | null
           erp_error: string | null
           erp_sent_at: string | null
+          estado_codigo_ibge: string | null
+          estado_entrega_codigo_ibge: string | null
+          fisica_juridica: string | null
+          forma_pagamento_codigo: string | null
+          frete_codigo: string | null
           geo_attempted_at: string | null
           geo_error: string | null
           geo_formatted: string | null
           geo_lat: number | null
           geo_lng: number | null
           geo_status: string | null
+          grupo_tributario_codigo: string | null
           id: string
           ie: string | null
+          inscricao_municipal: string | null
+          inscricao_rural: string | null
           is_active: boolean
+          municipio_codigo_ibge: string | null
+          municipio_entrega_codigo_ibge: string | null
           name: string
           neighborhood: string
+          nome_fantasia: string | null
           number: string
+          observacao: string | null
           price_table: number | null
+          regiao_venda_codigo: string | null
+          regime_tributario: string | null
+          rg: string | null
           seller_code: string
+          site: string | null
+          situacao: string | null
           store_id: string
+          suframa: string | null
+          telefone_geral_2: string | null
+          tipo: string | null
+          total_limite_credito: number | null
           transportadora: string | null
           uf: string
           updated_at: string
@@ -382,27 +417,62 @@ export type Database = {
           approval_status?: string
           cep?: string
           city?: string
+          cliente_classificacao_codigo?: string | null
+          cliente_grupo_codigo?: string | null
+          cnae?: string | null
           complement?: string | null
+          condicao_pagamento_codigo?: string | null
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          data_fundacao?: string | null
+          data_ultima_compra?: string | null
+          email_nfe?: string | null
+          endereco_entrega_bairro?: string | null
+          endereco_entrega_cep?: string | null
+          endereco_entrega_cidade?: string | null
+          endereco_entrega_complemento?: string | null
+          endereco_entrega_numero?: string | null
+          endereco_entrega_rua?: string | null
+          endereco_entrega_uf?: string | null
           erp_error?: string | null
           erp_sent_at?: string | null
+          estado_codigo_ibge?: string | null
+          estado_entrega_codigo_ibge?: string | null
+          fisica_juridica?: string | null
+          forma_pagamento_codigo?: string | null
+          frete_codigo?: string | null
           geo_attempted_at?: string | null
           geo_error?: string | null
           geo_formatted?: string | null
           geo_lat?: number | null
           geo_lng?: number | null
           geo_status?: string | null
+          grupo_tributario_codigo?: string | null
           id?: string
           ie?: string | null
+          inscricao_municipal?: string | null
+          inscricao_rural?: string | null
           is_active?: boolean
+          municipio_codigo_ibge?: string | null
+          municipio_entrega_codigo_ibge?: string | null
           name?: string
           neighborhood?: string
+          nome_fantasia?: string | null
           number?: string
+          observacao?: string | null
           price_table?: number | null
+          regiao_venda_codigo?: string | null
+          regime_tributario?: string | null
+          rg?: string | null
           seller_code?: string
+          site?: string | null
+          situacao?: string | null
           store_id: string
+          suframa?: string | null
+          telefone_geral_2?: string | null
+          tipo?: string | null
+          total_limite_credito?: number | null
           transportadora?: string | null
           uf?: string
           updated_at?: string
@@ -414,27 +484,62 @@ export type Database = {
           approval_status?: string
           cep?: string
           city?: string
+          cliente_classificacao_codigo?: string | null
+          cliente_grupo_codigo?: string | null
+          cnae?: string | null
           complement?: string | null
+          condicao_pagamento_codigo?: string | null
           cpf_cnpj?: string
           created_at?: string
           customer_code?: string
+          data_fundacao?: string | null
+          data_ultima_compra?: string | null
+          email_nfe?: string | null
+          endereco_entrega_bairro?: string | null
+          endereco_entrega_cep?: string | null
+          endereco_entrega_cidade?: string | null
+          endereco_entrega_complemento?: string | null
+          endereco_entrega_numero?: string | null
+          endereco_entrega_rua?: string | null
+          endereco_entrega_uf?: string | null
           erp_error?: string | null
           erp_sent_at?: string | null
+          estado_codigo_ibge?: string | null
+          estado_entrega_codigo_ibge?: string | null
+          fisica_juridica?: string | null
+          forma_pagamento_codigo?: string | null
+          frete_codigo?: string | null
           geo_attempted_at?: string | null
           geo_error?: string | null
           geo_formatted?: string | null
           geo_lat?: number | null
           geo_lng?: number | null
           geo_status?: string | null
+          grupo_tributario_codigo?: string | null
           id?: string
           ie?: string | null
+          inscricao_municipal?: string | null
+          inscricao_rural?: string | null
           is_active?: boolean
+          municipio_codigo_ibge?: string | null
+          municipio_entrega_codigo_ibge?: string | null
           name?: string
           neighborhood?: string
+          nome_fantasia?: string | null
           number?: string
+          observacao?: string | null
           price_table?: number | null
+          regiao_venda_codigo?: string | null
+          regime_tributario?: string | null
+          rg?: string | null
           seller_code?: string
+          site?: string | null
+          situacao?: string | null
           store_id?: string
+          suframa?: string | null
+          telefone_geral_2?: string | null
+          tipo?: string | null
+          total_limite_credito?: number | null
           transportadora?: string | null
           uf?: string
           updated_at?: string

@@ -5,6 +5,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
+import { toDwCliente } from "../_shared/dwCliente.ts";
 
 const SLUG = "dicolore";
 const json = (body: unknown, status = 200) =>
@@ -70,20 +71,20 @@ Deno.serve(async (req) => {
 
     // ---------- CLIENTES ----------
     if (route === "/clientes" && req.method === "GET") {
-      const { data, error } = await admin.from("customer_profiles")
-        .select("id, name, cpf_cnpj, ie, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, transportadora, approval_status, erp_error, created_at")
+      const { data, error } = await admin.from("customer_profiles").select("*")
         .eq("store_id", store.id).or("customer_code.is.null,customer_code.eq.").is("erp_sent_at", null)
         .order("created_at", { ascending: true }).limit(limit);
       if (error) throw error;
-      return json({
-        clientes: (data ?? []).map((c: any) => ({
-          id_mpz: c.id, nome: c.name, cpf_cnpj: c.cpf_cnpj, ie: c.ie, whatsapp: c.whatsapp,
-          cep: c.cep, uf: c.uf, cidade: c.city, bairro: c.neighborhood, endereco: c.address,
-          numero: c.number, complemento: c.complement, vendedor_codigo: c.seller_code,
-          tabela_preco: c.price_table, transportadora: c.transportadora,
-          situacao: c.approval_status, ultimo_erro: c.erp_error, criado_em: c.created_at,
-        })),
-      });
+      return json({ clientes: (data ?? []).map(toDwCliente) });
+    }
+
+    if (route.startsWith("/clientes/codigo/") && req.method === "GET") {
+      const code = decodeURIComponent(route.slice("/clientes/codigo/".length)).trim();
+      const { data, error } = await admin.from("customer_profiles").select("*")
+        .eq("store_id", store.id).eq("customer_code", code).limit(1);
+      if (error) throw error;
+      if (!data?.length) return json({ erro: "cliente nao encontrado" }, 404);
+      return json({ cliente: toDwCliente(data[0]) });
     }
 
     if (route === "/clientes/confirmar" && req.method === "POST") {
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
       return json({ ok: falhas.length === 0, atualizados, falhas });
     }
 
-    return json({ erro: "rota nao encontrada", rotas: ["GET /pedidos", "POST /pedidos/confirmar", "GET /clientes", "POST /clientes/confirmar"] }, 404);
+    return json({ erro: "rota nao encontrada", rotas: ["GET /pedidos", "POST /pedidos/confirmar", "GET /clientes", "GET /clientes/codigo/:codigo", "POST /clientes/confirmar"] }, 404);
   } catch (e) {
     return json({ erro: (e as Error).message }, 500);
   }

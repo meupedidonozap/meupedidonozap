@@ -17,3 +17,5 @@
 
 - External third-party API for DiColore lives in the api-externa function (x-api-key = EXTERNAL_API_TOKEN); order routes proxy orders-export so the payload stays identical, and customers pending ERP are those with empty customer_code and no erp_sent_at.
 - DiColore stock comes from the ERP view mpz_produto_estoque via sync-stock-erp (x-sync-token), subtracting MPZ orders not yet transmitted to the ERP; the Sheets route is legacy.
+
+- DiColore customer profiles carry the ERP dw_cliente attributes as same-named columns; api-externa serves customers through the shared dw layout builder and orders carry the customer's CIF/FOB freight, so third-party integrators receive the exact DW contract.

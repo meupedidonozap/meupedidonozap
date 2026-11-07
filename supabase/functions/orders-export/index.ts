@@ -4,6 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { resolveExportProfile } from "../_shared/customerExportProfile.ts";
+import { normalizeFrete } from "../_shared/dwCliente.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
           if (d.length === 11) docs.add(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`); }
         if (o.user_id) uids.add(o.user_id);
       }
-      const sel = "id, updated_at, user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora";
+      const sel = "id, updated_at, user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora, frete_codigo";
       const qs = [] as any[];
       if (codes.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("customer_code", [...codes]));
       if (docs.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("cpf_cnpj", [...docs]));
@@ -156,6 +157,7 @@ Deno.serve(async (req) => {
           payment_condicao_codigo: c.paymentCondicaoCodigo || null,
           payment_condicao_descricao: c.paymentCondicaoDescricao || null,
           transportadora: pick(cp?.transportadora, c.transportadora),
+          tipo_frete: normalizeFrete(cp?.frete_codigo ?? c.freteCodigo) || null,
           televendas: isTv, televendas_erp_code: tvCode,
           televendas_commission: isTv ? Number((store.settings as any)?.televendasCommission ?? 0.8) : null,
           header_commission: (() => {
