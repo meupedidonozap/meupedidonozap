@@ -898,9 +898,11 @@ export default function CheckoutPage() {
                       <p>{[formData.neighborhood, `${formData.city}/${formData.uf}`].filter(Boolean).join(' - ')}</p>
                       <p>CEP {formData.cep}</p>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setUseOtherAddress(true)}>
-                      Escolher endereço
-                    </Button>
+                    {!['dicolore', 'dicoloresenses'].includes(store.slug) && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setUseOtherAddress(true)}>
+                        Escolher endereço
+                      </Button>
+                    )}
                   </div>
                 ) : (
                 <>
