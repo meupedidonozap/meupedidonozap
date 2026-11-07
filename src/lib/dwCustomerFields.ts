@@ -51,12 +51,11 @@ export const DW_FIELD_GROUPS: { title: string; fields: DwField[] }[] = [
 
 export const DW_FIELD_KEYS = DW_FIELD_GROUPS.flatMap((g) => g.fields);
 
-/** Normaliza o tipo de frete para CIF/FOB (aceita C/F, 1/2, CIF/FOB). */
-export function normalizeFrete(v: unknown): 'CIF' | 'FOB' | '' {
+/** Código exato do ERP (clifrepag/pedfrepag): '0' = CIF, '1' = FOB. */
+export function normalizeFrete(v: unknown): '0' | '1' | '' {
   const s = String(v ?? '').trim().toUpperCase();
-  if (!s) return '';
-  if (s === 'CIF' || s === 'C' || s === '0' || s === '1') return 'CIF';
-  if (s === 'FOB' || s === 'F' || s === '2') return 'FOB';
+  if (s === '0' || s === 'CIF' || s === 'C') return '0';
+  if (s === '1' || s === 'FOB' || s === 'F') return '1';
   return '';
 }
 

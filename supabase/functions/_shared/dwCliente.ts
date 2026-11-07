@@ -2,10 +2,11 @@
 const d = (v: unknown) => String(v ?? "").replace(/\D/g, "");
 const s = (v: unknown) => (v == null ? "" : String(v));
 
-export function normalizeFrete(v: unknown): "CIF" | "FOB" | "" {
+// Código exato do ERP (ve001a.clifrepag / pe001.pedfrepag): "0" = CIF, "1" = FOB.
+export function normalizeFrete(v: unknown): "0" | "1" | "" {
   const x = String(v ?? "").trim().toUpperCase();
-  if (x === "CIF" || x === "C" || x === "0" || x === "1") return "CIF";
-  if (x === "FOB" || x === "F" || x === "2") return "FOB";
+  if (x === "0" || x === "CIF" || x === "C") return "0";
+  if (x === "1" || x === "FOB" || x === "F") return "1";
   return "";
 }
 

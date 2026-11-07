@@ -31,7 +31,7 @@ Resposta: { "clientes": [ { "id_mpz", "codigo", "vendedor_codigo", "razao_social
   "endereco_entrega_cidade", "endereco_entrega_uf", "municipio_entrega__codigo_ibge",
   "estado_entrega__codigo_ibge", "data_cadastro", "observacao", "status", "cliente_grupo_codigo",
   "cliente_classificacao_codigo", "regiao_venda_codigo", "tabela_preco_codigo",
-  "condicao_pagamento_codigo", "transportadora_codigo", "frete_codigo" (CIF/FOB),
+  "condicao_pagamento_codigo", "transportadora_codigo", "frete_codigo" ("0" = CIF, "1" = FOB, igual ao clifrepag),
   "total_limite_credito", "grupo_tributario_codigo", "regime_tributario", "forma_pagamento_codigo",
   "cnae", "latitude", "longitude", "isento_ipi", "isento_st", "isento_icms",
   "situacao_mpz", "ultimo_erro", "criado_em" } ] }
@@ -47,7 +47,7 @@ Entrega: ve001d (cliendent, cliendentn, clibaient, clicepent, clicoment, clicide
 GET /clientes/codigo/92751  ->  { "cliente": { ...mesmos campos acima... } }
 
 ## Pedidos: tipo de frete
-Cada pedido em GET /pedidos traz "tipo_frete": "CIF" | "FOB" | null (vem do cadastro do cliente).
+Cada pedido em GET /pedidos traz "tipo_frete": "0" (CIF) | "1" (FOB) | null — mesmo código do clifrepag, gravar em pe001.pedfrepag (vem do cadastro do cliente).
 
 ## 4. Devolver o código ERP do cliente
 POST /clientes/confirmar
