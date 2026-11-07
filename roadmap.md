@@ -1,5 +1,10 @@
 # Roadmap
 
+## Finalização vendedor/televendas DiColore
+- [ ] Preservar forma e condição de pagamento ao editar
+- [ ] Oferecer liberação desde a criação, mantendo clientes como pendente
+- [ ] Disponibilizar PDF na confirmação e validar os fluxos
+
 ## Atualização do aplicativo instalado
 - [x] Avisar quando uma nova versão estiver pronta e oferecer atualização no menu do vendedor
 - [x] Validar detecção e preservação de carrinho/sessão com quatro testes e alerta no navegador
