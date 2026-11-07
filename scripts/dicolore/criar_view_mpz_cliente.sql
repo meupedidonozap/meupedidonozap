@@ -38,10 +38,7 @@ CREATE OR REPLACE VIEW public.mpz_cliente AS
     c.clitvecod::character varying(60)                                   AS condicao_pagamento_codigo,
     c.clicobcod::character varying(60)                                   AS forma_pagamento_codigo,
     c.clitracod::character varying(60)                                   AS transportadora_codigo,
-    CASE upper(btrim(COALESCE(c.clifrepag::text, '')))
-         WHEN 'C' THEN 'CIF' WHEN 'CIF' THEN 'CIF' WHEN '0' THEN 'CIF' WHEN '1' THEN 'CIF'
-         WHEN 'F' THEN 'FOB' WHEN 'FOB' THEN 'FOB' WHEN '2' THEN 'FOB'
-         ELSE NULL END::character varying(3)                             AS frete_codigo,
+    c.clifrepag::character varying(60)                                   AS frete_codigo,  -- exato do ERP: 0 = CIF, 1 = FOB
     c.clilimcre::double precision                                        AS total_limite_credito,
     c.clinatcod::character varying(60)                                   AS grupo_tributario_codigo,
     c.cliregtri::character varying(10)                                   AS regime_tributario,

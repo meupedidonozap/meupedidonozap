@@ -23,7 +23,7 @@ export function DwCustomerFields({ value, onChange }: { value: Record<string, st
                   <select className="h-10 rounded-md border border-input bg-background px-2 text-sm" value={value[f.key] || ''} onChange={e => set(f.key, e.target.value)}>
                     <option value="">—</option>
                     {f.type === 'frete'
-                      ? <><option value="CIF">CIF (frete por conta da empresa)</option><option value="FOB">FOB (frete por conta do cliente)</option></>
+                      ? <><option value="0">0 - CIF (frete por conta da empresa)</option><option value="1">1 - FOB (frete por conta do cliente)</option></>
                       : <><option value="0">Física</option><option value="1">Jurídica</option></>}
                   </select>
                 ) : (
