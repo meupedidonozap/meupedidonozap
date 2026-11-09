@@ -162,7 +162,7 @@ export default function CheckinDialog({
     .filter(c => c.geo_lat != null && c.geo_lng != null)
     .map(c => ({
       id: c.id, lat: Number(c.geo_lat), lng: Number(c.geo_lng), title: c.name,
-      subtitle: [c.customer_code ? `#${c.customer_code}` : '', [c.city, c.uf].filter(Boolean).join('/')].filter(Boolean).join(' • '),
+      subtitle: [c.customer_code ? `#${c.customer_code}` : 'PROSPECT', [c.city, c.uf].filter(Boolean).join('/')].filter(Boolean).join(' • '),
       status: openVisitByCustomer.has(c.id) ? 'open' : visitedInPeriod.has(c.id) ? 'visited' : 'pending',
     })), [filtered, openVisitByCustomer, visitedInPeriod]);
 
@@ -402,7 +402,7 @@ export default function CheckinDialog({
                       return (
                         <div key={c.id} className="p-3 space-y-2">
                           <div role="button" tabIndex={0} className="cursor-pointer rounded hover:bg-muted/50" onClick={() => setFileOf(c)} onKeyDown={e => e.key === 'Enter' && setFileOf(c)}>
-                            <p className="text-sm font-semibold text-primary underline-offset-2 hover:underline">{c.name}</p>
+                            <p className="text-sm font-semibold text-primary underline-offset-2 hover:underline">{c.name}{!String(c.customer_code || '').trim() && <Badge variant="secondary" className="ml-2 text-[10px]">PROSPECT</Badge>}</p>
                             <p className="text-xs text-muted-foreground">
                               {c.customer_code ? `#${c.customer_code} • ` : ''}{c.cpf_cnpj || '—'}
                             </p>

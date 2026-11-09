@@ -644,6 +644,20 @@ export default function StoreAdminPage() {
   // Dicolore: confirmação para liberar pedido ao ERP via WhatsApp
   const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number; priceTable?: string } | null>(null);
   const [releaseIssues, setReleaseIssues] = useState<{ order: any; issues: string[] } | null>(null);
+  // Pedidos liberados com cliente PROSPECT (sem código ERP): alerta o admin uma vez por sessão.
+  const [prospectSeen, setProspectSeen] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(sessionStorage.getItem('mpz_prospect_alerts') || '[]')); } catch { return new Set(); }
+  });
+  const prospectAlert = useMemo(() => {
+    if (!isAdmin || !store || !['dicolore', 'dicoloresenses'].includes(store.slug)) return null;
+    return (orders as any[]).find(o => o.status === 'liberado_transmissao' && !o.erpOrderCode && !prospectSeen.has(o.id) && !orderErpCustomerCode(o)) || null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, customerProfiles, prospectSeen, isAdmin, store?.slug]);
+  const dismissProspect = (id: string) => setProspectSeen(prev => {
+    const n = new Set(prev); n.add(id);
+    try { sessionStorage.setItem('mpz_prospect_alerts', JSON.stringify([...n])); } catch { /* ignore */ }
+    return n;
+  });
   const [erpWhatsappByTable, setErpWhatsappByTable] = useState<Record<string, string>>({});
   const resolveErpWhatsapp = (priceTable?: string) => {
     const s = (store?.settings as any) || {};
@@ -1154,6 +1168,25 @@ export default function StoreAdminPage() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      <AlertDialog open={!!prospectAlert} onOpenChange={o => { if (!o && prospectAlert) dismissProspect(prospectAlert.id); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">ATENÇÃO - Novo pedido com cliente PROSPECT</AlertDialogTitle>
+            <AlertDialogDescription>
+              O PEDIDO #{prospectAlert?.orderNumber} tem o cliente {prospectAlert?.customer?.name ? `"${prospectAlert.customer.name}" ` : ''}para ser integrado ao ERP antes de enviar o pedido - FAÇA A REVISÃO AGORA.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Depois</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (!prospectAlert) return;
+              setCustomerSearch(String(prospectAlert.customer?.cpfCnpj || prospectAlert.customer?.name || ''));
+              setActiveTab('customers');
+              dismissProspect(prospectAlert.id);
+            }}>Revisar agora</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <header className="gradient-primary text-primary-foreground">
         <div className="container py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

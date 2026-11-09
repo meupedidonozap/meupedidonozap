@@ -13,8 +13,10 @@ describe('getReleaseIssues', () => {
     expect(getReleaseIssues({ ...ok, customer: { paymentCondicaoCodigo: '30' } })).toContain('Falta forma de pagamento'));
   it('sem condição de pagamento', () =>
     expect(getReleaseIssues({ ...ok, customer: { paymentFormaCodigo: '1' } })).toContain('Falta condição de pagamento'));
-  it('sem código do cliente', () =>
-    expect(getReleaseIssues({ ...ok, customerCode: '' })).toContain('Cliente sem código do ERP'));
+  it('prospect sem CPF/CNPJ bloqueia', () =>
+    expect(getReleaseIssues({ ...ok, customerCode: '' })).toContain('Cliente PROSPECT sem CPF/CNPJ'));
+  it('prospect com CNPJ pode ser liberado', () =>
+    expect(getReleaseIssues({ ...ok, customerCode: '', customer: { ...ok.customer, cpfCnpj: '12.345.678/0001-90' } })).toEqual([]));
   it('sem vendedor', () =>
     expect(getReleaseIssues({ ...ok, sellerCode: '' })).toContain('Falta vendedor (código do representante)'));
   it('sem itens', () => expect(getReleaseIssues({ ...ok, items: [] })).toContain('Pedido sem itens'));

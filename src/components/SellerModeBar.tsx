@@ -55,7 +55,7 @@ export default function SellerModeBar({
               <span>
                 <span className="font-semibold">Modo Vendedor</span> — pedido para{' '}
                 <span className="font-semibold">{selectedCustomer.name}</span>
-                {selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''}
+                {selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ' • PROSPECT'}
                 {' '}• Tabela {resolveStorePriceTable(storeSlug, selectedCustomer.priceTable)}
               </span>
             ) : (
