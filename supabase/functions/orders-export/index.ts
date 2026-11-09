@@ -169,7 +169,8 @@ Deno.serve(async (req) => {
           observations: o.observations || "", items,
         };
       });
-      return json({ orders: out });
+      // Cliente PROSPECT (sem código do ERP) aguarda a integração do cadastro pelo admin.
+      return json({ orders: out.filter((o: any) => String(o.customer?.code || "").trim()) });
     }
 
     if (req.method === "POST") {
