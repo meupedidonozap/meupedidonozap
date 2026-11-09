@@ -157,7 +157,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
                     >
                       <p className="text-sm font-medium">{c.name || '—'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {c.customerCode ? `#${c.customerCode} • ` : ''}{c.whatsapp || '—'}
+                        {c.customerCode ? `#${c.customerCode} • ` : 'PROSPECT • '}{c.whatsapp || '—'}
                         {c.city ? ` • ${c.city}/${c.uf}` : ''} • Tabela {resolveStorePriceTable(storeSlug, c.priceTable)}
                       </p>
                     </button>
