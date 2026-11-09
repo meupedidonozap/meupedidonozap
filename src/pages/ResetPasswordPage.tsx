@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
     // Fallback: if there's already a session (link processed), allow update.
     supabase.auth.getSession().then(({ data: { session } }) => {
       const hash = window.location.hash || '';
-      if (session && (hash.includes('type=recovery') || hash.includes('access_token'))) {
+      if (session && (hash.includes('type=recovery') || hash.includes('access_token') || window.location.search.includes('code='))) {
         setValidToken(true);
       }
       // Give the SDK a brief window to fire PASSWORD_RECOVERY before deciding.
@@ -53,7 +53,7 @@ export default function ResetPasswordPage() {
       return;
     }
     toast.success('Senha redefinida!');
-    navigate(slug ? `/${slug}` : '/');
+    navigate(slug ? `/${slug}` : '/admin');
   };
 
   return (

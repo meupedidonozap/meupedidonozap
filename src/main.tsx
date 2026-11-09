@@ -3,6 +3,15 @@ import App from "./App.tsx";
 import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import "./index.css";
 
+// Recovery links that fall back to the site root must still open the reset screen.
+{
+  const h = window.location.hash || '';
+  const isRecovery = h.includes('type=recovery') || window.location.search.includes('type=recovery');
+  if (isRecovery && !window.location.pathname.endsWith('/redefinir-senha')) {
+    window.history.replaceState(null, '', '/redefinir-senha' + window.location.search + h);
+  }
+}
+
 // Auto-clear cache when ?limpar is in URL
 if (window.location.search.includes('limpar')) {
   (async () => {
