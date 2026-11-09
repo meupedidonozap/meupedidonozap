@@ -28,6 +28,7 @@ import { usePlatformAdmin } from '@/hooks/usePlatformAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import StoreAdminLogin from '@/components/StoreAdminLogin';
 import RefreshButton from '@/components/RefreshButton';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { getTemplateForType } from '@/lib/storeTemplates';
 import { getLicenseStatus } from '@/lib/licenseStatus';
 
@@ -304,6 +305,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                 <Settings className="h-5 w-5" />
                 <span className="text-sm">Admin</span>
               </div>
+              <ChangePasswordDialog triggerClassName="text-primary-foreground hover:text-primary-foreground/80" />
               <Button variant="ghost" size="sm" className="text-primary-foreground hover:text-primary-foreground/80" onClick={onSignOut}>
                 <LogOut className="h-4 w-4 mr-1" />
                 Sair
