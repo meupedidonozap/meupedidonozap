@@ -2369,6 +2369,10 @@ export type Database = {
         Args: { _items: Json; _sign: number; _store_id: string }
         Returns: undefined
       }
+      can_manage_product_images: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_read_erp_item: {
         Args: {
           _item_customer: string
