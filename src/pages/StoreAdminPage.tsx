@@ -650,7 +650,7 @@ export default function StoreAdminPage() {
   });
   const prospectAlert = useMemo(() => {
     if (!isAdmin || !store || !['dicolore', 'dicoloresenses'].includes(store.slug)) return null;
-    return (orders as any[]).find(o => o.status === 'liberado_transmissao' && !o.erpSentAt && !prospectSeen.has(o.id) && !orderErpCustomerCode(o)) || null;
+    return (orders as any[]).find(o => o.status === 'liberado_transmissao' && !o.erpOrderCode && !prospectSeen.has(o.id) && !orderErpCustomerCode(o)) || null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, customerProfiles, prospectSeen, isAdmin, store?.slug]);
   const dismissProspect = (id: string) => setProspectSeen(prev => {
