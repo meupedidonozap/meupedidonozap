@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface StoreAdminLoginProps {
@@ -16,6 +17,26 @@ export default function StoreAdminLogin({ storeName }: StoreAdminLoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [sending, setSending] = useState(false);
+
+  const handleForgot = async () => {
+    const target = email.trim();
+    if (!target) {
+      toast.error('Digite seu email acima para receber o link');
+      return;
+    }
+    setSending(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    setSending(false);
+    if (error) {
+      toast.error('Não foi possível enviar o link. Tente novamente em alguns minutos.');
+      return;
+    }
+    toast.success('Enviamos um link para redefinir a senha. Confira seu email (e o spam).');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +69,14 @@ export default function StoreAdminLogin({ storeName }: StoreAdminLoginProps) {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
               Entrar
             </Button>
+            <button
+              type="button"
+              onClick={handleForgot}
+              disabled={sending}
+              className="w-full text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+            >
+              {sending ? 'Enviando link...' : 'Esqueceu a senha?'}
+            </button>
           </form>
         </CardContent>
       </Card>
