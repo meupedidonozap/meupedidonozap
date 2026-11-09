@@ -128,6 +128,10 @@ export default function CheckoutPage() {
 
   // Dicolore ERP payment codes
   const [finalizeAsk, setFinalizeAsk] = useState<FinalizeStep | null>(null);
+  // Cliente PROSPECT sem CPF/CNPJ: 'ask' -> 'edit' -> 'finish'.
+  const [prospectStep, setProspectStep] = useState<null | 'ask' | 'edit' | 'finish'>(null);
+  const [prospectForm, setProspectForm] = useState({ cpfCnpj: '', name: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '' });
+  const [prospectSaving, setProspectSaving] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
   const [paymentCondicaoCodigo, setPaymentCondicaoCodigo] = useState<string>('');
@@ -326,6 +330,15 @@ export default function CheckoutPage() {
     if (dicolore) {
       const doc = String(formData.cpfCnpj || '').replace(/\D/g, '');
       if (doc.length !== 11 && doc.length !== 14) {
+        if (sellerOrder && selectedCustomer && !String(selectedCustomer.customerCode || '').trim()) {
+          setProspectForm({
+            cpfCnpj: formData.cpfCnpj || '', name: formData.name || '', whatsapp: formData.whatsapp || '',
+            cep: formData.cep || '', uf: formData.uf || '', city: formData.city || '',
+            neighborhood: formData.neighborhood || '', address: formData.address || '', number: formData.number || '',
+          });
+          setProspectStep('ask');
+          return false;
+        }
         toast.error('Informe o CPF/CNPJ do cliente para finalizar o pedido');
         return false;
       }
@@ -476,6 +489,30 @@ export default function CheckoutPage() {
       void deliverOrderPdfFile(file).catch(() => toast.error('Não foi possível baixar o PDF.'));
     } catch {
       toast.error('Não foi possível gerar o PDF.');
+    }
+  };
+
+  const saveProspect = async () => {
+    const f = prospectForm;
+    const doc = f.cpfCnpj.replace(/\D/g, '');
+    if (doc.length !== 11 && doc.length !== 14) { toast.error('CPF/CNPJ inválido (11 ou 14 dígitos)'); return; }
+    const missing = (['name', 'whatsapp', 'uf', 'city', 'address'] as const).filter(k => !String(f[k] || '').trim());
+    if (missing.length) { toast.error('Preencha nome, WhatsApp, UF, cidade e endereço'); return; }
+    if (!selectedCustomer?.id) return;
+    setProspectSaving(true);
+    try {
+      const { error } = await supabase.from('customer_profiles').update({
+        cpf_cnpj: f.cpfCnpj, name: f.name.trim().toUpperCase(), whatsapp: f.whatsapp, cep: f.cep, uf: f.uf,
+        city: f.city, neighborhood: f.neighborhood, address: f.address, number: f.number,
+      }).eq('id', selectedCustomer.id).select().single();
+      if (error) throw error;
+      selectCustomer({ ...selectedCustomer, ...f, name: f.name.trim().toUpperCase() } as any);
+      setFormData(prev => ({ ...prev, ...f, name: f.name.trim().toUpperCase() }));
+      setProspectStep('finish');
+    } catch (e: any) {
+      toast.error(e.message || 'Não foi possível salvar o cliente');
+    } finally {
+      setProspectSaving(false);
     }
   };
 
@@ -865,6 +902,57 @@ export default function CheckoutPage() {
           )}
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={prospectStep === 'ask' || prospectStep === 'finish'} onOpenChange={o => { if (!o) setProspectStep(null); }}>
+        <AlertDialogContent>
+          {prospectStep === 'ask' ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cliente PROSPECT sem CPF/CNPJ</AlertDialogTitle>
+                <AlertDialogDescription>Este cliente ainda não é cliente final e não tem CPF/CNPJ. Deseja editar o cadastro agora?</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setProspectStep(null)}>Agora não</Button>
+                <Button onClick={() => setProspectStep('edit')}>Editar cliente</Button>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cadastro atualizado</AlertDialogTitle>
+                <AlertDialogDescription>Deseja finalizar o pedido agora? Ele será liberado p/ transmissão.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setProspectStep(null)}>Não</Button>
+                <Button onClick={() => { setProspectStep(null); setTimeout(() => handleSendWhatsApp(false, { decided: true, release: true }), 50); }}>Sim, finalizar</Button>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
+      <Dialog open={prospectStep === 'edit'} onOpenChange={o => { if (!o) setProspectStep(null); }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar cliente PROSPECT</DialogTitle>
+            <DialogDescription>Informe o CPF/CNPJ e confira os demais dados.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-1"><Label>CPF/CNPJ *</Label><Input value={prospectForm.cpfCnpj} onChange={e => setProspectForm(f => ({ ...f, cpfCnpj: formatCPFCNPJ(e.target.value) }))} /></div>
+            <div className="grid gap-1"><Label>Nome *</Label><Input value={prospectForm.name} onChange={e => setProspectForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div className="grid gap-1"><Label>WhatsApp *</Label><Input value={prospectForm.whatsapp} onChange={e => setProspectForm(f => ({ ...f, whatsapp: formatPhone(e.target.value) }))} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-1 col-span-2"><Label>CEP</Label><Input value={prospectForm.cep} onChange={e => setProspectForm(f => ({ ...f, cep: formatCEP(e.target.value) }))} /></div>
+              <div className="grid gap-1"><Label>UF *</Label><Input maxLength={2} value={prospectForm.uf} onChange={e => setProspectForm(f => ({ ...f, uf: e.target.value.toUpperCase() }))} /></div>
+            </div>
+            <div className="grid gap-1"><Label>Cidade *</Label><Input value={prospectForm.city} onChange={e => setProspectForm(f => ({ ...f, city: e.target.value }))} /></div>
+            <div className="grid gap-1"><Label>Bairro</Label><Input value={prospectForm.neighborhood} onChange={e => setProspectForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-1 col-span-2"><Label>Endereço *</Label><Input value={prospectForm.address} onChange={e => setProspectForm(f => ({ ...f, address: e.target.value }))} /></div>
+              <div className="grid gap-1"><Label>Número</Label><Input value={prospectForm.number} onChange={e => setProspectForm(f => ({ ...f, number: e.target.value }))} /></div>
+            </div>
+            <Button onClick={saveProspect} disabled={prospectSaving}>{prospectSaving ? 'Salvando...' : 'Salvar cliente'}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {editingQuote && (sellerOrder || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} />}
 
       {isSellerMode && (
@@ -873,7 +961,7 @@ export default function CheckoutPage() {
             <span>
               <span className="font-semibold">Modo Vendedor</span>
               {selectedCustomer
-                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : ''} • Tabela {activePriceTable}</>
+                ? <> — pedido para <span className="font-semibold">{selectedCustomer.name}</span>{selectedCustomer.customerCode ? ` (#${selectedCustomer.customerCode})` : <span className="ml-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">PROSPECT</span>} • Tabela {activePriceTable}</>
                 : ' — selecione o cliente para finalizar'}
             </span>
             <Button size="sm" variant={selectedCustomer ? 'outline' : 'default'} onClick={() => setSellerCustomerDialogOpen(true)}>
