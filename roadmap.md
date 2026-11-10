@@ -1,5 +1,10 @@
 # Roadmap
 
+## Integração Super Frete JEWOS
+- [x] Diagnosticar a rejeição do pedido #711 sem interromper o pedido ou o pagamento
+- [ ] Exigir os dados obrigatórios no checkout e preservar o detalhe dos erros do Super Frete
+- [ ] Validar os testes e o envio da etiqueta após o cliente informar o CPF/CNPJ
+
 ## Finalização vendedor/televendas DiColore
 - [x] Preservar forma e condição de pagamento ao editar (testes e restauração com resposta simulada)
 - [x] Oferecer liberação desde a criação, mantendo clientes como pendente (regras testadas e confirmação simulada)

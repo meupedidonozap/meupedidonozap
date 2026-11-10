@@ -66,6 +66,18 @@ Deno.serve(async (req) => {
     const destCep = digits(c.cep);
     const d = c.address ? null : await viaCep(destCep);
 
+    const recipientDocument = digits(c.cpfCnpj || c.cpf_cnpj);
+    const recipientPhone = digits(c.whatsapp || c.phone);
+    const validationError = recipientDocument.length !== 11 && recipientDocument.length !== 14
+      ? 'CPF/CNPJ do cliente obrigatório (11 ou 14 dígitos) para gerar a etiqueta do Super Frete.'
+      : recipientPhone.length !== 10 && recipientPhone.length !== 11
+        ? 'WhatsApp do cliente com DDD obrigatório (10 ou 11 dígitos) para gerar a etiqueta do Super Frete.'
+        : null;
+    if (validationError) {
+      await admin.from('orders').update({ superfrete_error: validationError, superfrete_status: 'erro' }).eq('id', orderId);
+      return json({ error: validationError }, 400);
+    }
+
     const payload = {
       from: {
         name: store?.name, address: ship.originAddress || o?.logradouro || 'Endereço', number: ship.originNumber || 'S/N',
