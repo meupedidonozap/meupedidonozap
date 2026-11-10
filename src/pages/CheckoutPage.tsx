@@ -364,7 +364,7 @@ export default function CheckoutPage() {
       toast.error('Selecione a modalidade de frete');
       return false;
     }
-    const customerError = getCustomerError(formData);
+    const customerError = getCustomerError(formData, { pickup: !offersDelivery || deliveryType === 'retirada' });
     if (customerError) {
       if (!lockedCustomerData) setUseOtherAddress(true);
       toast.error(lockedCustomerData ? 'Seu cadastro precisa ser corrigido pela loja. Entre em contato com seu representante.' : customerError);
