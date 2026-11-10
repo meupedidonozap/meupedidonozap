@@ -15,6 +15,7 @@ import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 import { resolveStorePriceTable } from '@/lib/pricing';
 import { supabase } from '@/integrations/supabase/client';
+import { getCustomerError } from '@/lib/customerValidation';
 
 interface Props {
   open: boolean;
@@ -99,7 +100,8 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
   }, [scoped, search]);
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { toast.error('Informe o nome do cliente'); return; }
+    const customerError = getCustomerError(form);
+    if (customerError) { toast.error(customerError); return; }
     const dup = await checkDuplicate(form.cpfCnpj);
     if (dup) { toast.error(dup); return; }
     try {

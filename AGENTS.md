@@ -22,3 +22,4 @@
 
 - The "new version" banner shows only for stores listed in public/release.json ("all" for everyone); other stores update silently, so store-specific releases do not interrupt unrelated tenants. Edit that file on each release.
 - Checkout restores payment choices from the authorized saved order on edit; seller/telesales release uses the same validation for new and edited orders, while PDF previews never save or release orders.
+- Customer forms share a Zod schema with CPF/CNPJ checksum validation; database triggers validate interactive customer/order writes while leaving ERP service imports and unrelated historical updates untouched.
