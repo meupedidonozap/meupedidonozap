@@ -58,6 +58,7 @@ import { getAvailablePaymentMethods } from '@/lib/paymentAvailability';
 import { buildPixPayload } from '@/lib/pixBrCode';
 import { getSuperfreteCustomerError } from '@/lib/superfreteCustomer';
 import { getCustomerError } from '@/lib/customerValidation';
+import { customerDataIsReadOnly } from '@/lib/customerDataAccess';
 
 interface ShippingOption {
   code: string;
@@ -91,6 +92,7 @@ export default function CheckoutPage() {
     seller,
   } = useActiveCustomerProfile(store?.id);
   const sellerOrder = isSellerMode && !!selectedCustomer;
+  const lockedCustomerData = customerDataIsReadOnly(store?.slug, isSellerMode);
   const canOfferRelease = sellerOrder && (seller.isSeller || seller.isTelevendas);
   const { data: sellers = [] } = useStoreSellers(store?.id);
   // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
@@ -308,6 +310,7 @@ export default function CheckoutPage() {
   }
 
   const handleInputChange = (field: string, value: string) => {
+    if (lockedCustomerData && ['name', 'cpfCnpj', 'whatsapp', 'cep', 'uf', 'city', 'neighborhood', 'address', 'number', 'complement'].includes(field)) return;
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -363,8 +366,8 @@ export default function CheckoutPage() {
     }
     const customerError = getCustomerError(formData);
     if (customerError) {
-      setUseOtherAddress(true);
-      toast.error(customerError);
+      if (!lockedCustomerData) setUseOtherAddress(true);
+      toast.error(lockedCustomerData ? 'Seu cadastro precisa ser corrigido pela loja. Entre em contato com seu representante.' : customerError);
       return false;
     }
     const superfreteCustomerError = getSuperfreteCustomerError(formData, selectedShipping);
@@ -600,7 +603,7 @@ export default function CheckoutPage() {
 
       // Save/update customer profile (sempre, mesmo em retirada — preserva cliente em Clientes).
       // No Modo Vendedor não sobrescrevemos o cadastro do cliente escolhido.
-      if (!sellerOrder && !offline) try {
+      if (!sellerOrder && !lockedCustomerData && !offline) try {
         await upsertProfile.mutateAsync({
           userId: user.id,
           storeId: store.id,
@@ -1009,16 +1012,17 @@ export default function CheckoutPage() {
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name">Nome completo *</Label>
-                  <Input id="name" value={formData.name} onChange={e => handleInputChange('name', e.target.value.toUpperCase())} placeholder="NOME COMPLETO" />
+                  <Input readOnly={lockedCustomerData} id="name" value={formData.name} onChange={e => handleInputChange('name', e.target.value.toUpperCase())} placeholder="NOME COMPLETO" />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="whatsapp">WhatsApp *</Label>
-                    <Input id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
+                    <Input readOnly={lockedCustomerData} id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
                   </div>
                     <div className="grid gap-2">
                       <Label htmlFor="cpfCnpj">CPF/CNPJ *</Label>
                       <Input
+                        readOnly={lockedCustomerData}
                         id="cpfCnpj"
                         value={formData.cpfCnpj}
                         onChange={e => handleInputChange('cpfCnpj', formatCPFCNPJ(e.target.value))}
@@ -1078,7 +1082,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {!useOtherAddress && !hasNeighborhoods && !getCustomerError(formData) ? (
+                {lockedCustomerData || (!useOtherAddress && !hasNeighborhoods && !getCustomerError(formData)) ? (
                   <div className="rounded-md border bg-muted/40 p-4 text-sm space-y-3">
                     <div>
                       <p className="font-medium">Endereço do cadastro</p>
@@ -1086,9 +1090,9 @@ export default function CheckoutPage() {
                       <p>{[formData.neighborhood, `${formData.city}/${formData.uf}`].filter(Boolean).join(' - ')}</p>
                       <p>CEP {formData.cep}</p>
                     </div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setUseOtherAddress(true)}>
+                      {!lockedCustomerData && <Button type="button" variant="outline" size="sm" onClick={() => setUseOtherAddress(true)}>
                         Escolher endereço
-                      </Button>
+                      </Button>}
                   </div>
                 ) : (
                 <>
@@ -1104,7 +1108,7 @@ export default function CheckoutPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cep">CEP *</Label>
-                    <Input id="cep" value={formData.cep} onChange={async e => {
+                    <Input readOnly={lockedCustomerData} id="cep" value={formData.cep} onChange={async e => {
                       const formatted = formatCEP(e.target.value);
                       handleInputChange('cep', formatted);
                       const cleaned = formatted.replace(/\D/g, '');
@@ -1119,21 +1123,21 @@ export default function CheckoutPage() {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="uf">UF *</Label>
-                    <Select value={formData.uf} onValueChange={value => handleInputChange('uf', value)}>
+                    <Select disabled={lockedCustomerData} value={formData.uf} onValueChange={value => handleInputChange('uf', value)}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>{brazilianStates.map(state => <SelectItem key={state} value={state}>{state}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2"><Label htmlFor="city">Cidade *</Label><Input id="city" value={formData.city} onChange={e => handleInputChange('city', e.target.value)} /></div>
-                  <div className="grid gap-2"><Label htmlFor="neighborhood">Bairro *</Label><Input id="neighborhood" value={formData.neighborhood} onChange={e => handleInputChange('neighborhood', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="city">Cidade *</Label><Input readOnly={lockedCustomerData} id="city" value={formData.city} onChange={e => handleInputChange('city', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="neighborhood">Bairro *</Label><Input readOnly={lockedCustomerData} id="neighborhood" value={formData.neighborhood} onChange={e => handleInputChange('neighborhood', e.target.value)} /></div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="grid gap-2 sm:col-span-2"><Label htmlFor="address">Endereço *</Label><Input id="address" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} /></div>
-                  <div className="grid gap-2"><Label htmlFor="number">Número *</Label><Input id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
+                  <div className="grid gap-2 sm:col-span-2"><Label htmlFor="address">Endereço *</Label><Input readOnly={lockedCustomerData} id="address" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="number">Número *</Label><Input readOnly={lockedCustomerData} id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
                 </div>
-                <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
+                <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input readOnly={lockedCustomerData} id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
                 </>
                 )}
               </CardContent>
