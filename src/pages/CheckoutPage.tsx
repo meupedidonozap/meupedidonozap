@@ -1019,6 +1019,17 @@ export default function CheckoutPage() {
                     <Label htmlFor="whatsapp">WhatsApp *</Label>
                     <Input id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
                   </div>
+                  {shippingEnabled && !isPickupSel && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="cpfCnpj">CPF/CNPJ para a etiqueta *</Label>
+                      <Input
+                        id="cpfCnpj"
+                        value={formData.cpfCnpj}
+                        onChange={e => handleInputChange('cpfCnpj', formatCPFCNPJ(e.target.value))}
+                        placeholder="CPF ou CNPJ do destinatário"
+                      />
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
