@@ -219,8 +219,8 @@ export default function CustomerAuthDialog({
       toast.error("Preencha todos os campos");
       return;
     }
-    if (registerData.password.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+    if (registerData.password.length < 8 || !/[A-Za-z]/.test(registerData.password) || !/\d/.test(registerData.password)) {
+      toast.error("A senha precisa ter no mínimo 8 caracteres, com letras e números. Ex: Maria@2026");
       return;
     }
     setLoading(true);
@@ -272,7 +272,7 @@ export default function CustomerAuthDialog({
         setLoginData({ email: registerData.email, password: "" });
         setAuthTab("login");
       } else if (msg.includes("password")) {
-        toast.error("Senha inválida. Use pelo menos 6 caracteres.");
+        toast.error("Senha muito fácil ou comum. Crie outra com 8+ caracteres, letras maiúsculas, minúsculas, números e um símbolo. Ex: Maria@2026", { duration: 9000 });
       } else {
         toast.error(error.message);
       }
@@ -539,7 +539,7 @@ export default function CustomerAuthDialog({
                       type={showRegPwd ? "text" : "password"}
                       value={registerData.password}
                       onChange={(e) => setRegisterData((p) => ({ ...p, password: e.target.value }))}
-                      placeholder="Crie uma senha simples (mín. 6 caracteres)"
+                      placeholder="Mín. 8 caracteres, ex: Maria@2026"
                       className="pr-10"
                     />
                     <button
@@ -552,7 +552,12 @@ export default function CustomerAuthDialog({
                       {showRegPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Dica: use algo fácil de lembrar, ex: seunome123</p>
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                    <li>Mínimo de 8 caracteres</li>
+                    <li>Letras maiúsculas e minúsculas, números e um símbolo (@ # ! .)</li>
+                    <li>Evite senhas comuns como 123456, senha123 ou seunome123</li>
+                    <li>Exemplo: <strong>Maria@2026</strong></li>
+                  </ul>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
