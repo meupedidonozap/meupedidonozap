@@ -16,7 +16,14 @@ export const customerSchema = z.object({
   number: requiredText('o número do endereço (ou S/N)', 30),
 });
 
-export function getCustomerError(customer: unknown): string | null {
-  const result = customerSchema.safeParse(customer);
+export const customerIdentitySchema = customerSchema.pick({ name: true, cpfCnpj: true, whatsapp: true });
+
+export const isPickupCustomer = (customer: unknown) =>
+  String((customer as { address?: unknown } | null)?.address ?? '').trim().toUpperCase() === 'RETIRAR NA LOJA';
+
+/** Pickup orders only need name, valid CPF/CNPJ and phone; deliveries need the full address. */
+export function getCustomerError(customer: unknown, options: { pickup?: boolean } = {}): string | null {
+  const pickup = options.pickup ?? isPickupCustomer(customer);
+  const result = (pickup ? customerIdentitySchema : customerSchema).safeParse(customer);
   return result.success ? null : result.error.issues[0]?.message || 'Preencha os dados obrigatórios.';
 }
