@@ -1,5 +1,11 @@
 # Roadmap
 
+## Otimização da sincronização de clientes
+- [ ] Consultar somente clientes do lote e retirar criação de logins do envio ERP
+- [ ] Reduzir lotes para 250, adicionar tentativas e confirmar apenas registros sem erro
+- [ ] Testar, publicar a função e entregar monitor completo
+- [ ] Confirmar carga completa — depende de executar o monitor atualizado no servidor ERP
+
 ## Monitor de clientes pela dw_cliente
 - [x] Ler public.dw_cliente sem alterar views e sem aceitar configuração antiga de mpz_cliente
 - [x] Testar leitura, frete CIF/FOB e intervalo de 180 segundos; entregar código completo
