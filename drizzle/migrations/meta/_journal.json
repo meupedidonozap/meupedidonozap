@@ -253,6 +253,13 @@
       "when": 1794241758759,
       "tag": "0035_fix_product_images_storage_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794316229324,
+      "tag": "0036_product_wishlist",
+      "breakpoints": true
     }
   ]
 }

@@ -1518,6 +1518,69 @@ export type Database = {
           },
         ]
       }
+      product_wishlist: {
+        Row: {
+          created_at: string
+          customer_name: string
+          customer_profile_id: string | null
+          email: string | null
+          id: string
+          product_code: string
+          product_id: string
+          product_name: string
+          push_notified_at: string | null
+          store_id: string
+          user_id: string | null
+          whatsapp: string | null
+          whatsapp_sent_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string
+          customer_profile_id?: string | null
+          email?: string | null
+          id?: string
+          product_code?: string
+          product_id: string
+          product_name?: string
+          push_notified_at?: string | null
+          store_id: string
+          user_id?: string | null
+          whatsapp?: string | null
+          whatsapp_sent_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          customer_profile_id?: string | null
+          email?: string | null
+          id?: string
+          product_code?: string
+          product_id?: string
+          product_name?: string
+          push_notified_at?: string | null
+          store_id?: string
+          user_id?: string | null
+          whatsapp?: string | null
+          whatsapp_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_wishlist_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_wishlist_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           base_price: number
