@@ -1,0 +1,15 @@
+CREATE OR REPLACE FUNCTION public.mpz_managed_customer_store(_store_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS(SELECT 1 FROM public.stores WHERE id=_store_id AND slug IN ('dicolore','dicoloresenses')) $$;
+CREATE POLICY "Managed stores disallow customer self insert" ON public.customer_profiles AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (NOT public.mpz_managed_customer_store(store_id) OR public.is_platform_admin(auth.uid()) OR public.is_store_admin(auth.uid(),store_id) OR public.has_store_permission(auth.uid(),store_id,'can_view_customers') OR public.has_store_permission(auth.uid(),store_id,'can_manage_orders'));
+CREATE POLICY "Managed stores disallow customer self update" ON public.customer_profiles AS RESTRICTIVE FOR UPDATE TO authenticated USING (NOT public.mpz_managed_customer_store(store_id) OR public.is_platform_admin(auth.uid()) OR public.is_store_admin(auth.uid(),store_id) OR public.has_store_permission(auth.uid(),store_id,'can_view_customers') OR public.has_store_permission(auth.uid(),store_id,'can_manage_orders')) WITH CHECK (NOT public.mpz_managed_customer_store(store_id) OR public.is_platform_admin(auth.uid()) OR public.is_store_admin(auth.uid(),store_id) OR public.has_store_permission(auth.uid(),store_id,'can_view_customers') OR public.has_store_permission(auth.uid(),store_id,'can_manage_orders'));
+CREATE OR REPLACE FUNCTION public.mpz_official_order_customer() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE profile public.customer_profiles%ROWTYPE;
+BEGIN
+ IF auth.role()='service_role' OR NOT public.mpz_managed_customer_store(NEW.store_id) THEN RETURN NEW; END IF;
+ IF public.is_platform_admin(auth.uid()) OR public.is_store_admin(auth.uid(),NEW.store_id) OR public.has_store_permission(auth.uid(),NEW.store_id,'can_manage_orders') THEN RETURN NEW; END IF;
+ IF TG_OP='UPDATE' THEN IF NEW.customer IS NOT DISTINCT FROM OLD.customer THEN RETURN NEW; END IF; END IF;
+ SELECT * INTO profile FROM public.customer_profiles WHERE store_id=NEW.store_id AND user_id=auth.uid() LIMIT 1;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Seu cadastro deve ser informado pela loja. Entre em contato com seu representante.'; END IF;
+ NEW.customer := NEW.customer || jsonb_build_object('name',profile.name,'cpfCnpj',profile.cpf_cnpj,'whatsapp',profile.whatsapp,'cep',profile.cep,'uf',profile.uf,'city',profile.city,'neighborhood',profile.neighborhood,'address',profile.address,'number',profile.number,'complement',coalesce(profile.complement,''),'customerCode',profile.customer_code,'sellerCode',profile.seller_code,'ie',profile.ie,'transportadora',profile.transportadora,'priceTable',profile.price_table);
+ RETURN NEW;
+END $$;
+CREATE TRIGGER aa_mpz_official_order_customer BEFORE INSERT OR UPDATE OF customer ON public.orders FOR EACH ROW EXECUTE FUNCTION public.mpz_official_order_customer();
