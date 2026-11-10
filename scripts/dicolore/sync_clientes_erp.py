@@ -3,7 +3,7 @@ Clientes DiColore direto do ERP -> MPZ (sem Google Sheets e sem navegador).
 
 Lê a view public.dw_cliente existente no ERP (inclui frete_codigo
 0 = CIF / 1 = FOB) e envia ao MPZ só os clientes novos ou alterados.
-Clientes novos ganham login automático (usuário e senha = código do cliente).
+O envio ERP sincroniza cadastros; não cria nem modifica senhas de acesso.
 
 Uso:
     python sync_clientes_erp.py              # uma vez
@@ -92,7 +92,8 @@ SYNC_TOKEN = _env("TITLES_SYNC_TOKEN", "MPZ_SYNC_TOKEN")
 STORE_SLUG = _env("STORE_SLUG", padrao="dicolore")
 VIEW = "public.dw_cliente"
 INTERVALO = int(_env("MONITOR_INTERVALO_CLIENTES_ERP", padrao="180"))
-LOTE = 1000
+LOTE = 250
+TENTATIVAS = 3
 
 
 def log(msg):
@@ -133,12 +134,32 @@ def salvar_estado(e):
 
 
 def enviar(rows):
-    r = requests.post(API_URL, data=json.dumps({"store_slug": STORE_SLUG, "rows": rows}),
-                      headers={"x-sync-token": SYNC_TOKEN, "Content-Type": "application/json"},
-                      timeout=300)
-    if r.status_code != 200:
-        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
-    return r.json()
+    for tentativa in range(1, TENTATIVAS + 1):
+        try:
+            r = requests.post(API_URL, data=json.dumps({"store_slug": STORE_SLUG, "rows": rows}),
+                              headers={"x-sync-token": SYNC_TOKEN, "Content-Type": "application/json"},
+                              timeout=(15, 140))
+        except (requests.Timeout, requests.ConnectionError):
+            if tentativa == TENTATIVAS:
+                raise RuntimeError("MPZ indisponível após 3 tentativas; lote não confirmado.") from None
+            log(f"Falha de conexão; nova tentativa {tentativa + 1}/{TENTATIVAS}.")
+            time.sleep(2 ** tentativa)
+            continue
+        if r.status_code in (408, 429, 500, 502, 503, 504):
+            if tentativa == TENTATIVAS:
+                raise RuntimeError(f"HTTP {r.status_code} após 3 tentativas; lote não confirmado.")
+            log(f"HTTP {r.status_code}; nova tentativa {tentativa + 1}/{TENTATIVAS}.")
+            time.sleep(2 ** tentativa)
+            continue
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code}; lote não confirmado. Confira a configuração do monitor.")
+        try:
+            resultado = r.json()
+        except ValueError:
+            raise RuntimeError("Resposta inválida do MPZ; lote não confirmado.") from None
+        if not isinstance(resultado, dict) or resultado.get("success") is not True:
+            raise RuntimeError("MPZ não confirmou o envio; lote não confirmado.")
+        return resultado
 
 
 def ciclo(dry_run=False, tudo=False):
@@ -161,19 +182,27 @@ def ciclo(dry_run=False, tudo=False):
         for c in mudados[:20]:
             log(f"  {c.get('codigo')} {c.get('razao_social')} frete={c.get('frete_codigo')} vend={c.get('vendedor_codigo')}")
         return
+    total_lotes = (len(mudados) + LOTE - 1) // LOTE
     for i in range(0, len(mudados), LOTE):
         lote = mudados[i:i + LOTE]
+        log(f"Lote {i // LOTE + 1}/{total_lotes} ({len(lote)} clientes): enviando...")
+        inicio = time.monotonic()
         res = enviar(lote)
-        log(f"MPZ lote {i // LOTE + 1}: {res.get('created', 0)} criados, {res.get('updated', 0)} atualizados, "
-            f"{res.get('skipped', 0)} sem mudança, {res.get('access_created', 0)} logins criados, "
-            f"{res.get('errors', 0)} erros.")
+        log(f"Lote {i // LOTE + 1}/{total_lotes}: {res.get('created', 0)} criados, {res.get('updated', 0)} atualizados, "
+            f"{res.get('skipped', 0)} sem mudança, {res.get('errors', 0)} erros "
+            f"({time.monotonic() - inicio:.1f}s).")
         for e in res.get("error_samples") or []:
             log(f"  erro {e.get('codigo')}: {e.get('erro')}")
-        erros = {str(e.get("codigo")) for e in (res.get("error_samples") or [])}
+        erros = {str(c) for c in (res.get("error_codes") or [])}
+        if res.get("errors", 0) and not erros:
+            # Compatibilidade: amostras antigas não contêm necessariamente todos os erros.
+            erros = {c["codigo"] for c in lote}
         # Confirma o lote no estado (clientes com erro serão reenviados no próximo ciclo)
         for c in lote:
             if c["codigo"] not in erros:
                 estado[c["codigo"]] = novos[c["codigo"]]
+            else:
+                estado.pop(c["codigo"], None)
         salvar_estado(estado)
 
 
