@@ -1,5 +1,10 @@
 # Roadmap
 
+## Monitor de clientes pela dw_cliente
+- [x] Ler public.dw_cliente sem alterar views e sem aceitar configuração antiga de mpz_cliente
+- [ ] Testar leitura, frete CIF/FOB e intervalo de 180 segundos; entregar código completo
+- [ ] Confirmar execução real — depende de substituir e executar o monitor no servidor ERP do usuário
+
 ## Cadastro protegido DiColore e SENSES
 - [x] Bloquear preenchimento e alteração de cadastro pelo cliente nas telas e na gravação
 - [x] Usar cadastro oficial no pedido, mantendo acesso autorizado da equipe

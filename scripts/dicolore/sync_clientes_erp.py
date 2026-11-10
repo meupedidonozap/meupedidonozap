@@ -1,7 +1,7 @@
 """
 Clientes DiColore direto do ERP -> MPZ (sem Google Sheets e sem navegador).
 
-Lê a view public.mpz_cliente (mesmo layout da dw_cliente, inclui frete_codigo
+Lê a view public.dw_cliente existente no ERP (inclui frete_codigo
 0 = CIF / 1 = FOB) e envia ao MPZ só os clientes novos ou alterados.
 Clientes novos ganham login automático (usuário e senha = código do cliente).
 
@@ -12,6 +12,7 @@ Uso:
     python sync_clientes_erp.py --tudo       # reenvia todos os clientes
 """
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -67,10 +68,29 @@ DB = dict(
     connect_timeout=15,
     options="-c default_transaction_read_only=on -c statement_timeout=120000 -c lock_timeout=5000",
 )
-API_URL = "https://buvhdqpbpbwpzidzmdqh.supabase.co/functions/v1/sync-customers"
+def _url_api():
+    configurada = _env("MPZ_CLIENTES_API_URL")
+    if configurada:
+        return configurada
+    # Reutiliza o destino do monitor instalado, sem executar seu código.
+    for nome in ("sync_estoque_erp.py", "sync_dicolore_financeiro_v5.py"):
+        try:
+            arvore = ast.parse((_BASE / nome).read_text(encoding="utf-8-sig"))
+            for node in arvore.body:
+                if isinstance(node, ast.Assign) and any(
+                    isinstance(target, ast.Name) and target.id == "API_URL"
+                    for target in node.targets
+                ) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                    return node.value.value.rsplit("/", 1)[0] + "/sync-customers"
+        except (OSError, SyntaxError):
+            continue
+    return None
+
+
+API_URL = _url_api()
 SYNC_TOKEN = _env("TITLES_SYNC_TOKEN", "MPZ_SYNC_TOKEN")
 STORE_SLUG = _env("STORE_SLUG", padrao="dicolore")
-VIEW = _env("VIEW_CLIENTES_ERP", padrao="public.mpz_cliente")
+VIEW = "public.dw_cliente"
 INTERVALO = int(_env("MONITOR_INTERVALO_CLIENTES_ERP", padrao="180"))
 LOTE = 1000
 
@@ -163,6 +183,9 @@ def main():
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--tudo", action="store_true")
     a = p.parse_args()
+    if not API_URL and not a.dry_run:
+        log("Destino MPZ não encontrado. Mantenha o monitor de estoque ou financeiro nesta pasta, ou configure MPZ_CLIENTES_API_URL.")
+        sys.exit(1)
     if not SYNC_TOKEN:
         log("TITLES_SYNC_TOKEN não encontrado. Procurado em: " + ", ".join(str(x) for x in ARQUIVOS_ENV))
         sys.exit(1)
