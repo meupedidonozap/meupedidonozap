@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { documentCandidates, loadBatchCustomers, shouldCreateAccess } from "../../supabase/functions/sync-customers/batch";
+import { documentCandidates, loadBatchCustomers, normalizeCustomerPriceTable, shouldCreateAccess } from "../../supabase/functions/sync-customers/batch";
 
 describe("ERP customer batch", () => {
+  it.each([1, 3, 4, 8, 9, 11])("preserves supported ERP price table %s", (table) => {
+    expect(normalizeCustomerPriceTable(String(table))).toBe(table);
+  });
+
+  it.each([0, 2, 5, 6, 7, 10, 12, -1, 1.5, "", "abc", null, undefined])(
+    "defaults unsupported or missing ERP price table %s to table 4",
+    (table) => { expect(normalizeCustomerPriceTable(table)).toBe(4); },
+  );
+
   it("does not provision access for ERP rows, preserving the legacy CSV behavior", () => {
     expect(shouldCreateAccess(true)).toBe(false);
     expect(shouldCreateAccess(false)).toBe(true);

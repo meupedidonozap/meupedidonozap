@@ -20,6 +20,7 @@
 
 - DiColore customer profiles carry the ERP dw_cliente attributes as same-named columns; api-externa serves customers through the shared dw layout builder and orders carry the customer's CIF/FOB freight, so third-party integrators receive the exact DW contract.
 - ERP customer sync reads only batch codes and orphan document matches, never provisions access in rows mode, and returns every failed code; the monitor uses 250-row batches with bounded transient retries and checkpoints only confirmed rows to avoid timeouts and lost retries.
+- ERP customer inserts normalize incoming price tables to the supported set with a default fallback, while updates preserve assigned tables; this prevents rejected imports without overwriting existing pricing assignments.
 
 - The "new version" banner shows only for stores listed in public/release.json ("all" for everyone); other stores update silently, so store-specific releases do not interrupt unrelated tenants. Edit that file on each release.
 - Checkout restores payment choices from the authorized saved order on edit; seller/telesales release uses the same validation for new and edited orders, while PDF previews never save or release orders.
