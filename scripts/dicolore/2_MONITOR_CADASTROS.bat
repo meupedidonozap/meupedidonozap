@@ -1,5 +1,5 @@
 @echo off
-title [DiColore] 2 - Estoque, Precos e Clientes
+title [DiColore] 2 - Clientes
 cd /d "%~dp0"
 :loop
 python atualizar_dicolore.py --monitorar --tarefa cadastros

@@ -9,3 +9,5 @@ timeout /t 3 >nul
 start "" "%~dp04_MONITOR_TITULOS.bat"
 timeout /t 3 >nul
 start "" "%~dp05_MONITOR_BOLETOS.bat"
+timeout /t 3 >nul
+start "" "%~dp06_MONITOR_ESTOQUE_ERP.bat"
