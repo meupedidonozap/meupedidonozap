@@ -1,3 +1,5 @@
+import { WishlistPanel } from '@/components/admin/WishlistPanel';
+import { Heart } from 'lucide-react';
 import { DwCustomerFields } from '@/components/DwCustomerFields';
 import { dwFormFromRow, dwUpdateFromForm } from '@/lib/dwCustomerFields';
 import { buildPortfolioMatcher } from '@/lib/orderPortfolio';
@@ -1304,6 +1306,9 @@ export default function StoreAdminPage() {
             )}
             {(isAdmin || permissions.can_view_customers) && (
               <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
+            )}
+            {(isAdmin || permissions.can_view_customers) && (
+              <TabsTrigger value="wishlist" className="gap-2"><Heart className="h-4 w-4" /> Lista de Desejos</TabsTrigger>
             )}
             {isAdmin && (
               <TabsTrigger value="visits" className="gap-2"><BarChart3 className="h-4 w-4" /> Visitas</TabsTrigger>
@@ -3319,6 +3324,9 @@ export default function StoreAdminPage() {
           )}
 
           {/* Customers */}
+          <TabsContent value="wishlist" className="animate-fade-in">
+            <WishlistPanel storeId={store.id} slug={store.slug} />
+          </TabsContent>
           <TabsContent value="customers" className="animate-fade-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Clientes Cadastrados</h3>

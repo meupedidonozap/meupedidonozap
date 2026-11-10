@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
+import { NotifyMeDialog } from '@/components/NotifyMeDialog';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerModeBar from '@/components/SellerModeBar';
 import EditingQuoteBanner from '@/components/EditingQuoteBanner';
@@ -71,6 +72,7 @@ export default function ProductStorePage() {
   const productsWithMaterial = useMemo(() => new Set(techMaterials.filter(m => m.isActive).flatMap(m => m.productIds)), [techMaterials]);
   const { cart, itemDiscounts, discountRules, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
+  const [notifyProduct, setNotifyProduct] = useState<any>(null);
   const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
   const {
     profile: customerProfile,
@@ -661,6 +663,7 @@ export default function ProductStorePage() {
       <div className="container mt-3">
         <PendingOrdersCard storeId={store?.id} />
       </div>
+      {store && <NotifyMeDialog open={!!notifyProduct} onOpenChange={(o) => !o && setNotifyProduct(null)} storeId={store.id} product={notifyProduct} userId={user?.id} email={user?.email} profile={customerProfile as any} />}
       <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} company={(store?.settings as any)?.titlesCompany} />
       {editingQuote && (isSellerMode || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} onCancel={() => clearCart()} />}
       {isSellerMode && store && (
@@ -713,7 +716,10 @@ export default function ProductStorePage() {
                       return <p className="text-lg font-bold text-primary">{formatCurrency(base)}</p>;
                     })()}
                     {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
-                      <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="destructive" className="text-[10px]">ESGOTADO</Badge>
+                        <button type="button" className="text-xs font-semibold text-primary underline" onClick={(e) => { e.stopPropagation(); setNotifyProduct(product); }}>Avise-me</button>
+                      </div>
                     )}
                     {showStockQty && hasStock(product, null, stockEnabled) && (
                       <Badge variant="outline" className="mt-1 border-primary/40 bg-primary/10 text-[10px] text-primary">Estoque: {stockQty(product)} un.</Badge>
@@ -740,7 +746,10 @@ export default function ProductStorePage() {
                     <Link to={`/${store.slug}/material-tecnico?produto=${product.id}`} className="mt-1 inline-block text-xs font-semibold text-primary underline">Saiba mais</Link>
                   )}
                   {!hasStock(product, null, stockEnabled) && !product.hasVariants && (
-                    <Badge variant="destructive" className="mt-1 text-[10px]">ESGOTADO</Badge>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Badge variant="destructive" className="text-[10px]">ESGOTADO</Badge>
+                      <button type="button" className="text-xs font-semibold text-primary underline" onClick={(e) => { e.stopPropagation(); setNotifyProduct(product); }}>Avise-me</button>
+                    </div>
                   )}
                   {showStockQty && hasStock(product, null, stockEnabled) && (
                     <Badge variant="outline" className="mt-1 border-primary/40 bg-primary/10 text-[10px] text-primary">Estoque: {stockQty(product)} un.</Badge>
