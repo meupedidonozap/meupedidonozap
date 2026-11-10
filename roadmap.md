@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Otimização da sincronização de clientes
-- [ ] Consultar somente clientes do lote e retirar criação de logins do envio ERP
-- [ ] Reduzir lotes para 250, adicionar tentativas e confirmar apenas registros sem erro
-- [ ] Testar, publicar a função e entregar monitor completo
+- [x] Consultar somente clientes do lote e retirar criação de logins do envio ERP
+- [x] Reduzir lotes para 250, adicionar tentativas e confirmar apenas registros sem erro
+- [x] Testar, publicar a função e entregar monitor completo (13 testes; chamadas reais sem gravação e token inválido)
 - [ ] Confirmar carga completa — depende de executar o monitor atualizado no servidor ERP
 
 ## Monitor de clientes pela dw_cliente

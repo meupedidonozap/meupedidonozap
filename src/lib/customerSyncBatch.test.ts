@@ -24,8 +24,7 @@ describe("ERP customer batch", () => {
           in: (column: string, values: string[]) => { call.column = column; call.values = values; calls.push(call); return query; },
           or: (filter: string) => { call.orphan = filter; return query; },
           order: () => query,
-          range: () => query,
-          then: (resolve: (value: { data: never[]; error: null }) => unknown) => Promise.resolve(resolve({ data: [], error: null })),
+          range: () => Promise.resolve({ data: [], error: null }),
         };
         return query;
       },

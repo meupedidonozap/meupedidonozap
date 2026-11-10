@@ -16,13 +16,13 @@ export function documentCandidates(values: string[]): string[] {
 
 // This interface keeps the lookup testable without importing the Deno runtime.
 type QueryResult = { data: Record<string, unknown>[] | null; error: { message: string } | null };
-type Query = PromiseLike<QueryResult> & {
+type Query = {
   select(columns: string): Query;
   eq(column: string, value: string): Query;
   in(column: string, values: string[]): Query;
   or(filter: string): Query;
   order(column: string): Query;
-  range(from: number, to: number): Query;
+  range(from: number, to: number): PromiseLike<QueryResult>;
 };
 type Client = { from(table: string): Pick<Query, "select"> };
 
