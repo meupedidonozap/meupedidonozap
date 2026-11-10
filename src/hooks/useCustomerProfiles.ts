@@ -1,4 +1,5 @@
 import { normalizePriceTable } from '@/lib/pricing';
+import { getCustomerError } from '@/lib/customerValidation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerProfile } from './useCustomerProfile';
@@ -78,6 +79,8 @@ export function useCreateCustomerProfileAdmin() {
       priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
       customerCode?: string;
     }) => {
+      const customerError = getCustomerError(params);
+      if (customerError) throw new Error(customerError);
       const { data, error } = await supabase
         .from('customer_profiles')
         .insert({

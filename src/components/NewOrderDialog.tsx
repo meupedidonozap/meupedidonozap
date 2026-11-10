@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { getCustomerError } from '@/lib/customerValidation';
 import { Plus, Minus, Trash2, Search, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -279,7 +280,8 @@ export default function NewOrderDialog({
 
   const handleSubmit = async () => {
     const customer = getCustomerInfo();
-    if (!customer.name.trim()) { toast.error('Informe o nome do cliente'); return; }
+    const customerError = getCustomerError(customer);
+    if (customerError) { toast.error(customerError); return; }
     if (orderItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
     if (orderItems.some(i => !(Number(i.price) > 0))) {
       toast.error(`Há itens sem preço válido na tabela ${activeTable}. Remova-os antes de salvar.`);
@@ -341,7 +343,7 @@ export default function NewOrderDialog({
     onOpenChange(false);
   };
 
-  const canProceedFromCustomer = customerMode === 'existing' ? !!selectedCustomerId : !!customerForm.name.trim();
+  const canProceedFromCustomer = !getCustomerError(getCustomerInfo());
 
   return (
     <>
@@ -399,21 +401,23 @@ export default function NewOrderDialog({
                 <TabsContent value="new" className="mt-3 space-y-3">
                   <div className="grid gap-1"><Label className="text-sm">Nome *</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value.toUpperCase() }))} /></div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
-                    <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} /></div>
+                    <div className="grid gap-1"><Label className="text-sm">WhatsApp *</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
+                    <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ *</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} /></div>
                   </div>
-                  {offersDelivery && (
-                    <>
+                  <>
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="grid gap-1"><Label className="text-sm">Cidade</Label><Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} /></div>
-                        <div className="grid gap-1"><Label className="text-sm">UF</Label><Input value={customerForm.uf} onChange={e => setCustomerForm(f => ({ ...f, uf: e.target.value }))} /></div>
+                        <div className="grid gap-1"><Label className="text-sm">CEP *</Label><Input value={customerForm.cep} onChange={e => setCustomerForm(f => ({ ...f, cep: e.target.value }))} /></div>
+                        <div className="grid gap-1"><Label className="text-sm">Bairro *</Label><Input value={customerForm.neighborhood} onChange={e => setCustomerForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="grid gap-1"><Label className="text-sm">Cidade *</Label><Input value={customerForm.city} onChange={e => setCustomerForm(f => ({ ...f, city: e.target.value }))} /></div>
+                        <div className="grid gap-1"><Label className="text-sm">UF *</Label><Input value={customerForm.uf} onChange={e => setCustomerForm(f => ({ ...f, uf: e.target.value }))} /></div>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço</Label><Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} /></div>
-                        <div className="grid gap-1"><Label className="text-sm">Nº</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
+                        <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço *</Label><Input value={customerForm.address} onChange={e => setCustomerForm(f => ({ ...f, address: e.target.value }))} /></div>
+                        <div className="grid gap-1"><Label className="text-sm">Nº *</Label><Input value={customerForm.number} onChange={e => setCustomerForm(f => ({ ...f, number: e.target.value }))} /></div>
                       </div>
-                    </>
-                  )}
+                  </>
                 </TabsContent>
               </Tabs>
 

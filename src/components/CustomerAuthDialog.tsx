@@ -13,6 +13,7 @@ import { useUpsertCustomerProfile } from "@/hooks/useCustomerProfile";
 import { fetchAddressByCep } from "@/lib/cepLookup";
 import { formatPhone, formatCEP } from "@/lib/formatters";
 import { buildCustomerEmail, buildCustomerPassword, buildStoreScopedEmail } from "@/lib/customerAuth";
+import { getCustomerError } from '@/lib/customerValidation';
 
 const brazilianStates = [
   "AC",
@@ -329,24 +330,10 @@ export default function CustomerAuthDialog({
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profileData.name || !profileData.whatsapp || !profileData.uf || !profileData.city || !profileData.address) {
-      toast.error("Preencha os campos obrigatórios");
+    const customerError = getCustomerError(profileData);
+    if (customerError) {
+      toast.error(customerError);
       return;
-    }
-    if (requireApproval) {
-      const doc = profileData.cpfCnpj.replace(/\D/g, "");
-      if (doc.length !== 11 && doc.length !== 14) {
-        toast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido");
-        return;
-      }
-      if (profileData.cep.replace(/\D/g, "").length !== 8 || !profileData.neighborhood || !profileData.number) {
-        toast.error("Preencha o endereço completo: CEP, bairro e número");
-        return;
-      }
-      if (profileData.whatsapp.replace(/\D/g, "").length < 10) {
-        toast.error("Informe um telefone de contato válido");
-        return;
-      }
     }
     if (!user?.id) {
       toast.error("Sessão não encontrada. Feche esta janela, faça login e tente novamente.");
@@ -613,7 +600,7 @@ export default function CustomerAuthDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="prof-doc">CPF/CNPJ{requireApproval ? " *" : ""}</Label>
+                <Label htmlFor="prof-doc">CPF/CNPJ *</Label>
                 <Input
                   id="prof-doc"
                   inputMode="numeric"
@@ -647,7 +634,7 @@ export default function CustomerAuthDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="prof-cep">CEP{requireApproval ? " *" : ""}</Label>
+                <Label htmlFor="prof-cep">CEP *</Label>
                 <div className="relative">
                   <Input
                     id="prof-cep"
@@ -687,7 +674,7 @@ export default function CustomerAuthDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="prof-neighborhood">Bairro{requireApproval ? " *" : ""}</Label>
+                <Label htmlFor="prof-neighborhood">Bairro *</Label>
                 <Input
                   id="prof-neighborhood"
                   value={profileData.neighborhood}
@@ -706,7 +693,7 @@ export default function CustomerAuthDialog({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="prof-number">Número{requireApproval ? " *" : ""}</Label>
+                <Label htmlFor="prof-number">Número *</Label>
                 <Input
                   id="prof-number"
                   value={profileData.number}

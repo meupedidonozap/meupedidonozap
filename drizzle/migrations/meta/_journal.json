@@ -260,6 +260,13 @@
       "when": 1794316229324,
       "tag": "0036_product_wishlist",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794318664428,
+      "tag": "0037_validate_interactive_customer_details",
+      "breakpoints": true
     }
   ]
 }

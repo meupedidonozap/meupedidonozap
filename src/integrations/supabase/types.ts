@@ -2497,6 +2497,8 @@ export type Database = {
         Args: { _code: string; _store_id: string; _user_id: string }
         Returns: boolean
       }
+      mpz_customer_error: { Args: { c: Json }; Returns: string }
+      mpz_valid_document: { Args: { value: string }; Returns: boolean }
       order_reserves_stock: { Args: { _status: string }; Returns: boolean }
       portfolio_customer_keys: {
         Args: { _user_id: string }

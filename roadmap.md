@@ -1,5 +1,10 @@
 # Roadmap
 
+## Dados obrigatórios em todas as lojas
+- [x] Exigir CPF/CNPJ válido, telefone com DDD e endereço completo no cadastro e pedido
+- [x] Validar na gravação, preservar histórico e direcionar atualização a todas as lojas
+- [x] Testar as regras e verificar bloqueio no checkout autenticado inclusive em retirada, sem criar pedidos
+
 ## Integração Super Frete JEWOS
 - [x] Diagnosticar a rejeição do pedido #711 sem interromper o pedido ou o pagamento
 - [x] Exigir os dados obrigatórios no checkout e preservar o detalhe dos erros do Super Frete

@@ -57,6 +57,7 @@ import { getPaymentGateway } from '@/components/PaymentSettingsCard';
 import { getAvailablePaymentMethods } from '@/lib/paymentAvailability';
 import { buildPixPayload } from '@/lib/pixBrCode';
 import { getSuperfreteCustomerError } from '@/lib/superfreteCustomer';
+import { getCustomerError } from '@/lib/customerValidation';
 
 interface ShippingOption {
   code: string;
@@ -332,14 +333,6 @@ export default function CheckoutPage() {
       return false;
     }
 
-    const isPickup = isPickupSel || !offersDelivery;
-    const required = isPickup ? ['name', 'whatsapp'] : ['name', 'whatsapp', 'uf', 'city', 'address'];
-    for (const field of required) {
-      if (!formData[field as keyof typeof formData]) {
-        toast.error(`Preencha o campo obrigatório: ${field}`);
-        return false;
-      }
-    }
     if (offersDelivery && hasNeighborhoods && deliveryType === 'entrega' && !selectedNeighborhoodId) {
       toast.error('Selecione o bairro de entrega');
       return false;
@@ -366,6 +359,12 @@ export default function CheckoutPage() {
     }
     if (offersDelivery && !isPickupSel && shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
       toast.error('Selecione a modalidade de frete');
+      return false;
+    }
+    const customerError = getCustomerError(formData);
+    if (customerError) {
+      setUseOtherAddress(true);
+      toast.error(customerError);
       return false;
     }
     const superfreteCustomerError = getSuperfreteCustomerError(formData, selectedShipping);
@@ -516,10 +515,8 @@ export default function CheckoutPage() {
 
   const saveProspect = async () => {
     const f = prospectForm;
-    const doc = f.cpfCnpj.replace(/\D/g, '');
-    if (doc.length !== 11 && doc.length !== 14) { toast.error('CPF/CNPJ inválido (11 ou 14 dígitos)'); return; }
-    const missing = (['name', 'whatsapp', 'uf', 'city', 'address'] as const).filter(k => !String(f[k] || '').trim());
-    if (missing.length) { toast.error('Preencha nome, WhatsApp, UF, cidade e endereço'); return; }
+    const customerError = getCustomerError(f);
+    if (customerError) { toast.error(customerError); return; }
     if (!selectedCustomer?.id) return;
     setProspectSaving(true);
     try {
@@ -1019,9 +1016,8 @@ export default function CheckoutPage() {
                     <Label htmlFor="whatsapp">WhatsApp *</Label>
                     <Input id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
                   </div>
-                  {shippingEnabled && !isPickupSel && (
                     <div className="grid gap-2">
-                      <Label htmlFor="cpfCnpj">CPF/CNPJ para a etiqueta *</Label>
+                      <Label htmlFor="cpfCnpj">CPF/CNPJ *</Label>
                       <Input
                         id="cpfCnpj"
                         value={formData.cpfCnpj}
@@ -1029,14 +1025,12 @@ export default function CheckoutPage() {
                         placeholder="CPF ou CNPJ do destinatário"
                       />
                     </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {offersDelivery && (
             <Card>
-              <CardHeader><CardTitle>Endereço de Entrega</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Endereço completo</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 {offersDelivery && (
                   <div className="space-y-2">
@@ -1084,11 +1078,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {isPickupSel ? (
-                  <div className="rounded-md border border-dashed bg-muted/40 p-4 text-sm">
-                    O pedido será retirado no endereço da loja. Não há taxa de entrega.
-                  </div>
-                ) : !useOtherAddress && !hasNeighborhoods ? (
+                {!useOtherAddress && !hasNeighborhoods && !getCustomerError(formData) ? (
                   <div className="rounded-md border bg-muted/40 p-4 text-sm space-y-3">
                     <div>
                       <p className="font-medium">Endereço do cadastro</p>
@@ -1096,11 +1086,9 @@ export default function CheckoutPage() {
                       <p>{[formData.neighborhood, `${formData.city}/${formData.uf}`].filter(Boolean).join(' - ')}</p>
                       <p>CEP {formData.cep}</p>
                     </div>
-                    {!['dicolore', 'dicoloresenses'].includes(store.slug) && (
                       <Button type="button" variant="outline" size="sm" onClick={() => setUseOtherAddress(true)}>
                         Escolher endereço
                       </Button>
-                    )}
                   </div>
                 ) : (
                 <>
@@ -1115,7 +1103,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label htmlFor="cep">CEP</Label>
+                    <Label htmlFor="cep">CEP *</Label>
                     <Input id="cep" value={formData.cep} onChange={async e => {
                       const formatted = formatCEP(e.target.value);
                       handleInputChange('cep', formatted);
@@ -1139,18 +1127,17 @@ export default function CheckoutPage() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2"><Label htmlFor="city">Cidade *</Label><Input id="city" value={formData.city} onChange={e => handleInputChange('city', e.target.value)} /></div>
-                  <div className="grid gap-2"><Label htmlFor="neighborhood">Bairro</Label><Input id="neighborhood" value={formData.neighborhood} onChange={e => handleInputChange('neighborhood', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="neighborhood">Bairro *</Label><Input id="neighborhood" value={formData.neighborhood} onChange={e => handleInputChange('neighborhood', e.target.value)} /></div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="grid gap-2 sm:col-span-2"><Label htmlFor="address">Endereço *</Label><Input id="address" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} /></div>
-                  <div className="grid gap-2"><Label htmlFor="number">Número</Label><Input id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
+                  <div className="grid gap-2"><Label htmlFor="number">Número *</Label><Input id="number" value={formData.number} onChange={e => handleInputChange('number', e.target.value)} /></div>
                 </div>
                 <div className="grid gap-2"><Label htmlFor="complement">Complemento</Label><Input id="complement" value={formData.complement} onChange={e => handleInputChange('complement', e.target.value)} /></div>
                 </>
                 )}
               </CardContent>
             </Card>
-            )}
 
             {/* Shipping options */}
             {shippingEnabled && !isPickupSel && (

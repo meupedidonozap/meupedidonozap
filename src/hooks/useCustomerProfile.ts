@@ -1,4 +1,5 @@
 import { normalizePriceTable } from '@/lib/pricing';
+import { getCustomerError } from '@/lib/customerValidation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -69,6 +70,8 @@ export function useUpsertCustomerProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: Omit<CustomerProfile, 'id'>) => {
+      const customerError = getCustomerError(profile);
+      if (customerError) throw new Error(customerError);
       // Validate session on the server (refreshes token if expired)
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !authUser) {

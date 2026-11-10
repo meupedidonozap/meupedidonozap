@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getCustomerError } from '@/lib/customerValidation';
 import { supabase } from '@/integrations/supabase/client';
 import type { Order, CustomerInfo, CartItem, PaymentMethod, DeliveryShift, OrderStatus } from '@/types';
 
@@ -57,6 +58,8 @@ export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (order: Omit<Order, 'id' | 'orderNumber' | 'createdAt'>) => {
+      const customerError = getCustomerError(order.customer);
+      if (customerError) throw new Error(customerError);
       // Get current user id if logged in (server-validated)
       const { data: { user: authUser } } = await supabase.auth.getUser();
       const userId = authUser?.id || null;
