@@ -87,7 +87,32 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { store_id } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    let store_id: string | undefined = body?.store_id;
+    let rows: string[][] | null = null;
+    let source = "google_sheets";
+
+    // Modo ERP direto: o sincronizador local envia as linhas da view vw_mpz_produtos.
+    if (Array.isArray(body?.rows)) {
+      const token = Deno.env.get("TITLES_SYNC_TOKEN");
+      if (!token || req.headers.get("x-sync-token") !== token) {
+        return new Response(JSON.stringify({ error: "Não autorizado" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (body.rows.length < 2) {
+        return new Response(JSON.stringify({ error: "View vazia; nada alterado." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      rows = body.rows.map((r: unknown[]) => (Array.isArray(r) ? r : []).map((v) => (v == null ? "" : String(v))));
+      source = "erp_view";
+      if (!store_id && body?.store_slug) {
+        const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const { data: st } = await admin.from("stores").select("id").eq("slug", String(body.store_slug)).maybeSingle();
+        store_id = st?.id;
+      }
+    }
     if (!store_id) {
       return new Response(JSON.stringify({ error: "store_id is required" }), {
         status: 400,
@@ -95,8 +120,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    let rows = await readFromGoogleSheets();
-    let source = "google_sheets";
+    if (!rows) rows = await readFromGoogleSheets();
     if (!rows) {
       rows = await readFromCSV();
       source = "csv_publicado";
@@ -108,7 +132,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const header = rows[0].map(normalizeHeader);
+    const header = rows[0].map(normalizeHeader).map((h) => h.replace(/_/g, " "));
     const codeIdx = header.findIndex((h) => ["procod", "codigo", "cod", "code"].includes(h));
     const price1Idx = header.findIndex((h) => ["preco 1", "preco1", "tabela 1", "tab 1"].includes(h));
     const price4Idx = header.findIndex((h) =>
