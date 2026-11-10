@@ -14,6 +14,7 @@ import { fetchAddressByCep } from "@/lib/cepLookup";
 import { formatPhone, formatCEP } from "@/lib/formatters";
 import { buildCustomerEmail, buildCustomerPassword, buildStoreScopedEmail } from "@/lib/customerAuth";
 import { getCustomerError } from '@/lib/customerValidation';
+import { isManagedCustomerStore } from '@/lib/customerDataAccess';
 
 const brazilianStates = [
   "AC",
@@ -104,11 +105,13 @@ export default function CustomerAuthDialog({
   onOpenChange,
   storeId,
   storeSlug,
-  allowSignup = true,
+  allowSignup: requestedSignup = true,
   requireApproval = false,
   startAtProfile = false,
   supportWhatsapp,
 }: CustomerAuthDialogProps) {
+  const managedCustomer = isManagedCustomerStore(storeSlug);
+  const allowSignup = requestedSignup && !managedCustomer;
   const [notice, setNotice] = useState<"success" | "duplicate" | null>(null);
   useEffect(() => {
     if (!open) setNotice(null);
@@ -330,6 +333,10 @@ export default function CustomerAuthDialog({
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (managedCustomer) {
+      toast.error('O cadastro é mantido pela loja. Entre em contato com seu representante.');
+      return;
+    }
     const customerError = getCustomerError(profileData);
     if (customerError) {
       toast.error(customerError);
@@ -584,7 +591,10 @@ export default function CustomerAuthDialog({
           </form>
         )}
 
-        {step === "profile" && (
+        {step === "profile" && managedCustomer && (
+          <p className="text-sm text-muted-foreground">O cadastro é mantido pela loja. Entre em contato com seu representante para solicitar uma correção.</p>
+        )}
+        {step === "profile" && !managedCustomer && (
           <form onSubmit={handleProfileSubmit} className="space-y-4">
             <p className="text-sm text-muted-foreground">Preencha seus dados para finalizar o cadastro.</p>
 

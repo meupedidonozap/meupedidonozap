@@ -267,6 +267,13 @@
       "when": 1794318664428,
       "tag": "0037_validate_interactive_customer_details",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794318880237,
+      "tag": "0038_protect_managed_customer_registration",
+      "breakpoints": true
     }
   ]
 }
