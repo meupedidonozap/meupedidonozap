@@ -34,6 +34,13 @@ export function buildOrderPdfFile(order: any, storeName: string): File {
   const erpPay = [c.paymentFormaCodigo && `${c.paymentFormaCodigo} - ${c.paymentFormaDescricao || ''}`.trim(), c.paymentCondicaoCodigo && `${c.paymentCondicaoCodigo} - ${c.paymentCondicaoDescricao || ''}`.trim()].filter(Boolean).join(' | ');
   if (erpPay) line(`Pagamento: ${erpPay}`);
   else if (c.paymentMethod || order.payment_method) line(`Pagamento: ${c.paymentMethod || order.payment_method}`);
+  const pickup = String(c.address || '').toUpperCase() === 'RETIRAR NA LOJA' || order.shipping_service === 'Retirada na loja';
+  const shipName = pickup ? 'Retirada na loja' : (order.shipping_service || (Number(order.delivery_fee) > 0 ? 'Entrega' : ''));
+  if (shipName) {
+    doc.setFont('helvetica', 'bold');
+    line(`Frete: ${shipName}${Number(order.delivery_fee) > 0 ? ` - ${formatCurrency(Number(order.delivery_fee))}` : ' - sem custo'}${order.shipping_deadline ? ` - ${order.shipping_deadline} dias úteis` : ''}`);
+    doc.setFont('helvetica', 'normal');
+  }
 
   const items: any[] = Array.isArray(order.items) ? order.items : [];
   autoTable(doc, {
@@ -56,7 +63,7 @@ export function buildOrderPdfFile(order: any, storeName: string): File {
   const right = (t: string, bold = false) => { doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.text(t, 196, y, { align: 'right' }); y += 6; };
   if (order.subtotal != null) right(`Subtotal: ${formatCurrency(Number(order.subtotal))}`);
   if (Number(order.discount) > 0) right(`Desconto: -${formatCurrency(Number(order.discount))}`);
-  if (Number(order.delivery_fee) > 0) right(`Entrega: ${formatCurrency(Number(order.delivery_fee))}`);
+  if (Number(order.delivery_fee) > 0) right(`Frete${shipName ? ` (${shipName})` : ''}: ${formatCurrency(Number(order.delivery_fee))}`);
   right(`TOTAL: ${formatCurrency(Number(order.total))}`, true);
   if (order.observations) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);

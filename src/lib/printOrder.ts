@@ -152,7 +152,7 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
 
   <div class="totals-line"><span>Subtotal:</span><span>${formatCurrency(order.subtotal)}</span></div>
   ${order.discount > 0 ? `<div class="totals-line"><span>Desconto:</span><span>-${formatCurrency(order.discount)}</span></div>` : ''}
-  ${order.deliveryFee > 0 ? `<div class="totals-line"><span>Taxa entrega:</span><span>${formatCurrency(order.deliveryFee)}</span></div>` : ''}
+  ${order.deliveryFee > 0 ? `<div class="totals-line"><span>Frete${order.shippingService ? ` (${order.shippingService})` : ''}:</span><span>${formatCurrency(order.deliveryFee)}</span></div>` : ''}
   <div class="sep">${dblSep}</div>
   <div class="totals-line grand-total"><span>TOTAL:</span><span>${formatCurrency(order.total)}</span></div>
   <div class="sep">${dblSep}</div>
@@ -313,7 +313,7 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
     <div class="totals">
       <div>Subtotal: ${formatCurrency(order.subtotal)}</div>
       ${order.discount > 0 ? `<div>Desconto: -${formatCurrency(order.discount)}</div>` : ''}
-      ${order.deliveryFee > 0 ? `<div>Taxa de entrega: ${formatCurrency(order.deliveryFee)}</div>` : ''}
+      ${order.deliveryFee > 0 ? `<div>Frete${order.shippingService ? ` (${order.shippingService})` : ''}${order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''}: ${formatCurrency(order.deliveryFee)}</div>` : ''}
       <div class="grand">TOTAL: ${formatCurrency(order.total)}</div>
     </div>
   </div>

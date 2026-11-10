@@ -31,7 +31,7 @@ import { expandKitItems } from '@/lib/kitExpansion';
 import { useStoreKitMap } from '@/hooks/useProductKits';
 import {
   formatCurrency, formatCPFCNPJ, formatPhone, formatCEP,
-  generateWhatsAppMessage, buildWhatsAppUrl, downloadTxt,
+  generateWhatsAppMessage, describeShipping, buildWhatsAppUrl, downloadTxt,
 } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { supabase } from '@/integrations/supabase/client';
@@ -453,7 +453,9 @@ export default function CheckoutPage() {
   const generateOrderMessage = () => {
     const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
       computeGroupDiscounts(cart.items, discountRules, activePriceTable);
+    const ship = describeShipping({ shippingService: selectedShippingOption?.name, shippingDeadline: selectedShippingOption?.deadline, deliveryFee, isPickup: isPickupSel });
     return generateWhatsAppMessage({
+      shippingLabel: ship?.label, shippingName: ship?.name, deliveryFee,
       storeName: store.name,
       customer: {
         name: formData.name, cpfCnpj: formData.cpfCnpj, whatsapp: formData.whatsapp,
@@ -507,6 +509,8 @@ export default function CheckoutPage() {
           discountPercent: currentDiscounts[`${item.productId}-${item.variantId || ''}`] || 0,
         })), kitMap),
         subtotal: cart.subtotal, discount, delivery_fee: deliveryFee,
+        shipping_service: isPickupSel ? 'Retirada na loja' : selectedShippingOption?.name,
+        shipping_deadline: selectedShippingOption?.deadline,
         total: Math.max(0, cart.subtotal - discount) + deliveryFee,
         payment_method: formData.paymentMethod, observations: formData.observations,
       }, store.name);

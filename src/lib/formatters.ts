@@ -59,7 +59,21 @@ export function generateOrderId(): string {
   return `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/** Descrição clara da modalidade de entrega escolhida no pedido. */
+export function describeShipping(o: { shippingService?: string | null; shippingDeadline?: number | null; deliveryFee?: number; isPickup?: boolean }): { name: string; label: string } | null {
+  if (o.isPickup) return { name: 'Retirada na loja', label: 'RETIRADA NA LOJA (sem custo)' };
+  if (o.shippingService) {
+    const parts = [o.shippingService, (o.deliveryFee || 0) > 0 ? formatCurrency(o.deliveryFee || 0) : '', o.shippingDeadline ? `${o.shippingDeadline} dias úteis` : ''].filter(Boolean);
+    return { name: o.shippingService, label: parts.join(' · ') };
+  }
+  if ((o.deliveryFee || 0) > 0) return { name: 'Entrega', label: `ENTREGA · ${formatCurrency(o.deliveryFee || 0)}` };
+  return null;
+}
+
 export function generateWhatsAppMessage(order: {
+  shippingLabel?: string;
+  shippingName?: string;
+  deliveryFee?: number;
   storeName: string;
   customer: {
     name: string;
@@ -114,7 +128,9 @@ export function generateWhatsAppMessage(order: {
   msg += `📱 ${order.customer.whatsapp}\n`;
   msg += `📍 ${order.customer.address} - ${order.customer.neighborhood}\n`;
   msg += `    ${order.customer.cep} ${order.customer.city}/${order.customer.uf}\n`;
-  msg += `💳 ${paymentMap[order.paymentMethod] || order.paymentMethod} | 🚚 ${shiftMap[order.deliveryShift] || order.deliveryShift}\n\n`;
+  msg += `💳 ${paymentMap[order.paymentMethod] || order.paymentMethod} | 🚚 ${shiftMap[order.deliveryShift] || order.deliveryShift}\n`;
+  if (order.shippingLabel) msg += `📦 *FRETE: ${order.shippingLabel}*\n`;
+  msg += `\n`;
 
   msg += `${sep}\n`;
   msg += `📦 *ITENS (${order.items.length})*\n`;
@@ -139,7 +155,10 @@ export function generateWhatsAppMessage(order: {
   if (order.discount > 0) {
     msg += `Desconto: -${formatCurrency(order.discount)}\n`;
   }
-  msg += `💰 *TOTAL: ${formatCurrency(order.total)}*\n`;
+  if (order.shippingLabel || (order.deliveryFee || 0) > 0) {
+    msg += `Frete${order.shippingName ? ` (${order.shippingName})` : ''}: ${(order.deliveryFee || 0) > 0 ? formatCurrency(order.deliveryFee || 0) : 'Sem custo'}\n`;
+  }
+  msg += `💰 *TOTAL: ${formatCurrency(order.total)}*${(order.deliveryFee || 0) > 0 ? ' (frete incluso)' : ''}\n`;
 
   return msg;
 }

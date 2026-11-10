@@ -53,6 +53,12 @@ export default function OrderItemsDialog({ order, items }: { order: any; items: 
               </tbody>
             </table>
           </div>
+          <div className="ml-auto w-full max-w-xs space-y-1 rounded-md border p-3 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{brl(order.subtotal)}</span></div>
+            {Number(order.discount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Desconto</span><span>-{brl(order.discount)}</span></div>}
+            <div className="flex justify-between font-medium"><span>Frete{order.shippingService ? ` (${order.shippingService}${order.shippingDeadline ? ` · ${order.shippingDeadline} dias úteis` : ''})` : String(order.customer?.address || '').toUpperCase() === 'RETIRAR NA LOJA' ? ' (Retirada na loja)' : ''}</span><span>{Number(order.deliveryFee) > 0 ? brl(order.deliveryFee) : 'Sem custo'}</span></div>
+            <div className="flex justify-between border-t pt-1 font-bold"><span>Total</span><span>{brl(order.total)}</span></div>
+          </div>
           {order.observation && <p className="text-sm"><span className="text-muted-foreground">Observações:</span> {order.observation}</p>}
         </DialogContent>
       </Dialog>
