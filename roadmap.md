@@ -1,5 +1,9 @@
 # Roadmap
 
+## Tabela de preço na sincronização de clientes
+- [x] Normalizar tabelas de novos clientes, testar e publicar a correção no servidor (22 testes; chamada autenticada sem gravações)
+- [ ] Confirmar carga dos clientes pendentes — depende do próximo ciclo do monitor no ERP
+
 ## Otimização da sincronização de clientes
 - [x] Consultar somente clientes do lote e retirar criação de logins do envio ERP
 - [x] Reduzir lotes para 250, adicionar tentativas e confirmar apenas registros sem erro

@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { loadBatchCustomers, shouldCreateAccess } from "./batch.ts";
+import { loadBatchCustomers, normalizeCustomerPriceTable, shouldCreateAccess } from "./batch.ts";
 
 // CSV exportado da planilha de clientes da Dicolore
 // (planilha compartilhada como "qualquer pessoa com o link")
@@ -109,8 +109,6 @@ Deno.serve(async (req) => {
         records.push(o);
       }
     }
-    const tableFromSegment = (seg: string): number | null => (Number(String(seg || "").trim()) === 13 ? 4 : null);
-
     // ERP: consulta apenas códigos/documentos recebidos. CSV mantém leitura completa.
     type ExistingRow = Record<string, unknown> & {
       id: string;
@@ -247,9 +245,8 @@ Deno.serve(async (req) => {
         toUpdate.push({ id: found.id, codigo, payload });
         if (!isActive && (found.is_active ?? true)) deactivated++;
       } else {
-        // Tabela só na criação: ERP (tabela_preco_codigo) ou segmento 13 -> Tab 4
-        const tp = Number(FREE(r.tabela_preco_codigo));
-        const price_table = Number.isInteger(tp) && tp > 0 ? tp : tableFromSegment(r.segmento || "");
+        // Preserva tabelas existentes; novos clientes usam apenas tabelas suportadas.
+        const price_table = normalizeCustomerPriceTable(r.tabela_preco_codigo);
         toInsert.push({ ...payload, price_table, user_id: null });
       }
     }

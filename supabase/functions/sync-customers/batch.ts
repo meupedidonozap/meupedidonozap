@@ -1,5 +1,11 @@
 export const LOOKUP_BATCH = 250;
 
+/** Only supported ERP tables may be used for a new customer. */
+export function normalizeCustomerPriceTable(value: unknown): number {
+  const table = Number(String(value ?? "").trim());
+  return [1, 3, 4, 8, 9, 11].includes(table) ? table : 4;
+}
+
 export function documentCandidates(values: string[]): string[] {
   const candidates = new Set<string>();
   for (const value of values) {
