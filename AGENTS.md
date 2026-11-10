@@ -16,7 +16,7 @@
 - MPZ orders are exported to Bling (POST /pedidos/vendas) by bling-sync on the 5-min cron and via action send_orders; numeroLoja "MPZ-<order_number>" deduplicates and orders.bling_order_id/bling_error/bling_attempts track state (max 5 retries, online payments only after paid).
 
 - External third-party API for DiColore lives in the api-externa function (x-api-key = EXTERNAL_API_TOKEN); order routes proxy orders-export so the payload stays identical, and customers pending ERP are those with empty customer_code and no erp_sent_at.
-- DiColore products (new items, names, price tables, groups→categories, deactivation) and stock come straight from ERP views via sync_estoque_erp.py (products to sync-prices rows mode, then sync-stock-erp), both x-sync-token; Sheets route is legacy fallback for the panel button.
+- DiColore products (new items, names, price tables, groups→categories, deactivation) and stock come straight from ERP views via sync_estoque_erp.py (products to sync-prices rows mode, then sync-stock-erp), both x-sync-token; Sheets route is legacy fallback for the panel button. DiColore customers come from the ERP view mpz_cliente (dw_cliente layout) via sync_clientes_erp.py to sync-customers rows mode (x-sync-token), sending only changed rows.
 
 - DiColore customer profiles carry the ERP dw_cliente attributes as same-named columns; api-externa serves customers through the shared dw layout builder and orders carry the customer's CIF/FOB freight, so third-party integrators receive the exact DW contract.
 
