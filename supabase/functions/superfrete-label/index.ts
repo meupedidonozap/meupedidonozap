@@ -70,8 +70,8 @@ Deno.serve(async (req) => {
     let recipientPhone = digits(c.whatsapp || c.phone);
     if (order.user_id && ((recipientDocument.length !== 11 && recipientDocument.length !== 14) || (recipientPhone.length !== 10 && recipientPhone.length !== 11))) {
       const { data: profile } = await admin.from('customer_profiles').select('cpf_cnpj,whatsapp').eq('store_id', order.store_id).eq('user_id', order.user_id).maybeSingle();
-      if (!recipientDocument) recipientDocument = digits(profile?.cpf_cnpj);
-      if (!recipientPhone) recipientPhone = digits(profile?.whatsapp);
+      if (recipientDocument.length !== 11 && recipientDocument.length !== 14) recipientDocument = digits(profile?.cpf_cnpj);
+      if (recipientPhone.length !== 10 && recipientPhone.length !== 11) recipientPhone = digits(profile?.whatsapp);
     }
     const validationError = recipientDocument.length !== 11 && recipientDocument.length !== 14
       ? 'CPF/CNPJ do cliente obrigatório (11 ou 14 dígitos) para gerar a etiqueta do Super Frete.'
