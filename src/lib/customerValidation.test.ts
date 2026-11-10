@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { customerSchema } from './customerValidation';
+import { customerSchema, getCustomerError } from './customerValidation';
 
 const complete = { name: 'Cliente Teste', cpfCnpj: '529.982.247-25', whatsapp: '(47) 99999-9999', cep: '88352-454', uf: 'SC', city: 'Brusque', neighborhood: 'Centro', address: 'Rua Teste', number: '10' };
 describe('dados obrigatórios em todas as lojas', () => {
