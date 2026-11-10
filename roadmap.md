@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Cadastro protegido DiColore e SENSES
-- [ ] Bloquear preenchimento e alteração de cadastro pelo cliente nas telas e na gravação
-- [ ] Usar cadastro oficial no pedido, mantendo acesso autorizado da equipe
-- [ ] Testar restrições e direcionar aviso às duas lojas
+- [x] Bloquear preenchimento e alteração de cadastro pelo cliente nas telas e na gravação
+- [x] Usar cadastro oficial no pedido, mantendo acesso autorizado da equipe
+- [x] Testar cinco regras de edição e direcionar aviso às duas lojas
+- [ ] Confirmar pedido pela conta de um cliente dessas lojas — requer sessão desse cliente; não criar pedidos reais sem autorização
 
 ## Dados obrigatórios em todas as lojas
 - [x] Exigir CPF/CNPJ válido, telefone com DDD e endereço completo no cadastro e pedido
