@@ -170,7 +170,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
           </TabsContent>
 
           <TabsContent value="new" className="mt-3 space-y-3">
-            <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ</Label>
+            <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ *</Label>
               <div className="relative">
                 <Input
                   value={form.cpfCnpj}
@@ -215,10 +215,10 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
             </div>
             <div className="grid gap-1"><Label className="text-sm">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value.toUpperCase() }))} /></div>
-            <div className="grid gap-1"><Label className="text-sm">WhatsApp</Label>
+            <div className="grid gap-1"><Label className="text-sm">WhatsApp *</Label>
               <Input value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: formatPhone(e.target.value) }))} /></div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="grid gap-1"><Label className="text-sm">CEP</Label>
+              <div className="grid gap-1"><Label className="text-sm">CEP *</Label>
                 <Input value={form.cep} onChange={async e => {
                   const formatted = formatCEP(e.target.value);
                   setForm(f => ({ ...f, cep: formatted }));
@@ -242,17 +242,17 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
                 </Select></div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço</Label>
+              <div className="col-span-2 grid gap-1"><Label className="text-sm">Endereço *</Label>
                 <Input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-              <div className="grid gap-1"><Label className="text-sm">Nº</Label>
+              <div className="grid gap-1"><Label className="text-sm">Nº *</Label>
                 <Input value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="grid gap-1"><Label className="text-sm">Bairro</Label>
+              <div className="grid gap-1"><Label className="text-sm">Bairro *</Label>
                 <Input value={form.neighborhood} onChange={e => setForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
-              <div className="grid gap-1"><Label className="text-sm">Cidade</Label>
+              <div className="grid gap-1"><Label className="text-sm">Cidade *</Label>
                 <Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
-              <div className="grid gap-1"><Label className="text-sm">UF</Label>
+              <div className="grid gap-1"><Label className="text-sm">UF *</Label>
                 <Input value={form.uf} maxLength={2} onChange={e => setForm(f => ({ ...f, uf: e.target.value.toUpperCase() }))} /></div>
             </div>
             {sellerCodes.length > 1 && (
