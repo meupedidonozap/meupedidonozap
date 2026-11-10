@@ -1,7 +1,7 @@
 # Roadmap
 
 ## Tabela de preço na sincronização de clientes
-- [ ] Normalizar tabelas de novos clientes, testar e publicar a correção no servidor
+- [x] Normalizar tabelas de novos clientes, testar e publicar a correção no servidor (22 testes; chamada autenticada sem gravações)
 - [ ] Confirmar carga dos clientes pendentes — depende do próximo ciclo do monitor no ERP
 
 ## Otimização da sincronização de clientes
