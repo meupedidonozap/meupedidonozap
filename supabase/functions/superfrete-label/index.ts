@@ -87,7 +87,8 @@ Deno.serve(async (req) => {
       to: {
         name: c.name, address: c.address || d?.logradouro, number: c.number || 'S/N', complement: c.complement || undefined,
         district: c.neighborhood || d?.bairro || 'Centro', city: c.city || d?.localidade, state_abbr: c.uf || d?.uf,
-        postal_code: destCep, document: digits(c.cpfCnpj || c.cpf_cnpj) || undefined, email: c.email || undefined,
+        postal_code: destCep, document: recipientDocument, phone: recipientPhone,
+        email: c.email || c.createdByUserEmail || undefined,
       },
       service,
       products: (order.items as any[] || []).map((i) => ({

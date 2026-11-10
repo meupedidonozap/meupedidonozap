@@ -56,6 +56,7 @@ import { PixPaymentDialog, type PixDialogData } from '@/components/PixPaymentDia
 import { getPaymentGateway } from '@/components/PaymentSettingsCard';
 import { getAvailablePaymentMethods } from '@/lib/paymentAvailability';
 import { buildPixPayload } from '@/lib/pixBrCode';
+import { getSuperfreteCustomerError } from '@/lib/superfreteCustomer';
 
 interface ShippingOption {
   code: string;
