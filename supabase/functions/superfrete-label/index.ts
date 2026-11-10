@@ -106,7 +106,10 @@ Deno.serve(async (req) => {
     const r = await fetch(`${SF}/api/v0/cart`, { method: 'POST', headers, body: JSON.stringify(payload) });
     const res = await r.json().catch(() => ({}));
     if (!r.ok || !res?.id) {
-      const msg = res?.message || res?.error || JSON.stringify(res?.errors || res).slice(0, 300) || `Erro ${r.status}`;
+      const fieldErrors = res?.errors && typeof res.errors === 'object'
+        ? Object.entries(res.errors).map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : String(messages)}`).join(' | ')
+        : '';
+      const msg = String(fieldErrors || res?.error || res?.message || `Erro ${r.status}`).slice(0, 500);
       await admin.from('orders').update({ superfrete_error: msg, superfrete_status: 'erro' }).eq('id', orderId);
       return json({ error: msg }, 400);
     }

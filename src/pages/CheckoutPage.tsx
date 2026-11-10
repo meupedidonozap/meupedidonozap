@@ -368,6 +368,11 @@ export default function CheckoutPage() {
       toast.error('Selecione a modalidade de frete');
       return false;
     }
+    const superfreteCustomerError = getSuperfreteCustomerError(formData, selectedShipping);
+    if (superfreteCustomerError) {
+      toast.error(superfreteCustomerError);
+      return false;
+    }
     return true;
   };
 
