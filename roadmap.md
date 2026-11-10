@@ -2,8 +2,9 @@
 
 ## Integração Super Frete JEWOS
 - [x] Diagnosticar a rejeição do pedido #711 sem interromper o pedido ou o pagamento
-- [ ] Exigir os dados obrigatórios no checkout e preservar o detalhe dos erros do Super Frete
-- [ ] Validar os testes e o envio da etiqueta após o cliente informar o CPF/CNPJ
+- [x] Exigir os dados obrigatórios no checkout e preservar o detalhe dos erros do Super Frete
+- [x] Validar três testes automatizados e o erro detalhado do #711 no painel autenticado
+- [ ] Gerar a etiqueta do #711 após o admin informar o CPF/CNPJ no cadastro da cliente
 
 ## Finalização vendedor/televendas DiColore
 - [x] Preservar forma e condição de pagamento ao editar (testes e restauração com resposta simulada)
