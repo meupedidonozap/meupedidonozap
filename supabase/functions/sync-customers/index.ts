@@ -55,74 +55,66 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { store_id } = await req.json();
-    if (!store_id) {
-      return new Response(JSON.stringify({ error: "store_id is required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const csvRes = await fetch(CSV_URL);
-    if (!csvRes.ok) {
-      return new Response(JSON.stringify({ error: "Falha ao baixar planilha. Confirme que a planilha está 'Publicada na web' como CSV." }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const csvText = await csvRes.text();
-    const lines = csvText.split("\n").map((l) => l.replace(/\r$/, "")).filter((l) => l.trim().length > 0);
-    if (lines.length < 2) {
-      return new Response(JSON.stringify({ error: "Planilha vazia" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const header = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
-    // Aceita tanto colunas do ERP (clicod, clirazsoc...) quanto do modelo do sistema (codigo, nome...)
-    const firstIdx = (...names: string[]) => {
-      for (const n of names) {
-        const i = header.indexOf(n);
-        if (i !== -1) return i;
-      }
-      return -1;
-    };
-    const iCod = firstIdx("clicod", "codigo");
-    const iNome = firstIdx("clirazsoc", "nome");
-    const iCpf = firstIdx("clicgccpf", "cpf_cnpj");
-    const iCel = firstIdx("clicel", "whatsapp");
-    const iCep = firstIdx("clicep", "cep");
-    const iUf = firstIdx("cliest", "uf");
-    const iCid = firstIdx("clicid", "cidade");
-    const iBai = firstIdx("clibai", "bairro");
-    const iEnd = firstIdx("cliend", "endereco");
-    const iNum = firstIdx("cliendnum", "numero");
-    const iCom = firstIdx("cliendcom", "complemento");
-    const iRep = firstIdx("clirepcod", "codigo_vendedor");
-    const iSit = firstIdx("clisit", "situacao");
-    const iTrans = firstIdx("transportadora", "clitrans", "clitransp");
-    // Segmento define a tabela SOMENTE na criação do cliente: 13 -> Tab 4, demais -> sem tabela.
-    // Clientes existentes nunca têm a tabela sobrescrita pela sincronização.
-    const iSeg = firstIdx("segmento", "segcod", "codigo_segmento");
-    const tableFromSegment = (seg: string): number | null => {
-      const n = Number(String(seg || "").trim());
-      if (n === 13) return 4;
-      return null;
-    };
-
-    if (iCod === -1 || iNome === -1) {
-      return new Response(JSON.stringify({ error: "Colunas obrigatórias não encontradas (codigo, nome)" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    const body = await req.json();
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Registros normalizados no layout da view mpz_cliente (igual dw_cliente)
+    type Rec = Record<string, string>;
+    let records: Rec[] = [];
+    let store_id: string = body?.store_id;
+    const rowsMode = Array.isArray(body?.rows);
+
+    if (rowsMode) {
+      // Modo direto do ERP (script sync_clientes_erp.py): exige token de sincronização
+      const token = Deno.env.get("TITLES_SYNC_TOKEN");
+      if (!token || req.headers.get("x-sync-token") !== token) return json({ error: "unauthorized" }, 401);
+      const slug = String(body.store_slug || "dicolore").trim();
+      const { data: st } = await supabase.from("stores").select("id").eq("slug", slug).maybeSingle();
+      if (!st) return json({ error: "store not found" }, 404);
+      store_id = st.id;
+      if (body.rows.length > 5000) return json({ error: "máximo de 5000 linhas por envio" }, 400);
+      records = body.rows.map((r: Record<string, unknown>) => {
+        const o: Rec = {};
+        for (const [k, v] of Object.entries(r || {})) o[k.toLowerCase()] = v == null ? "" : String(v).trim();
+        return o;
+      });
+    } else {
+      if (!store_id) return json({ error: "store_id is required" }, 400);
+      const csvRes = await fetch(CSV_URL);
+      if (!csvRes.ok) return json({ error: "Falha ao baixar planilha. Confirme que a planilha está 'Publicada na web' como CSV." }, 502);
+      const csvText = await csvRes.text();
+      const lines = csvText.split("\n").map((l) => l.replace(/\r$/, "")).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) return json({ error: "Planilha vazia" }, 400);
+      const header = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+      const alias: Record<string, string[]> = {
+        codigo: ["clicod", "codigo"], razao_social: ["clirazsoc", "nome", "razao_social"],
+        cnpj: ["clicgccpf", "cpf_cnpj", "cnpj"], telefone_geral_1: ["clicel", "whatsapp", "telefone_geral_1"],
+        endereco_cep: ["clicep", "cep"], endereco_uf: ["cliest", "uf"], endereco_cidade: ["clicid", "cidade"],
+        endereco_bairro: ["clibai", "bairro"], endereco_rua: ["cliend", "endereco"], endereco_numero: ["cliendnum", "numero"],
+        endereco_complemento: ["cliendcom", "complemento"], vendedor_codigo: ["clirepcod", "codigo_vendedor"],
+        situacao: ["clisit", "situacao"], transportadora_codigo: ["transportadora", "clitrans", "clitransp", "clitracod"],
+        frete_codigo: ["frete_codigo", "clifrepag"], segmento: ["segmento", "segcod", "codigo_segmento"],
+      };
+      const idx: Record<string, number> = {};
+      for (const [k, names] of Object.entries(alias)) idx[k] = names.map((n) => header.indexOf(n)).find((i) => i !== -1) ?? -1;
+      if (idx.codigo === -1 || idx.razao_social === -1) return json({ error: "Colunas obrigatórias não encontradas (codigo, nome)" }, 400);
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        const o: Rec = {};
+        for (const [k, j] of Object.entries(idx)) if (j !== -1) o[k] = String(cols[j] || "").trim();
+        records.push(o);
+      }
+    }
+    const tableFromSegment = (seg: string): number | null => (Number(String(seg || "").trim()) === 13 ? 4 : null);
 
     // Carrega cadastros existentes da loja
     // Carrega cadastros existentes da loja (com todos os campos comparáveis,
     // para evitar UPDATE em linhas que não mudaram — principal gargalo)
-    type ExistingRow = {
+    type ExistingRow = Record<string, unknown> & {
       id: string;
       name: string | null;
       cpf_cnpj: string | null;
@@ -148,7 +140,7 @@ Deno.serve(async (req) => {
     while (true) {
       const { data, error } = await supabase
         .from("customer_profiles")
-        .select("id, customer_code, user_id, name, cpf_cnpj, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, transportadora, price_table, is_active")
+        .select("*")
         .eq("store_id", store_id)
         .range(from, from + PAGE - 1);
       if (error) throw error;
@@ -179,33 +171,55 @@ Deno.serve(async (req) => {
 
     const norm = (v: unknown) => (v == null ? "" : String(v).trim());
 
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCSVLine(lines[i]);
-      const codigo = String(cols[iCod] || "").trim();
-      const nome = String(cols[iNome] || "").trim();
+    const FREE = (v: string | undefined) => (v ?? "").trim();
+    const opt = (r: Rec, k: string) => (k in r ? (FREE(r[k]) || null) : undefined);
+    const normFrete = (v: string | undefined) => {
+      const x = FREE(v).toUpperCase();
+      if (x === "0" || x === "CIF" || x === "C") return "0";
+      if (x === "1" || x === "FOB" || x === "F") return "1";
+      return null;
+    };
+    for (const r of records) {
+      const codigo = FREE(r.codigo);
+      const nome = FREE(r.razao_social);
       if (!codigo || !nome) continue;
       sheetCodes.add(codigo);
-
-      const sit = iSit !== -1 ? String(cols[iSit] || "").trim().toUpperCase() : "A";
-      const isActive = sit === "A";
-
+      const isActive = FREE(r.situacao || "A").toUpperCase() === "A";
       const payload: Record<string, unknown> = {
         store_id,
         customer_code: codigo,
         name: nome,
-        cpf_cnpj: iCpf !== -1 ? String(cols[iCpf] || "").trim() : "",
-        whatsapp: iCel !== -1 ? onlyDigits(String(cols[iCel] || "")) : "",
-        cep: iCep !== -1 ? String(cols[iCep] || "").trim() : "",
-        uf: iUf !== -1 ? String(cols[iUf] || "").trim().toUpperCase().slice(0, 2) : "",
-        city: iCid !== -1 ? String(cols[iCid] || "").trim() : "",
-        neighborhood: iBai !== -1 ? String(cols[iBai] || "").trim() : "",
-        address: iEnd !== -1 ? String(cols[iEnd] || "").trim() : "",
-        number: iNum !== -1 ? String(cols[iNum] || "").trim() : "",
-        complement: iCom !== -1 ? (String(cols[iCom] || "").trim() || null) : null,
-        seller_code: iRep !== -1 ? String(cols[iRep] || "").trim() : "",
-        transportadora: iTrans !== -1 ? (String(cols[iTrans] || "").trim() || null) : null,
+        cpf_cnpj: FREE(r.cnpj),
+        whatsapp: onlyDigits(r.telefone_geral_1 || r.telefone_geral_2 || ""),
+        cep: onlyDigits(r.endereco_cep || ""),
+        uf: FREE(r.endereco_uf).toUpperCase().slice(0, 2),
+        city: FREE(r.endereco_cidade),
+        neighborhood: FREE(r.endereco_bairro),
+        address: FREE(r.endereco_rua),
+        number: FREE(r.endereco_numero),
+        complement: FREE(r.endereco_complemento) || null,
+        seller_code: FREE(r.vendedor_codigo),
+        transportadora: FREE(r.transportadora_codigo) || null,
         is_active: isActive,
       };
+      if ("frete_codigo" in r) payload.frete_codigo = normFrete(r.frete_codigo);
+      if (rowsMode) {
+        // Campos completos da view mpz_cliente (layout dw_cliente)
+        const extra: Record<string, string> = {
+          nome_fantasia: "nome_fantasia", ie: "inscricao_estadual", fisica_juridica: "fisica_juridica",
+          suframa: "suframa", tipo: "tipo", telefone_geral_2: "telefone_geral_2", email_nfe: "email_nfe",
+          endereco_entrega_rua: "endereco_entrega_rua", endereco_entrega_numero: "endereco_entrega_numero",
+          endereco_entrega_bairro: "endereco_entrega_bairro", endereco_entrega_cep: "endereco_entrega_cep",
+          endereco_entrega_complemento: "endereco_entrega_complemento", endereco_entrega_cidade: "endereco_entrega_cidade",
+          endereco_entrega_uf: "endereco_entrega_uf", cliente_grupo_codigo: "cliente_grupo_codigo",
+          cliente_classificacao_codigo: "cliente_classificacao_codigo", regiao_venda_codigo: "regiao_venda_codigo",
+          condicao_pagamento_codigo: "condicao_pagamento_codigo", forma_pagamento_codigo: "forma_pagamento_codigo",
+          grupo_tributario_codigo: "grupo_tributario_codigo", regime_tributario: "regime_tributario",
+          cnae: "cnae", situacao: "situacao",
+        };
+        for (const [col, key] of Object.entries(extra)) { const v = opt(r, key); if (v !== undefined) payload[col] = v; }
+        if ("total_limite_credito" in r) { const n = Number(String(r.total_limite_credito).replace(",", ".")); payload.total_limite_credito = r.total_limite_credito && Number.isFinite(n) ? n : null; }
+      }
 
       let found = existing.get(codigo);
       if (!found) {
@@ -221,20 +235,8 @@ Deno.serve(async (req) => {
       }
       if (found) {
         // Diff: só envia UPDATE se algum campo mudou
-        const changed =
-          norm(found.name) !== norm(payload.name) ||
-          norm(found.cpf_cnpj) !== norm(payload.cpf_cnpj) ||
-          norm(found.whatsapp) !== norm(payload.whatsapp) ||
-          norm(found.cep) !== norm(payload.cep) ||
-          norm(found.uf) !== norm(payload.uf) ||
-          norm(found.city) !== norm(payload.city) ||
-          norm(found.neighborhood) !== norm(payload.neighborhood) ||
-          norm(found.address) !== norm(payload.address) ||
-          norm(found.number) !== norm(payload.number) ||
-          norm(found.complement) !== norm(payload.complement) ||
-          norm(found.seller_code) !== norm(payload.seller_code) ||
-          norm(found.transportadora) !== norm(payload.transportadora) ||
-          (found.is_active ?? true) !== isActive;
+        const changed = Object.keys(payload).some((k) => k !== "store_id" && (
+          k === "is_active" ? (found!.is_active ?? true) !== isActive : norm(found![k]) !== norm(payload[k])));
 
         if (!changed) {
           skipped++;
@@ -243,7 +245,9 @@ Deno.serve(async (req) => {
         toUpdate.push({ id: found.id, codigo, payload });
         if (!isActive && (found.is_active ?? true)) deactivated++;
       } else {
-        const price_table = iSeg !== -1 ? tableFromSegment(String(cols[iSeg] || "")) : null;
+        // Tabela só na criação: ERP (tabela_preco_codigo) ou segmento 13 -> Tab 4
+        const tp = Number(FREE(r.tabela_preco_codigo));
+        const price_table = Number.isInteger(tp) && tp > 0 ? tp : tableFromSegment(r.segmento || "");
         toInsert.push({ ...payload, price_table, user_id: null });
       }
     }
