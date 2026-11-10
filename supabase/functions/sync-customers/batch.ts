@@ -24,7 +24,7 @@ type Query = PromiseLike<QueryResult> & {
   order(column: string): Query;
   range(from: number, to: number): Query;
 };
-type Client = { from(table: string): Query };
+type Client = { from(table: string): Pick<Query, "select"> };
 
 export async function loadBatchCustomers(client: Client, storeId: string, records: Record<string, string>[]) {
   const codes = [...new Set(records.map((r) => r.codigo).filter(Boolean))];

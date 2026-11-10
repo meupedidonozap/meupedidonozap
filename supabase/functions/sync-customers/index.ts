@@ -1,9 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { loadBatchCustomers, shouldCreateAccess } from "./batch.ts";
 
 // CSV exportado da planilha de clientes da Dicolore
 // (planilha compartilhada como "qualquer pessoa com o link")
@@ -56,13 +53,13 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) throw new Error("Configuração indisponível");
+    const supabase = createClient(url, key);
     const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Registros normalizados no layout da view mpz_cliente (igual dw_cliente)
+    // Registros normalizados no layout da view dw_cliente
     type Rec = Record<string, string>;
     let records: Rec[] = [];
     let store_id: string = body?.store_id;
@@ -77,6 +74,9 @@ Deno.serve(async (req) => {
       if (!st) return json({ error: "store not found" }, 404);
       store_id = st.id;
       if (body.rows.length > 5000) return json({ error: "máximo de 5000 linhas por envio" }, 400);
+      if (body.rows.some((r: unknown) => !r || typeof r !== "object" || Array.isArray(r))) {
+        return json({ error: "Cada linha deve ser um objeto" }, 400);
+      }
       records = body.rows.map((r: Record<string, unknown>) => {
         const o: Rec = {};
         for (const [k, v] of Object.entries(r || {})) o[k.toLowerCase()] = v == null ? "" : String(v).trim();
@@ -111,9 +111,7 @@ Deno.serve(async (req) => {
     }
     const tableFromSegment = (seg: string): number | null => (Number(String(seg || "").trim()) === 13 ? 4 : null);
 
-    // Carrega cadastros existentes da loja
-    // Carrega cadastros existentes da loja (com todos os campos comparáveis,
-    // para evitar UPDATE em linhas que não mudaram — principal gargalo)
+    // ERP: consulta apenas códigos/documentos recebidos. CSV mantém leitura completa.
     type ExistingRow = Record<string, unknown> & {
       id: string;
       name: string | null;
@@ -136,15 +134,7 @@ Deno.serve(async (req) => {
     // Clientes cadastrados no MPZ (sem código ERP), indexados por CPF/CNPJ para vínculo
     const byDoc = new Map<string, ExistingRow>();
     const PAGE = 1000;
-    let from = 0;
-    while (true) {
-      const { data, error } = await supabase
-        .from("customer_profiles")
-        .select("*")
-        .eq("store_id", store_id)
-        .range(from, from + PAGE - 1);
-      if (error) throw error;
-      const rows = data || [];
+    const indexRows = (rows: Record<string, unknown>[]) => {
       for (const r of rows) {
         if (r.customer_code) existing.set(String(r.customer_code), r as ExistingRow);
         else {
@@ -152,8 +142,17 @@ Deno.serve(async (req) => {
           if (d.length === 11 || d.length === 14) byDoc.set(d, r as ExistingRow);
         }
       }
-      if (rows.length < PAGE) break;
-      from += PAGE;
+    };
+    if (rowsMode) {
+      indexRows(await loadBatchCustomers(supabase, store_id, records));
+    } else {
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase.from("customer_profiles").select("*")
+          .eq("store_id", store_id).order("id").range(from, from + PAGE - 1);
+        if (error) throw error;
+        indexRows(data || []);
+        if ((data || []).length < PAGE) break;
+      }
     }
 
     const { data: storeRow } = await supabase
@@ -182,7 +181,10 @@ Deno.serve(async (req) => {
     for (const r of records) {
       const codigo = FREE(r.codigo);
       const nome = FREE(r.razao_social);
-      if (!codigo || !nome) continue;
+      if (!codigo || !nome) {
+        errors.push({ codigo, erro: "Código e razão social obrigatórios" });
+        continue;
+      }
       sheetCodes.add(codigo);
       const isActive = FREE(r.situacao || "A").toUpperCase() === "A";
       const payload: Record<string, unknown> = {
@@ -204,7 +206,7 @@ Deno.serve(async (req) => {
       };
       if ("frete_codigo" in r) payload.frete_codigo = normFrete(r.frete_codigo);
       if (rowsMode) {
-        // Campos completos da view mpz_cliente (layout dw_cliente)
+        // Campos completos da view dw_cliente
         const extra: Record<string, string> = {
           nome_fantasia: "nome_fantasia", ie: "inscricao_estadual", fisica_juridica: "fisica_juridica",
           suframa: "suframa", tipo: "tipo", telefone_geral_2: "telefone_geral_2", email_nfe: "email_nfe",
@@ -221,7 +223,7 @@ Deno.serve(async (req) => {
         if ("total_limite_credito" in r) { const n = Number(String(r.total_limite_credito).replace(",", ".")); payload.total_limite_credito = r.total_limite_credito && Number.isFinite(n) ? n : null; }
       }
 
-      let found = existing.get(codigo);
+      const found = existing.get(codigo);
       if (!found) {
         const d = onlyDigits(String(payload.cpf_cnpj || ""));
         const mpz = d ? byDoc.get(d) : undefined;
@@ -236,7 +238,7 @@ Deno.serve(async (req) => {
       if (found) {
         // Diff: só envia UPDATE se algum campo mudou
         const changed = Object.keys(payload).some((k) => k !== "store_id" && (
-          k === "is_active" ? (found!.is_active ?? true) !== isActive : norm(found![k]) !== norm(payload[k])));
+          k === "is_active" ? (found.is_active ?? true) !== isActive : norm(found[k]) !== norm(payload[k])));
 
         if (!changed) {
           skipped++;
@@ -288,7 +290,8 @@ Deno.serve(async (req) => {
     // Cria acesso do cliente (login = código, senha = código) para quem ainda não tem
     let accessCreated = 0;
     const missing: { id: string; code: string }[] = [];
-    {
+    // Monitor ERP não deve varrer/criar acessos nem redefinir senhas.
+    if (shouldCreateAccess(rowsMode)) {
       let f = 0;
       while (true) {
         const { data } = await supabase
@@ -351,6 +354,7 @@ Deno.serve(async (req) => {
         skipped,
         deactivated,
         errors: errors.length,
+        error_codes: [...new Set(errors.map((e) => e.codigo))],
         error_samples: errors.slice(0, 10),
         total_sheet_rows: sheetCodes.size,
         total_db_rows: existing.size,
