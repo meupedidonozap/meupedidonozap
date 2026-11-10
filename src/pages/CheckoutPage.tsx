@@ -56,6 +56,7 @@ import { PixPaymentDialog, type PixDialogData } from '@/components/PixPaymentDia
 import { getPaymentGateway } from '@/components/PaymentSettingsCard';
 import { getAvailablePaymentMethods } from '@/lib/paymentAvailability';
 import { buildPixPayload } from '@/lib/pixBrCode';
+import { getSuperfreteCustomerError } from '@/lib/superfreteCustomer';
 
 interface ShippingOption {
   code: string;
@@ -365,6 +366,11 @@ export default function CheckoutPage() {
     }
     if (offersDelivery && !isPickupSel && shippingEnabled && shippingOptions.length > 0 && !selectedShipping) {
       toast.error('Selecione a modalidade de frete');
+      return false;
+    }
+    const superfreteCustomerError = getSuperfreteCustomerError(formData, selectedShipping);
+    if (superfreteCustomerError) {
+      toast.error(superfreteCustomerError);
       return false;
     }
     return true;
@@ -1013,6 +1019,17 @@ export default function CheckoutPage() {
                     <Label htmlFor="whatsapp">WhatsApp *</Label>
                     <Input id="whatsapp" value={formData.whatsapp} onChange={e => handleInputChange('whatsapp', formatPhone(e.target.value))} placeholder="(47) 99999-9999" />
                   </div>
+                  {shippingEnabled && !isPickupSel && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="cpfCnpj">CPF/CNPJ para a etiqueta *</Label>
+                      <Input
+                        id="cpfCnpj"
+                        value={formData.cpfCnpj}
+                        onChange={e => handleInputChange('cpfCnpj', formatCPFCNPJ(e.target.value))}
+                        placeholder="CPF ou CNPJ do destinatário"
+                      />
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

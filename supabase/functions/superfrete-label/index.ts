@@ -66,6 +66,23 @@ Deno.serve(async (req) => {
     const destCep = digits(c.cep);
     const d = c.address ? null : await viaCep(destCep);
 
+    let recipientDocument = digits(c.cpfCnpj || c.cpf_cnpj);
+    let recipientPhone = digits(c.whatsapp || c.phone);
+    if (order.user_id && ((recipientDocument.length !== 11 && recipientDocument.length !== 14) || (recipientPhone.length !== 10 && recipientPhone.length !== 11))) {
+      const { data: profile } = await admin.from('customer_profiles').select('cpf_cnpj,whatsapp').eq('store_id', order.store_id).eq('user_id', order.user_id).maybeSingle();
+      if (recipientDocument.length !== 11 && recipientDocument.length !== 14) recipientDocument = digits(profile?.cpf_cnpj);
+      if (recipientPhone.length !== 10 && recipientPhone.length !== 11) recipientPhone = digits(profile?.whatsapp);
+    }
+    const validationError = recipientDocument.length !== 11 && recipientDocument.length !== 14
+      ? 'CPF/CNPJ do cliente obrigatório (11 ou 14 dígitos) para gerar a etiqueta do Super Frete.'
+      : recipientPhone.length !== 10 && recipientPhone.length !== 11
+        ? 'WhatsApp do cliente com DDD obrigatório (10 ou 11 dígitos) para gerar a etiqueta do Super Frete.'
+        : null;
+    if (validationError) {
+      await admin.from('orders').update({ superfrete_error: validationError, superfrete_status: 'erro' }).eq('id', orderId);
+      return json({ error: validationError }, 400);
+    }
+
     const payload = {
       from: {
         name: store?.name, address: ship.originAddress || o?.logradouro || 'Endereço', number: ship.originNumber || 'S/N',
@@ -75,7 +92,8 @@ Deno.serve(async (req) => {
       to: {
         name: c.name, address: c.address || d?.logradouro, number: c.number || 'S/N', complement: c.complement || undefined,
         district: c.neighborhood || d?.bairro || 'Centro', city: c.city || d?.localidade, state_abbr: c.uf || d?.uf,
-        postal_code: destCep, document: digits(c.cpfCnpj || c.cpf_cnpj) || undefined, email: c.email || undefined,
+        postal_code: destCep, document: recipientDocument, phone: recipientPhone,
+        email: c.email || c.createdByUserEmail || undefined,
       },
       service,
       products: (order.items as any[] || []).map((i) => ({
@@ -93,7 +111,10 @@ Deno.serve(async (req) => {
     const r = await fetch(`${SF}/api/v0/cart`, { method: 'POST', headers, body: JSON.stringify(payload) });
     const res = await r.json().catch(() => ({}));
     if (!r.ok || !res?.id) {
-      const msg = res?.message || res?.error || JSON.stringify(res?.errors || res).slice(0, 300) || `Erro ${r.status}`;
+      const fieldErrors = res?.errors && typeof res.errors === 'object'
+        ? Object.entries(res.errors).map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : String(messages)}`).join(' | ')
+        : '';
+      const msg = String(fieldErrors || res?.error || res?.message || `Erro ${r.status}`).slice(0, 500);
       await admin.from('orders').update({ superfrete_error: msg, superfrete_status: 'erro' }).eq('id', orderId);
       return json({ error: msg }, 400);
     }

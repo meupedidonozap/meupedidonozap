@@ -1854,9 +1854,13 @@ export default function StoreAdminPage() {
                               <Button size="sm" variant="outline" className="ml-1 h-6 px-2 text-[10px]" onClick={async () => {
                                 const action = order.superfreteId ? 'info' : 'create';
                                 const { data, error } = await supabase.functions.invoke('superfrete-label', { body: { action, orderId: order.id } });
-                                if (error || data?.error) { toast.error(data?.error || error?.message || 'Erro SuperFrete'); }
+                                let failureMessage = data?.error as string | undefined;
+                                if (!failureMessage && error) {
+                                  try { failureMessage = (await (error as any).context?.json())?.error; } catch { /* resposta sem JSON */ }
+                                }
+                                if (error || data?.error) { toast.error(failureMessage || error?.message || 'Erro SuperFrete'); }
                                 else toast.success(action === 'create' ? 'Enviado ao SuperFrete' : (data?.shipping_tracking ? `Rastreio: ${data.shipping_tracking}` : 'Etiqueta ainda sem rastreio'));
-                                qc.invalidateQueries({ queryKey: ['orders'] });
+                                await qc.invalidateQueries({ queryKey: ['orders'] });
                               }}>{order.superfreteId ? 'Atualizar rastreio' : 'Enviar ao SuperFrete'}</Button>
                               {order.shippingTracking && (
                                 <Button size="sm" variant="outline" className="ml-1 h-6 px-2 text-[10px]" onClick={() => {
