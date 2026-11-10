@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { documentCandidates, loadBatchCustomers, shouldCreateAccess } from "./batch";
+import { documentCandidates, loadBatchCustomers, shouldCreateAccess } from "../../supabase/functions/sync-customers/batch";
 
 describe("ERP customer batch", () => {
   it("does not provision access for ERP rows, preserving the legacy CSV behavior", () => {
