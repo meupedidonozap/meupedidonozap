@@ -54,6 +54,7 @@ import MabelleEmbeddedCheckout from '@/components/MabelleEmbeddedCheckout';
 import { PaymentTestModeBanner } from '@/components/PaymentTestModeBanner';
 import { PixPaymentDialog, type PixDialogData } from '@/components/PixPaymentDialog';
 import { getPaymentGateway } from '@/components/PaymentSettingsCard';
+import { getAvailablePaymentMethods } from '@/lib/paymentAvailability';
 import { buildPixPayload } from '@/lib/pixBrCode';
 
 interface ShippingOption {
@@ -105,6 +106,7 @@ export default function CheckoutPage() {
   const dicolore = isDicoloreFlow(store?.slug, store?.settings);
   const formas = getStoreFormas(store?.settings).filter(f => f.ativo);
   const condicoes = getStoreCondicoes(store?.settings).filter(c => c.ativo);
+  const availablePaymentMethods = getAvailablePaymentMethods(store?.settings);
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -125,6 +127,14 @@ export default function CheckoutPage() {
     if (hasOpenCustomerDraft(store?.id)) setSellerCustomerDialogOpen(true);
   }, [store?.id]);
   const [onlineCheckout, setOnlineCheckout] = useState<any>(null);
+
+  // Se a loja desativar uma forma de pagamento, não mantém uma escolha antiga
+  // escondida no formulário nem permite enviá-la ao finalizar.
+  useEffect(() => {
+    if (dicolore || availablePaymentMethods.includes(formData.paymentMethod)) return;
+    const fallback = availablePaymentMethods[0];
+    if (fallback) setFormData(prev => ({ ...prev, paymentMethod: fallback }));
+  }, [dicolore, formData.paymentMethod, store?.settings]);
 
   // Dicolore ERP payment codes
   const [finalizeAsk, setFinalizeAsk] = useState<FinalizeStep | null>(null);
@@ -300,6 +310,12 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    if (!dicolore && !availablePaymentMethods.includes(formData.paymentMethod)) {
+      toast.error(availablePaymentMethods.length
+        ? 'A forma de pagamento escolhida foi desativada pela loja. Selecione outra opção.'
+        : 'A loja não possui uma forma de pagamento disponível no momento.');
+      return false;
+    }
     if (restoringPayment || paymentRestoreError) {
       toast.error(paymentRestoreError ? 'Reabra a edição para recuperar o pagamento salvo.' : 'Aguarde o carregamento do pagamento salvo.');
       return false;
@@ -1196,10 +1212,10 @@ export default function CheckoutPage() {
                     </div>
                   ) : (
                     <RadioGroup value={formData.paymentMethod} onValueChange={value => handleInputChange('paymentMethod', value)} className="flex flex-wrap gap-4">
-                      {(store.settings.acceptPix || getPaymentGateway(store.settings).pixEnabled) && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
-                      {store.settings.acceptBoleto && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
-                      {(store.settings.acceptCard || getPaymentGateway(store.settings).cardEnabled) && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
-                      {store.settings.onlinePayments !== true && <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>}
+                      {availablePaymentMethods.includes('pix') && <div className="flex items-center space-x-2"><RadioGroupItem value="pix" id="pix" /><Label htmlFor="pix" className="cursor-pointer">PIX</Label></div>}
+                      {availablePaymentMethods.includes('boleto') && <div className="flex items-center space-x-2"><RadioGroupItem value="boleto" id="boleto" /><Label htmlFor="boleto" className="cursor-pointer">Boleto</Label></div>}
+                      {availablePaymentMethods.includes('cartao') && <div className="flex items-center space-x-2"><RadioGroupItem value="cartao" id="cartao" /><Label htmlFor="cartao" className="cursor-pointer">Cartão</Label></div>}
+                      {availablePaymentMethods.includes('dinheiro') && <div className="flex items-center space-x-2"><RadioGroupItem value="dinheiro" id="dinheiro" /><Label htmlFor="dinheiro" className="cursor-pointer">Dinheiro</Label></div>}
                     </RadioGroup>
                   )}
                 </div>
