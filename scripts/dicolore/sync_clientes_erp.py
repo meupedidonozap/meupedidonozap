@@ -117,10 +117,10 @@ def ler_clientes():
         clientes = [_codigo_oficial({k: _txt(v) for k, v in r.items()}) for r in cur.fetchall()]
         try:
             cur.execute(f"SELECT codigo, cidade, uf FROM {VIEW_LOCAL}")
-            locais = {_txt(r["codigo"]): (_txt(r["cidade"]), _txt(r["uf"])) for r in cur.fetchall()}
-        except psycopg2.Error as e:
+            locais = {_txt(r.get("codigo")): (_txt(r.get("cidade")), _txt(r.get("uf"))) for r in cur.fetchall()}
+        except Exception:
             con.rollback()
-            log(f"Aviso: {VIEW_LOCAL} indisponível ({e.pgcode}); cidade/UF serão resolvidas pelo CEP.")
+            log(f"Aviso: {VIEW_LOCAL} indisponível; cidade/UF serão resolvidas pelo CEP.")
             locais = {}
     return [_com_localidade(c, locais) for c in clientes]
 

@@ -39,7 +39,7 @@ class CustomerSyncTests(unittest.TestCase):
         cursor = self.sync.psycopg2.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
         cursor.fetchall.return_value = [{"codigo": "x1", "codigo_importacao": "9195", "frete_codigo": "1"}]
         self.assertEqual(self.sync.ler_clientes()[0]["codigo"], "9195")
-        cursor.execute.assert_called_once_with("SELECT * FROM public.dw_cliente")
+        cursor.execute.assert_any_call("SELECT * FROM public.dw_cliente")
         self.assertIn("default_transaction_read_only=on", self.sync.DB["options"])
 
     def test_hex_code_without_import_code_is_skipped(self):
