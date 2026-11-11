@@ -1,5 +1,11 @@
 # Roadmap
 
+## Cliente sem desconto DiColore
+- [ ] Flag no cadastro, preservado nas sincronizações e protegido contra alteração pelo cliente
+- [ ] Usar somente preço da tabela no catálogo, carrinho e pedidos bloqueados para desconto
+- [ ] Recalcular orçamentos e pendentes com cadastro atual, mantendo número e autoria
+- [ ] Testar regras e verificar gravação e leitura pelo painel
+
 ## Manual e liberação DiColore
 - [x] Manual por loja com regras protegidas e opções de pagamento/WhatsApp; salvamento e leitura autenticados confirmados
 - [x] Seleção rápida no painel/portal e confirmação do checkout; gravação única no mesmo pedido e trava de pagamento no banco
