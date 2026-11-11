@@ -19,6 +19,7 @@ import {
   DEFAULT_VISIT_REASONS, formatDuration, type CustomerVisit,
   OUT_OF_RANGE_REASONS, logGeoChange, reverseGeocode,
 } from '@/hooks/useCustomerVisits';
+import { isUnattendedCustomer } from '@/lib/visitStatus';
 import CustomerFileDialog from '@/components/CustomerFileDialog';
 import CustomersMap, { type MapPoint } from '@/components/CustomersMap';
 import type { SellerCustomer } from '@/contexts/SellerContext';
@@ -147,7 +148,7 @@ export default function CheckinDialog({
 
   const filtered = useMemo(() => {
     let base = customers;
-    if (onlyUnvisited) base = base.filter(c => !visitedInPeriod.has(c.id));
+    if (onlyUnvisited) base = base.filter(c => isUnattendedCustomer(c.id, visitedInPeriod, openVisitByCustomer));
     const q = search.trim().toLowerCase();
     if (!q) return base.slice(0, 400);
     const digits = q.replace(/\D/g, '');
@@ -156,7 +157,7 @@ export default function CheckinDialog({
       if (hay.includes(q)) return true;
       return digits.length >= 3 && hay.replace(/\D/g, '').includes(digits);
     }).slice(0, 400);
-  }, [customers, onlyUnvisited, visitedInPeriod, search]);
+  }, [customers, onlyUnvisited, visitedInPeriod, openVisitByCustomer, search]);
 
   const mapPoints = useMemo<MapPoint[]>(() => filtered
     .filter(c => c.geo_lat != null && c.geo_lng != null)
@@ -282,6 +283,15 @@ export default function CheckinDialog({
     qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
     toast.success(`${ok} de ${pending.length} clientes localizados.`);
     setGeoBatch(null);
+  }
+
+  function startOrder(c: CustomerRow) {
+    onCustomerSelected?.({
+      id: c.id, name: c.name, customerCode: c.customer_code, whatsapp: c.whatsapp, cpfCnpj: c.cpf_cnpj,
+      cep: c.cep, uf: c.uf, city: c.city, neighborhood: c.neighborhood, address: c.address,
+      number: c.number, sellerCode: c.seller_code, priceTable: c.price_table, storeId,
+    } as unknown as SellerCustomer);
+    onOpenChange(false);
   }
 
   function openCheckout(v: CustomerVisit) {
@@ -428,7 +438,8 @@ export default function CheckinDialog({
                             )}
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant={openV ? 'default' : 'outline'}
+                              className={openV ? 'bg-success text-success-foreground hover:bg-success/90' : undefined}
                               onClick={() => {
                                 onCustomerSelected?.({
                                   id: c.id, name: c.name, customerCode: c.customer_code,
@@ -462,6 +473,7 @@ export default function CheckinDialog({
                   const rows = allVisits.filter(v => new Date(v.checked_in_at) >= start);
                   if (rows.length === 0) return <p className="p-6 text-center text-sm text-muted-foreground">Nenhuma visita registrada hoje.</p>;
                   const nameById = new Map(customers.map(c => [c.id, c.name]));
+                  const byId = new Map(customers.map(c => [c.id, c]));
                   return (
                     <div className="divide-y">
                       {rows.map(v => (
@@ -476,9 +488,16 @@ export default function CheckinDialog({
                             {v.checkout_reason ? ` • ${v.checkout_reason}` : ''}
                           </p>
                           {!v.checked_out_at && (
-                            <Button size="sm" variant="destructive" className="mt-2" onClick={() => openCheckout(v)}>
-                              <LogOutIcon className="mr-1 h-4 w-4" /> Fazer Checkout
-                            </Button>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {byId.get(v.customer_profile_id) && (
+                                <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => startOrder(byId.get(v.customer_profile_id)!)}>
+                                  <ShoppingCart className="mr-1 h-4 w-4" /> Novo Pedido
+                                </Button>
+                              )}
+                              <Button size="sm" variant="destructive" onClick={() => openCheckout(v)}>
+                                <LogOutIcon className="mr-1 h-4 w-4" /> Fazer Checkout
+                              </Button>
+                            </div>
                           )}
                         </div>
                       ))}
