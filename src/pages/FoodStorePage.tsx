@@ -11,6 +11,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
+import { isManagedCustomerStore } from '@/lib/customerDataAccess';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import ClosedBanner from '@/components/ClosedBanner';
 import {
@@ -191,6 +192,7 @@ export default function FoodStorePage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem className="text-xs text-muted-foreground" disabled>{user.email}</DropdownMenuItem>
+                  {!isManagedCustomerStore(store.slug) && <DropdownMenuItem asChild><Link to={`/${store.slug}/meus-dados`} className="gap-2"><User className="h-4 w-4" /> Meus dados</Link></DropdownMenuItem>}
                   <DropdownMenuItem asChild>
                     <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
                   </DropdownMenuItem>

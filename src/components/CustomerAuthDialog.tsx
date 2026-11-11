@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useUpsertCustomerProfile } from "@/hooks/useCustomerProfile";
+import { useCustomerProfile, useUpsertCustomerProfile } from "@/hooks/useCustomerProfile";
 import { fetchAddressByCep } from "@/lib/cepLookup";
 import { formatPhone, formatCEP } from "@/lib/formatters";
 import { buildCustomerEmail, buildCustomerPassword, buildStoreScopedEmail } from "@/lib/customerAuth";
@@ -118,6 +118,7 @@ export default function CustomerAuthDialog({
   }, [open]);
   const { signIn, signUp, user } = useAuth();
   const upsertProfile = useUpsertCustomerProfile();
+  const { data: savedProfile } = useCustomerProfile(user?.id, storeId);
   const showCodeTab = storeSlug === "dicolore" || storeSlug === "dicoloresenses";
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
@@ -143,6 +144,12 @@ export default function CustomerAuthDialog({
     number: "",
     complement: "",
   });
+
+  useEffect(() => {
+    if (open && startAtProfile && savedProfile && !managedCustomer) {
+      setProfileData({ name: savedProfile.name, cpfCnpj: savedProfile.cpfCnpj, ie: savedProfile.ie || '', whatsapp: savedProfile.whatsapp, cep: savedProfile.cep, uf: savedProfile.uf, city: savedProfile.city, neighborhood: savedProfile.neighborhood, address: savedProfile.address, number: savedProfile.number, complement: savedProfile.complement || '' });
+    }
+  }, [open, startAtProfile, savedProfile, managedCustomer]);
 
   // Reset step when dialog closes
   useEffect(() => {
@@ -256,7 +263,7 @@ export default function CustomerAuthDialog({
             setStep("profile");
             return;
           }
-          if (requireApproval) {
+          if (requireApproval && !savedProfile) {
             setNotice("duplicate");
             return;
           }
@@ -348,7 +355,7 @@ export default function CustomerAuthDialog({
     }
     setLoading(true);
     try {
-      if (requireApproval) {
+      if (requireApproval && !savedProfile) {
         const doc = profileData.cpfCnpj.replace(/\D/g, "");
         const { data: existing } = await supabase.rpc("find_customer_by_document", { p_store_id: storeId, p_doc: doc });
         if (Array.isArray(existing) && existing.length > 0) {
@@ -375,9 +382,9 @@ export default function CustomerAuthDialog({
           .from("customer_profiles")
           .update({ ie: profileData.ie.trim() })
           .eq("user_id", user.id)
-          .eq("store_id", storeId);
+          .eq("store_id", storeId).select().single();
       }
-      if (requireApproval) {
+      if (requireApproval && !savedProfile) {
         setNotice("success");
         return;
       }

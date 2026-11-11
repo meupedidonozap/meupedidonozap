@@ -44,6 +44,7 @@ import { useEditingQuote } from '@/lib/quoteEditing';
 import SellerMenu from '@/components/SellerMenu';
 import { useTechnicalMaterials, materialLabel } from '@/hooks/useTechnicalMaterials';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
+import { isManagedCustomerStore } from '@/lib/customerDataAccess';
 import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import VariantDialog from '@/components/VariantDialog';
 import ProductDetailDialog from '@/components/ProductDetailDialog';
@@ -436,6 +437,7 @@ export default function ProductStorePage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem className="text-xs text-muted-foreground" disabled>{user.email}</DropdownMenuItem>
+                  {!isManagedCustomerStore(store.slug) && <DropdownMenuItem asChild><Link to={`/${store.slug}/meus-dados`} className="gap-2"><User className="h-4 w-4" /> Meus dados</Link></DropdownMenuItem>}
                   <DropdownMenuItem asChild>
                     <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
                   </DropdownMenuItem>

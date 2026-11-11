@@ -18,6 +18,7 @@ import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
 import { useAuth } from '@/hooks/useAuth';
+import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerCustomerDialog from '@/components/SellerCustomerDialog';
@@ -92,6 +93,7 @@ export default function CheckoutPage() {
     seller,
   } = useActiveCustomerProfile(store?.id);
   const sellerOrder = isSellerMode && !!selectedCustomer;
+  const { data: savedAddresses = [] } = useCustomerAddresses(user?.id, store?.id, store?.slug);
   const lockedCustomerData = customerDataIsReadOnly(store?.slug, isSellerMode);
   const canOfferRelease = sellerOrder && (seller.isSeller || seller.isTelevendas);
   const { data: sellers = [] } = useStoreSellers(store?.id);
@@ -1111,6 +1113,7 @@ export default function CheckoutPage() {
                     Usar endereço do cadastro
                   </Button>
                 )}
+                {!lockedCustomerData && savedAddresses.length > 0 && <Select onValueChange={id => { const a = savedAddresses.find(a => a.id === id); if (!a) return; setFormData(prev => ({ ...prev, cep: a.cep, uf: a.uf, city: a.city, neighborhood: a.neighborhood, address: a.address, number: a.number, complement: a.complement })); fetchShippingQuote(a.cep.replace(/\D/g, '')); }}><SelectTrigger><SelectValue placeholder="Escolher endereço salvo" /></SelectTrigger><SelectContent>{savedAddresses.map(a => <SelectItem key={a.id} value={a.id}>{a.label} — {a.address}, {a.number}</SelectItem>)}</SelectContent></Select>}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="cep">CEP *</Label>

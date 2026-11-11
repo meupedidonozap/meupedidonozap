@@ -2,12 +2,10 @@
 // Cada loja usa seu próprio Access Token, guardado como segredo MP_ACCESS_TOKEN_<SLUG>.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders as cors } from 'npm:@supabase/supabase-js@2/cors';
+import { paymentRefusalReason } from './paymentReasons.ts';
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
-const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+const db = createClient(Deno.env.get("SUPABASE_URL") || "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "");
 const tokenFor = (slug: string) => Deno.env.get(`MP_ACCESS_TOKEN_${slug.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`);
 const FN_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/mercadopago`;
 
@@ -21,30 +19,7 @@ async function mp(token: string, path: string, init: RequestInit = {}) {
   return body;
 }
 
-// Tradução dos motivos de recusa do Mercado Pago (status_detail).
-const REASONS: Record<string, string> = {
-  cc_rejected_insufficient_amount: "Limite ou saldo insuficiente no cartão",
-  cc_rejected_high_risk: "Recusado pela análise de segurança (verifique se o cartão está no nome/CPF do comprador)",
-  cc_rejected_call_for_authorize: "O banco exige autorização: libere a compra no app do banco e tente de novo",
-  cc_rejected_bad_filled_security_code: "Código de segurança (CVV) incorreto",
-  cc_rejected_bad_filled_date: "Data de validade incorreta",
-  cc_rejected_bad_filled_card_number: "Número do cartão incorreto",
-  cc_rejected_bad_filled_other: "Dados do cartão incorretos",
-  cc_rejected_blacklist: "Cartão não aceito para compras online",
-  cc_rejected_card_disabled: "Cartão bloqueado ou não ativado: ligue para o banco",
-  cc_rejected_duplicated_payment: "Pagamento duplicado: já existe uma tentativa igual",
-  cc_rejected_max_attempts: "Limite de tentativas atingido: use outro cartão",
-  cc_rejected_invalid_installments: "Parcelamento não aceito por este cartão",
-  cc_rejected_card_type_not_allowed: "Tipo de cartão não aceito",
-  cc_rejected_other_reason: "Recusado pelo banco emissor do cartão",
-  cc_amount_rate_limit_exceeded: "Limite do cartão excedido",
-  rejected_by_bank: "Recusado pelo banco emissor do cartão",
-  rejected_by_regulations: "Recusado por regras do banco",
-  rejected_insufficient_data: "Dados do comprador incompletos",
-  expired: "Pagamento expirado",
-  by_payer: "Cancelado pelo comprador",
-};
-const reasonFor = (p: any) => p?.status_detail ? (REASONS[p.status_detail] || `Recusado (${p.status_detail})`) : "Pagamento não aprovado";
+const reasonFor = (p: any) => paymentRefusalReason(p?.status_detail);
 
 async function applyPayment(slug: string, paymentId: string) {
   const token = tokenFor(slug);
@@ -52,12 +27,12 @@ async function applyPayment(slug: string, paymentId: string) {
   const p = await mp(token, `/v1/payments/${encodeURIComponent(paymentId)}`);
   const orderId = String(p.external_reference || "");
   if (!orderId) return;
-  const { data: order } = await db.from("orders").select("id,total,store_id,payment_status,stores!inner(slug)").eq("id", orderId).maybeSingle();
-  if (!order || (order as any).stores.slug !== slug) return;
+  const { data: order } = await db.from("orders").select("id,total,store_id,payment_status,payment_environment,stores!inner(slug)").eq("id", orderId).maybeSingle();
+  if (!order || (order as any).stores.slug !== slug || order.payment_environment === "manual") return;
   if (p.status === "approved" && Math.abs(Number(p.transaction_amount) - Number(order.total)) < 0.01) {
-    await db.from("orders").update({ payment_status: "paid", paid_at: p.date_approved || new Date().toISOString(), payment_session_id: String(p.id), payment_environment: "mercadopago", payment_error: null }).eq("id", orderId);
+    await db.from("orders").update({ payment_status: "paid", paid_at: p.date_approved || new Date().toISOString(), payment_session_id: String(p.id), payment_environment: "mercadopago", payment_error: null }).eq("id", orderId).neq("payment_status", "paid");
   } else if (["rejected", "cancelled", "refunded", "charged_back"].includes(p.status) && order.payment_status !== "paid") {
-    await db.from("orders").update({ payment_status: "failed", payment_error: reasonFor(p) }).eq("id", orderId);
+    await db.from("orders").update({ payment_status: "failed", payment_error: reasonFor(p) }).eq("id", orderId).neq("payment_status", "paid");
   }
 }
 
@@ -67,7 +42,7 @@ Deno.serve(async (req) => {
   try {
     // Notificação do Mercado Pago (webhook). Sempre confirmamos consultando a API.
     if (url.searchParams.get("notify")) {
-      const slug = url.searchParams.get("notify")!;
+      const slug = url.searchParams.get("notify") || "";
       let id = url.searchParams.get("data.id") || url.searchParams.get("id");
       let type = url.searchParams.get("type") || url.searchParams.get("topic");
       try { const b = await req.json(); id = b?.data?.id ?? id; type = b?.type ?? type; } catch { /* sem corpo */ }
@@ -76,14 +51,20 @@ Deno.serve(async (req) => {
     }
 
     const { action, orderId, method } = await req.json();
-    const { data: order } = await db.from("orders").select("id,order_number,total,payment_status,customer,store_id,stores!inner(slug,name)").eq("id", orderId).maybeSingle();
+    if (!['info','status','abandon','refund','create'].includes(action) || typeof orderId !== 'string' || !/^[0-9a-f-]{36}$/i.test(orderId) || (action === 'create' && !['pix','card'].includes(method))) return json({ error: 'Solicitação inválida' }, 400);
+    const { data: authData } = await db.auth.getUser((req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, ''));
+    const uid = authData?.user?.id;
+    if (!uid) return json({ error: 'Faça login novamente' }, 401);
+    const { data: order } = await db.from("orders").select("id,order_number,total,payment_status,payment_error,status,user_id,items,subtotal,discount,payment_method,customer,store_id,stores!inner(slug,name)").eq("id", orderId).maybeSingle();
     if (!order) return json({ error: "Pedido não encontrado" }, 404);
+    const { data: staff } = await db.rpc('has_store_permission', { _user_id: uid, _store_id: order.store_id, _permission: 'can_manage_orders' });
+    if (order.user_id !== uid && !staff) return json({ error: 'Sem permissão' }, 403);
     const store = (order as any).stores;
     const token = tokenFor(store.slug);
     if (!token) return json({ error: "Mercado Pago não configurado para esta loja" }, 400);
 
     if (action === "info") {
-      return json({ orderNumber: order.order_number, total: Number(order.total), paymentStatus: order.payment_status, storeName: store.name });
+      return json({ orderNumber: order.order_number, total: Number(order.total), paymentStatus: order.payment_status, storeName: store.name, storeId: order.store_id, items: order.items, subtotal: order.subtotal, discount: order.discount });
     }
     if (action === "status") {
       let lastStatus: string | null = null;
@@ -104,7 +85,9 @@ Deno.serve(async (req) => {
       const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);
       const live = (s.results || []).find((p: any) => ["approved", "in_process", "pending", "authorized"].includes(p.status));
       if (live) return json({ error: "Há um pagamento em andamento para este pedido" }, 409);
-      await db.from("orders").update({ payment_status: "canceled", status: "cancelado", payment_error: "Cliente abandonou o pagamento antes de concluir" }).eq("id", order.id).neq("payment_status", "paid");
+      const refused = order.payment_status === 'failed';
+      const { data: canceled, error: cancelError } = await db.from("orders").update({ payment_status: refused ? 'failed' : 'canceled', status: 'cancelado', payment_error: refused ? order.payment_error : 'Cliente abandonou o pagamento antes de concluir' }).eq('id', order.id).neq('payment_status','paid').select('id').maybeSingle();
+      if (cancelError || !canceled) return json({ error: 'Não foi possível cancelar: confira o pagamento novamente.' }, 409);
       return json({ ok: true });
     }
     if (action === "refund") {
@@ -124,7 +107,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, refundedPaymentId: String(pay.id) });
     }
     if (action !== "create") return json({ error: "Ação inválida" }, 400);
-    if (order.payment_status === "paid") return json({ error: "Pedido já pago" }, 400);
+    if (order.payment_status === "paid" || order.status === "cancelado") return json({ error: "Pedido pago ou cancelado. Retorne ao carrinho para uma nova compra." }, 400);
 
     const amount = Math.round(Number(order.total) * 100) / 100;
     const description = `${store.name} - Pedido #${order.order_number}`;

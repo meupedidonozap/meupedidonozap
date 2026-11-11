@@ -27,6 +27,7 @@ export default function OrderItemsDialog({ order, items }: { order: any; items: 
             <div><p className="text-xs text-muted-foreground">Peças</p><p>{pieces}</p></div>
             <div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{brl(order.total)}</p></div>
           </div>
+          {order.paymentManualRecord && <div className="border-y py-3 text-sm"><p className="font-semibold">Pago (Manual) · {order.paymentManualRecord.method}</p><p>Confirmado por {order.paymentManualRecord.confirmed_name} em {new Date(order.paymentManualRecord.confirmed_at).toLocaleString('pt-BR')}</p>{order.paymentManualRecord.note && <p>{order.paymentManualRecord.note}</p>}{order.paymentManualRecord.previous_error && <p className="text-muted-foreground">Recusa anterior: {order.paymentManualRecord.previous_error}</p>}</div>}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
