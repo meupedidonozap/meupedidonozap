@@ -35,6 +35,7 @@ import { resolveOrderSellerCode } from '@/lib/orderSellerCode';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
 import StoreRulesSettings from '@/components/StoreRulesSettings';
+import RecalculateOrderButton from '@/components/RecalculateOrderButton';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 import { useStoreUsers as useStoreUsersForSeller } from '@/hooks/useStoreUsers';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
@@ -589,7 +590,7 @@ export default function StoreAdminPage() {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [dwForm, setDwForm] = useState<Record<string, string>>({});
-  const [customerForm, setCustomerForm] = useState({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 3 | 4 | 8 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
+  const [customerForm, setCustomerForm] = useState({ noDiscount: false, name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: 4 as 1 | 3 | 4 | 8 | 9 | 11, customerCode: '', loginUser: '', loginPassword: '' });
   const [downloadOrder, setDownloadOrder] = useState<any>(null);
   const [downloadFormat, setDownloadFormat] = useState<'xml' | 'txt' | 'bling'>('xml');
   const [downloadTelevendas, setDownloadTelevendas] = useState(false);
@@ -2012,6 +2013,7 @@ export default function StoreAdminPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            {(isAdmin || permissions.can_manage_orders) && <RecalculateOrderButton order={order} store={store} products={products} />}
                             {store.type === 'SERVICOS' && (isAdmin || permissions.can_manage_service_orders || permissions.can_view_service_orders) && (() => {
                               const existingSO = serviceOrders.find(so => so.orderId === order.id);
                               if (existingSO) {
@@ -3368,7 +3370,7 @@ export default function StoreAdminPage() {
                 )}
                 <Button size="sm" onClick={() => {
                   setCreatingCustomer(true);
-                  setCustomerForm({ name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: resolveStorePriceTable(store?.slug), customerCode: '', loginUser: '', loginPassword: '' });
+                  setCustomerForm({ noDiscount: false, name: '', whatsapp: '', address: '', number: '', city: '', uf: '', cep: '', neighborhood: '', complement: '', cpfCnpj: '', sellerCode: '', transportadora: '', ie: '', priceTable: resolveStorePriceTable(store?.slug), customerCode: '', loginUser: '', loginPassword: '' });
                 }}>
                   <Plus className="mr-2 h-4 w-4" /> Novo Cliente
                 </Button>
@@ -3450,6 +3452,7 @@ export default function StoreAdminPage() {
                             const { data: fullRow } = await supabase.from('customer_profiles').select('*').eq('id', cp.id).maybeSingle();
                             setDwForm(dwFormFromRow(fullRow || (cp as any).raw));
                             setCustomerForm({
+                              noDiscount: fullRow?.no_discount === true,
                               name: cp.name, whatsapp: cp.whatsapp, address: cp.address,
                               number: cp.number, city: cp.city, uf: cp.uf, cep: cp.cep,
                               neighborhood: cp.neighborhood, complement: cp.complement || '',
@@ -3627,6 +3630,7 @@ export default function StoreAdminPage() {
                       </Select>
                     </div>
                   </div>
+                  {store.slug === 'dicolore' && <div className="flex items-center justify-between gap-3 border-t py-3"><Label htmlFor="customer-no-discount">Não usar desconto</Label><Switch id="customer-no-discount" checked={customerForm.noDiscount} onCheckedChange={v => setCustomerForm(f => ({ ...f, noDiscount: v }))} /></div>}
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" onClick={() => setEditingCustomer(null)}>Cancelar</Button>
                     <Button onClick={async () => {
@@ -3655,7 +3659,7 @@ export default function StoreAdminPage() {
                             { duration: 10000 },
                           );
                         } else {
-                          toast.success('Cliente atualizado!');
+                          toast.success(store.slug === 'dicolore' ? 'Cliente atualizado! Use Recalcular nos orçamentos e pedidos pendentes para aplicar o cadastro atual.' : 'Cliente atualizado!', { duration: 8000 });
                         }
                         qc.invalidateQueries({ queryKey: ['store-customer-profiles', editingCustomer.storeId] });
                         setEditingCustomer(null);
@@ -3737,6 +3741,7 @@ export default function StoreAdminPage() {
                     </Select>
                   </div>
                 </div>
+                {store.slug === 'dicolore' && <div className="flex items-center justify-between gap-3 border-t py-3"><Label htmlFor="new-customer-no-discount">Não usar desconto</Label><Switch id="new-customer-no-discount" checked={customerForm.noDiscount} onCheckedChange={v => setCustomerForm(f => ({ ...f, noDiscount: v }))} /></div>}
                 <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
                   <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
@@ -3913,6 +3918,7 @@ export default function StoreAdminPage() {
         open={!!editingOrder}
         onOpenChange={(v) => { if (!v) { setEditingOrder(null); setRecalcWithTable(null); } }}
         order={editingOrder}
+        noDiscount={editingOrder ? (findOrderProfile(editingOrder) as any)?.noDiscount : false}
         products={products}
         discountRules={store?.settings.discountRules || []}
         categories={categories}

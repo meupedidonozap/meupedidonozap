@@ -1,4 +1,5 @@
 # Project Architecture Rules
+- Customer discount exclusions are store-scoped profile flags omitted by ERP imports; order writes enforce official table prices server-side, and the row-locked recalculation RPC only changes untransmitted quotes/pending orders, preserving identity and ownership.
 
 - App-shell updates use the single guarded service-worker registrar and a shared in-memory update signal; refresh never clears auth/cart storage or unrelated messaging workers, preventing data loss and preview caching.
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateCustomerOrder, canRecalculateOrder, customerDiscountsBlocked } from './customerDiscountPolicy';
 import { computeGroupDiscounts, ensureItemDiscountPercents } from './groupDiscounts';
-const items = [{ productId: 'p', name: 'Produto', price: 100, quantity: 10, groupId: 'g', discountPercent: 20 }];
+const items = [{ productId: 'p', code: '1', name: 'Produto', price: 100, quantity: 10, groupId: 'g', discountPercent: 20 }];
 const products = [{ id: 'p', priceTable1: 80 }];
 const rules: any[] = [{ id: 'r', type: 'group', groupId: 'g', minQuantity: 2, discountPercent: 20, priceTable: 1 }];
 describe('cliente DiColore sem desconto', () => {
