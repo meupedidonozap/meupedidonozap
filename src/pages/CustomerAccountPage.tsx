@@ -11,7 +11,7 @@ import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getCustomerError } from '@/lib/customerValidation';
+import { customerSchema } from '@/lib/customerValidation';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { toast } from 'sonner';
 
@@ -32,8 +32,8 @@ export default function CustomerAccountPage() {
   const saveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!store || !user) return;
-    const invalid = getCustomerError({ ...profile, ...address, cpfCnpj: profile?.cpfCnpj || '', name: profile?.name || '', whatsapp: profile?.whatsapp || '' });
-    if (invalid) { toast.error(invalid); return; }
+    const valid = customerSchema.omit({ name: true, cpfCnpj: true, whatsapp: true }).safeParse(address);
+    if (!valid.success) { toast.error(valid.error.issues[0]?.message || 'Informe um endereço completo.'); return; }
     setBusy(true);
     try {
       const { data: { user: verified } } = await supabase.auth.getUser();
