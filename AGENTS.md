@@ -34,3 +34,4 @@
 - Payment recovery cancels only after provider checks exclude live payments, preserves refusal history, and rebuilds the cart from the authorized order if the local backup is unavailable.
 - DiColore ERP locations resolve IBGE codes locally with CEP fallback; legacy checkout repairs persist server-derived city/state on the RLS-authorized profile before order creation, because order triggers stamp official data. New orders initialize ERP payment defaults; edits retain saved choices.
 - DiColore admin customer rows are paginated after full-list filtering, and order profile lookups use memoized identity buckets with the shared ERP resolver; this bounds tab rendering without changing customer identity or other stores.
+- DiColore client-created orders keep their creator fields on every edit; the first staff member to save becomes claimedBy, enforced by a DB trigger (non-admins cannot change or override a claim), so ownership never depends only on the UI.
