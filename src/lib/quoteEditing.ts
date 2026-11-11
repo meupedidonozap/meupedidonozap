@@ -9,12 +9,14 @@ export interface EditingQuote {
   byCustomer?: boolean;
 }
 
+// Guardado no aparelho (como o carrinho): sobrevive a recarga/fechar app,
+// evitando que o "Salvar" de uma edição crie um orçamento novo.
 const KEY = 'seller_editing_quote';
 const EVT = 'editing-quote-change';
 
 export function getEditingQuote(storeId?: string): EditingQuote | null {
   try {
-    const raw = sessionStorage.getItem(KEY);
+    const raw = localStorage.getItem(KEY);
     const q = raw ? (JSON.parse(raw) as EditingQuote) : null;
     if (!q || (storeId && q.storeId !== storeId)) return null;
     return q;
@@ -23,8 +25,8 @@ export function getEditingQuote(storeId?: string): EditingQuote | null {
 
 export function setEditingQuote(q: EditingQuote | null) {
   try {
-    if (q) sessionStorage.setItem(KEY, JSON.stringify(q));
-    else sessionStorage.removeItem(KEY);
+    if (q) localStorage.setItem(KEY, JSON.stringify(q));
+    else localStorage.removeItem(KEY);
   } catch { /* ignore */ }
   window.dispatchEvent(new Event(EVT));
 }
@@ -34,8 +36,10 @@ export function useEditingQuote(storeId?: string) {
   useEffect(() => {
     const h = () => setQ(getEditingQuote(storeId));
     h();
+    const st = (e: StorageEvent) => { if (e.key === KEY) h(); };
     window.addEventListener(EVT, h);
-    return () => window.removeEventListener(EVT, h);
+    window.addEventListener('storage', st);
+    return () => { window.removeEventListener(EVT, h); window.removeEventListener('storage', st); };
   }, [storeId]);
   return q;
 }
