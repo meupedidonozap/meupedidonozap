@@ -27,3 +27,7 @@
 - Customer forms share a Zod schema with CPF/CNPJ checksum validation; database triggers validate interactive customer/order writes while leaving ERP service imports and unrelated historical updates untouched.
 - Managed-customer stores block self-profile writes with restrictive RLS and stamp customer orders from the authenticated user's official profile; UI read-only fields never serve as authorization.
 - Bling order export requires payment_status paid (cron and manual); card refusals store the translated Mercado Pago reason in orders.payment_error, and an abandoned card checkout is cancelled server-side and the cart restored from a local backup, so unpaid orders are never picked.
+
+- Manual payment confirmations use an authorized, row-locked RPC with immutable receipt context on the order; provider callbacks never replace manually confirmed payments, preventing misleading settlement history.
+- Customer account and additional addresses share store-scoped queries and managed-store guards; checkout selects saved addresses without replacing the primary profile.
+- Payment recovery cancels only after provider checks exclude live payments, preserves refusal history, and rebuilds the cart from the authorized order if the local backup is unavailable.

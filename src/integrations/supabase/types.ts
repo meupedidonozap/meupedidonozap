@@ -140,6 +140,59 @@ export type Database = {
           },
         ]
       }
+      customer_addresses: {
+        Row: {
+          address: string
+          cep: string
+          city: string
+          complement: string
+          created_at: string
+          id: string
+          label: string
+          neighborhood: string
+          number: string
+          store_id: string
+          uf: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          cep: string
+          city: string
+          complement?: string
+          created_at?: string
+          id?: string
+          label?: string
+          neighborhood: string
+          number: string
+          store_id: string
+          uf: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          cep?: string
+          city?: string
+          complement?: string
+          created_at?: string
+          id?: string
+          label?: string
+          neighborhood?: string
+          number?: string
+          store_id?: string
+          uf?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_addresses_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_geo_changes: {
         Row: {
           changed_by: string
@@ -1102,6 +1155,7 @@ export type Database = {
           paid_at: string | null
           payment_environment: string | null
           payment_error: string | null
+          payment_manual_record: Json | null
           payment_method: string
           payment_session_id: string | null
           payment_status: string
@@ -1141,6 +1195,7 @@ export type Database = {
           paid_at?: string | null
           payment_environment?: string | null
           payment_error?: string | null
+          payment_manual_record?: Json | null
           payment_method?: string
           payment_session_id?: string | null
           payment_status?: string
@@ -1180,6 +1235,7 @@ export type Database = {
           paid_at?: string | null
           payment_environment?: string | null
           payment_error?: string | null
+          payment_manual_record?: Json | null
           payment_method?: string
           payment_session_id?: string | null
           payment_status?: string
@@ -2513,6 +2569,10 @@ export type Database = {
           customer_code: string
           store_id: string
         }[]
+      }
+      record_manual_order_payment: {
+        Args: { p_method: string; p_note?: string; p_order_id: string }
+        Returns: Json
       }
       store_reserved_stock: {
         Args: { _store_id: string }

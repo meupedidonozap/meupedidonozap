@@ -24,7 +24,8 @@ export default function PaymentReturnPage() {
                 {failed ? 'Tente novamente pela loja.' : 'A Mabelle atualizará o pedido automaticamente após a confirmação.'}
               </p>
             </div>
-            <Button asChild className="w-full"><Link to="/mabelle">Voltar à Mabelle</Link></Button>
+            {failed && <Button asChild className="w-full"><Link to="/mabelle/checkout">Voltar ao carrinho e tentar novamente</Link></Button>}
+            <Button asChild variant="outline" className="w-full"><Link to="/mabelle">Voltar à Mabelle</Link></Button>
           </CardContent>
         </Card>
       </main>

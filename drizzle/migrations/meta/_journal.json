@@ -288,6 +288,13 @@
       "when": 1794362861908,
       "tag": "0040_order_payment_error",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794363669379,
+      "tag": "0041_manual_payment_audit_and_customer_addresses",
+      "breakpoints": true
     }
   ]
 }

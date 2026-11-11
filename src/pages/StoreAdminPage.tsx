@@ -7,6 +7,7 @@ import { buildPortfolioMatcher } from '@/lib/orderPortfolio';
 import { getOrderCreator, CREATOR_LABEL } from '@/lib/orderCreator';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { BlingConnectCard } from '@/components/BlingConnectCard';
+import ManualPaymentDialog from '@/components/ManualPaymentDialog';
 import { PaymentSettingsCard } from '@/components/PaymentSettingsCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -370,6 +371,7 @@ export default function StoreAdminPage() {
   const deleteProduct = useDeleteProduct();
   const updateOrderStatus = useUpdateOrderStatus();
   const updateOrder = useUpdateOrder();
+  const [manualPaymentOrder, setManualPaymentOrder] = useState<{ id: string; orderNumber: number } | null>(null);
   const deleteOrder = useDeleteOrder();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
@@ -1825,19 +1827,14 @@ export default function StoreAdminPage() {
                           <p className="uppercase">{order.paymentMethod}</p>
                           {order.paymentStatus && order.paymentStatus !== 'not_required' && (
                             <Badge variant={order.paymentStatus === 'paid' ? 'default' : 'secondary'} className="mt-1 text-[10px]">
-                              {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
+                              {order.paymentStatus === 'paid' && order.paymentEnvironment === 'manual' ? 'Pago (Manual)' : paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
                             </Badge>
                           )}
                           {order.paymentError && order.paymentStatus !== 'paid' && (
                             <p className="mt-1 max-w-[220px] text-[10px] font-medium leading-tight text-destructive">{order.paymentError}</p>
                           )}
-                          {order.paymentStatus === 'pending' && order.origem !== 'pagamento_online' && (isAdmin || permissions.can_manage_orders) && (
-                            <Button size="sm" variant="outline" className="mt-1 h-6 px-2 text-[10px]" onClick={async () => {
-                              const { error } = await supabase.from('orders').update({ payment_status: 'paid', paid_at: new Date().toISOString() }).eq('id', order.id).select().single();
-                              if (error) { toast.error(error.message); return; }
-                              qc.invalidateQueries({ queryKey: ['orders'] });
-                              toast.success('Pagamento confirmado!');
-                            }}>Marcar como pago</Button>
+                          {order.paymentStatus !== 'paid' && !['cancelado'].includes(order.status) && !['canceled','refunded'].includes(order.paymentStatus || '') && (isAdmin || permissions.can_manage_orders) && (
+                            <Button size="sm" variant="outline" className="mt-1 h-7 text-xs" onClick={() => setManualPaymentOrder(order)}>Registrar pagamento manual</Button>
                           )}
                           {['pending', 'failed'].includes(order.paymentStatus as string) && (store?.settings as any)?.paymentGateway?.provider === 'mercadopago' && (
                             <Button size="sm" variant="outline" className="mt-1 ml-1 h-6 px-2 text-[10px]" onClick={() => {
@@ -3828,6 +3825,7 @@ export default function StoreAdminPage() {
         categories={categories}
         storeType={store.type as StoreType}
       />
+      <ManualPaymentDialog key={manualPaymentOrder?.id || "closed"} order={manualPaymentOrder} onClose={() => setManualPaymentOrder(null)} />
       <ImportCustomersDialog
         open={importCustomersOpen}
         onOpenChange={setImportCustomersOpen}

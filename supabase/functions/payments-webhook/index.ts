@@ -16,7 +16,12 @@ Deno.serve(async (req) => {
       } else if (event.type === 'checkout.session.async_payment_succeeded' || event.type === 'payment_intent.succeeded') {
         await client.from('orders').update({ payment_status: 'paid', paid_at: new Date().toISOString(), status: 'confirmado' }).eq('id', orderId).eq('payment_environment', rawEnv);
       } else if (event.type === 'checkout.session.async_payment_failed' || event.type === 'payment_intent.payment_failed') {
-        await client.from('orders').update({ payment_status: 'failed' }).eq('id', orderId).eq('payment_environment', rawEnv);
+        const code = object.last_payment_error?.decline_code || object.last_payment_error?.code;
+        const reason = code === 'insufficient_funds' ? 'Limite ou saldo insuficiente no cartão.'
+          : ['incorrect_cvc','invalid_cvc'].includes(code) ? 'Código de segurança (CVV) incorreto.'
+          : code === 'expired_card' ? 'Cartão vencido.'
+          : 'Pagamento recusado pelo banco ou pela análise de segurança. Confira os dados do titular, incluindo nome e CPF. O provedor não confirmou divergência de CPF.';
+        await client.from('orders').update({ payment_status: 'failed', payment_error: reason }).eq('id', orderId).eq('payment_environment', rawEnv).neq('payment_status','paid');
       } else if (event.type === 'checkout.session.expired') {
         await client.from('orders').update({ payment_status: 'expired', status: 'cancelado' }).eq('id', orderId).eq('payment_environment', rawEnv);
       } else if (event.type === 'charge.refunded') {

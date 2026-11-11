@@ -433,7 +433,8 @@ export interface Order {
   paymentError?: string | null;
   paymentStatus?: 'not_required' | 'pending' | 'paid' | 'failed' | 'expired' | 'canceled' | 'refunded';
   paymentSessionId?: string;
-  paymentEnvironment?: 'sandbox' | 'live';
+  paymentEnvironment?: 'sandbox' | 'live' | 'manual' | 'mercadopago';
+  paymentManualRecord?: { confirmed_name: string; confirmed_at: string; method: string; note: string; previous_error?: string | null }; 
   paidAt?: string;
   shippingService?: string;
   superfreteId?: string;
