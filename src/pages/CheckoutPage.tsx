@@ -128,6 +128,8 @@ export default function CheckoutPage() {
   const [pendingWhatsApp, setPendingWhatsApp] = useState<{ url: string; sellerName: string } | null>(null);
   const [pixDialog, setPixDialog] = useState<PixDialogData | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string>('');
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
   useEffect(() => {
@@ -213,8 +215,28 @@ export default function CheckoutPage() {
       }));
       setUseOtherAddress(!(customerProfile.cep && customerProfile.address));
       setProfileLoaded(true);
+      if (store?.slug === 'dicolore' && !editingQuote) {
+        setPaymentFormaCodigo(customerProfile.paymentFormaCodigo || '');
+        setPaymentCondicaoCodigo(customerProfile.paymentCondicaoCodigo || '');
+      }
     }
-  }, [customerProfile, profileLoaded]);
+  }, [customerProfile, profileLoaded, store?.slug, editingQuote?.id]);
+
+  // Resolve on the server and persist before finalizing: order triggers use the official profile.
+  useEffect(() => {
+    if (store?.slug !== 'dicolore' || !customerProfile || !profileLoaded) return;
+    if (customerProfile.city && customerProfile.uf) return;
+    let cancelled = false;
+    setLocationLoading(true);
+    setLocationError(false);
+    supabase.functions.invoke('resolve-customer-location', { body: { profileId: customerProfile.id } })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data?.city || !data?.uf) { setLocationError(true); return; }
+        setFormData(prev => ({ ...prev, city: data.city, uf: data.uf }));
+      }).finally(() => { if (!cancelled) setLocationLoading(false); });
+    return () => { cancelled = true; };
+  }, [store?.slug, customerProfile?.id, customerProfile?.city, customerProfile?.uf, profileLoaded]);
 
   const restoreProfileAddress = () => {
     if (!customerProfile) return;
@@ -318,6 +340,10 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    if (locationLoading || locationError) {
+      toast.error(locationLoading ? 'Aguarde a consulta da cidade do seu cadastro.' : 'Não foi possível consultar a cidade do cadastro. Reabra a finalização para tentar novamente.');
+      return false;
+    }
     if (!dicolore && !availablePaymentMethods.includes(formData.paymentMethod)) {
       toast.error(availablePaymentMethods.length
         ? 'A forma de pagamento escolhida foi desativada pela loja. Selecione outra opção.'
