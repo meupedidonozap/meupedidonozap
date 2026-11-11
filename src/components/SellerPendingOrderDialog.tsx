@@ -113,7 +113,7 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
     const s = store?.settings || {};
     const pt = (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : '';
     const wa = String((pt && s.erpReleaseWhatsappByTable?.[pt]) || s.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido "#${order.orderNumber}" pode ser transmitido`)}`, '_blank');
+    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${order.orderNumber} do cliente "${order.customer?.name || ''}" pode ser transmitido`)}`, '_blank');
     setBusy(true);
     const { error } = await supabase.from('orders').update({ status: 'liberado_transmissao', observations: obs.trim() || null }).eq('id', order.id).select().single();
     setBusy(false);

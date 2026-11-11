@@ -1936,7 +1936,7 @@ export default function StoreAdminPage() {
                                     setReleaseIssues({ order, issues });
                                     return;
                                   }
-                                  setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber, priceTable: (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : undefined });
+                                  setPendingErpRelease({ orderId: order.id, orderNumber: order.orderNumber, customerName: order.customer?.name, priceTable: (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : undefined });
                                   return;
                                 }
                                 const mpPaid = value === 'cancelado' && order.paymentStatus === 'paid' && (store?.settings as any)?.paymentGateway?.provider === 'mercadopago';
@@ -4035,7 +4035,7 @@ export default function StoreAdminPage() {
                 // No iOS (Safari/PWA) o gesto do usuário se perde após um await e o
                 // window.open é bloqueado silenciosamente. Por isso disparamos a janela
                 // primeiro e só depois atualizamos o status do pedido.
-                const text = `Olá, o pedido "#${pending.orderNumber}" pode ser transmitido`;
+                const text = `Olá, o pedido #${pending.orderNumber} do cliente "${pending.customerName || ''}" pode ser transmitido`;
                 const waNumber = resolveErpWhatsapp(pending.priceTable);
                 const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
                 const waWin = window.open(waUrl, '_blank');

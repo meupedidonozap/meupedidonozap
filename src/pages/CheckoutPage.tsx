@@ -582,7 +582,7 @@ export default function CheckoutPage() {
   };
 
   const handleSendWhatsApp = async (asQuote = false, opts: { decided?: boolean; release?: boolean; releaseWa?: { win: Window | null; number: string } } = {}) => {
-    if (!validateForm()) return;
+    if (!validateForm()) { opts.releaseWa?.win?.close(); return; }
     if (!opts.decided) {
       const step = nextFinalizeStep({
         storeSlug: store?.slug, isEditing: !!editingQuote, sellerOrder: canOfferRelease, asQuote,
@@ -886,6 +886,7 @@ export default function CheckoutPage() {
       }
     } catch (err: any) {
       waWindow?.close();
+      opts.releaseWa?.win?.close();
       toast.error(err.message || 'Erro ao salvar pedido');
     } finally {
       setIsSubmitting(false);
