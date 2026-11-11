@@ -3,8 +3,8 @@ import { locationFromIbge, resolveCustomerLocation } from '../../supabase/functi
 import { mapProfile } from '@/hooks/useCustomerProfile';
 
 describe('DiColore ERP address', () => {
-  it('translates municipality 4208905 into Jaraguá do Sul / SC', () => {
-    expect(locationFromIbge({ municipio_codigo_ibge: 4208905, estado_codigo_ibge: 42 })).toEqual({ city: 'Jaraguá do Sul', uf: 'SC' });
+  it('translates municipality 4208906 into Jaraguá do Sul / SC', () => {
+    expect(locationFromIbge({ municipio_codigo_ibge: 4208906, estado_codigo_ibge: 42 })).toEqual({ city: 'Jaraguá do Sul', uf: 'SC' });
   });
   it('preserves explicit ERP city and state', () => {
     expect(locationFromIbge({ city: 'Joinville', uf: 'SC', municipio_codigo_ibge: 4208905 })).toEqual({ city: 'Joinville', uf: 'SC' });

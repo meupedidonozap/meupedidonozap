@@ -17,11 +17,20 @@ export async function resolveCustomerLocation(row: Record<string, unknown>) {
   if (location.city && location.uf) return location;
   const cep = text(row.endereco_cep ?? row.cep).replace(/\D/g, '');
   if (cep.length !== 8) return location;
-  try {
-    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) return location;
-    const data = await response.json();
-    if (data.erro) return location;
-    return { city: location.city || text(data.localidade), uf: location.uf || text(data.uf) };
-  } catch { return location; }
+  for (const url of [`https://viacep.com.br/ws/${cep}/json/`, `https://brasilapi.com.br/api/cep/v2/${cep}`]) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) continue;
+        const data = await response.json();
+        if (data.erro) continue;
+        const city = location.city || text(data.localidade ?? data.city);
+        const uf = location.uf || text(data.uf ?? data.state);
+        if (city && uf) return { city, uf };
+      } finally { clearTimeout(timer); }
+    } catch { /* Try the second provider without altering official street/identity. */ }
+  }
+  return location;
 }
