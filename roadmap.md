@@ -1,5 +1,10 @@
 # Roadmap
 
+## Navegação Clientes/Pedidos DiColore
+- [ ] Paginar clientes sem limitar a busca e preservar as outras lojas
+- [ ] Indexar cadastros dos pedidos mantendo a mesma resolução de identidade ERP
+- [ ] Testar e verificar troca de abas com dados reais autorizados
+
 ## Localização e pagamento ERP DiColore
 - [x] Traduzir IBGE na sincronização e recuperar cidade/UF de cadastros antigos pelo CEP no checkout, persistindo somente localização autorizada
 - [x] Carregar forma e condição do cliente sem sobrescrever pedidos em edição
