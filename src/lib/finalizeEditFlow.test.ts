@@ -1,9 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { nextFinalizeStep } from './finalizeEditFlow';
+import { nextFinalizeStep, initialCheckoutStatus } from './finalizeEditFlow';
 
 const base = { storeSlug: 'dicolore', isEditing: true, sellerOrder: true, asQuote: false, formaCodigo: '1', condicaoCodigo: '2' };
 
 describe('nextFinalizeStep', () => {
+  it('finalização cria pedido pendente para análise, nunca liberado', () => {
+    expect(initialCheckoutStatus(false)).toBe('pendente');
+  });
+  it('salvar orçamento preserva o status de orçamento', () => {
+    expect(initialCheckoutStatus(true)).toBe('orcamento');
+  });
   it('pergunta pagamento quando falta condição', () => {
     expect(nextFinalizeStep({ ...base, condicaoCodigo: '' })).toBe('ask-payment');
   });
