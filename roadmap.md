@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Navegação Clientes/Pedidos DiColore
-- [ ] Paginar clientes sem limitar a busca e preservar as outras lojas
-- [ ] Indexar cadastros dos pedidos mantendo a mesma resolução de identidade ERP
-- [ ] Testar e verificar troca de abas com dados reais autorizados
+- [x] Paginar somente DiColore em 25/50 clientes, mantendo busca em toda a base
+- [x] Indexar cadastros dos pedidos mantendo a mesma resolução de identidade ERP; nove testes passaram
+- [x] Verificar painel autenticado com 15.779 clientes: próxima página e busca JOICELI confirmadas; quatro trocas de abas em 280–353 ms, sem erros; build OK
 
 ## Localização e pagamento ERP DiColore
 - [x] Traduzir IBGE na sincronização e recuperar cidade/UF de cadastros antigos pelo CEP no checkout, persistindo somente localização autorizada
