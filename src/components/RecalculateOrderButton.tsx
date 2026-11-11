@@ -26,6 +26,7 @@ export default function RecalculateOrderButton({ order, store, products }: { ord
       let query = supabase.from('customer_profiles').select('*').eq('store_id', store.id);
       if (code) query = query.eq('customer_code', code);
       else if (row.user_id) query = query.eq('user_id', row.user_id);
+      else if (current.customer.cpfCnpj) query = query.eq('cpf_cnpj', current.customer.cpfCnpj);
       else throw new Error('Cadastro do cliente não encontrado.');
       const { data: profiles, error: profileError } = await query.order('no_discount', { ascending: false }).order('created_at').limit(5);
       if (profileError) throw profileError;

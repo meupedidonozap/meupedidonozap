@@ -504,7 +504,7 @@ export default function CheckoutPage() {
         cart.items.map(item => ({
           ...item,
           discountPercent:
-            liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            noDiscount ? 0 : liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
             itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
             0,
         })) as any,
@@ -519,7 +519,7 @@ export default function CheckoutPage() {
         discountPercent: item.discountPercent || 0,
       })),
       subtotal: cart.subtotal,
-      discount: cart.couponDiscount + liveQtyDiscount,
+      discount: noDiscount ? 0 : cart.couponDiscount + liveQtyDiscount,
       total: totalWithDelivery,
       paymentMethod: formData.paymentMethod,
       deliveryShift: formData.deliveryShift,
