@@ -22,7 +22,7 @@
 - ERP customer sync reads only batch codes and orphan document matches, never provisions access in rows mode, and returns every failed code; the monitor uses 250-row batches with bounded transient retries and checkpoints only confirmed rows to avoid timeouts and lost retries.
 - ERP customer sync uses a tested store-scoped price-table initializer for inserts and unassigned legacy profiles, while assigned MPZ tables are omitted from updates; this allows full reloads and seller transfers without overwriting manual pricing.
 
-- The "new version" banner shows only for stores listed in public/release.json ("all" for everyone); other stores update silently, so store-specific releases do not interrupt unrelated tenants. Edit that file on each release.
+- Each build embeds an automatic source fingerprint and emits network-only app-version.json with targets from public/release.json; route-aware polling on entry, every minute and resume requires a non-dismissable refresh only for affected stores with stale bundles, without clearing cart/auth storage. Edit release.json on each release; never rely solely on service-worker events to detect stale screens.
 - Checkout restores payment choices from the authorized saved order on edit; seller/telesales release uses the same validation for new and edited orders, while PDF previews never save or release orders.
 - Customer forms share a Zod schema with CPF/CNPJ checksum validation; database triggers validate interactive customer/order writes while leaving ERP service imports and unrelated historical updates untouched.
 - Managed-customer stores block self-profile writes with restrictive RLS and stamp customer orders from the authenticated user's official profile; UI read-only fields never serve as authorization.
