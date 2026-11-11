@@ -302,6 +302,13 @@
       "when": 1794395015445,
       "tag": "0042_dicolore_orders_staff_only",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794397514178,
+      "tag": "0043_dicolore_customer_pending_staff_release",
+      "breakpoints": true
     }
   ]
 }
