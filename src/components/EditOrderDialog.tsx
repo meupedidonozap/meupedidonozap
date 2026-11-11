@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useUpdateOrder } from '@/hooks/useOrders';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG, type MaterialApoioConfig } from '@/lib/materialApoio';
 import type { Order, Product, CartItem, DiscountRule, Category, CustomerInfo } from '@/types';
 import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
@@ -31,11 +32,13 @@ interface EditOrderDialogProps {
   store?: { slug?: string; settings?: any } | null;
   /** Tabela de preço do cliente do pedido (1, 4 ou 9). */
   priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
+  noDiscount?: boolean;
   /** Se informado, recalcula automaticamente os preços por esta tabela ao abrir. */
   autoRecalcTable?: PriceTable | null;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable, autoRecalcTable }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable, autoRecalcTable, noDiscount: profileNoDiscount }: EditOrderDialogProps) {
+  const noDiscount = customerDiscountsBlocked(store?.slug, { noDiscount: profileNoDiscount ?? order?.customer?.noDiscount });
   const baseTable: PriceTable = normalizePriceTable(priceTable);
   const [tableOverride, setTableOverride] = useState<PriceTable | null>(null);
   const [pendingTable, setPendingTable] = useState<string>('');
@@ -120,11 +123,11 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
   }, [order, discountRules, baseTable]);
 
   const { quantityDiscount, itemDiscounts } = useMemo(
-    () => computeGroupDiscounts(items, discountRules, activeTable),
-    [items, discountRules, activeTable]
+    () => computeGroupDiscounts(items, discountRules, activeTable, noDiscount),
+    [items, discountRules, activeTable, noDiscount]
   );
 
-  const discount = quantityDiscount + originalCouponDiscount;
+  const discount = noDiscount ? 0 : quantityDiscount + originalCouponDiscount;
   const total = Math.max(0, subtotal + deliveryFee - discount);
 
   const filtered = useMemo(() => {
@@ -215,6 +218,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         const newCustomer: CustomerInfo = {
           ...(updates.customer || order.customer),
           priceTable: activeTable,
+          noDiscount,
           paymentFormaCodigo: formaCodigo || undefined,
           paymentFormaDescricao: f?.descricao,
           paymentCondicaoCodigo: condicaoCodigo || undefined,

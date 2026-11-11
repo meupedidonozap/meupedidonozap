@@ -45,6 +45,8 @@ export default function StoreRulesSettings({ store }: { store: any }) {
         <li>Repetir o salvamento do mesmo carrinho não cria cópias.</li>
         <li>Cadastro, produtos e estoque são mantidos pela loja/ERP; cliente não altera cadastro.</li>
         <li>Vendedor e televendas não têm pedido mínimo; cliente mantém o mínimo configurado.</li>
+        <li>Cliente marcado “Não usar desconto” paga somente o preço da sua tabela, sem faixas ou cupons.</li>
+        <li>Recálculo usa o cadastro atual e mantém o mesmo número; somente Orçamentos e Pendentes não transmitidos.</li>
       </ul>
     </>}
     <div className="space-y-2"><Label htmlFor="store-rule-manual">Regras adicionais da loja</Label><Textarea id="store-rule-manual" rows={6} value={rules.manual} onChange={e => setRules(r => ({ ...r, manual: e.target.value }))} /></div>

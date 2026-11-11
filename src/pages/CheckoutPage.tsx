@@ -29,6 +29,7 @@ import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
 import { useCart } from '@/contexts/CartContext';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
 import { useProducts } from '@/hooks/useProducts';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { expandKitItems } from '@/lib/kitExpansion';
@@ -85,7 +86,7 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { data: allProductsCk = [] } = useProducts(store?.id);
   const editingQuote = useEditingQuote(store?.id);
-  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem, setStoreId } = useCart();
+  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable } = useCart();
   useEffect(() => { if (store?.id) setStoreId(store.id); }, [store?.id, setStoreId]);
   const { user, loading: authLoading } = useAuth();
   const {
@@ -104,6 +105,8 @@ export default function CheckoutPage() {
   // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
   // com o padrão da loja como único fallback (mesma regra da vitrine).
   const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
+  const noDiscount = customerDiscountsBlocked(store?.slug, customerProfile);
+  useEffect(() => { setDiscountsBlocked(noDiscount); setCustomerPriceTable(activePriceTable); }, [noDiscount, activePriceTable, setDiscountsBlocked, setCustomerPriceTable]);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, activePriceTable);
   const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
@@ -487,7 +490,7 @@ export default function CheckoutPage() {
 
   const generateOrderMessage = () => {
     const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
-      computeGroupDiscounts(cart.items, discountRules, activePriceTable);
+      computeGroupDiscounts(cart.items, discountRules, activePriceTable, noDiscount);
     const ship = describeShipping({ shippingService: selectedShippingOption?.name, shippingDeadline: selectedShippingOption?.deadline, deliveryFee, isPickup: isPickupSel });
     return generateWhatsAppMessage({
       shippingLabel: ship?.label, shippingName: ship?.name, deliveryFee,
@@ -531,11 +534,11 @@ export default function CheckoutPage() {
 
   const handleDownloadPdf = () => {
     try {
-      const { quantityDiscount, itemDiscounts: currentDiscounts } = computeGroupDiscounts(cart.items, discountRules, activePriceTable);
+      const { quantityDiscount, itemDiscounts: currentDiscounts } = computeGroupDiscounts(cart.items, discountRules, activePriceTable, noDiscount);
       const discount = cart.couponDiscount + quantityDiscount;
       const file = buildOrderPdfFile({
         status: 'orcamento', created_at: new Date().toISOString(),
-        customer: { ...formData, customerCode: customerProfile?.customerCode,
+        customer: { ...formData, noDiscount, customerCode: customerProfile?.customerCode,
           paymentFormaCodigo, paymentCondicaoCodigo,
           paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
           paymentCondicaoDescricao: condicoes.find(c => c.codigo === paymentCondicaoCodigo)?.descricao,
@@ -641,8 +644,8 @@ export default function CheckoutPage() {
       }
       // Recalcula descontos por grupo na hora, evitando estado defasado do contexto
       const { quantityDiscount: liveQtyDiscount, itemDiscounts: liveItemDiscounts } =
-        computeGroupDiscounts(cart.items, discountRules, activePriceTable);
-      const liveTotalDiscount = cart.couponDiscount + liveQtyDiscount;
+        computeGroupDiscounts(cart.items, discountRules, activePriceTable, noDiscount);
+      const liveTotalDiscount = noDiscount ? 0 : cart.couponDiscount + liveQtyDiscount;
       const liveTotal = Math.max(0, cart.subtotal - liveTotalDiscount) + deliveryFee;
       const isPickup = isPickupSel || !offersDelivery;
       const observationsFinal = [
@@ -719,6 +722,7 @@ export default function CheckoutPage() {
             sellerUserName: seller.sellerName || undefined,
           } : {}),
           ...(dicolore ? {
+            noDiscount,
             paymentFormaCodigo: paymentFormaCodigo || undefined,
             paymentFormaDescricao: formas.find(f => f.codigo === paymentFormaCodigo)?.descricao,
             paymentCondicaoCodigo: paymentCondicaoCodigo || undefined,
@@ -728,7 +732,7 @@ export default function CheckoutPage() {
         items: cart.items.map(item => ({
           ...item,
           discountPercent:
-            liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
+            noDiscount ? 0 : liveItemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
             itemDiscounts[`${item.productId}-${item.variantId || ''}`] ||
             undefined,
         })),
