@@ -64,9 +64,9 @@ const App = () => (
         <SellerProvider>
         <Toaster />
         <Sonner />
-        <UpdateBanner />
         <OfflineBanner />
         <BrowserRouter>
+          <UpdateBanner />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/admin" element={<><NoIndex /><AdminPage /></>} />

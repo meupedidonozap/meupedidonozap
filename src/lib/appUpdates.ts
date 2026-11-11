@@ -1,5 +1,32 @@
 let available = false;
 const listeners = new Set<() => void>();
+export const CURRENT_APP_VERSION = import.meta.env.VITE_APP_BUILD_ID as string;
+
+export type AppRelease = { version: string; stores: string | string[] };
+
+export function parseAppRelease(value: unknown): AppRelease | null {
+  if (!value || typeof value !== 'object') return null;
+  const release = value as Record<string, unknown>;
+  if (typeof release.version !== 'string' || !release.version) return null;
+  if (release.stores !== 'all' && !(Array.isArray(release.stores) && release.stores.every(s => typeof s === 'string'))) return null;
+  return { version: release.version, stores: release.stores as string | string[] };
+}
+
+export function isReleaseForPath(stores: string | string[], pathname: string) {
+  const slug = pathname.split('/').filter(Boolean)[0]?.toLowerCase();
+  if (!slug || ['admin', 'redefinir-senha'].includes(slug)) return false;
+  return stores === 'all' || (Array.isArray(stores) && (stores.includes('all') || stores.includes(slug)));
+}
+
+export function requiresAppUpdate(release: AppRelease, pathname: string, currentVersion = CURRENT_APP_VERSION) {
+  return release.version !== currentVersion && isReleaseForPath(release.stores, pathname);
+}
+
+export async function fetchAppRelease(signal?: AbortSignal): Promise<AppRelease | null> {
+  const response = await fetch(`/app-version.json?t=${Date.now()}`, { cache: 'no-store', signal });
+  if (!response.ok) return null;
+  return parseAppRelease(await response.json());
+}
 
 export const getUpdateAvailable = () => available;
 export const subscribeToUpdates = (listener: () => void) => {

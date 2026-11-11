@@ -1,11 +1,43 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
+
+// The running bundle and the network manifest share an automatic source fingerprint.
+// A source change is a new release even if the target-store list stays the same.
+const fingerprint = createHash('sha256');
+function fingerprintDirectory(directory: string) {
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) fingerprintDirectory(file);
+    else fingerprint.update(file).update(readFileSync(file));
+  }
+}
+fingerprintDirectory('src');
+fingerprintDirectory('public');
+const appVersion = fingerprint.digest('hex').slice(0, 20);
+const release = JSON.parse(readFileSync('public/release.json', 'utf8'));
+const appManifest = JSON.stringify({ version: appVersion, stores: release.stores });
+const appVersionPlugin: Plugin = {
+  name: 'mpz-app-version',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'app-version.json', source: appManifest });
+  },
+  configureServer(server) {
+    server.middlewares.use('/app-version.json', (_req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store');
+      res.end(appManifest);
+    });
+  },
+};
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: { 'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(appVersion) },
   server: {
     host: "::",
     port: 8080,
@@ -14,6 +46,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [
+    appVersionPlugin,
     react(),
     mode === "development" && componentTagger(),
     VitePWA({

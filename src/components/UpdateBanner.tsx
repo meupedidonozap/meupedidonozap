@@ -1,31 +1,60 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { getUpdateAvailable, subscribeToUpdates } from '@/lib/appUpdates';
+import { useLocation } from 'react-router-dom';
+import { fetchAppRelease, getUpdateAvailable, requiresAppUpdate, subscribeToUpdates } from '@/lib/appUpdates';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import AppUpdateButton from './AppUpdateButton';
 
 /**
- * Só avisa a loja envolvida: /release.json diz quais lojas a versão afeta
- * ({"stores": ["dicolore"]} ou {"stores": "all"}). As demais recebem a versão
- * nova em silêncio, na próxima abertura do app.
+ * Network version checks also work without a service worker. The affected store
+ * cannot continue using an old bundle; storage is never cleared on refresh.
  */
 export default function UpdateBanner() {
   const available = useSyncExternalStore(subscribeToUpdates, getUpdateAvailable, () => false);
+  const { pathname } = useLocation();
   const [targeted, setTargeted] = useState(false);
   useEffect(() => {
-    if (!available) return;
-    const slug = window.location.pathname.split('/').filter(Boolean)[0] || '';
-    fetch(`/release.json?t=${Date.now()}`, { cache: 'no-store' })
-      .then(r => (r.ok ? r.json() : { stores: 'all' }))
-      .then((d: { stores?: string | string[] }) => {
-        const s = d?.stores ?? 'all';
-        setTargeted(s === 'all' || (Array.isArray(s) && s.includes(slug)));
-      })
-      .catch(() => setTargeted(true));
-  }, [available]);
-  if (!available || !targeted) return null;
+    const controller = new AbortController();
+    let checking = false;
+    setTargeted(false);
+    const check = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const release = await fetchAppRelease(controller.signal);
+        if (!controller.signal.aborted && release) setTargeted(requiresAppUpdate(release, pathname));
+      } catch {
+        // A failed/offline check must not invent a release or dismiss an existing one.
+      } finally { checking = false; }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') void check(); };
+    void check();
+    const interval = window.setInterval(onVisible, 60_000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    window.addEventListener('online', onVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+      window.removeEventListener('online', onVisible);
+    };
+  }, [available, pathname]);
+  if (!targeted) return null;
   return (
-    <div role="status" aria-live="polite" className="fixed inset-x-3 top-3 z-[9999] mx-auto flex max-w-md flex-wrap items-center justify-between gap-3 rounded-lg border border-primary bg-card p-3 text-sm shadow-lg">
-      <span className="min-w-0 font-medium">Nova versão disponível!</span>
-      <AppUpdateButton />
-    </div>
+    <AlertDialog open>
+      <AlertDialogContent className="w-[calc(100%-2rem)] max-w-md" onEscapeKeyDown={event => event.preventDefault()}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Atualização obrigatória</AlertDialogTitle>
+          <AlertDialogDescription>
+            Uma nova versão desta loja está disponível. Atualize agora para continuar.
+            Seu carrinho e sua conta serão preservados.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter><AppUpdateButton /></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
