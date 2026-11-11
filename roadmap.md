@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Atualização obrigatória por loja
-- [ ] Corrigir detecção independente do sinal do navegador e acompanhar troca de loja
-- [ ] Exigir atualização da loja afetada sem apagar carrinho ou sessão
-- [ ] Testar detecção, direcionamento e atualização pela tela
+- [x] Corrigir detecção independente do sinal do navegador e acompanhar troca de loja
+- [x] Exigir atualização da loja afetada sem apagar carrinho ou sessão
+- [x] Testar detecção, direcionamento e atualização pela tela; 18 testes, computador/celular, JEWOS bloqueada por versão simulada, DiColore não interrompida, sem erros
+- [ ] Confirmar entre duas versões publicadas no aplicativo instalado — depende de publicar; usuários com código anterior precisam de uma primeira atualização para carregar a nova detecção
 
 ## Baixa manual e recuperação de compra
 - [x] Registrar pagamento manual com forma real e auditoria; manter trava do Bling; gravação e leitura pelo painel verificadas em orçamento temporário removido
