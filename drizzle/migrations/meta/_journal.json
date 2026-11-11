@@ -295,6 +295,13 @@
       "when": 1794363669379,
       "tag": "0041_manual_payment_audit_and_customer_addresses",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794395015445,
+      "tag": "0042_dicolore_orders_staff_only",
+      "breakpoints": true
     }
   ]
 }

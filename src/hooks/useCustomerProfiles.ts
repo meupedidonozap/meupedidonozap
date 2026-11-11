@@ -31,6 +31,9 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
   } as any;
 }
 
+// Lista leve: lojas com milhares de clientes (DiColore) travavam ao baixar todas as colunas.
+const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table';
+
 export function useStoreCustomerProfiles(storeId: string | undefined) {
   return useQuery({
     queryKey: ['store-customer-profiles', storeId],
@@ -41,7 +44,7 @@ export function useStoreCustomerProfiles(storeId: string | undefined) {
       while (true) {
         const { data, error } = await supabase
           .from('customer_profiles')
-          .select('*')
+          .select(LIST_COLUMNS)
           .eq('store_id', storeId!)
           .order('name')
           .range(from, from + PAGE - 1);

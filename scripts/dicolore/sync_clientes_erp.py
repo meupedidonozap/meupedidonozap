@@ -113,7 +113,15 @@ def _txt(v):
 def ler_clientes():
     with psycopg2.connect(**DB) as con, con.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(f"SELECT * FROM {VIEW}")
-        return [{k: _txt(v) for k, v in r.items()} for r in cur.fetchall()]
+        return [_codigo_oficial({k: _txt(v) for k, v in r.items()}) for r in cur.fetchall()]
+
+
+def _codigo_oficial(r):
+    # O código de cliente correto do ERP é codigo_importacao (numérico).
+    # Registros sem codigo_importacao numérico não são clientes cadastrados: ficam de fora.
+    cod = r.get("codigo_importacao", "")
+    r["codigo"] = cod if cod.isdigit() else ""
+    return r
 
 
 def _hash(r):
