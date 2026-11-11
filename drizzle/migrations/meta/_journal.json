@@ -281,6 +281,13 @@
       "when": 1794326198507,
       "tag": "0039_pickup_orders_skip_address",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794362861908,
+      "tag": "0040_order_payment_error",
+      "breakpoints": true
     }
   ]
 }
