@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomerProfile, useUpsertCustomerProfile } from "@/hooks/useCustomerProfile";
@@ -15,6 +15,7 @@ import { formatPhone, formatCEP } from "@/lib/formatters";
 import { buildCustomerEmail, buildCustomerPassword, buildStoreScopedEmail } from "@/lib/customerAuth";
 import { getCustomerError } from '@/lib/customerValidation';
 import { isManagedCustomerStore } from '@/lib/customerDataAccess';
+import { buildAttendanceLink } from '@/lib/supportContact';
 
 const brazilianStates = [
   "AC",
@@ -112,6 +113,7 @@ export default function CustomerAuthDialog({
 }: CustomerAuthDialogProps) {
   const managedCustomer = isManagedCustomerStore(storeSlug);
   const allowSignup = requestedSignup && !managedCustomer;
+  const attendanceUrl = buildAttendanceLink(storeSlug);
   const [notice, setNotice] = useState<"success" | "duplicate" | null>(null);
   useEffect(() => {
     if (!open) setNotice(null);
@@ -425,6 +427,7 @@ export default function CustomerAuthDialog({
         </DialogHeader>
 
         {step === "auth" && (
+          <>
           <Tabs value={authTab} onValueChange={(v) => setAuthTab(v as "code" | "login" | "register")}>
             <TabsList
               className={`grid w-full ${(showCodeTab ? 1 : 0) + 1 + (allowSignup ? 1 : 0) === 3 ? "grid-cols-3" : showCodeTab || allowSignup ? "grid-cols-2" : "grid-cols-1"}`}
@@ -573,6 +576,15 @@ export default function CustomerAuthDialog({
               </form>
             </TabsContent>
           </Tabs>
+          {attendanceUrl && (
+            <Button asChild variant="outline" className="mt-4 w-full border-primary/40 text-primary hover:bg-primary/5">
+              <a href={attendanceUrl} target="_blank" rel="noopener noreferrer">
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Não tem cadastro? Fale com nosso atendimento
+              </a>
+            </Button>
+          )}
+          </>
         )}
 
         {step === "forgot" && (
