@@ -2,7 +2,7 @@
 
 ## Nova carga de clientes por vendedor
 - [x] Aplicar tabela inicial por vendedor e preservar atribuições existentes no MPZ
-- [ ] Alinhar cadastros sem tabela, testar e publicar a sincronização
+- [x] Alinhar cadastros sem tabela dos demais vendedores; vendedor 28 recebe ERP na nova carga; 60 testes e chamada real sem gravações; função publicada
 - [ ] Confirmar carga completa — depende de executar --tudo no servidor ERP
 
 ## Tabela de preço na sincronização de clientes
