@@ -43,7 +43,7 @@ export default function PayOrderPage() {
       if (r.paymentStatus === 'paid' || FAILED.includes(r.lastStatus || '')) { setChecking(false); return; }
       // Sem nenhuma tentativa de pagamento: o cliente desistiu no meio do caminho.
       const mpStatus = sp.get('collection_status') || sp.get('status');
-      if (!r.lastStatus && (mpStatus === 'null' || tries.current >= 3)) { await abandon(); return; }
+      if (!r.lastStatus && (mpStatus === 'null' || tries.current >= 3)) { await abandon(r); return; }
       if (++tries.current >= 30) { setChecking(false); return; }
       setTimeout(run, 4000);
     };
@@ -51,14 +51,14 @@ export default function PayOrderPage() {
     return () => { stop = true; };
   }, [orderId]);
 
-  const abandon = async () => {
-    if (!info) return;
+  const abandon = async (current = info) => {
+    if (!current) return;
     setBusy("card");
     const { data, error: requestError } = await supabase.functions.invoke('mercadopago', { body: { action: 'abandon', orderId } });
     if (requestError || !data?.ok) { setChecking(false); setBusy(null); toast.error(data?.error || "Não foi possível recuperar. Confira se há um pagamento em andamento."); return; }
     try {
-      const restored = recoveryCart(info, localStorage.getItem(`mpz_cart_backup_${orderId}`));
-      localStorage.setItem(`cart_${info.storeId}`, JSON.stringify(restored));
+      const restored = recoveryCart(current, localStorage.getItem(`mpz_cart_backup_${orderId}`));
+      localStorage.setItem(`cart_${current.storeId}`, JSON.stringify(restored));
       localStorage.removeItem(`mpz_cart_backup_${orderId}`);
     } catch { toast.error('Não foi possível restaurar o carrinho neste navegador.'); setBusy(null); return; }
     toast.info('Pagamento não concluído. Seu carrinho foi restaurado para você finalizar novamente.');
@@ -108,7 +108,7 @@ export default function PayOrderPage() {
                       <p className="text-xs text-muted-foreground">Tente outro cartão ou pague com PIX.</p>
                     </div>
                   )}
-                  {!isManagedCustomerStore(slug) && (failed || info.paymentStatus === 'canceled') && <Button className="w-full" disabled={!!busy} onClick={abandon}>Recuperar itens e voltar ao carrinho</Button>}
+                  {!isManagedCustomerStore(slug) && (failed || info.paymentStatus === 'canceled') && <Button className="w-full" disabled={!!busy} onClick={() => abandon()}>Recuperar itens e voltar ao carrinho</Button>}
                   {gw.cardEnabled && <Button className="w-full gap-2" disabled={!!busy} onClick={() => pay('card')}>{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} {failed ? 'Tentar de novo (Cartão)' : 'Pagar com Cartão'}</Button>}
                   {gw.pixEnabled !== false && <Button variant={gw.cardEnabled ? 'outline' : 'default'} className="w-full gap-2" disabled={!!busy} onClick={() => pay('pix')}>{busy === 'pix' ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />} Pagar com PIX</Button>}
                 </div>
