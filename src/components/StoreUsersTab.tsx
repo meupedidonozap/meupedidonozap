@@ -141,6 +141,10 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
       toast.error('Informe o nome');
       return;
     }
+    if (role === 'televendas' && !erpCode.trim()) {
+      toast.error('Televendas exige o código ERP da operadora');
+      return;
+    }
     try {
       if (editing) {
         await updateMut.mutateAsync({
