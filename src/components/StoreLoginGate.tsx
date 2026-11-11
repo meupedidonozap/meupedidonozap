@@ -38,7 +38,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
   }
   if (user && (hasAccess || isStoreUser)) return <>{children}</>;
   // DiColore: cliente sem código ERP fica pendente e não entra.
-  const missingErpCode = store.slug === 'dicolore' && !!profile && !String(profile.customer_code || '').trim();
+  const missingErpCode = store.slug === 'dicolore' && !!profile && !/^\d+$/.test(String(profile.customer_code || '').trim());
   if (user && profile && profile.is_active && profile.approval_status !== 'pending' && !missingErpCode) return <>{children}</>;
 
   const pending = !!user && !!profile && (profile.approval_status === 'pending' || !profile.is_active || missingErpCode);
