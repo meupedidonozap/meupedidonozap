@@ -58,7 +58,7 @@ export function isClientCreated(order: { origem?: string | null; customer?: any;
   const c = order?.customer || {};
   if (c.createdByRole === 'cliente') return true;
   if (c.createdByRole || c.isTelevendas || c.ownerRole) return false;
-  return !!order?.origem && order.origem === 'web' && !!order.userId;
+  return order?.origem === 'web' && !!(order.userId ?? (order as any).user_id);
 }
 
 /** Campos de criação/dono que uma edição nunca pode sobrescrever. */

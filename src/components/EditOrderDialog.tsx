@@ -17,7 +17,7 @@ import { getProductPriceOrNull, hasStock, normalizePriceTable, type PriceTable }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useSellerMode } from '@/hooks/useSellerMode';
-import { claimCustomerOrder, canEditOrder } from '@/lib/orderOwnership';
+import { mergeEditedCustomer, canEditOrder } from '@/lib/orderOwnership';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EditOrderDialogProps {
@@ -199,13 +199,14 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
       }
       const viewer = { isAdmin: sellerMode.isAdmin, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode };
       // Confere o estado atual: outro responsável pode ter assumido o pedido do cliente.
-      const { data: fresh } = await supabase.from('orders').select('customer').eq('id', order.id).single();
+      const { data: fresh } = await supabase.from('orders').select('customer,origem,user_id').eq('id', order.id).single();
       const current = (fresh as any)?.customer || order.customer;
-      if (!canEditOrder({ customer: current }, viewer)) {
+      const savedRow = { origem: (fresh as any)?.origem ?? order.origem, user_id: (fresh as any)?.user_id ?? (order as any).userId, customer: current };
+      if (!canEditOrder(savedRow as any, viewer)) {
         toast.error('Este pedido já foi assumido por outro responsável.');
         return;
       }
-      const claimed = claimCustomerOrder(current, viewer);
+      const claimed = mergeEditedCustomer(savedRow as any, current, viewer);
       const updates: any = { id: order.id, items: stampedItems, subtotal, total, discount };
       if (claimed !== current) updates.customer = { ...order.customer, ...claimed };
       if (dicolore) {

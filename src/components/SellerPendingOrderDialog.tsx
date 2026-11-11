@@ -16,7 +16,7 @@ import { useSellerContext } from '@/contexts/SellerContext';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
-import { claimCustomerOrder } from '@/lib/orderOwnership';
+import { mergeEditedCustomer } from '@/lib/orderOwnership';
 import type { Order } from '@/types';
 
 type Props = { orderId: string | null; store: any; onClose: () => void };
@@ -67,7 +67,7 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
     setBusy(true);
     try {
       const c: any = order.customer || {};
-      const claimed = claimCustomerOrder(order.customer as any, viewer as any);
+      const claimed = mergeEditedCustomer(order as any, order.customer as any, viewer as any);
       if (claimed !== order.customer) {
         const { error: cErr } = await supabase.from('orders').update({ customer: claimed } as any).eq('id', order.id).select().single();
         if (cErr) throw cErr;
