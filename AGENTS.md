@@ -26,6 +26,7 @@
 - Checkout restores payment choices from the authorized saved order on edit; seller/telesales release uses the same validation for new and edited orders, while PDF previews never save or release orders.
 - Customer forms share a Zod schema with CPF/CNPJ checksum validation; database triggers validate interactive customer/order writes while leaving ERP service imports and unrelated historical updates untouched.
 - Managed-customer stores block self-profile writes with restrictive RLS and stamp customer orders from the authenticated user's official profile; UI read-only fields never serve as authorization.
+- Store-specific order status guards run on inserts and updates using authenticated permissions; checkout submission and ERP release remain separate actions to prevent bypassing review.
 - Bling order export requires payment_status paid (cron and manual); card refusals store the translated Mercado Pago reason in orders.payment_error, and an abandoned card checkout is cancelled server-side and the cart restored from a local backup, so unpaid orders are never picked.
 
 - Manual payment confirmations use an authorized, row-locked RPC with immutable receipt context on the order; provider callbacks never replace manually confirmed payments, preventing misleading settlement history.

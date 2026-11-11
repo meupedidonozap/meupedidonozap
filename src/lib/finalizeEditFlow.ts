@@ -1,6 +1,11 @@
 /** Próximo passo ao finalizar um pedido pelo vendedor/televendas na DiColore. */
 export type FinalizeStep = 'save' | 'ask-payment' | 'ask-release';
 
+/** Finalizar nunca libera implicitamente: a equipe faz uma ação separada. */
+export function initialCheckoutStatus(asQuote: boolean): 'orcamento' | 'pendente' {
+  return asQuote ? 'orcamento' : 'pendente';
+}
+
 export function nextFinalizeStep(o: {
   storeSlug?: string;
   isEditing: boolean;

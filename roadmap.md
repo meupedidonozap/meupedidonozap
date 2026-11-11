@@ -1,5 +1,10 @@
 # Roadmap
 
+## Finalização do cliente DiColore
+- [x] Restaurar finalização do cliente como Pendente, sem opção de liberação
+- [ ] Substituir a trava de criação por proteção de status na gravação e testar
+- [ ] Verificar checkout e registrar limites da verificação autenticada
+
 ## Atualização obrigatória por loja
 - [x] Corrigir detecção independente do sinal do navegador e acompanhar troca de loja
 - [x] Exigir atualização da loja afetada sem apagar carrinho ou sessão

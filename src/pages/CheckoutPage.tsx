@@ -1,6 +1,5 @@
-import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { effectiveMinOrder } from '@/lib/minOrder';
-import { nextFinalizeStep, type FinalizeStep } from '@/lib/finalizeEditFlow';
+import { nextFinalizeStep, initialCheckoutStatus, type FinalizeStep } from '@/lib/finalizeEditFlow';
 import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
 import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
@@ -112,7 +111,6 @@ export default function CheckoutPage() {
   const upsertProfile = useUpsertCustomerProfile();
   const storeOpenStatus = useStoreOpen(store);
   const dicolore = isDicoloreFlow(store?.slug, store?.settings);
-  const { hasAccess: dicoloreStaff } = useStoreAdmin(dicolore ? store?.id : undefined);
   const formas = getStoreFormas(store?.settings).filter(f => f.ativo);
   const condicoes = getStoreCondicoes(store?.settings).filter(c => c.ativo);
   const availablePaymentMethods = getAvailablePaymentMethods(store?.settings);
@@ -334,11 +332,6 @@ export default function CheckoutPage() {
     // vendedor da loja, não deixa finalizar (senão o pedido sairia no nome dele).
     if (seller.loading) {
       toast.error('Aguarde a verificação do seu acesso e tente novamente');
-      return false;
-    }
-    // DiColore: pedido só é finalizado por vendedor, televendas ou admin — nunca pelo cliente.
-    if (dicolore && !isSellerMode && !dicoloreStaff) {
-      toast.error('Pedidos na DiColore são finalizados pelo seu representante. Entre em contato com seu vendedor.');
       return false;
     }
     if (dicolore && isSellerMode && !selectedCustomer) {
@@ -704,7 +697,7 @@ export default function CheckoutPage() {
         paymentMethod: formData.paymentMethod,
         deliveryShift: formData.deliveryShift,
         observations: observationsFinal || undefined,
-        status: asQuote ? 'orcamento' : 'pendente',
+        status: initialCheckoutStatus(asQuote),
         ...(sellerOrder ? { origem: 'vendedor' } : {}),
         shippingService: selectedShippingOption?.name,
         shippingCode: selectedShippingOption?.code,
