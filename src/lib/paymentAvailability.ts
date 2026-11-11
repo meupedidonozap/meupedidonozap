@@ -11,6 +11,12 @@ type PaymentSettings = {
   };
 };
 
+/** DiColore só exibe recebimentos quando a loja ativa PIX ou cartão explicitamente. */
+export function canShowPaymentReceipts(slug?: string | null, settings?: PaymentSettings | null): boolean {
+  if (slug !== 'dicolore') return true;
+  return settings?.paymentGateway?.pixEnabled === true || settings?.paymentGateway?.cardEnabled === true;
+}
+
 /**
  * O cartão Recebimento por PIX e Cartão é a configuração atual. Quando uma
  * flag existe ali, ela substitui a flag antiga; lojas ainda não migradas

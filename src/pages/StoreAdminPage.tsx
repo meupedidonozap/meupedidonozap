@@ -8,6 +8,7 @@ import { getOrderCreator, CREATOR_LABEL } from '@/lib/orderCreator';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { BlingConnectCard } from '@/components/BlingConnectCard';
 import ManualPaymentDialog from '@/components/ManualPaymentDialog';
+import { canShowPaymentReceipts } from '@/lib/paymentAvailability';
 import { PaymentSettingsCard } from '@/components/PaymentSettingsCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -1844,7 +1845,7 @@ export default function StoreAdminPage() {
                           {order.paymentError && order.paymentStatus !== 'paid' && (
                             <p className="mt-1 max-w-[220px] text-[10px] font-medium leading-tight text-destructive">{order.paymentError}</p>
                           )}
-                          {order.paymentStatus !== 'paid' && !['cancelado'].includes(order.status) && !['canceled','refunded'].includes(order.paymentStatus || '') && (isAdmin || permissions.can_manage_orders) && (
+                          {canShowPaymentReceipts(store?.slug, store?.settings) && order.paymentStatus !== 'paid' && !['cancelado'].includes(order.status) && !['canceled','refunded'].includes(order.paymentStatus || '') && (isAdmin || permissions.can_manage_orders) && (
                             <Button size="sm" variant="outline" className="mt-1 h-7 text-xs" onClick={() => setManualPaymentOrder(order)}>Registrar pagamento manual</Button>
                           )}
                           {['pending', 'failed'].includes(order.paymentStatus as string) && (store?.settings as any)?.paymentGateway?.provider === 'mercadopago' && (
@@ -3412,7 +3413,10 @@ export default function StoreAdminPage() {
                   <TableBody>
                     {visibleCustomerProfiles.map(cp => (
                       <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
-                        <TableCell className="font-medium">{cp.name || '—'}</TableCell>
+                        <TableCell className="font-medium">
+                          {cp.name || '—'}
+                          {store.slug === 'dicolore' && cp.noDiscount && <p className="mt-1 text-xs font-semibold text-destructive">Não usa desconto</p>}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
                         <TableCell>{cp.cpfCnpj || '—'}</TableCell>
                         <TableCell>{(cp as any).sellerCode ? (sellerByCode.get(((cp as any).sellerCode || '').trim())?.name || (cp as any).sellerCode) : '—'}</TableCell>
@@ -3866,7 +3870,7 @@ export default function StoreAdminPage() {
         categories={categories}
         storeType={store.type as StoreType}
       />
-      <ManualPaymentDialog key={manualPaymentOrder?.id || "closed"} order={manualPaymentOrder} onClose={() => setManualPaymentOrder(null)} />
+      {canShowPaymentReceipts(store?.slug, store?.settings) && <ManualPaymentDialog key={manualPaymentOrder?.id || "closed"} order={manualPaymentOrder} onClose={() => setManualPaymentOrder(null)} />}
       <ImportCustomersDialog
         open={importCustomersOpen}
         onOpenChange={setImportCustomersOpen}
