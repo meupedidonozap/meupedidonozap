@@ -776,7 +776,7 @@ export default function CheckoutPage() {
           observations: orderPayload.observations ?? null,
           status: asQuote && !byCustomer ? 'orcamento' : 'pendente',
         }).eq('id', editingQuote.id).select().single();
-        if (upErr) throw upErr;
+        if (upErr) throw new Error(`O orçamento em edição não está mais disponível para alteração (${upErr.message}). Nenhum orçamento novo foi criado.`);
         setEditingQuote(null);
         let released = false;
         if (opts.release && canOfferRelease && !asQuote && store.slug === 'dicolore') {
