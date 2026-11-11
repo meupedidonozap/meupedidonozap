@@ -5,6 +5,7 @@ import { nextFinalizeStep, initialCheckoutStatus, type FinalizeStep } from '@/li
 import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
 import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
+import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef } from 'react';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
@@ -793,7 +794,7 @@ export default function CheckoutPage() {
         setEditingQuote(null);
         let released = false;
         if (opts.release && canOfferRelease && !asQuote && store.slug === 'dicolore') {
-          const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items as any });
+          const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items as any, requirePayment: releasePaymentRequired(store.slug, store.settings) });
           if (issues.length) {
             toast.error(`Pedido salvo como Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
           } else {
@@ -846,7 +847,7 @@ export default function CheckoutPage() {
 
       let createdReleased = false;
       if (opts.release && canOfferRelease && !asQuote && store.slug === 'dicolore' && created?.id) {
-        const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items });
+        const issues = getReleaseIssues({ customer: orderPayload.customer, items: orderPayload.items, requirePayment: releasePaymentRequired(store.slug, store.settings) });
         if (issues.length) {
           toast.error(`Pedido salvo como Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
         } else {
@@ -987,14 +988,19 @@ export default function CheckoutPage() {
                 <AlertDialogTitle>Liberar p/ transmissão</AlertDialogTitle>
                 <AlertDialogDescription>O pedido será salvo e liberado para transmissão ao ERP.</AlertDialogDescription>
               </AlertDialogHeader>
+              {store?.slug === 'dicolore' && releasePaymentRequired(store.slug, store.settings) && (!paymentFormaCodigo || !paymentCondicaoCodigo) && <div className="space-y-3">
+                <p className="text-sm text-destructive">Selecione forma e condição de pagamento antes de liberar.</p>
+                <Select value={paymentFormaCodigo} onValueChange={setPaymentFormaCodigo}><SelectTrigger aria-label="Forma de pagamento para liberar"><SelectValue placeholder="Forma de pagamento" /></SelectTrigger><SelectContent>{formas.map(f => <SelectItem key={f.codigo} value={f.codigo}>{f.codigo} — {f.descricao}</SelectItem>)}</SelectContent></Select>
+                <Select value={paymentCondicaoCodigo} onValueChange={setPaymentCondicaoCodigo}><SelectTrigger aria-label="Condição de pagamento para liberar"><SelectValue placeholder="Condição de pagamento" /></SelectTrigger><SelectContent>{condicoes.map(c => <SelectItem key={c.codigo} value={c.codigo}>{c.codigo} — {c.descricao}</SelectItem>)}</SelectContent></Select>
+              </div>}
               <AlertDialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => { setFinalizeAsk(null); setReleaseConfirm(false); }}>Cancelar</Button>
-                <Button onClick={() => {
+                <Button disabled={store?.slug === 'dicolore' && releasePaymentRequired(store.slug, store.settings) && (!paymentFormaCodigo || !paymentCondicaoCodigo)} onClick={() => {
                   // Abre o WhatsApp no clique (iOS bloqueia depois de await).
                   const st: any = store?.settings || {};
                   const pt = String(activePriceTable || '');
                   const wa = String((pt && st.erpReleaseWhatsappByTable?.[pt]) || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-                  const win = wa ? window.open('', '_blank') : null;
+                  const win = wa && getStoreRules(store?.slug, store?.settings).notifyReleaseWhatsapp ? window.open('', '_blank') : null;
                   setFinalizeAsk(null); setReleaseConfirm(false);
                   handleSendWhatsApp(false, { decided: true, release: true, releaseWa: { win, number: wa } });
                 }}>Liberar p/ transmissão</Button>

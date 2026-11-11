@@ -18,6 +18,8 @@ import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
 import { mergeEditedCustomer } from '@/lib/orderOwnership';
 import type { Order } from '@/types';
+import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
+import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 
 type Props = { orderId: string | null; store: any; onClose: () => void };
 
@@ -29,12 +31,14 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
   const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [obs, setObs] = useState('');
   const [busy, setBusy] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
 
   const { data: order, isLoading, refetch } = useQuery({
     queryKey: ['seller-order-detail', orderId],
     enabled: !!orderId,
     queryFn: async () => {
-      const { data, error } = await supabase.from('orders').select('*').eq('id', orderId!).single();
+      if (!orderId) throw new Error('Pedido não selecionado');
+      const { data, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
       if (error) throw error;
       return mapOrder(data);
     },
@@ -102,7 +106,11 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
   const release = async () => {
     if (!order) return;
     const c: any = order.customer || {};
-    const issues = getReleaseIssues({ customer: c, items: order.items as any, sellerCode: c.sellerCode || seller.erpCode || '' });
+    const issues = getReleaseIssues({ customer: c, items: order.items as any, sellerCode: c.sellerCode || seller.erpCode || '', requirePayment: releasePaymentRequired(store.slug, store.settings) });
+    if (store.slug === 'dicolore' && issues.some(i => i === 'Falta forma de pagamento' || i === 'Falta condição de pagamento')) {
+      setPaymentOpen(true);
+      return;
+    }
     if (issues.length) {
       toast.error(`Pedido continua Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
       openEditor(false);
@@ -113,11 +121,14 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
     const s = store?.settings || {};
     const pt = (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : '';
     const wa = String((pt && s.erpReleaseWhatsappByTable?.[pt]) || s.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-    if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${order.orderNumber} do cliente "${order.customer?.name || ''}" pode ser transmitido`)}`, '_blank');
+    const win = wa && getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp ? window.open('about:blank', '_blank') : null;
     setBusy(true);
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || !auth.user) { win?.close(); setBusy(false); toast.error('Faça login novamente.'); return; }
     const { error } = await supabase.from('orders').update({ status: 'liberado_transmissao', observations: obs.trim() || null }).eq('id', order.id).select().single();
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { win?.close(); return toast.error(error.message); }
+    if (win) { win.opener = null; win.location.href = `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${order.orderNumber} do cliente "${order.customer?.name || ''}" pode ser transmitido`)}`; }
     toast.success('Pedido liberado para transmissão');
     refresh();
     onClose();
@@ -125,6 +136,7 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
 
   return (
     <>
+      <ReleasePaymentDialog order={paymentOpen ? order : null} store={store} viewer={viewer} onClose={() => setPaymentOpen(false)} onReleased={() => { refresh(); onClose(); }} />
       <Dialog open={!!orderId} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           {isLoading || !order ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : (

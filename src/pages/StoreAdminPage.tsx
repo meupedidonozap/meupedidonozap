@@ -33,6 +33,9 @@ import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCusto
 import { useStoreVisits } from '@/hooks/useStoreVisits';
 import { resolveOrderSellerCode } from '@/lib/orderSellerCode';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
+import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
+import StoreRulesSettings from '@/components/StoreRulesSettings';
+import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 import { useStoreUsers as useStoreUsersForSeller } from '@/hooks/useStoreUsers';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
@@ -650,6 +653,7 @@ export default function StoreAdminPage() {
   // Dicolore: confirmação para liberar pedido ao ERP via WhatsApp
   const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number; priceTable?: string; customerName?: string } | null>(null);
   const [releaseIssues, setReleaseIssues] = useState<{ order: any; issues: string[] } | null>(null);
+  const [releasePaymentOrder, setReleasePaymentOrder] = useState<any>(null);
   // Pedidos liberados com cliente PROSPECT (sem código ERP): alerta o admin uma vez por sessão.
   const [prospectSeen, setProspectSeen] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(sessionStorage.getItem('mpz_prospect_alerts') || '[]')); } catch { return new Set(); }
@@ -1936,7 +1940,11 @@ export default function StoreAdminPage() {
                             <div className="flex items-center gap-1">
                               <Select value={order.status} disabled={updatingStatusId === order.id} onValueChange={async (value) => {
                                 if (['dicolore', 'dicoloresenses'].includes(store.slug) && value === 'liberado_transmissao') {
-                                  const issues = getReleaseIssues({ customer: order.customer, items: order.items as any, customerCode: orderErpCustomerCode(order), sellerCode: orderSeller(order).code });
+                                  const issues = getReleaseIssues({ customer: order.customer, items: order.items as any, customerCode: orderErpCustomerCode(order), sellerCode: orderSeller(order).code, requirePayment: releasePaymentRequired(store.slug, store.settings) });
+                                  if (store.slug === 'dicolore' && issues.some(i => i === 'Falta forma de pagamento' || i === 'Falta condição de pagamento')) {
+                                    setReleasePaymentOrder(order);
+                                    return;
+                                  }
                                   if (issues.length) {
                                     setReleaseIssues({ order, issues });
                                     return;
@@ -2544,6 +2552,7 @@ export default function StoreAdminPage() {
               </CardContent>
             </Card>
             {(isAdmin) && <PaymentSettingsCard storeId={store.id} settings={store.settings} />}
+            {isAdmin && <StoreRulesSettings store={store} />}
             <Card>
               <CardHeader><CardTitle>Loja exclusiva para clientes</CardTitle></CardHeader>
               <CardContent className="space-y-3">
@@ -3972,6 +3981,7 @@ export default function StoreAdminPage() {
         </DialogContent>
       </Dialog>
 
+      <ReleasePaymentDialog order={releasePaymentOrder} store={store} viewer={{ isAdmin, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode }} onClose={() => setReleasePaymentOrder(null)} onReleased={() => qc.invalidateQueries({ queryKey: ['orders'] })} />
       {/* Pedido incompleto: não libera, continua pendente */}
       <AlertDialog open={!!releaseIssues} onOpenChange={(open) => { if (!open) setReleaseIssues(null); }}>
         <AlertDialogContent>
@@ -4043,16 +4053,15 @@ export default function StoreAdminPage() {
                 const text = `Olá, o pedido #${pending.orderNumber} do cliente "${pending.customerName || ''}" pode ser transmitido`;
                 const waNumber = resolveErpWhatsapp(pending.priceTable);
                 const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
-                const waWin = window.open(waUrl, '_blank');
-                if (!waWin) {
-                  // Fallback (PWA standalone): navega na própria janela
-                  window.location.href = waUrl;
-                }
+                const notify = getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp;
+                const waWin = notify ? window.open('about:blank', '_blank') : null;
                 setUpdatingStatusId(pending.orderId);
                 try {
                   await updateOrderStatus.mutateAsync({ id: pending.orderId, status: 'liberado_transmissao' });
+                  if (notify) { if (waWin) { waWin.opener = null; waWin.location.href = waUrl; } else window.location.href = waUrl; }
                   toast.success('Status atualizado!');
                 } catch (err: any) {
+                  waWin?.close();
                   toast.error(err?.message || 'Erro ao atualizar status');
                 } finally {
                   setUpdatingStatusId(null);

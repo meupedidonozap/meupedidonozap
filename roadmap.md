@@ -1,5 +1,11 @@
 # Roadmap
 
+## Manual e liberação DiColore
+- [x] Manual por loja com regras protegidas e opções de pagamento/WhatsApp; salvamento e leitura autenticados confirmados
+- [x] Seleção rápida no painel/portal e confirmação do checkout; gravação única no mesmo pedido e trava de pagamento no banco
+- [x] 34 testes passaram; painel autenticado abre campos no #717, bloqueia enquanto incompleto e habilita após seleção; computador e celular conferidos; build OK
+- [ ] Confirmar gravação/liberação real e WhatsApp no portal e checkout — depende de pedido autorizado para transmissão; nenhum pedido real foi liberado no teste
+
 ## Navegação Clientes/Pedidos DiColore
 - [x] Paginar somente DiColore em 25/50 clientes, mantendo busca em toda a base
 - [x] Indexar cadastros dos pedidos mantendo a mesma resolução de identidade ERP; nove testes passaram
