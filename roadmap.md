@@ -1,5 +1,9 @@
 # Roadmap
 
+## Identificação e recebimento DiColore
+- [x] Identificar clientes sem desconto na lista e ocultar registro manual até habilitar recebimento PIX ou cartão, sem alterar outras lojas
+- [ ] Verificar testes e painel; esclarecer preservação da tabela e caráter consultivo do texto do manual
+
 ## Cliente sem desconto DiColore
 - [x] Flag no cadastro, preservado nas sincronizações e protegido contra alteração pelo cliente
 - [x] Usar somente preço da tabela no catálogo, carrinho, edição, impressão e pedidos bloqueados para desconto; preço oficial validado no banco
