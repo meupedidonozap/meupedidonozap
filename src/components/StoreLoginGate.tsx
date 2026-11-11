@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Lock, Clock, LogOut } from 'lucide-react';
+import { Loader2, Lock, Clock, LogOut, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { Button } from '@/components/ui/button';
 import CustomerAuthDialog, { ApprovalNotice } from '@/components/CustomerAuthDialog';
+import { buildAttendanceLink } from '@/lib/supportContact';
 import type { Store } from '@/types';
 
 /** Quando a loja exige login, só libera o catálogo para cliente aprovado, equipe ou admin. */
@@ -20,6 +21,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
   const [open, setOpen] = useState(false);
   const allowSignup = store.settings?.allowCustomerSignup !== false;
   const supportWhatsapp = String((store.settings as any)?.approvalSupportWhatsapp || '');
+  const attendanceUrl = buildAttendanceLink(store.slug);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['gate-profile', user?.id, store.id],
@@ -53,7 +55,12 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
           <>
             <Clock className="mx-auto my-4 h-10 w-10 text-primary" />
             <ApprovalNotice kind="pending" supportWhatsapp={supportWhatsapp} />
-            <Button variant="outline" className="mt-6 w-full" onClick={() => signOut()}><LogOut className="mr-2 h-4 w-4" />Sair</Button>
+            {attendanceUrl && (
+              <Button asChild variant="outline" className="mt-6 w-full border-primary/40 text-primary hover:bg-primary/5">
+                <a href={attendanceUrl} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-2 h-4 w-4" />Fale com nosso atendimento</a>
+              </Button>
+            )}
+            <Button variant="outline" className="mt-2 w-full" onClick={() => signOut()}><LogOut className="mr-2 h-4 w-4" />Sair</Button>
           </>
         ) : (
           <>
@@ -64,6 +71,11 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
             <Button className="mt-6 w-full" onClick={() => setOpen(true)}>
               {needsProfile ? 'Completar cadastro' : allowSignup ? 'Fazer login ou Cadastre-se' : 'Fazer login'}
             </Button>
+            {attendanceUrl && (
+              <Button asChild variant="outline" className="mt-2 w-full border-primary/40 text-primary hover:bg-primary/5">
+                <a href={attendanceUrl} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-2 h-4 w-4" />Fale com nosso atendimento</a>
+              </Button>
+            )}
             {needsProfile && <Button variant="ghost" className="mt-2 w-full" onClick={() => signOut()}>Sair</Button>}
           </>
         )}
