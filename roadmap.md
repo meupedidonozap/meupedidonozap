@@ -1,5 +1,10 @@
 # Roadmap
 
+## Nova carga de clientes por vendedor
+- [ ] Aplicar tabela inicial por vendedor e preservar atribuições existentes no MPZ
+- [ ] Alinhar cadastros sem tabela, testar e publicar a sincronização
+- [ ] Confirmar carga completa — depende de executar --tudo no servidor ERP
+
 ## Tabela de preço na sincronização de clientes
 - [x] Normalizar tabelas de novos clientes, testar e publicar a correção no servidor (22 testes; chamada autenticada sem gravações)
 - [ ] Confirmar carga dos clientes pendentes — depende do próximo ciclo do monitor no ERP
