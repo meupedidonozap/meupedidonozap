@@ -93,6 +93,27 @@ export type Database = {
           },
         ]
       }
+      cep_location_cache: {
+        Row: {
+          cep: string
+          city: string
+          created_at: string
+          uf: string
+        }
+        Insert: {
+          cep: string
+          city: string
+          created_at?: string
+          uf: string
+        }
+        Update: {
+          cep?: string
+          city?: string
+          created_at?: string
+          uf?: string
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           code: string

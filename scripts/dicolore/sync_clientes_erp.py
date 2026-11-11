@@ -91,6 +91,7 @@ API_URL = _url_api()
 SYNC_TOKEN = _env("TITLES_SYNC_TOKEN", "MPZ_SYNC_TOKEN")
 STORE_SLUG = _env("STORE_SLUG", padrao="dicolore")
 VIEW = "public.dw_cliente"
+VIEW_LOCAL = "public.vw_mpz_clientes"  # traz cidade (ve026.cidnom) e UF (cliest) em texto
 INTERVALO = int(_env("MONITOR_INTERVALO_CLIENTES_ERP", padrao="180"))
 LOTE = 250
 TENTATIVAS = 3
@@ -113,7 +114,28 @@ def _txt(v):
 def ler_clientes():
     with psycopg2.connect(**DB) as con, con.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(f"SELECT * FROM {VIEW}")
-        return [_codigo_oficial({k: _txt(v) for k, v in r.items()}) for r in cur.fetchall()]
+        clientes = [_codigo_oficial({k: _txt(v) for k, v in r.items()}) for r in cur.fetchall()]
+        try:
+            cur.execute(f"SELECT codigo, cidade, uf FROM {VIEW_LOCAL}")
+            locais = {_txt(r["codigo"]): (_txt(r["cidade"]), _txt(r["uf"])) for r in cur.fetchall()}
+        except psycopg2.Error as e:
+            con.rollback()
+            log(f"Aviso: {VIEW_LOCAL} indisponível ({e.pgcode}); cidade/UF serão resolvidas pelo CEP.")
+            locais = {}
+    return [_com_localidade(c, locais) for c in clientes]
+
+
+def _com_localidade(r, locais):
+    # Cidade/UF em texto do ERP; a dw_cliente só traz códigos IBGE.
+    for chave in (r.get("codigo", ""), r.get("codigo_importacao", "")):
+        cidade, uf = locais.get(chave, ("", ""))
+        if cidade or uf:
+            if cidade and not r.get("endereco_cidade"):
+                r["endereco_cidade"] = cidade
+            if uf and not r.get("endereco_uf"):
+                r["endereco_uf"] = uf.upper()[:2]
+            break
+    return r
 
 
 def _codigo_oficial(r):
