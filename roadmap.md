@@ -1,5 +1,10 @@
 # Roadmap
 
+## Atualização obrigatória por loja
+- [ ] Corrigir detecção independente do sinal do navegador e acompanhar troca de loja
+- [ ] Exigir atualização da loja afetada sem apagar carrinho ou sessão
+- [ ] Testar detecção, direcionamento e atualização pela tela
+
 ## Baixa manual e recuperação de compra
 - [x] Registrar pagamento manual com forma real e auditoria; manter trava do Bling; gravação e leitura pelo painel verificadas em orçamento temporário removido
 - [x] Mostrar orientação fiel à recusa e recuperar carrinho sem duplicar cobrança; #732 consultado sem cancelamento; recuperação de pedido temporário verificada na tela
