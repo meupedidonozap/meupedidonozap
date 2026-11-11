@@ -571,8 +571,18 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleSendWhatsApp = async (asQuote = false, opts: { decided?: boolean; release?: boolean } = {}) => {
-    if (!validateForm()) return;
+  // Mensagem de liberação com o nº do pedido: a janela é aberta no clique
+  // (iOS) e só recebe o link depois que o pedido é salvo e liberado.
+  const notifyRelease = (rw: { win: Window | null; number: string } | undefined, released: boolean, orderNumber?: number | string) => {
+    if (!rw?.win) return;
+    if (!released) { rw.win.close(); return; }
+    const num = orderNumber ? `#${orderNumber} ` : '';
+    const text = `Olá, o pedido ${num}do cliente "${formData.name}" pode ser transmitido`;
+    rw.win.location.href = `https://wa.me/${rw.number}?text=${encodeURIComponent(text)}`;
+  };
+
+  const handleSendWhatsApp = async (asQuote = false, opts: { decided?: boolean; release?: boolean; releaseWa?: { win: Window | null; number: string } } = {}) => {
+    if (!validateForm()) { opts.releaseWa?.win?.close(); return; }
     if (!opts.decided) {
       const step = nextFinalizeStep({
         storeSlug: store?.slug, isEditing: !!editingQuote, sellerOrder: canOfferRelease, asQuote,
@@ -750,7 +760,7 @@ export default function CheckoutPage() {
         if (editingAuthError || !editingUser) throw new Error('Entre novamente para salvar o pedido.');
         waWindow?.close();
         const byCustomer = !sellerOrder && !!editingQuote.byCustomer;
-        const { error: upErr } = await supabase.from('orders').update({
+        const { data: upd, error: upErr } = await supabase.from('orders').update({
           customer: orderPayload.customer as any,
           items: orderPayload.items as any,
           subtotal: orderPayload.subtotal,
@@ -775,6 +785,7 @@ export default function CheckoutPage() {
             else released = true;
           }
         }
+        notifyRelease(opts.releaseWa, released, (upd as any)?.order_number);
         if (opts.decided && !opts.release && !asQuote && (!paymentFormaCodigo || !paymentCondicaoCodigo) && store.slug === 'dicolore') {
           toast.warning('O pedido só será transmitido com a Condição e a Forma de pagamento selecionadas.', { duration: 8000 });
         }
@@ -816,6 +827,7 @@ export default function CheckoutPage() {
           else createdReleased = true;
         }
       }
+      notifyRelease(opts.releaseWa, createdReleased, created?.order_number ?? created?.orderNumber);
 
       if (!asQuote && created?.id && String(orderPayload.shippingCode || '').startsWith('SF-')) {
         supabase.functions.invoke('superfrete-label', { body: { action: 'create', orderId: created.id } }).catch(() => {});
@@ -874,6 +886,7 @@ export default function CheckoutPage() {
       }
     } catch (err: any) {
       waWindow?.close();
+      opts.releaseWa?.win?.close();
       toast.error(err.message || 'Erro ao salvar pedido');
     } finally {
       setIsSubmitting(false);
@@ -950,9 +963,9 @@ export default function CheckoutPage() {
                   const st: any = store?.settings || {};
                   const pt = String(activePriceTable || '');
                   const wa = String((pt && st.erpReleaseWhatsappByTable?.[pt]) || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-                  if (wa) window.open(`https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido do cliente "${formData.name}" pode ser transmitido`)}`, '_blank');
+                  const win = wa ? window.open('', '_blank') : null;
                   setFinalizeAsk(null); setReleaseConfirm(false);
-                  handleSendWhatsApp(false, { decided: true, release: true });
+                  handleSendWhatsApp(false, { decided: true, release: true, releaseWa: { win, number: wa } });
                 }}>Liberar p/ transmissão</Button>
               </AlertDialogFooter>
             </>
