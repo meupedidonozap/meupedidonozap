@@ -130,7 +130,7 @@ const paymentStatusLabels: Record<string, string> = {
   paid: 'Pago',
   failed: 'Recusado',
   expired: 'Expirado',
-  canceled: 'Cancelado',
+  canceled: 'Abandonado/Cancelado',
   refunded: 'Reembolsado',
 };
 
@@ -1827,6 +1827,9 @@ export default function StoreAdminPage() {
                             <Badge variant={order.paymentStatus === 'paid' ? 'default' : 'secondary'} className="mt-1 text-[10px]">
                               {paymentStatusLabels[order.paymentStatus] || order.paymentStatus}
                             </Badge>
+                          )}
+                          {order.paymentError && order.paymentStatus !== 'paid' && (
+                            <p className="mt-1 max-w-[220px] text-[10px] font-medium leading-tight text-destructive">{order.paymentError}</p>
                           )}
                           {order.paymentStatus === 'pending' && order.origem !== 'pagamento_online' && (isAdmin || permissions.can_manage_orders) && (
                             <Button size="sm" variant="outline" className="mt-1 h-6 px-2 text-[10px]" onClick={async () => {

@@ -54,7 +54,8 @@ export default function PayOrderPage() {
     if (data?.error) { setChecking(false); return; }
     try {
       const backup = localStorage.getItem(`mpz_cart_backup_${orderId}`);
-      if (backup && store?.id) { localStorage.setItem(`cart_${store.id}`, backup); localStorage.removeItem(`mpz_cart_backup_${orderId}`); }
+      const sid = backup ? JSON.parse(backup)?.storeId : null;
+      if (backup && sid) { localStorage.setItem(`cart_${sid}`, backup); localStorage.removeItem(`mpz_cart_backup_${orderId}`); }
     } catch {}
     toast.info('Pagamento não concluído. Seu carrinho foi restaurado para você finalizar novamente.');
     window.location.href = `/${slug}/checkout`;

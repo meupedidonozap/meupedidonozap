@@ -430,6 +430,7 @@ export interface Order {
   observations?: string;
   status: OrderStatus;
   origem?: string;
+  paymentError?: string | null;
   paymentStatus?: 'not_required' | 'pending' | 'paid' | 'failed' | 'expired' | 'canceled' | 'refunded';
   paymentSessionId?: string;
   paymentEnvironment?: 'sandbox' | 'live';
