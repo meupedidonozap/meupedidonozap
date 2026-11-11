@@ -56,6 +56,15 @@ class CustomerSyncTests(unittest.TestCase):
             self.sync.ciclo()
         self.assertEqual(send.call_args.args[0], rows)
 
+    def test_city_and_state_come_from_mpz_view(self):
+        r = self.sync._com_localidade({"codigo": "86553", "codigo_importacao": "86553"}, {"86553": ("Blumenau", "sc")})
+        self.assertEqual((r["endereco_cidade"], r["endereco_uf"]), ("Blumenau", "SC"))
+
+    def test_added_location_forces_resend(self):
+        base = {"codigo": "1", "codigo_importacao": "1"}
+        self.assertNotEqual(self.sync._hash(dict(base)),
+                            self.sync._hash(self.sync._com_localidade(dict(base), {"1": ("Joinville", "SC")})))
+
     def test_monitor_interval_remains_three_minutes(self):
         self.assertEqual(self.sync.INTERVALO, 180)
 
@@ -113,16 +122,3 @@ class CustomerSyncTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-def test_localidade_vem_da_view_mpz():
-    import sync_clientes_erp as m
-    r = m._com_localidade({"codigo": "86553", "codigo_importacao": "86553"}, {"86553": ("Blumenau", "sc")})
-    assert r["endereco_cidade"] == "Blumenau" and r["endereco_uf"] == "SC"
-
-
-def test_localidade_altera_hash_para_reenviar():
-    import sync_clientes_erp as m
-    base = {"codigo": "1", "codigo_importacao": "1"}
-    antes = m._hash(dict(base))
-    depois = m._hash(m._com_localidade(dict(base), {"1": ("Joinville", "SC")}))
-    assert antes != depois
