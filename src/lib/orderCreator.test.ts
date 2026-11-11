@@ -11,6 +11,9 @@ describe('getOrderCreator', () => {
   it('vendedor pela origem antiga', () => {
     expect(getOrderCreator({ origem: 'vendedor', customer: {} }).role).toBe('vendedor');
   });
+  it('pedido #749: web sem marcação, conta de cliente = cliente', () => {
+    expect(getOrderCreator({ origem: 'web', userId: 'u1', customer: { customerCode: '90622' } })).toMatchObject({ role: 'cliente', login: '90622' });
+  });
   it('sem marcação não concorre como cliente', () => {
     expect(getOrderCreator({ origem: 'web', customer: {} }).role).toBe('admin');
   });

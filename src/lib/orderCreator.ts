@@ -8,7 +8,7 @@ export const CREATOR_LABEL: Record<OrderCreatorRole, string> = {
 };
 
 /** Quem INICIOU o pedido. Só conta como "cliente" quando gravado explicitamente como cliente. */
-export function getOrderCreator(order: { origem?: string | null; customer?: any } | null | undefined): {
+export function getOrderCreator(order: { origem?: string | null; customer?: any; userId?: string | null } | null | undefined): {
   role: OrderCreatorRole; name: string; login: string;
 } {
   const c = order?.customer || {};
@@ -16,6 +16,8 @@ export function getOrderCreator(order: { origem?: string | null; customer?: any 
   if (c.createdByRole === 'cliente' || c.createdByRole === 'vendedor' || c.createdByRole === 'televendas') role = c.createdByRole;
   else if (c.isTelevendas) role = 'televendas';
   else if (order?.origem === 'vendedor') role = 'vendedor';
+  // Pedido antigo sem marcação, feito na loja por uma conta logada: é do próprio cliente.
+  else if (!c.createdByRole && (order?.origem || 'web') === 'web' && order?.userId) role = 'cliente';
   const name = String(c.createdByName || (role === 'televendas' ? c.televendasName : '') || (role === 'cliente' ? c.name : '') || '');
   const login = String(c.createdByUserEmail || (role === 'cliente' ? (c.customerCode || '') : '') || '');
   return { role, name, login };
