@@ -32,3 +32,4 @@
 - Manual payment confirmations use an authorized, row-locked RPC with immutable receipt context on the order; provider callbacks never replace manually confirmed payments, preventing misleading settlement history.
 - Customer account and additional addresses share store-scoped queries and managed-store guards; checkout selects saved addresses without replacing the primary profile.
 - Payment recovery cancels only after provider checks exclude live payments, preserves refusal history, and rebuilds the cart from the authorized order if the local backup is unavailable.
+- DiColore ERP locations resolve IBGE codes locally with CEP fallback; legacy checkout repairs persist server-derived city/state on the RLS-authorized profile before order creation, because order triggers stamp official data. New orders initialize ERP payment defaults; edits retain saved choices.

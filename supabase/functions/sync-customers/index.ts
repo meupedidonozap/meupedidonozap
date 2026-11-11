@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { customerPriceTablePatch, loadBatchCustomers, shouldCreateAccess } from "./batch.ts";
+import { resolveCustomerLocation } from '../_shared/customerLocation.ts';
 
 // CSV exportado da planilha de clientes da Dicolore
 // (planilha compartilhada como "qualquer pessoa com o link")
@@ -177,6 +178,17 @@ Deno.serve(async (req) => {
       if (x === "1" || x === "FOB" || x === "F") return "1";
       return null;
     };
+    if (rowsMode && storeSlug === 'dicolore') {
+      // Bounded concurrency, IBGE first. CEP fallback also repairs old imports.
+      for (let start = 0; start < records.length; start += 20) {
+        await Promise.all(records.slice(start, start + 20).map(async r => {
+          const found = existing.get(FREE(r.codigo));
+          const location = await resolveCustomerLocation(r);
+          r.endereco_cidade = location.city || String(found?.city || '');
+          r.endereco_uf = location.uf || String(found?.uf || '');
+        }));
+      }
+    }
     for (const r of records) {
       const codigo = FREE(r.codigo);
       const nome = FREE(r.razao_social);
@@ -217,6 +229,8 @@ Deno.serve(async (req) => {
           condicao_pagamento_codigo: "condicao_pagamento_codigo", forma_pagamento_codigo: "forma_pagamento_codigo",
           grupo_tributario_codigo: "grupo_tributario_codigo", regime_tributario: "regime_tributario",
           cnae: "cnae", situacao: "situacao",
+          municipio_codigo_ibge: 'municipio_codigo_ibge', estado_codigo_ibge: 'estado_codigo_ibge',
+          municipio_entrega_codigo_ibge: 'municipio_entrega__codigo_ibge', estado_entrega_codigo_ibge: 'estado_entrega__codigo_ibge',
         };
         for (const [col, key] of Object.entries(extra)) { const v = opt(r, key); if (v !== undefined) payload[col] = v; }
         if ("total_limite_credito" in r) { const n = Number(String(r.total_limite_credito).replace(",", ".")); payload.total_limite_credito = r.total_limite_credito && Number.isFinite(n) ? n : null; }

@@ -1,5 +1,10 @@
 # Roadmap
 
+## Localização e pagamento ERP DiColore
+- [ ] Traduzir IBGE na sincronização e recuperar cidade/UF de cadastros antigos pelo CEP
+- [ ] Carregar forma e condição do cliente sem sobrescrever pedidos em edição
+- [ ] Testar e publicar funções; conferir cliente 83658 sem transmitir ao ERP
+
 ## Finalização do cliente DiColore
 - [x] Restaurar finalização do cliente como Pendente, sem opção de liberação
 - [x] Substituir a trava de criação por proteção de status em inclusão e alteração; 22 testes passaram e alteração aplicada

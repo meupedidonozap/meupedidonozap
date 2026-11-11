@@ -21,6 +21,8 @@ export interface CustomerProfile {
   customerCode?: string;
   transportadora?: string;
   ie?: string;
+  paymentFormaCodigo?: string;
+  paymentCondicaoCodigo?: string;
   /** 1 = atacado, 4 = varejo (default), 9 = atacado. */
   priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
 }
@@ -44,6 +46,8 @@ export function mapProfile(row: any): CustomerProfile {
     customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
     ie: row.ie || '',
+    paymentFormaCodigo: row.forma_pagamento_codigo || '',
+    paymentCondicaoCodigo: row.condicao_pagamento_codigo || '',
     priceTable: normalizePriceTable(row.price_table),
   };
 }

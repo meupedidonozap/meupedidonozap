@@ -25,6 +25,8 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
     customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
     ie: row.ie || '',
+    paymentFormaCodigo: row.forma_pagamento_codigo || '',
+    paymentCondicaoCodigo: row.condicao_pagamento_codigo || '',
     priceTable: normalizePriceTable(row.price_table),
     rawPriceTable: row.price_table ?? null,
     raw: row,
@@ -32,7 +34,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
 }
 
 // Lista leve: lojas com milhares de clientes (DiColore) travavam ao baixar todas as colunas.
-const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table';
+const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo';
 
 export function useStoreCustomerProfiles(storeId: string | undefined) {
   return useQuery({
