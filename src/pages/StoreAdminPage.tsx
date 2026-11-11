@@ -3430,9 +3430,10 @@ export default function StoreAdminPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => {
+                          <Button variant="ghost" size="sm" onClick={async () => {
                             setEditingCustomer(cp);
-                            setDwForm(dwFormFromRow((cp as any).raw));
+                            const { data: fullRow } = await supabase.from('customer_profiles').select('*').eq('id', cp.id).maybeSingle();
+                            setDwForm(dwFormFromRow(fullRow || (cp as any).raw));
                             setCustomerForm({
                               name: cp.name, whatsapp: cp.whatsapp, address: cp.address,
                               number: cp.number, city: cp.city, uf: cp.uf, cep: cp.cep,
