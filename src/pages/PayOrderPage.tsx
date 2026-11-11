@@ -16,7 +16,7 @@ export default function PayOrderPage() {
   const [sp] = useSearchParams();
   const isReturn = sp.get('retorno') === '1';
   const { data: store } = useStoreBySlug(slug || '');
-  const [info, setInfo] = useState<{ orderNumber: number; total: number; paymentStatus: string; storeName: string; lastStatus?: string | null } | null>(null);
+  const [info, setInfo] = useState<{ orderNumber: number; total: number; paymentStatus: string; storeName: string; lastStatus?: string | null; reason?: string | null } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<'pix' | 'card' | null>(null);
   const [pix, setPix] = useState<PixDialogData | null>(null);
@@ -27,7 +27,7 @@ export default function PayOrderPage() {
     const { data: d } = await supabase.functions.invoke('mercadopago', { body: { action: 'info', orderId } });
     if (!d || d.error) { setError(d?.error || 'Pedido não encontrado'); return null; }
     const { data } = await supabase.functions.invoke('mercadopago', { body: { action: 'status', orderId } });
-    const next = { ...d, paymentStatus: data?.paymentStatus || d.paymentStatus, lastStatus: data?.lastStatus };
+    const next = { ...d, paymentStatus: data?.paymentStatus || d.paymentStatus, lastStatus: data?.lastStatus, reason: data?.reason };
     setInfo(next);
     return next;
   };
@@ -38,12 +38,28 @@ export default function PayOrderPage() {
     const run = async () => {
       const r = await load();
       if (!isReturn || stop || !r) { setChecking(false); return; }
-      if (r.paymentStatus === 'paid' || FAILED.includes(r.lastStatus || '') || ++tries.current >= 30) { setChecking(false); return; }
+      if (r.paymentStatus === 'paid' || FAILED.includes(r.lastStatus || '')) { setChecking(false); return; }
+      // Sem nenhuma tentativa de pagamento: o cliente desistiu no meio do caminho.
+      const mpStatus = sp.get('collection_status') || sp.get('status');
+      if (!r.lastStatus && (mpStatus === 'null' || tries.current >= 3)) { await abandon(); return; }
+      if (++tries.current >= 30) { setChecking(false); return; }
       setTimeout(run, 4000);
     };
     run();
     return () => { stop = true; };
   }, [orderId]);
+
+  const abandon = async () => {
+    const { data } = await supabase.functions.invoke('mercadopago', { body: { action: 'abandon', orderId } });
+    if (data?.error) { setChecking(false); return; }
+    try {
+      const backup = localStorage.getItem(`mpz_cart_backup_${orderId}`);
+      const sid = backup ? JSON.parse(backup)?.storeId : null;
+      if (backup && sid) { localStorage.setItem(`cart_${sid}`, backup); localStorage.removeItem(`mpz_cart_backup_${orderId}`); }
+    } catch {}
+    toast.info('Pagamento não concluído. Seu carrinho foi restaurado para você finalizar novamente.');
+    window.location.href = `/${slug}/checkout`;
+  };
 
   const gw = (store?.settings as any)?.paymentGateway || {};
   const wa = String(store?.whatsapp || '').replace(/\D/g, '');
@@ -81,7 +97,13 @@ export default function PayOrderPage() {
                 <p className="flex items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Aguardando confirmação do Mercado Pago...</p>
               ) : (
                 <div className="space-y-2">
-                  {failed && <p className="flex items-center justify-center gap-2 font-semibold text-destructive"><XCircle className="h-5 w-5" /> Pagamento não aprovado</p>}
+                  {failed && (
+                    <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                      <p className="flex items-center justify-center gap-2 font-semibold text-destructive"><XCircle className="h-5 w-5" /> Pagamento não aprovado</p>
+                      {info.reason && <p className="text-sm text-destructive">Motivo: {info.reason}</p>}
+                      <p className="text-xs text-muted-foreground">Tente outro cartão ou pague com PIX.</p>
+                    </div>
+                  )}
                   {gw.cardEnabled && <Button className="w-full gap-2" disabled={!!busy} onClick={() => pay('card')}>{busy === 'card' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />} {failed ? 'Tentar de novo (Cartão)' : 'Pagar com Cartão'}</Button>}
                   {gw.pixEnabled !== false && <Button variant={gw.cardEnabled ? 'outline' : 'default'} className="w-full gap-2" disabled={!!busy} onClick={() => pay('pix')}>{busy === 'pix' ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />} Pagar com PIX</Button>}
                 </div>

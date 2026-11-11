@@ -1101,6 +1101,7 @@ export type Database = {
           origem: string
           paid_at: string | null
           payment_environment: string | null
+          payment_error: string | null
           payment_method: string
           payment_session_id: string | null
           payment_status: string
@@ -1139,6 +1140,7 @@ export type Database = {
           origem?: string
           paid_at?: string | null
           payment_environment?: string | null
+          payment_error?: string | null
           payment_method?: string
           payment_session_id?: string | null
           payment_status?: string
@@ -1177,6 +1179,7 @@ export type Database = {
           origem?: string
           paid_at?: string | null
           payment_environment?: string | null
+          payment_error?: string | null
           payment_method?: string
           payment_session_id?: string | null
           payment_status?: string

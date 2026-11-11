@@ -20,6 +20,7 @@ export function mapOrder(row: any): Order {
     status: row.status as OrderStatus,
     origem: row.origem || 'web',
     paymentStatus: row.payment_status || 'not_required',
+    paymentError: row.payment_error || null,
     paymentSessionId: row.payment_session_id || undefined,
     paymentEnvironment: row.payment_environment || undefined,
     paidAt: row.paid_at || undefined,

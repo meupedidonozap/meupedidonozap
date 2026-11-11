@@ -492,11 +492,11 @@ async function exportOrder(storeId: string, token: string, order: any) {
 async function exportOrders(storeId: string, onlyId?: string) {
   const token = await getToken(storeId);
   let q = admin.from('orders').select('*').eq('store_id', storeId).is('bling_order_id', null);
+  // Só pedidos com pagamento APROVADO vão para o Bling (inclusive envio manual).
+  q = q.eq('payment_status', 'paid');
   if (onlyId) q = q.eq('id', onlyId);
   else q = q.not('status', 'in', '(orcamento,cancelado)').lt('bling_attempts', 5)
-    .gte('created_at', new Date(Date.now() - 15 * 86400e3).toISOString())
-    // pedidos com pagamento online só vão depois de pagos
-    .or('payment_status.is.null,payment_status.eq.paid,payment_status.eq.manual,payment_status.eq.pending_manual');
+    .gte('created_at', new Date(Date.now() - 15 * 86400e3).toISOString());
   const { data: orders } = await q.order('created_at').limit(20);
   let sent = 0, failed = 0; const errors: string[] = [];
   for (const o of orders ?? []) {

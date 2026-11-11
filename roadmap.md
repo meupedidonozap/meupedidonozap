@@ -77,3 +77,8 @@
 - [x] Autorizar títulos pelo código do cliente para cliente, vendedor da carteira, televendas e administrador
 - [x] Integrar Notas Fiscais pela VIEW `dw_nota_fiscal` para cliente, vendedor, televendas e administrador
 - Integração de pedidos MPZ -> ERP DiColore (Python): pendente teste no servidor
+
+## Pagamento por cartão JEWOS
+- [x] Bling só recebe pedidos com pagamento aprovado (automático e manual)
+- [x] Gravar e exibir motivo da recusa do cartão (cliente e painel)
+- [x] Cliente que desiste do pagamento: pedido cancelado e carrinho restaurado

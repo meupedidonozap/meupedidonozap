@@ -22,7 +22,7 @@ export default function OrderItemsDialog({ order, items }: { order: any; items: 
             <DialogTitle>Pedido #{order.orderNumber}{(order as any).erpOrderCode ? ` (ERP ${(order as any).erpOrderCode})` : ''} — {order.customer?.name}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            <div><p className="text-xs text-muted-foreground">Pagamento</p><p className="uppercase">{order.paymentMethod || '-'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Pagamento</p><p className="uppercase">{order.paymentMethod || '-'}</p>{order.paymentError && order.paymentStatus !== 'paid' && <p className="text-xs text-destructive">{order.paymentError}</p>}</div>
             <div><p className="text-xs text-muted-foreground">Itens</p><p>{items.length}</p></div>
             <div><p className="text-xs text-muted-foreground">Peças</p><p>{pieces}</p></div>
             <div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{brl(order.total)}</p></div>

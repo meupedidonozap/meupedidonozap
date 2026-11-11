@@ -821,6 +821,8 @@ export default function CheckoutPage() {
         if (method === 'pix') {
           setPixDialog({ payload: mpr.qrCode, qrImage: mpr.qrCodeBase64, amount: mpr.amount, orderNumber: created?.order_number ?? created?.orderNumber, whatsappUrl: waUrl, orderId: created.id });
         } else {
+          // Guarda o carrinho para restaurar caso o cliente desista do pagamento.
+          try { const c = localStorage.getItem(`cart_${store.id}`); if (c) localStorage.setItem(`mpz_cart_backup_${created.id}`, c); } catch {}
           clearCart();
           window.location.href = mpr.checkoutUrl;
         }
