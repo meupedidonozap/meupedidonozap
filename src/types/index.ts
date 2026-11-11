@@ -418,6 +418,7 @@ export interface CustomerInfo {
 export interface Order {
   id: string;
   storeId: string;
+  userId?: string | null;
   orderNumber: number;
   customer: CustomerInfo;
   items: CartItem[];
