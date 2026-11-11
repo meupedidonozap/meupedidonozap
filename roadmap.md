@@ -1,5 +1,11 @@
 # Roadmap
 
+## Baixa manual e recuperação de compra
+- [ ] Registrar pagamento manual com forma real e auditoria; manter trava do Bling
+- [ ] Mostrar orientação fiel à recusa e recuperar carrinho sem duplicar cobrança
+- [ ] Restaurar Meus dados, senha e endereços fora da DiColore/SENSES
+- [ ] Testar e publicar alterações
+
 ## Nova carga de clientes por vendedor
 - [x] Aplicar tabela inicial por vendedor e preservar atribuições existentes no MPZ
 - [x] Alinhar cadastros sem tabela dos demais vendedores; vendedor 28 recebe ERP na nova carga; 60 testes e chamada real sem gravações; função publicada
