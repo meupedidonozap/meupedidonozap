@@ -100,8 +100,8 @@ Deno.serve(async (req) => {
       const profiles = results.flatMap((r: any) => r.data || []);
 
       // Televendas por nome (fallback quando o pedido não gravou o código)
-      const { data: tvs } = await admin.from("store_users").select("name, erp_code")
-        .eq("store_id", store.id).eq("role", "televendas");
+      const { data: tvs } = await admin.from("store_users").select("name, erp_code, role, user_id")
+        .eq("store_id", store.id).in("role", ["televendas", "vendedor"]);
 
       const out = orders.map((o: any) => {
         const c = o.customer || {};
@@ -138,10 +138,11 @@ Deno.serve(async (req) => {
           ...l, total: _cents / 100, unit_price: l.quantity ? r2(_cents / 100 / l.quantity) : 0,
           commission_value: r2((_cents / 100) * (l.commission_percent / 100)),
         }));
-        const isTv = !!c.isTelevendas;
-        const tvCode = c.televendasErpCode
-          || (isTv ? (tvs || []).find((t: any) => t.name?.trim().toLowerCase() === String(c.televendasName || "").trim().toLowerCase())?.erp_code : null)
-          || null;
+        // Perfil ATUAL do operador decide: vendedor => pedido normal; televendas => exige código.
+        const opName = String(c.televendasName || c.claimedName || c.ownerName || "").trim().toLowerCase();
+        const op = (tvs || []).find((t: any) => opName && t.name?.trim().toLowerCase() === opName);
+        const isTv = !!c.isTelevendas && (!op || op.role === "televendas");
+        const tvCode = isTv ? (c.televendasErpCode || op?.erp_code || null) : null;
         return {
           id: o.id, order_number: o.order_number, created_at: o.created_at,
           customer: {
