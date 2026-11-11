@@ -1,10 +1,10 @@
 # Roadmap
 
 ## Baixa manual e recuperação de compra
-- [ ] Registrar pagamento manual com forma real e auditoria; manter trava do Bling
-- [ ] Mostrar orientação fiel à recusa e recuperar carrinho sem duplicar cobrança
-- [ ] Restaurar Meus dados, senha e endereços fora da DiColore/SENSES
-- [ ] Testar e publicar alterações
+- [x] Registrar pagamento manual com forma real e auditoria; manter trava do Bling; gravação e leitura pelo painel verificadas em orçamento temporário removido
+- [x] Mostrar orientação fiel à recusa e recuperar carrinho sem duplicar cobrança; #732 consultado sem cancelamento; recuperação de pedido temporário verificada na tela
+- [x] Restaurar Meus dados, senha e endereços fora da DiColore/SENSES; endereço temporário salvo e removido; bloqueio DiColore e celular verificados
+- [x] Testar e publicar funções; 30 testes passaram; nenhuma cobrança real nem transmissão de teste
 
 ## Nova carga de clientes por vendedor
 - [x] Aplicar tabela inicial por vendedor e preservar atribuições existentes no MPZ
