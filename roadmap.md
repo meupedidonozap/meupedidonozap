@@ -1,9 +1,11 @@
 # Roadmap
 
 ## Localização e pagamento ERP DiColore
-- [ ] Traduzir IBGE na sincronização e recuperar cidade/UF de cadastros antigos pelo CEP
-- [ ] Carregar forma e condição do cliente sem sobrescrever pedidos em edição
-- [ ] Testar e publicar funções; conferir cliente 83658 sem transmitir ao ERP
+- [x] Traduzir IBGE na sincronização e recuperar cidade/UF de cadastros antigos pelo CEP no checkout, persistindo somente localização autorizada
+- [x] Carregar forma e condição do cliente sem sobrescrever pedidos em edição
+- [x] 65 testes passaram; funções publicadas; cliente 83658 com Jaraguá do Sul/SC e pagamento 4/58 confirmados no cadastro e checkout
+- [x] Simulação autenticada chegou ao envio com status pendente e código 83658; gravação interceptada para não criar pedido nem notificação; sem opção de liberar
+- [ ] Confirmar gravação e leitura de um pedido de teste — depende de autorização para criar pedido/notificações reais
 
 ## Finalização do cliente DiColore
 - [x] Restaurar finalização do cliente como Pendente, sem opção de liberação
