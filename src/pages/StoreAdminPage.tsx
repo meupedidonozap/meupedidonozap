@@ -648,7 +648,7 @@ export default function StoreAdminPage() {
   const [newSellerCode, setNewSellerCode] = useState('');
 
   // Dicolore: confirmação para liberar pedido ao ERP via WhatsApp
-  const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number; priceTable?: string } | null>(null);
+  const [pendingErpRelease, setPendingErpRelease] = useState<{ orderId: string; orderNumber: number; priceTable?: string; customerName?: string } | null>(null);
   const [releaseIssues, setReleaseIssues] = useState<{ order: any; issues: string[] } | null>(null);
   // Pedidos liberados com cliente PROSPECT (sem código ERP): alerta o admin uma vez por sessão.
   const [prospectSeen, setProspectSeen] = useState<Set<string>>(() => {
