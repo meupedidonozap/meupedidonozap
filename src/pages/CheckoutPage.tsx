@@ -82,7 +82,8 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { data: allProductsCk = [] } = useProducts(store?.id);
   const editingQuote = useEditingQuote(store?.id);
-  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem } = useCart();
+  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem, setStoreId } = useCart();
+  useEffect(() => { if (store?.id) setStoreId(store.id); }, [store?.id, setStoreId]);
   const { user, loading: authLoading } = useAuth();
   const {
     profile: customerProfile,
