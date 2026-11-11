@@ -1,7 +1,7 @@
 # Roadmap
 
 ## Nova carga de clientes por vendedor
-- [ ] Aplicar tabela inicial por vendedor e preservar atribuições existentes no MPZ
+- [x] Aplicar tabela inicial por vendedor e preservar atribuições existentes no MPZ
 - [ ] Alinhar cadastros sem tabela, testar e publicar a sincronização
 - [ ] Confirmar carga completa — depende de executar --tudo no servidor ERP
 

@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { loadBatchCustomers, normalizeCustomerPriceTable, shouldCreateAccess } from "./batch.ts";
+import { customerPriceTablePatch, loadBatchCustomers, shouldCreateAccess } from "./batch.ts";
 
 // CSV exportado da planilha de clientes da Dicolore
 // (planilha compartilhada como "qualquer pessoa com o link")
@@ -98,6 +98,7 @@ Deno.serve(async (req) => {
         endereco_complemento: ["cliendcom", "complemento"], vendedor_codigo: ["clirepcod", "codigo_vendedor"],
         situacao: ["clisit", "situacao"], transportadora_codigo: ["transportadora", "clitrans", "clitransp", "clitracod"],
         frete_codigo: ["frete_codigo", "clifrepag"], segmento: ["segmento", "segcod", "codigo_segmento"],
+        tabela_preco_codigo: ["tabela_preco_codigo", "clitabpre", "price_table"],
       };
       const idx: Record<string, number> = {};
       for (const [k, names] of Object.entries(alias)) idx[k] = names.map((n) => header.indexOf(n)).find((i) => i !== -1) ?? -1;
@@ -227,6 +228,7 @@ Deno.serve(async (req) => {
         const mpz = d ? byDoc.get(d) : undefined;
         if (mpz) {
           // Vincula o cadastro feito no MPZ ao código do ERP (mantém tabela de preço e login)
+          Object.assign(payload, customerPriceTablePatch(storeSlug, r.vendedor_codigo, r.tabela_preco_codigo, mpz.price_table));
           byDoc.delete(d);
           existing.set(codigo, mpz);
           toUpdate.push({ id: mpz.id, codigo, payload });
@@ -234,6 +236,8 @@ Deno.serve(async (req) => {
         }
       }
       if (found) {
+        // Inicializa cadastros antigos sem tabela; não sobrescreve atribuições do MPZ.
+        Object.assign(payload, customerPriceTablePatch(storeSlug, r.vendedor_codigo, r.tabela_preco_codigo, found.price_table));
         // Diff: só envia UPDATE se algum campo mudou
         const changed = Object.keys(payload).some((k) => k !== "store_id" && (
           k === "is_active" ? (found.is_active ?? true) !== isActive : norm(found[k]) !== norm(payload[k])));
@@ -245,9 +249,7 @@ Deno.serve(async (req) => {
         toUpdate.push({ id: found.id, codigo, payload });
         if (!isActive && (found.is_active ?? true)) deactivated++;
       } else {
-        // Preserva tabelas existentes; novos clientes usam apenas tabelas suportadas.
-        const price_table = normalizeCustomerPriceTable(r.tabela_preco_codigo);
-        toInsert.push({ ...payload, price_table, user_id: null });
+        toInsert.push({ ...payload, ...customerPriceTablePatch(storeSlug, r.vendedor_codigo, r.tabela_preco_codigo, null), user_id: null });
       }
     }
 
