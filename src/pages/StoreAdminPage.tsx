@@ -3663,7 +3663,7 @@ export default function StoreAdminPage() {
                         }
                         qc.invalidateQueries({ queryKey: ['store-customer-profiles', editingCustomer.storeId] });
                         setEditingCustomer(null);
-                      } catch { toast.error('Erro ao atualizar'); }
+                      } catch (e: any) { toast.error(e.message || 'Erro ao atualizar'); }
                     }}>Salvar</Button>
                   </div>
                 </DialogContent>
