@@ -330,6 +330,13 @@
       "when": 1794411504653,
       "tag": "0046_dicolore_release_payment_rule",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794412024661,
+      "tag": "0047_customer_discount_policy",
+      "breakpoints": true
     }
   ]
 }
