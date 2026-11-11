@@ -1,7 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { documentCandidates, loadBatchCustomers, normalizeCustomerPriceTable, shouldCreateAccess } from "../../supabase/functions/sync-customers/batch";
+import { customerPriceTablePatch, documentCandidates, loadBatchCustomers, normalizeCustomerPriceTable, shouldCreateAccess } from "../../supabase/functions/sync-customers/batch";
 
 describe("ERP customer batch", () => {
+  it.each([1, 9])("initializes seller 28 with ERP table %s", (table) => {
+    expect(customerPriceTablePatch("dicolore", "28", table, null)).toEqual({ price_table: table });
+  });
+
+  it.each(["28", "028", " 00028 "])("normalizes seller code %s", (seller) => {
+    expect(customerPriceTablePatch("dicolore", seller, "9", null)).toEqual({ price_table: 9 });
+  });
+
+  it.each([null, "", 0, 2, 3, 4, 8, 11, "abc"])("defaults seller 28 unsupported table %s to 4", (table) => {
+    expect(customerPriceTablePatch("dicolore", "28", table, null)).toEqual({ price_table: 4 });
+  });
+
+  it.each(["10", "21", "46", "128", "", "0"])("initializes other seller %s with table 4", (seller) => {
+    expect(customerPriceTablePatch("dicolore", seller, 9, null)).toEqual({ price_table: 4 });
+  });
+
+  it.each([1, 3, 4, 8, 9, 11])("never overwrites MPZ assignment %s on a full reload or seller change", (table) => {
+    expect(customerPriceTablePatch("dicolore", "28", 1, table)).toEqual({});
+    expect(customerPriceTablePatch("dicolore", "46", 9, table)).toEqual({});
+  });
+
+  it("initializes legacy unassigned customers using the same first-load rule", () => {
+    expect(customerPriceTablePatch("dicolore", "28", 1, undefined)).toEqual({ price_table: 1 });
+    expect(customerPriceTablePatch("dicolore", "46", 1, null)).toEqual({ price_table: 4 });
+  });
+
+  it("keeps other stores' supported ERP table behavior unchanged", () => {
+    expect(customerPriceTablePatch("other-store", "46", 9, null)).toEqual({ price_table: 9 });
+  });
+
   it.each([1, 3, 4, 8, 9, 11])("preserves supported ERP price table %s", (table) => {
     expect(normalizeCustomerPriceTable(String(table))).toBe(table);
   });

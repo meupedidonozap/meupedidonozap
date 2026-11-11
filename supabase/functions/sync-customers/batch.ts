@@ -6,6 +6,17 @@ export function normalizeCustomerPriceTable(value: unknown): number {
   return [1, 3, 4, 8, 9, 11].includes(table) ? table : 4;
 }
 
+/** Initialize only unassigned tables; MPZ assignments always win on subsequent loads. */
+export function customerPriceTablePatch(
+  storeSlug: string, sellerCode: unknown, erpTable: unknown, assignedTable: unknown,
+): { price_table?: number } {
+  if (assignedTable !== null && assignedTable !== undefined) return {};
+  if (storeSlug !== "dicolore") return { price_table: normalizeCustomerPriceTable(erpTable) };
+  const seller = String(sellerCode ?? "").trim().replace(/^0+(?=\d)/, "");
+  const table = Number(String(erpTable ?? "").trim());
+  return { price_table: seller === "28" && [1, 9].includes(table) ? table : 4 };
+}
+
 export function documentCandidates(values: string[]): string[] {
   const candidates = new Set<string>();
   for (const value of values) {
