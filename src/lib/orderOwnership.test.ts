@@ -84,3 +84,37 @@ describe('televendas nome invertido', () => {
     expect(canEditOrder(o, { isTelevendas: true, name: 'X', erpCode: '9' })).toBe(false);
   });
 });
+
+import { mergeEditedCustomer, isUnclaimedCustomerOrder } from './orderOwnership';
+describe('dono do pedido do cliente (DiColore)', () => {
+  const ronaldo = { name: 'Ronaldo' };
+  const denise = { isTelevendas: true, name: 'Denise', erpCode: '7' };
+  const pedido = { origem: 'web', userId: 'u', customer: { name: 'ELIANE', createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Ronaldo' } };
+  it('livre até alguém salvar: vendedor e televendas podem editar', () => {
+    expect(canEditOrder(pedido, ronaldo)).toBe(true);
+    expect(canEditOrder(pedido, denise)).toBe(true);
+  });
+  it('quem salva primeiro vira dono e o outro fica bloqueado', () => {
+    const c = mergeEditedCustomer(pedido, { name: 'ELIANE', createdByRole: 'televendas' }, denise);
+    expect(c.claimedRole).toBe('televendas');
+    expect(c.claimedName).toBe('Denise');
+    expect(canEditOrder({ customer: c }, ronaldo)).toBe(false);
+    expect(canEditOrder({ customer: c }, denise)).toBe(true);
+    expect(canEditOrder({ customer: c }, { isAdmin: true })).toBe(true);
+  });
+  it('"Feito pelo cliente" continua depois da edição', () => {
+    const c = mergeEditedCustomer(pedido, { name: 'ELIANE', createdByRole: 'vendedor', createdByName: 'Ronaldo' }, ronaldo);
+    expect(c.createdByRole).toBe('cliente');
+  });
+  it('segunda edição não troca o dono', () => {
+    const c1 = mergeEditedCustomer(pedido, { name: 'E' }, denise);
+    const c2 = mergeEditedCustomer({ ...pedido, customer: c1 }, { name: 'E' }, { isAdmin: true, name: 'Admin' });
+    expect(c2.claimedName).toBe('Denise');
+  });
+  it('#749: pedido web de conta de cliente sem marca conta como do cliente sem dono', () => {
+    const o749 = { origem: 'web', userId: 'f32f', customer: { name: 'ELIANE' } };
+    expect(isUnclaimedCustomerOrder(o749)).toBe(true);
+    expect(canEditOrder(o749, ronaldo)).toBe(true);
+    expect(mergeEditedCustomer(o749, { name: 'ELIANE' }, ronaldo).claimedName).toBe('Ronaldo');
+  });
+});

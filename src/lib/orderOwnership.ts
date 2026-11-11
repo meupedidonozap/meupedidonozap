@@ -32,7 +32,7 @@ export function canEditOrder(
 ): boolean {
   if (!order) return false;
   if (viewer.isAdmin) return true;
-  if (isUnclaimedCustomerOrder(order)) return true;
+  if (isUnclaimedCustomerOrder(order as any)) return true;
   const owner = getOrderOwner(order);
   if (!owner.role) return false;
   const viewerRole = viewer.isTelevendas ? 'televendas' : 'vendedor';
@@ -48,9 +48,38 @@ export function canEditOrder(
 }
 
 /** Pedido emitido pelo próprio cliente que ainda não foi assumido: vendedor e televendas podem editar. */
-export function isUnclaimedCustomerOrder(order: { customer?: any } | null | undefined): boolean {
+export function isUnclaimedCustomerOrder(order: { origem?: string | null; customer?: any; userId?: string | null } | null | undefined): boolean {
   const c = order?.customer || {};
-  return c.createdByRole === 'cliente' && !c.claimedRole;
+  return isClientCreated(order) && !c.claimedRole;
+}
+
+/** Pedido iniciado pelo cliente: marcado como cliente, ou pedido antigo da loja (web) sem criador nem dono (ex.: #749). */
+export function isClientCreated(order: { origem?: string | null; customer?: any; userId?: string | null } | null | undefined): boolean {
+  const c = order?.customer || {};
+  if (c.createdByRole === 'cliente') return true;
+  if (c.createdByRole || c.isTelevendas || c.ownerRole) return false;
+  return order?.origem === 'web' && !!(order.userId ?? (order as any).user_id);
+}
+
+/** Campos de criação/dono que uma edição nunca pode sobrescrever. */
+const ORIGIN_KEYS = ['createdByRole', 'createdByName', 'createdByUserEmail', 'claimedRole', 'claimedName', 'claimedErpCode', 'claimedAt',
+  'ownerRole', 'ownerName', 'isTelevendas', 'televendasName', 'televendasErpCode'] as const;
+
+/**
+ * Monta o cliente a salvar numa edição: dados novos do formulário, mas mantendo
+ * quem criou e quem assumiu do pedido salvo. Se o pedido é do cliente e ainda
+ * não tem dono, quem está salvando assume.
+ */
+export function mergeEditedCustomer(
+  saved: { origem?: string | null; customer?: any; userId?: string | null },
+  edited: any,
+  viewer: { isAdmin?: boolean; isTelevendas?: boolean; name?: string; erpCode?: string },
+): any {
+  const prev = saved.customer || {};
+  const out: any = { ...edited };
+  for (const k of ORIGIN_KEYS) { if (k in prev) out[k] = prev[k]; else delete out[k]; }
+  if (isClientCreated(saved) && !prev.createdByRole) { out.createdByRole = 'cliente'; out.createdByName = out.createdByName || prev.name; }
+  return claimCustomerOrder(out, viewer);
 }
 
 /** Ao editar um pedido do cliente, quem editar primeiro vira o dono. */

@@ -1,3 +1,4 @@
+import { canEditOrder, getOrderOwner, mergeEditedCustomer } from '@/lib/orderOwnership';
 import { cartSubmissionKey } from '@/lib/cartSubmissionKey';
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { nextFinalizeStep, initialCheckoutStatus, type FinalizeStep } from '@/lib/finalizeEditFlow';
@@ -764,8 +765,20 @@ export default function CheckoutPage() {
         if (editingAuthError || !editingUser) throw new Error('Entre novamente para salvar o pedido.');
         waWindow?.close();
         const byCustomer = !sellerOrder && !!editingQuote.byCustomer;
+        let editedCustomer: any = orderPayload.customer;
+        if (!byCustomer) {
+          // Mantém quem criou/assumiu e confere o dono no estado atual do pedido.
+          const { data: saved, error: savedErr } = await supabase.from('orders').select('customer,origem,user_id').eq('id', editingQuote.id).single();
+          if (savedErr || !saved) throw new Error('O orçamento em edição não está mais disponível. Nenhum orçamento novo foi criado.');
+          const viewer = { isAdmin: seller.isAdmin, isTelevendas: seller.isTelevendas, name: seller.sellerName, erpCode: seller.erpCode };
+          if (!canEditOrder(saved as any, viewer)) {
+            const ow = getOrderOwner(saved as any);
+            throw new Error(`Este pedido já foi assumido por ${ow.name || 'outro responsável'}.`);
+          }
+          editedCustomer = mergeEditedCustomer(saved as any, orderPayload.customer, viewer);
+        }
         const { data: upd, error: upErr } = await supabase.from('orders').update({
-          customer: orderPayload.customer as any,
+          customer: editedCustomer as any,
           items: orderPayload.items as any,
           subtotal: orderPayload.subtotal,
           discount: orderPayload.discount,

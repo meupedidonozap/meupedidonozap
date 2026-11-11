@@ -1812,11 +1812,16 @@ export default function StoreAdminPage() {
                           {order.origem !== 'mesa' && (() => {
                             const cr = getOrderCreator(order as any);
                             const cls = cr.role === 'cliente' ? 'bg-primary text-primary-foreground' : cr.role === 'admin' ? 'bg-muted text-muted-foreground' : 'bg-secondary text-secondary-foreground';
-                            return (
+                            return (<>
                               <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>
                                 {CREATOR_LABEL[cr.role]}{cr.role !== 'cliente' && cr.name ? `: ${cr.name}` : ''}{cr.login ? ` (${cr.login})` : ''}
                               </span>
-                            );
+                              {(order.customer as any)?.claimedRole && (
+                                <span className="ml-1 mt-1 inline-block rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                                  Assumido por: {(order.customer as any).claimedName} ({(order.customer as any).claimedRole === 'televendas' ? 'televendas' : 'vendedor'})
+                                </span>
+                              )}
+                            </>);
                           })()}
 
                         </TableCell>
