@@ -39,7 +39,7 @@ export default function ReleasePaymentDialog({ order, store, viewer, onClose, on
       } as any, viewer);
       const issues = getReleaseIssues({ customer, items: saved.items, requirePayment: releasePaymentRequired(store.slug, store.settings) });
       if (issues.length) throw new Error(`Pedido não liberado: ${issues.join('; ')}`);
-      const { error } = await supabase.from('orders').update({ customer: customer as any, status: 'liberado_transmissao' }).eq('id', order.id).eq('store_id', store.id).eq('status', row.status).eq('customer', row.customer).select().single();
+      const { error } = await supabase.from('orders').update({ customer: customer as any, status: 'liberado_transmissao' }).eq('id', order.id).eq('store_id', store.id).eq('status', row.status).eq('customer', JSON.stringify(row.customer)).select().single();
       if (error) throw error;
       if (notify) {
         const s = store.settings || {};
