@@ -88,7 +88,14 @@ export function useCreateOrder() {
         shipping_service: order.shippingService || null,
         shipping_code: order.shippingCode || null,
         shipping_deadline: order.shippingDeadline ?? null,
+        client_order_id: (order as any).clientOrderId || null,
       }).select().single();
+      if (error && (error as any).code === '23505' && (order as any).clientOrderId) {
+        // Mesmo carrinho já salvo: devolve o pedido existente em vez de duplicar.
+        const { data: existing } = await supabase.from('orders').select('*')
+          .eq('store_id', order.storeId).eq('client_order_id', (order as any).clientOrderId).maybeSingle();
+        if (existing) return { ...existing, __duplicate: true } as any;
+      }
       if (error) {
         // Log diagnostic record (best-effort, never blocks the error)
         try {

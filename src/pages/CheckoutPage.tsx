@@ -1,3 +1,4 @@
+import { cartSubmissionKey } from '@/lib/cartSubmissionKey';
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { nextFinalizeStep, initialCheckoutStatus, type FinalizeStep } from '@/lib/finalizeEditFlow';
 import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
@@ -268,6 +269,9 @@ export default function CheckoutPage() {
     if (!new URLSearchParams(window.location.search).has('salvarOrcamento')) return;
     if (!profileLoaded || !formData.name || cart.items.length === 0 || !autoQuoteRef.current.run) return;
     autoQuoteRef.current.done = true;
+    // Remove a marca do endereço: voltar/recarregar não salva de novo.
+    const u = new URL(window.location.href); u.searchParams.delete('salvarOrcamento');
+    window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
     const t = setTimeout(() => autoQuoteRef.current.run?.(), 300);
     return () => clearTimeout(t);
   });
@@ -813,7 +817,19 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (sellerOrder && store.slug === 'dicolore') {
+        orderPayload.clientOrderId = cartSubmissionKey(store.id,
+          String(orderPayload.customer?.customerCode || orderPayload.customer?.cpfCnpj || formData.name),
+          cart.items.map((i: any) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, price: i.price })));
+      }
       const created: any = await createOrder.mutateAsync(orderPayload);
+      if (created?.__duplicate) {
+        toast.info(`Orçamento já salvo (#${created.order_number}). Nenhuma cópia foi criada.`, { duration: 8000 });
+        opts.releaseWa?.win?.close();
+        clearCart(); clearSelectedCustomer();
+        navigate(`/${store.slug}`);
+        return;
+      }
 
       let createdReleased = false;
       if (opts.release && canOfferRelease && !asQuote && store.slug === 'dicolore' && created?.id) {
@@ -845,7 +861,9 @@ export default function CheckoutPage() {
             },
           } : undefined,
         });
-        setTimeout(() => { clearCart(); clearSelectedCustomer(); navigate(`/${store.slug}`); }, 1200);
+        // Limpa já: se o vendedor sair antes (ex.: WhatsApp abre), o carrinho não fica cheio p/ virar cópia.
+        clearCart(); clearSelectedCustomer();
+        setTimeout(() => navigate(`/${store.slug}`), 1200);
         return;
       }
 
