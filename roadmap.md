@@ -2,8 +2,9 @@
 
 ## Finalização do cliente DiColore
 - [x] Restaurar finalização do cliente como Pendente, sem opção de liberação
-- [ ] Substituir a trava de criação por proteção de status na gravação e testar
-- [ ] Verificar checkout e registrar limites da verificação autenticada
+- [x] Substituir a trava de criação por proteção de status em inclusão e alteração; 22 testes passaram e alteração aplicada
+- [x] Conferir abertura do checkout autenticado e registrar limite: carrinho vazio, sem gravação ou transmissão
+- [ ] Confirmar finalização e tentativa de liberação pela conta de cliente — requer sessão de cliente e pedido de teste autorizado; caminho autenticado do cliente NÃO VERIFICADO
 
 ## Atualização obrigatória por loja
 - [x] Corrigir detecção independente do sinal do navegador e acompanhar troca de loja
