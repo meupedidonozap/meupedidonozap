@@ -21,6 +21,31 @@ async function mp(token: string, path: string, init: RequestInit = {}) {
   return body;
 }
 
+// Tradução dos motivos de recusa do Mercado Pago (status_detail).
+const REASONS: Record<string, string> = {
+  cc_rejected_insufficient_amount: "Limite ou saldo insuficiente no cartão",
+  cc_rejected_high_risk: "Recusado pela análise de segurança (verifique se o cartão está no nome/CPF do comprador)",
+  cc_rejected_call_for_authorize: "O banco exige autorização: libere a compra no app do banco e tente de novo",
+  cc_rejected_bad_filled_security_code: "Código de segurança (CVV) incorreto",
+  cc_rejected_bad_filled_date: "Data de validade incorreta",
+  cc_rejected_bad_filled_card_number: "Número do cartão incorreto",
+  cc_rejected_bad_filled_other: "Dados do cartão incorretos",
+  cc_rejected_blacklist: "Cartão não aceito para compras online",
+  cc_rejected_card_disabled: "Cartão bloqueado ou não ativado: ligue para o banco",
+  cc_rejected_duplicated_payment: "Pagamento duplicado: já existe uma tentativa igual",
+  cc_rejected_max_attempts: "Limite de tentativas atingido: use outro cartão",
+  cc_rejected_invalid_installments: "Parcelamento não aceito por este cartão",
+  cc_rejected_card_type_not_allowed: "Tipo de cartão não aceito",
+  cc_rejected_other_reason: "Recusado pelo banco emissor do cartão",
+  cc_amount_rate_limit_exceeded: "Limite do cartão excedido",
+  rejected_by_bank: "Recusado pelo banco emissor do cartão",
+  rejected_by_regulations: "Recusado por regras do banco",
+  rejected_insufficient_data: "Dados do comprador incompletos",
+  expired: "Pagamento expirado",
+  by_payer: "Cancelado pelo comprador",
+};
+const reasonFor = (p: any) => p?.status_detail ? (REASONS[p.status_detail] || `Recusado (${p.status_detail})`) : "Pagamento não aprovado";
+
 async function applyPayment(slug: string, paymentId: string) {
   const token = tokenFor(slug);
   if (!token) return;
@@ -30,9 +55,9 @@ async function applyPayment(slug: string, paymentId: string) {
   const { data: order } = await db.from("orders").select("id,total,store_id,payment_status,stores!inner(slug)").eq("id", orderId).maybeSingle();
   if (!order || (order as any).stores.slug !== slug) return;
   if (p.status === "approved" && Math.abs(Number(p.transaction_amount) - Number(order.total)) < 0.01) {
-    await db.from("orders").update({ payment_status: "paid", paid_at: p.date_approved || new Date().toISOString(), payment_session_id: String(p.id), payment_environment: "mercadopago" }).eq("id", orderId);
+    await db.from("orders").update({ payment_status: "paid", paid_at: p.date_approved || new Date().toISOString(), payment_session_id: String(p.id), payment_environment: "mercadopago", payment_error: null }).eq("id", orderId);
   } else if (["rejected", "cancelled", "refunded", "charged_back"].includes(p.status) && order.payment_status !== "paid") {
-    await db.from("orders").update({ payment_status: "failed" }).eq("id", orderId);
+    await db.from("orders").update({ payment_status: "failed", payment_error: reasonFor(p) }).eq("id", orderId);
   }
 }
 
@@ -64,11 +89,23 @@ Deno.serve(async (req) => {
       let lastStatus: string | null = null;
       if (order.payment_status !== "paid") {
         const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);
-        lastStatus = s.results?.[0]?.status ?? null;
-        for (const p of s.results || []) if (p.status === "approved") { await applyPayment(store.slug, String(p.id)); break; }
+        const last = s.results?.[0];
+        lastStatus = last?.status ?? null;
+        const approved = (s.results || []).find((p: any) => p.status === "approved");
+        if (approved) await applyPayment(store.slug, String(approved.id));
+        else if (last) await applyPayment(store.slug, String(last.id));
       }
-      const { data: o } = await db.from("orders").select("payment_status").eq("id", order.id).single();
-      return json({ paymentStatus: o?.payment_status, lastStatus });
+      const { data: o } = await db.from("orders").select("payment_status,payment_error").eq("id", order.id).single();
+      return json({ paymentStatus: o?.payment_status, lastStatus, reason: o?.payment_error ?? null });
+    }
+    if (action === "abandon") {
+      // Cliente saiu do checkout sem pagar: cancela o pedido (devolve estoque) para refazer pelo carrinho.
+      if (order.payment_status === "paid") return json({ error: "Pedido já pago" }, 400);
+      const s = await mp(token, `/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc`);
+      const live = (s.results || []).find((p: any) => ["approved", "in_process", "pending", "authorized"].includes(p.status));
+      if (live) return json({ error: "Há um pagamento em andamento para este pedido" }, 409);
+      await db.from("orders").update({ payment_status: "canceled", status: "cancelado", payment_error: "Cliente abandonou o pagamento antes de concluir" }).eq("id", order.id).neq("payment_status", "paid");
+      return json({ ok: true });
     }
     if (action === "refund") {
       // Só administradores da loja podem estornar.
@@ -121,7 +158,7 @@ Deno.serve(async (req) => {
         auto_return: "approved",
       }),
     });
-    await db.from("orders").update({ payment_status: "pending", payment_method: "cartao" }).eq("id", order.id);
+    await db.from("orders").update({ payment_status: "pending", payment_method: "cartao", payment_error: null }).eq("id", order.id);
     return json({ checkoutUrl: pref.init_point, amount });
   } catch (e) {
     console.error(e);
