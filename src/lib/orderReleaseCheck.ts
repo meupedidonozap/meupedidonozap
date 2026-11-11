@@ -4,6 +4,7 @@ export interface ReleaseCheckInput {
   items?: any[];
   customerCode?: string;
   sellerCode?: string;
+  requirePayment?: boolean;
 }
 
 export const PROSPECT_DOC_ISSUE = 'Cliente PROSPECT sem CPF/CNPJ';
@@ -25,8 +26,10 @@ export function getReleaseIssues(o: ReleaseCheckInput): string[] {
   // Cliente sem código do ERP é PROSPECT: pode ser liberado com CPF/CNPJ válido;
   // o admin integra o cadastro ao ERP antes da transmissão.
   if (!s(o.customerCode ?? c.customerCode) && !isValidDoc(c.cpfCnpj)) issues.push(PROSPECT_DOC_ISSUE);
-  if (!s(c.paymentFormaCodigo)) issues.push('Falta forma de pagamento');
-  if (!s(c.paymentCondicaoCodigo)) issues.push('Falta condição de pagamento');
+  if (o.requirePayment !== false) {
+    if (!s(c.paymentFormaCodigo)) issues.push('Falta forma de pagamento');
+    if (!s(c.paymentCondicaoCodigo)) issues.push('Falta condição de pagamento');
+  }
   if (!s(o.sellerCode ?? c.sellerCode)) issues.push('Falta vendedor (código do representante)');
   const items = Array.isArray(o.items) ? o.items : [];
   if (items.length === 0) issues.push('Pedido sem itens');

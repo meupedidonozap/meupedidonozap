@@ -1,5 +1,10 @@
 # Roadmap
 
+## Manual e liberação DiColore
+- [ ] Manual por loja com regras protegidas e opções de pagamento/WhatsApp
+- [ ] Seleção rápida de pagamento no painel e portal; salvar e liberar o mesmo pedido
+- [ ] Validar testes e fluxo autenticado sem transmitir pedidos reais
+
 ## Navegação Clientes/Pedidos DiColore
 - [x] Paginar somente DiColore em 25/50 clientes, mantendo busca em toda a base
 - [x] Indexar cadastros dos pedidos mantendo a mesma resolução de identidade ERP; nove testes passaram
