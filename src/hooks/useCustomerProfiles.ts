@@ -7,6 +7,7 @@ import type { CustomerProfile } from './useCustomerProfile';
 function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalStatus: string; customerCode: string; rawPriceTable: number | null } {
   return {
     id: row.id,
+    noDiscount: row.no_discount === true,
     userId: row.user_id,
     storeId: row.store_id,
     name: row.name,
@@ -34,7 +35,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
 }
 
 // Lista leve: lojas com milhares de clientes (DiColore) travavam ao baixar todas as colunas.
-const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo';
+const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo,no_discount';
 
 export function useStoreCustomerProfiles(storeId: string | undefined) {
   return useQuery({
@@ -83,6 +84,7 @@ export function useCreateCustomerProfileAdmin() {
       ie?: string;
       priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
       customerCode?: string;
+      noDiscount?: boolean;
     }) => {
       const customerError = getCustomerError(params);
       if (customerError) throw new Error(customerError);
@@ -105,6 +107,7 @@ export function useCreateCustomerProfileAdmin() {
           ie: params.ie || null,
           price_table: params.priceTable ?? 4,
           customer_code: params.customerCode?.trim() || '',
+          no_discount: params.noDiscount ?? false,
         } as any)
         .select()
         .single();
@@ -138,6 +141,7 @@ export function useUpdateCustomerProfileAdmin() {
       ie?: string;
       priceTable?: 1 | 3 | 4 | 8 | 9 | 11;
       customerCode?: string;
+      noDiscount?: boolean;
     }) => {
       const update: any = {};
       if (params.name !== undefined) update.name = params.name;
@@ -155,15 +159,20 @@ export function useUpdateCustomerProfileAdmin() {
       if (params.ie !== undefined) update.ie = params.ie || null;
       if (params.priceTable !== undefined) update.price_table = params.priceTable;
       if (params.customerCode !== undefined) update.customer_code = params.customerCode.trim();
+      if (params.noDiscount !== undefined) update.no_discount = params.noDiscount;
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error('Faça login novamente.');
 
       const { error } = await supabase
         .from('customer_profiles')
         .update(update)
-        .eq('id', params.id);
+        .eq('id', params.id).eq('store_id', params.storeId).select().single();
       if (error) throw error;
     },
     onSuccess: (_, params) => {
       qc.invalidateQueries({ queryKey: ['store-customer-profiles', params.storeId] });
+      qc.invalidateQueries({ queryKey: ['customer-profile'] });
+      qc.invalidateQueries({ queryKey: ['selected-customer-profile'] });
     },
   });
 }

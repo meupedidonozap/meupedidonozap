@@ -1,0 +1,2 @@
+CREATE POLICY "Platform admins update customer profiles" ON public.customer_profiles FOR UPDATE TO authenticated USING (public.is_platform_admin(auth.uid())) WITH CHECK (public.is_platform_admin(auth.uid()));
+CREATE POLICY "Platform admins delete customer profiles" ON public.customer_profiles FOR DELETE TO authenticated USING (public.is_platform_admin(auth.uid()));

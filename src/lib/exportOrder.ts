@@ -119,7 +119,7 @@ export function exportOrderXml(order: Order, store: StoreLike, extra: CustomerEx
 
   const rules = extra.discountRules ?? s.discountRules;
   const itemsForExport = mergeItemsByCode(expandKitItems(
-    ensureItemDiscountPercents(order.items as any, rules) as any,
+    ensureItemDiscountPercents(order.items as any, rules, undefined, order.customer.noDiscount === true) as any,
     extra.kitMap,
   ));
   const itensXml = itemsForExport
@@ -187,7 +187,7 @@ export function exportOrderTxt(order: Order, store: StoreLike, extra: CustomerEx
   const s = store.settings || {};
   const rules = extra.discountRules ?? s.discountRules;
   const itemsForExport = mergeItemsByCode(expandKitItems(
-    ensureItemDiscountPercents(order.items as any, rules) as any,
+    ensureItemDiscountPercents(order.items as any, rules, undefined, order.customer.noDiscount === true) as any,
     extra.kitMap,
   ));
   const lines = itemsForExport.map((item) => {
@@ -256,7 +256,7 @@ export function exportOrderBlingXml(order: Order, store: StoreLike, extra: Custo
 
   const rules = extra.discountRules ?? s.discountRules;
   const itemsForExport = mergeItemsByCode(expandKitItems(
-    ensureItemDiscountPercents(order.items as any, rules) as any,
+    ensureItemDiscountPercents(order.items as any, rules, undefined, order.customer.noDiscount === true) as any,
     extra.kitMap,
   ));
 

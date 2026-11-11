@@ -465,6 +465,7 @@ export type Database = {
           municipio_entrega_codigo_ibge: string | null
           name: string
           neighborhood: string
+          no_discount: boolean
           nome_fantasia: string | null
           number: string
           observacao: string | null
@@ -532,6 +533,7 @@ export type Database = {
           municipio_entrega_codigo_ibge?: string | null
           name?: string
           neighborhood?: string
+          no_discount?: boolean
           nome_fantasia?: string | null
           number?: string
           observacao?: string | null
@@ -599,6 +601,7 @@ export type Database = {
           municipio_entrega_codigo_ibge?: string | null
           name?: string
           neighborhood?: string
+          no_discount?: boolean
           nome_fantasia?: string | null
           number?: string
           observacao?: string | null
@@ -2590,6 +2593,60 @@ export type Database = {
           customer_code: string
           store_id: string
         }[]
+      }
+      recalculate_customer_order: {
+        Args: {
+          p_discount: number
+          p_items: Json
+          p_order_id: string
+          p_table: number
+        }
+        Returns: {
+          bling_attempts: number
+          bling_error: string | null
+          bling_order_id: string | null
+          bling_sent_at: string | null
+          client_order_id: string | null
+          created_at: string
+          customer: Json
+          delivery_fee: number
+          delivery_shift: string
+          discount: number
+          erp_error: string | null
+          erp_order_code: string | null
+          erp_sent_at: string | null
+          id: string
+          items: Json
+          observations: string | null
+          order_number: number
+          origem: string
+          paid_at: string | null
+          payment_environment: string | null
+          payment_error: string | null
+          payment_manual_record: Json | null
+          payment_method: string
+          payment_session_id: string | null
+          payment_status: string
+          shipping_code: string | null
+          shipping_deadline: number | null
+          shipping_service: string | null
+          shipping_tracking: string | null
+          status: string
+          store_id: string
+          subtotal: number
+          superfrete_error: string | null
+          superfrete_id: string | null
+          superfrete_status: string | null
+          total: number
+          user_id: string | null
+          xml_downloaded_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       record_manual_order_payment: {
         Args: { p_method: string; p_note?: string; p_order_id: string }

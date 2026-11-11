@@ -39,7 +39,7 @@ function buildThermalHTML(order: Order, storeName: string, options?: PrintOption
   const addressLine3 = [customer.city, customer.uf].filter(Boolean).join('/') + (customer.cep ? ` - ${customer.cep}` : '');
 
   const itemsForRender = expandKitItems(
-    ensureItemDiscountPercents(order.items as any, options?.discountRules) as any,
+    ensureItemDiscountPercents(order.items as any, options?.discountRules, undefined, order.customer.noDiscount === true) as any,
     options?.kitMap,
   );
   const itemsHTML = itemsForRender
@@ -171,7 +171,7 @@ function buildA4HTML(order: Order, storeName: string, options?: PrintOptions): s
   const addressLine3 = [customer.city, customer.uf].filter(Boolean).join('/') + (customer.cep ? ` - ${customer.cep}` : '');
 
   const itemsForRender = expandKitItems(
-    ensureItemDiscountPercents(order.items as any, options?.discountRules) as any,
+    ensureItemDiscountPercents(order.items as any, options?.discountRules, undefined, order.customer.noDiscount === true) as any,
     options?.kitMap,
   );
   const itemsRows = itemsForRender

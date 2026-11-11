@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CustomerProfile {
   id: string;
+  noDiscount?: boolean;
   userId?: string;
   storeId: string;
   name: string;
@@ -30,6 +31,7 @@ export interface CustomerProfile {
 export function mapProfile(row: any): CustomerProfile {
   return {
     id: row.id,
+    noDiscount: row.no_discount === true,
     userId: row.user_id,
     storeId: row.store_id,
     name: row.name,

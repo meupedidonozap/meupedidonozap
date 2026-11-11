@@ -18,9 +18,11 @@ import { useSellerMode } from '@/hooks/useSellerMode';
 import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, CustomerInfo } from '@/types';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
 import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
 
 interface CustomerProfile {
+  noDiscount?: boolean;
   id: string;
   name: string;
   whatsapp: string;
@@ -164,11 +166,12 @@ export default function NewOrderDialog({
   }, [activeTable]);
 
   // Totals
+  const noDiscount = customerDiscountsBlocked(store.slug, customerMode === 'existing' ? customerProfiles.find(c => c.id === selectedCustomerId) : null);
   const subtotal = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const deliveryFee = offersDelivery ? (store.settings.deliveryFee || 0) : 0;
   const { quantityDiscount, itemDiscounts } = useMemo(
-    () => computeGroupDiscounts(orderItems, store.settings.discountRules || [], activeTable),
-    [orderItems, store.settings.discountRules, activeTable],
+    () => computeGroupDiscounts(orderItems, store.settings.discountRules || [], activeTable, noDiscount),
+    [orderItems, store.settings.discountRules, activeTable, noDiscount],
   );
   const total = Math.max(0, subtotal - quantityDiscount) + deliveryFee;
 
@@ -178,6 +181,7 @@ export default function NewOrderDialog({
       if (!cp) return customerForm;
       return {
         name: cp.name || '', cpfCnpj: cp.cpfCnpj || '', whatsapp: cp.whatsapp || '',
+        noDiscount,
         cep: cp.cep || '', uf: cp.uf || '', city: cp.city || '',
         neighborhood: cp.neighborhood || '', address: cp.address || '',
         number: cp.number || '', complement: cp.complement || '',

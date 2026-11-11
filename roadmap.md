@@ -1,5 +1,11 @@
 # Roadmap
 
+## Cliente sem desconto DiColore
+- [x] Flag no cadastro, preservado nas sincronizações e protegido contra alteração pelo cliente
+- [x] Usar somente preço da tabela no catálogo, carrinho, edição, impressão e pedidos bloqueados para desconto; preço oficial validado no banco
+- [x] Botão Recalcular em orçamentos e pendentes não transmitidos, usando cadastro atual sem trocar número e autoria
+- [x] 33 testes passaram; cadastro temporário marcado e salvo pelo painel; mesmo orçamento recalculado para R$59,80 com desconto zero e leitura confirmada; sem transmissão ao ERP
+
 ## Manual e liberação DiColore
 - [x] Manual por loja com regras protegidas e opções de pagamento/WhatsApp; salvamento e leitura autenticados confirmados
 - [x] Seleção rápida no painel/portal e confirmação do checkout; gravação única no mesmo pedido e trava de pagamento no banco

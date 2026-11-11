@@ -17,7 +17,9 @@ export function computeGroupDiscounts(
   items: CartItem[],
   rules: DiscountRule[],
   customerPriceTable?: PriceTable,
+  noDiscount = false,
 ): { quantityDiscount: number; itemDiscounts: Record<string, number> } {
+  if (noDiscount) return { quantityDiscount: 0, itemDiscounts: {} };
   const effectiveTable: PriceTable = normalizePriceTable(customerPriceTable);
   const groupRules = rules.filter(r => {
     if (r.type !== 'group') return false;
@@ -84,7 +86,9 @@ export function ensureItemDiscountPercents<T extends CartItem & { discountPercen
   items: T[],
   rules: DiscountRule[] | undefined,
   customerPriceTable?: PriceTable,
+  noDiscount = false,
 ): T[] {
+  if (noDiscount) return items.map(it => ({ ...it, discountPercent: 0 }));
   if (!rules || rules.length === 0) return items;
   const { itemDiscounts } = computeGroupDiscounts(items, rules, customerPriceTable);
   return items.map(it => {

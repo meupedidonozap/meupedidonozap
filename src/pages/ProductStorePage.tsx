@@ -1,4 +1,5 @@
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
+import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { useState, useMemo, useEffect } from 'react';
@@ -71,7 +72,7 @@ export default function ProductStorePage() {
   const { data: allProducts = [] } = useProducts(store?.id);
   const { data: techMaterials = [] } = useTechnicalMaterials(store?.slug === 'dicolore' ? store?.id : undefined);
   const productsWithMaterial = useMemo(() => new Set(techMaterials.filter(m => m.isActive).flatMap(m => m.productIds)), [techMaterials]);
-  const { cart, itemDiscounts, discountRules, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, revalidatePrices } = useCart();
+  const { cart, itemDiscounts, discountRules, setStoreId, addItem, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, setDiscountRules, setCustomerPriceTable, setDiscountsBlocked, revalidatePrices } = useCart();
   const { user, signOut } = useAuth();
   const [notifyProduct, setNotifyProduct] = useState<any>(null);
   const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
@@ -118,9 +119,12 @@ export default function ProductStorePage() {
 
   // Sync the customer's price table into the cart (default 4 for visitors/unknown).
   const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
+  const noDiscount = customerDiscountsBlocked(store?.slug, customerProfile);
+  useEffect(() => setDiscountsBlocked(noDiscount), [noDiscount, setDiscountsBlocked]);
 
   // Promoções com Qtd. mínima 0: mostra o preço promocional já no catálogo, sem estar no carrinho
   const previewPct = (product: Product): number => {
+    if (noDiscount) return 0;
     if (product.hasVariants) return 0;
     const inCartPct = itemDiscounts[`${product.id}-`];
     if (inCartPct) return inCartPct;
