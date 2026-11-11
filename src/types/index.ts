@@ -384,6 +384,7 @@ export type DeliveryShift = 'manha' | 'tarde' | 'noite';
 export type OrderStatus = 'orcamento' | 'pendente' | 'liberado_transmissao' | 'confirmado' | 'preparando' | 'enviado' | 'entregue' | 'cancelado';
 
 export interface CustomerInfo {
+  noDiscount?: boolean;
   name: string;
   cpfCnpj: string;
   whatsapp: string;

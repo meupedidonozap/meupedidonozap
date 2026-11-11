@@ -21,6 +21,8 @@ interface CartContextType {
   discountRules: DiscountRule[];
   itemDiscounts: Record<string, number>; // key: `${productId}-${variantId|''}` -> discountPercent
   customerPriceTable: PriceTable;
+  discountsBlocked: boolean;
+  setDiscountsBlocked: (blocked: boolean) => void;
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
@@ -62,6 +64,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [discountRules, setDiscountRulesState] = useState<DiscountRule[]>([]);
   const [itemDiscounts, setItemDiscounts] = useState<Record<string, number>>({});
   const [customerPriceTable, setCustomerPriceTableState] = useState<PriceTable>(4);
+  const [discountsBlocked, setDiscountsBlocked] = useState(false);
 
   // Persist cart to localStorage whenever it changes
   useEffect(() => {
@@ -76,16 +79,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cart.items,
       discountRules,
       customerPriceTable,
+      discountsBlocked,
     );
     setItemDiscounts(newItemDiscounts);
     setCart(prev => {
-      const { subtotal, total } = calculateTotals(prev.items, prev.couponDiscount, quantityDiscount);
-      if (prev.quantityDiscount === quantityDiscount && prev.subtotal === subtotal && prev.total === total) {
+      const couponDiscount = discountsBlocked ? 0 : prev.couponDiscount;
+      const { subtotal, total } = calculateTotals(prev.items, couponDiscount, quantityDiscount);
+      if (prev.quantityDiscount === quantityDiscount && prev.subtotal === subtotal && prev.total === total && prev.couponDiscount === couponDiscount) {
         return prev;
       }
-      return { ...prev, quantityDiscount, subtotal, total };
+      return { ...prev, couponCode: discountsBlocked ? undefined : prev.couponCode, couponDiscount, quantityDiscount, subtotal, total };
     });
-  }, [cart.items, discountRules, customerPriceTable]);
+  }, [cart.items, discountRules, customerPriceTable, discountsBlocked]);
 
   const setDiscountRules = useCallback((rules: DiscountRule[]) => {
     setDiscountRulesState(rules);
@@ -239,11 +244,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyCoupon = useCallback((code: string, discount: number) => {
+    if (discountsBlocked) { toast.error('Este cliente não utiliza descontos.'); return; }
     setCart(prev => {
       const { subtotal, total } = calculateTotals(prev.items, discount, prev.quantityDiscount);
       return { ...prev, couponCode: code, couponDiscount: discount, subtotal, total };
     });
-  }, []);
+  }, [discountsBlocked]);
 
   const removeCoupon = useCallback(() => {
     setCart(prev => {
@@ -259,6 +265,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         discountRules,
         itemDiscounts,
         customerPriceTable,
+        discountsBlocked,
+        setDiscountsBlocked,
         addItem,
         removeItem,
         updateQuantity,
