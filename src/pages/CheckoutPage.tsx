@@ -760,7 +760,7 @@ export default function CheckoutPage() {
         if (editingAuthError || !editingUser) throw new Error('Entre novamente para salvar o pedido.');
         waWindow?.close();
         const byCustomer = !sellerOrder && !!editingQuote.byCustomer;
-        const { error: upErr } = await supabase.from('orders').update({
+        const { data: upd, error: upErr } = await supabase.from('orders').update({
           customer: orderPayload.customer as any,
           items: orderPayload.items as any,
           subtotal: orderPayload.subtotal,
@@ -785,7 +785,7 @@ export default function CheckoutPage() {
             else released = true;
           }
         }
-        notifyRelease(opts.releaseWa, released, editingQuote.orderNumber ?? (upd as any)?.order_number);
+        notifyRelease(opts.releaseWa, released, (upd as any)?.order_number);
         if (opts.decided && !opts.release && !asQuote && (!paymentFormaCodigo || !paymentCondicaoCodigo) && store.slug === 'dicolore') {
           toast.warning('O pedido só será transmitido com a Condição e a Forma de pagamento selecionadas.', { duration: 8000 });
         }
