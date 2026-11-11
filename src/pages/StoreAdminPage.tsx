@@ -112,7 +112,7 @@ import InstallAppCard from '@/components/InstallAppCard';
 import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 import { downloadCustomerXml } from '@/lib/customerXml';
-import { resolveExportProfile } from '../../supabase/functions/_shared/customerExportProfile';
+import { buildOrderProfileIndex } from '@/lib/orderProfileIndex';
 
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -156,17 +156,6 @@ function StoreAdminAccessDenied({ email, slug }: { email: string; slug: string }
 }
 
 
-/** Mesma resolução por código usada na transmissão automática ao ERP. */
-function findOrderProfile(order: any, profiles: any[]): any {
-  const resolved = resolveExportProfile(profiles.map(p => ({
-    id: p.id, user_id: p.userId, customer_code: p.customerCode,
-    cpf_cnpj: p.cpfCnpj, seller_code: p.sellerCode, transportadora: p.transportadora,
-  })), order?.customer || {}, order?.userId);
-  return resolved ? profiles.find(p => p.id === resolved.id) : undefined;
-}
-
-
-
 /** Exige código do cliente para baixar XML? Padrão: só DiColore. */
 export function requiresCustomerCode(store?: { slug?: string; settings?: any } | null): boolean {
   const v = (store?.settings as any)?.requireCustomerCodeForDownload;
@@ -190,6 +179,8 @@ export default function StoreAdminPage() {
   const { data: customerProfiles = [] } = useStoreCustomerProfiles(
     hasAccess && (isAdmin || permissions.can_view_customers || (userSellerCodes && userSellerCodes.length > 0)) ? store?.id : undefined
   );
+  const indexedOrderProfile = useMemo(() => buildOrderProfileIndex(customerProfiles), [customerProfiles]);
+  const findOrderProfile = (order: any) => indexedOrderProfile(order);
   const createServiceOrder = useCreateServiceOrder();
   const deleteServiceOrder = useDeleteServiceOrder();
   const updateCustomerProfile = useUpdateCustomerProfileAdmin();
@@ -259,7 +250,7 @@ export default function StoreAdminPage() {
   const { data: sellers = [] } = useAllStoreSellers(isAdmin ? store?.id : undefined);
   const { data: sellerStoreUsers = [] } = useStoreUsersForSeller(store?.id);
   const orderSeller = (order: any) => resolveOrderSellerCode(
-    (findOrderProfile(order, customerProfiles as any[]) as any)?.sellerCode, order?.customer,
+    (findOrderProfile(order) as any)?.sellerCode, order?.customer,
     { storeUsers: sellerStoreUsers as any[], sellers: sellers as any[] });
   const createSeller = useCreateStoreSeller();
   const updateSeller = useUpdateStoreSeller();
@@ -353,6 +344,16 @@ export default function StoreAdminPage() {
       return false;
     });
   }, [scopedCustomerProfiles, customerSearch, customerApprovalFilter]);
+  const [customersPage, setCustomersPage] = useState(1);
+  const [customersPageSize, setCustomersPageSize] = useState(50);
+  const paginateCustomers = store?.slug === 'dicolore';
+  const customersTotalPages = Math.max(1, Math.ceil(filteredCustomerProfiles.length / customersPageSize));
+  const currentCustomersPage = Math.min(customersPage, customersTotalPages);
+  useEffect(() => { setCustomersPage(1); }, [customerSearch, customerApprovalFilter, customersPageSize]);
+  const visibleCustomerProfiles = useMemo(() => paginateCustomers
+    ? filteredCustomerProfiles.slice((currentCustomersPage - 1) * customersPageSize, currentCustomersPage * customersPageSize)
+    : filteredCustomerProfiles,
+  [filteredCustomerProfiles, paginateCustomers, currentCustomersPage, customersPageSize]);
   const pendingCustomersCount = useMemo(() => scopedCustomerProfiles.filter((cp: any) => cp.approvalStatus === 'pending').length, [scopedCustomerProfiles]);
   const scopedOrders = useMemo(() => {
     if (!restrictBySeller) return orders;
@@ -454,12 +455,12 @@ export default function StoreAdminPage() {
 
   // Código do cliente vindo do ERP. Só bloqueia o XML quando a loja exige (padrão: só DiColore).
   const orderErpCustomerCode = (order: any): string => {
-    const cp: any = findOrderProfile(order, customerProfiles as any[]);
+    const cp: any = findOrderProfile(order);
     return String(cp?.customerCode || order?.customer?.customerCode || '').trim();
   };
 
   const buildDownloadExtra = (order: any, isTelevendas: boolean) => {
-    const cp: any = findOrderProfile(order, customerProfiles as any[]);
+    const cp: any = findOrderProfile(order);
     return {
       cpfCnpj: cp?.cpfCnpj || order.customer.cpfCnpj,
       sellerCode: orderSeller(order).code,
@@ -1796,7 +1797,7 @@ export default function StoreAdminPage() {
                             <div className="mt-1 flex flex-wrap items-center gap-1">
                               <span className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive-foreground">Sem cadastro no ERP</span>
                               <button type="button" className="text-[11px] text-primary underline" onClick={() => {
-                                const cp: any = findOrderProfile(order, customerProfiles as any[]);
+                                const cp: any = findOrderProfile(order);
                                 downloadCustomerXml({ ...(order.customer as any), ...(cp || {}) });
                               }}>XML do cliente</button>
                             </div>
@@ -3393,7 +3394,7 @@ export default function StoreAdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCustomerProfiles.map(cp => (
+                    {visibleCustomerProfiles.map(cp => (
                       <TableRow key={cp.id} className={!(cp as any).isActive ? 'opacity-60' : ''}>
                         <TableCell className="font-medium">{cp.name || '—'}</TableCell>
                         <TableCell className="font-mono text-xs">{(cp as any).customerCode || '—'}</TableCell>
@@ -3505,6 +3506,26 @@ export default function StoreAdminPage() {
                 </Table>
               </CardContent>
             </Card>
+
+            {paginateCustomers && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm text-muted-foreground">
+                  {filteredCustomerProfiles.length === 0 ? 0 : (currentCustomersPage - 1) * customersPageSize + 1}–{Math.min(currentCustomersPage * customersPageSize, filteredCustomerProfiles.length)} de {filteredCustomerProfiles.length} clientes
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={String(customersPageSize)} onValueChange={value => setCustomersPageSize(Number(value))}>
+                    <SelectTrigger className="w-36" aria-label="Clientes por página"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25 por página</SelectItem>
+                      <SelectItem value="50">50 por página</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" disabled={currentCustomersPage <= 1} onClick={() => setCustomersPage(currentCustomersPage - 1)}>Anterior</Button>
+                  <span className="text-xs">Pág {currentCustomersPage} de {customersTotalPages}</span>
+                  <Button size="sm" variant="outline" disabled={currentCustomersPage >= customersTotalPages} onClick={() => setCustomersPage(currentCustomersPage + 1)}>Próxima</Button>
+                </div>
+              </div>
+            )}
 
             {/* Edit customer dialog */}
             {editingCustomer && (
@@ -3890,7 +3911,7 @@ export default function StoreAdminPage() {
           // A tabela gravada no pedido sempre prevalece.
           const stamped = (editingOrder.customer as any)?.priceTable;
           if (stamped) return resolveStorePriceTable(store?.slug, stamped);
-          const cp: any = findOrderProfile(editingOrder, customerProfiles as any[]);
+          const cp: any = findOrderProfile(editingOrder);
           return resolveStorePriceTable(store?.slug, cp?.priceTable);
         })()}
       />
