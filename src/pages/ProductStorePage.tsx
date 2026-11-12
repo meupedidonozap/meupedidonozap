@@ -683,7 +683,7 @@ export default function ProductStorePage() {
           sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
           selectedCustomer={selectedCustomer}
           onSelect={selectCustomer}
-          onChangeCustomer={clearCart}
+          onChangeCustomer={() => { if (!editingQuote) clearCart(); }}
           salesForce={{
             enabled: store.slug === 'dicolore',
             unvisitedPeriodDays: Number((store.settings as any)?.unvisitedPeriodDays) || 30,

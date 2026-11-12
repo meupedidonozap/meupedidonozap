@@ -1086,8 +1086,11 @@ export default function CheckoutPage() {
             storeSlug={store.slug}
             sellerCodes={seller.isAdmin ? [] : seller.sellerCodes}
             onSelected={(c) => {
-              if (selectedCustomer && selectedCustomer.id !== c.id) clearCart();
+              const changed = !selectedCustomer || selectedCustomer.id !== c.id;
+              // Editando pedido: mantém os itens e só troca o cliente.
+              if (changed && selectedCustomer && !editingQuote) clearCart();
               selectCustomer(c);
+              if (changed) setProfileLoaded(false);
             }}
           />
         </div>
