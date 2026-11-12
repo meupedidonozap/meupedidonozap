@@ -70,11 +70,11 @@ export default function OpenQuoteAlert({ storeId, storeSlug, customer, seller, d
           <AlertDialogTitle>Orçamento já aberto</AlertDialogTitle>
           <AlertDialogDescription>
             Este cliente já tem o orçamento #{quote?.order_number} aberto
-            {quote ? ` (${formatCurrency(Number(quote.total) || 0)})` : ''}. Deseja editá-lo ou criar outro?
+            {quote ? ` (${formatCurrency(Number(quote.total) || 0)})` : ''}. Para não duplicar, edite este orçamento (ou cancele-o antes de criar outro).
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Criar outro</AlertDialogCancel>
+          <AlertDialogCancel disabled={loading}>Fechar</AlertDialogCancel>
           <AlertDialogAction disabled={loading} onClick={(e) => { e.preventDefault(); edit(); }}>
             Editar #{quote?.order_number}
           </AlertDialogAction>
