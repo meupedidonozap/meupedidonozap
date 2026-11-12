@@ -358,6 +358,13 @@
       "when": 1794489059080,
       "tag": "0050_staff_update_customer_profiles_managed",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1794489861508,
+      "tag": "0051_audit_log_orders_customers",
+      "breakpoints": true
     }
   ]
 }

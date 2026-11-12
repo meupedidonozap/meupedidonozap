@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string
+          created_at: string
+          customer_code: string
+          customer_name: string
+          details: Json
+          entity: string
+          entity_id: string
+          id: string
+          ref_label: string
+          seller_name: string
+          store_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string
+          created_at?: string
+          customer_code?: string
+          customer_name?: string
+          details?: Json
+          entity: string
+          entity_id: string
+          id?: string
+          ref_label?: string
+          seller_name?: string
+          store_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string
+          created_at?: string
+          customer_code?: string
+          customer_name?: string
+          details?: Json
+          entity?: string
+          entity_id?: string
+          id?: string
+          ref_label?: string
+          seller_name?: string
+          store_id?: string
+        }
+        Relationships: []
+      }
       bling_connections: {
         Row: {
           access_token: string | null
@@ -2517,6 +2565,10 @@ export type Database = {
       apply_order_stock: {
         Args: { _items: Json; _sign: number; _store_id: string }
         Returns: undefined
+      }
+      audit_actor_name: {
+        Args: { _store: string; _uid: string }
+        Returns: string
       }
       can_change_order_price_table: {
         Args: { _store_id: string; _user_id: string }
