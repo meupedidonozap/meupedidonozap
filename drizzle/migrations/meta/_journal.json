@@ -351,6 +351,13 @@
       "when": 1794482028191,
       "tag": "0049_price_table_change_permission",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794489059080,
+      "tag": "0050_staff_update_customer_profiles_managed",
+      "breakpoints": true
     }
   ]
 }
