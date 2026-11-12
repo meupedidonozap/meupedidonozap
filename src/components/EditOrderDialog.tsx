@@ -1,3 +1,4 @@
+import { refreshItemsFromCatalog } from '@/lib/editRecalc';
 import { useState, useMemo, useEffect } from 'react';
 import { Plus, Minus, Trash2, Search, RefreshCw } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -78,6 +79,12 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
       setTableOverride(null);
       setPendingTable('');
       setUpdateProfileTable(false);
+      if (!autoRecalcTable && ['pendente', 'orcamento'].includes(order.status) && !order.xmlDownloadedAt) {
+        // Ao abrir: preços, grupos e descontos atuais antes de liberar a edição.
+        const r = refreshItemsFromCatalog(baseItems, products as any[], baseTable);
+        setItems(r.items);
+        if (r.changed > 0) toast.info(`Pedido recalculado com preços e regras de desconto atuais (${r.changed} item(ns) atualizado(s)). Confira e salve.`, { duration: 8000 });
+      }
       if (autoRecalcTable) {
         const t = normalizePriceTable(autoRecalcTable);
         const r = repriceItems(baseItems, products as any[], t);
