@@ -25,6 +25,8 @@ import { shareOrderPdf } from '@/lib/shareOrderPdf';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
+import { loadItemsForEdit } from '@/lib/editRecalc';
+import { resolveStorePriceTable } from '@/lib/pricing';
 import TitlesPanel from '@/components/TitlesPanel';
 import InvoicesPanel from '@/components/InvoicesPanel';
 import ErpOrdersPanel from '@/components/ErpOrdersPanel';
@@ -138,9 +140,8 @@ export default function SellerPortalPage() {
       selectCustomer({ ...mapProfile(profile), customerCode: profile.customer_code || undefined });
       setCartStore(store.id);
       clearCart();
-      for (const it of (order.items as any[]) || []) {
-        if (it?.productId) addItem({ ...it, discountPercent: undefined });
-      }
+      const recalc = await loadItemsForEdit(store.id, (order.items as any[]) || [], resolveStorePriceTable(store.slug, profile.price_table ?? (order.customer as any)?.priceTable));
+      for (const it of recalc.items) addItem(it);
       setEditingQuote({ id: order.id, storeId: store.id, customerName: profile.name });
       toast.success('Orçamento carregado no carrinho para edição');
       navigate(`/${store.slug}`);

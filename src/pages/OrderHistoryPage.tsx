@@ -8,6 +8,8 @@ import { useCustomerOrders, useCustomerErpOrders, useCustomerProfile } from '@/h
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { setEditingQuote } from '@/lib/quoteEditing';
+import { loadItemsForEdit } from '@/lib/editRecalc';
+import { resolveStorePriceTable } from '@/lib/pricing';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -62,9 +64,8 @@ export default function OrderHistoryPage() {
       if (order.xml_downloaded_at) throw new Error('Pedido já transmitido: não pode ser editado');
       setStoreId(store.id);
       clearCart();
-      for (const it of (order.items as any[]) || []) {
-        if (it?.productId) addItem({ ...it, discountPercent: undefined });
-      }
+      const recalc = await loadItemsForEdit(store.id, (order.items as any[]) || [], resolveStorePriceTable(store.slug, (profile as any)?.priceTable ?? (order.customer as any)?.priceTable));
+      for (const it of recalc.items) addItem(it);
       setEditingQuote({ id: order.id, storeId: store.id, customerName: (order.customer as any)?.name || 'Meu pedido', byCustomer: true });
       const oldTable = (order.customer as any)?.priceTable;
       const newTable = (profile as any)?.priceTable;

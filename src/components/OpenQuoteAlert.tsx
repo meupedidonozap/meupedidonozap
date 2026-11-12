@@ -6,6 +6,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatCurrency } from '@/lib/formatters';
 import { canEditOrder, mergeEditedCustomer } from '@/lib/orderOwnership';
 import { setEditingQuote } from '@/lib/quoteEditing';
+import { loadItemsForEdit } from '@/lib/editRecalc';
+import { resolveStorePriceTable } from '@/lib/pricing';
 import { useCart } from '@/contexts/CartContext';
 
 interface Props {
@@ -53,7 +55,8 @@ export default function OpenQuoteAlert({ storeId, storeSlug, customer, seller, d
       }
       setStoreId(storeId);
       clearCart();
-      for (const it of (quote.items as any[]) || []) if (it?.productId) addItem({ ...it, discountPercent: undefined });
+      const recalc = await loadItemsForEdit(storeId, (quote.items as any[]) || [], resolveStorePriceTable(storeSlug, quote.customer?.priceTable));
+      for (const it of recalc.items) addItem(it);
       setEditingQuote({ id: quote.id, storeId, customerName: customer?.name || quote.customer?.name || '' });
       toast.success(`Orçamento #${quote.order_number} carregado para edição`);
       setQuote(null);
