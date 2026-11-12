@@ -29,7 +29,7 @@ function mapImage(row: any): ProductImage {
   };
 }
 
-function mapProduct(row: any): Product {
+export function mapProduct(row: any): Product {
   return {
     id: row.id,
     storeId: row.store_id,
