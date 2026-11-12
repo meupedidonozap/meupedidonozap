@@ -58,6 +58,7 @@ import OrderItemsDialog from '@/components/OrderItemsDialog';
 import { isCustomerOrder, canEditOrder } from '@/lib/orderOwnership';
 import DicolorePaymentCodesTab from '@/components/DicolorePaymentCodesTab';
 import StoreUsersTab from '@/components/StoreUsersTab';
+import AuditLogTab from '@/components/AuditLogTab';
 import SalonAdminTab from '@/components/SalonAdminTab';
 import IngredientsTab from '@/components/IngredientsTab';
 import PizzaBordersTab from '@/components/PizzaBordersTab';
@@ -1327,6 +1328,9 @@ export default function StoreAdminPage() {
             )}
             {isAdmin && (
               <TabsTrigger value="users" className="gap-2"><UserCog className="h-4 w-4" /> Usuários</TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="audit-log" className="gap-2"><ClipboardList className="h-4 w-4" /> Log</TabsTrigger>
             )}
             {isAdmin && (
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
@@ -3858,6 +3862,11 @@ export default function StoreAdminPage() {
           {isAdmin && (
             <TabsContent value="users" className="animate-fade-in">
               <StoreUsersTab storeId={store.id} storeType={store.type as StoreType} />
+            </TabsContent>
+          )}
+          {isAdmin && (
+            <TabsContent value="audit-log" className="animate-fade-in">
+              <AuditLogTab storeId={store.id} />
             </TabsContent>
           )}
         </Tabs>
