@@ -86,8 +86,12 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { data: allProductsCk = [] } = useProducts(store?.id);
   const editingQuote = useEditingQuote(store?.id);
-  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable } = useCart();
+  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable, setDiscountRules } = useCart();
+  // As regras de desconto vêm sempre da loja: o checkout pode ser aberto direto
+  // (edição de pedido, recarga da página, aviso de atualização) sem passar pela vitrine.
+  const discountRules = useMemo(() => ((store?.settings as any)?.discountRules || []) as DiscountRule[], [store?.settings]);
   useEffect(() => { if (store?.id) setStoreId(store.id); }, [store?.id, setStoreId]);
+  useEffect(() => { if (store) setDiscountRules(discountRules); }, [store, discountRules, setDiscountRules]);
   const { user, loading: authLoading } = useAuth();
   const {
     profile: customerProfile,
