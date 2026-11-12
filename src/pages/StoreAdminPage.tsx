@@ -3687,7 +3687,7 @@ export default function StoreAdminPage() {
                     if (store?.slug !== 'dicolore' || value.replace(/\D/g, '').length !== 14) return;
                     const d = await lookupCnpj(value);
                     if (!d) { toast.error('Não foi possível buscar este CNPJ. Preencha manualmente.'); return; }
-                    setCustomerForm(f => ({ ...f, cpfCnpj: formatCPFCNPJ(value), name: d.name || f.name, ie: d.ie || f.ie, cep: d.cep ? formatCEP(d.cep) : f.cep, uf: d.uf || f.uf, city: d.city || f.city, neighborhood: d.neighborhood || f.neighborhood, address: d.address || f.address, number: d.number || f.number, complement: d.complement || f.complement, whatsapp: f.whatsapp || (d.phone ? formatPhone(d.phone) : '') }));
+                    setCustomerForm(f => ({ ...f, cpfCnpj: fmtDocCnpj(value), name: d.name || f.name, ie: d.ie || f.ie, cep: d.cep ? fmtCepCnpj(d.cep) : f.cep, uf: d.uf || f.uf, city: d.city || f.city, neighborhood: d.neighborhood || f.neighborhood, address: d.address || f.address, number: d.number || f.number, complement: d.complement || f.complement, whatsapp: f.whatsapp || (d.phone ? fmtPhoneCnpj(d.phone) : '') }));
                     toast.success(d.ie ? 'Dados do CNPJ e Inscrição Estadual preenchidos' : 'Dados do CNPJ preenchidos');
                   }} /></div>
                   <div className="grid gap-1"><Label className="text-sm">WhatsApp *</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
