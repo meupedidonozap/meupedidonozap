@@ -230,6 +230,9 @@ export default function CheckoutPage() {
 
   // Resolve on the server and persist before finalizing: order triggers use the official profile.
   useEffect(() => {
+    // Reset first: a lookup cancelled by a customer switch must not leave checkout locked.
+    setLocationLoading(false);
+    setLocationError(false);
     if (store?.slug !== 'dicolore' || !customerProfile || !profileLoaded) return;
     if (customerProfile.city && customerProfile.uf) return;
     let cancelled = false;
@@ -1064,7 +1067,7 @@ export default function CheckoutPage() {
           </div>
         </DialogContent>
       </Dialog>
-      {editingQuote && (sellerOrder || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} />}
+      {editingQuote && (isSellerMode || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} onCancel={() => { clearCart(); if (isSellerMode) clearSelectedCustomer(); navigate(isSellerMode ? `/${store.slug}/vendedor/vendas` : `/${store.slug}/pedidos`); }} />}
 
       {isSellerMode && (
         <div className="border-b border-primary/30 bg-primary/10">

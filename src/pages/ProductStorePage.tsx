@@ -672,7 +672,7 @@ export default function ProductStorePage() {
       </div>
       {store && <NotifyMeDialog open={!!notifyProduct} onOpenChange={(o) => !o && setNotifyProduct(null)} storeId={store.id} product={notifyProduct} userId={user?.id} email={user?.email} profile={customerProfile as any} />}
       <FinancialAlertBanner storeId={store?.id} slug={store?.slug} customerCode={(customerProfile as any)?.customerCode ?? (customerProfile as any)?.customer_code} customerName={customerProfile?.name} isSellerMode={isSellerMode && !!selectedCustomer} company={(store?.settings as any)?.titlesCompany} />
-      {editingQuote && (isSellerMode || editingQuote.byCustomer) && <EditingQuoteBanner name={editingQuote.customerName} onCancel={() => clearCart()} />}
+      {editingQuote && <EditingQuoteBanner name={editingQuote.customerName} onCancel={() => clearCart()} />}
       {isSellerMode && store?.slug === 'dicolore' && (
         <OpenQuoteAlert storeId={store.id} storeSlug={store.slug} customer={selectedCustomer as any} seller={seller as any} disabled={!!editingQuote} />
       )}
