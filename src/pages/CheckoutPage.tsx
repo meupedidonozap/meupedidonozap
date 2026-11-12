@@ -7,7 +7,7 @@ import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
@@ -53,7 +53,7 @@ import CustomerAuthDialog from '@/components/CustomerAuthDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import ClosedBanner from '@/components/ClosedBanner';
 import { useStoreOpen } from '@/hooks/useStoreOpen';
-import type { PaymentMethod, DeliveryShift } from '@/types';
+import type { PaymentMethod, DeliveryShift, DiscountRule } from '@/types';
 import { getStoreFormas, getStoreCondicoes, isDicoloreFlow } from '@/lib/dicolorePayments';
 import MabelleEmbeddedCheckout from '@/components/MabelleEmbeddedCheckout';
 import { PaymentTestModeBanner } from '@/components/PaymentTestModeBanner';
@@ -86,8 +86,12 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { data: allProductsCk = [] } = useProducts(store?.id);
   const editingQuote = useEditingQuote(store?.id);
-  const { cart, clearCart, itemDiscounts, discountRules, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable } = useCart();
+  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable, setDiscountRules } = useCart();
+  // As regras de desconto vêm sempre da loja: o checkout pode ser aberto direto
+  // (edição de pedido, recarga da página, aviso de atualização) sem passar pela vitrine.
+  const discountRules = useMemo(() => ((store?.settings as any)?.discountRules || []) as DiscountRule[], [store?.settings]);
   useEffect(() => { if (store?.id) setStoreId(store.id); }, [store?.id, setStoreId]);
+  useEffect(() => { if (store) setDiscountRules(discountRules); }, [store, discountRules, setDiscountRules]);
   const { user, loading: authLoading } = useAuth();
   const {
     profile: customerProfile,

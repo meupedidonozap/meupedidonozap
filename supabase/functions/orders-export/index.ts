@@ -1,6 +1,7 @@
 // Entrega pedidos DiColore "Liberado p/ Transmissão" em JSON para o integrador
 // Python local (Gestor001A) e recebe a confirmação de gravação no ERP.
 // Autenticação: header x-sync-token = TITLES_SYNC_TOKEN.
+import { fillMissingDiscounts } from "../_shared/groupDiscounts.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { resolveExportProfile } from "../_shared/customerExportProfile.ts";
@@ -107,7 +108,9 @@ Deno.serve(async (req) => {
         const c = o.customer || {};
         const cp = resolveExportProfile(profiles, c, o.user_id);
         const lines: any[] = [];
-        for (const it of o.items || []) {
+        const exportItems = fillMissingDiscounts(o.items || [], (store.settings as any)?.discountRules || [],
+          c.priceTable ?? cp?.price_table, c.noDiscount === true);
+        for (const it of exportItems) {
           const disc = Number(it.discountPercent) || 0;
           const unit = r2((Number(it.price) || 0) * (1 - disc / 100));
           const qty = Number(it.quantity) || 0;
