@@ -1,0 +1,3 @@
+CREATE POLICY "Managed store staff update customer profiles" ON public.customer_profiles FOR UPDATE TO authenticated
+USING (public.mpz_managed_customer_store(store_id) AND (public.has_store_permission(auth.uid(), store_id, 'can_view_customers') OR public.has_store_permission(auth.uid(), store_id, 'can_manage_orders')))
+WITH CHECK (public.mpz_managed_customer_store(store_id) AND (public.has_store_permission(auth.uid(), store_id, 'can_view_customers') OR public.has_store_permission(auth.uid(), store_id, 'can_manage_orders')));
