@@ -16,6 +16,8 @@ import { useSellerContext } from '@/contexts/SellerContext';
 import { useCart } from '@/contexts/CartContext';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { setEditingQuote } from '@/lib/quoteEditing';
+import { loadItemsForEdit } from '@/lib/editRecalc';
+import { resolveStorePriceTable } from '@/lib/pricing';
 import { mergeEditedCustomer } from '@/lib/orderOwnership';
 import type { Order } from '@/types';
 import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
@@ -89,9 +91,8 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
       else if (!goToCheckout) throw new Error('Cliente do pedido não encontrado no cadastro. Use "Trocar cliente".');
       setCartStore(store.id);
       clearCart();
-      for (const it of (order.items as any[]) || []) {
-        if (it?.productId) addItem({ ...it, discountPercent: undefined });
-      }
+      const recalc = await loadItemsForEdit(store.id, (order.items as any[]) || [], resolveStorePriceTable(store.slug, profile?.price_table ?? c.priceTable));
+      for (const it of recalc.items) addItem(it);
       setEditingQuote({ id: order.id, storeId: store.id, customerName: profile?.name || c.name || 'Pedido' });
       toast.success(goToCheckout ? 'Escolha o novo cliente e salve o pedido' : 'Pedido carregado para edição');
       onClose();
