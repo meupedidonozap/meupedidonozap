@@ -2171,6 +2171,7 @@ export type Database = {
       }
       store_users: {
         Row: {
+          can_change_price_table: boolean
           can_manage_orders: boolean
           can_manage_products: boolean
           can_manage_service_orders: boolean
@@ -2192,6 +2193,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          can_change_price_table?: boolean
           can_manage_orders?: boolean
           can_manage_products?: boolean
           can_manage_service_orders?: boolean
@@ -2213,6 +2215,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          can_change_price_table?: boolean
           can_manage_orders?: boolean
           can_manage_products?: boolean
           can_manage_service_orders?: boolean
@@ -2514,6 +2517,10 @@ export type Database = {
       apply_order_stock: {
         Args: { _items: Json; _sign: number; _store_id: string }
         Returns: undefined
+      }
+      can_change_order_price_table: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: boolean
       }
       can_manage_product_images: {
         Args: { _user_id: string }

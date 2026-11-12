@@ -2016,7 +2016,7 @@ export default function StoreAdminPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            {(isAdmin || permissions.can_manage_orders) && <RecalculateOrderButton order={order} store={store} products={products} />}
+                            {(isAdmin || permissions.can_manage_orders) && <RecalculateOrderButton order={order} store={store} products={products} canChangeTable={isAdmin || !!permissions.can_change_price_table} />}
                             {store.type === 'SERVICOS' && (isAdmin || permissions.can_manage_service_orders || permissions.can_view_service_orders) && (() => {
                               const existingSO = serviceOrders.find(so => so.orderId === order.id);
                               if (existingSO) {

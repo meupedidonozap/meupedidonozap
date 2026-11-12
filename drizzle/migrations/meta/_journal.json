@@ -344,6 +344,13 @@
       "when": 1794412677214,
       "tag": "0048_authorize_customer_discount_admin_update",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1794482028191,
+      "tag": "0049_price_table_change_permission",
+      "breakpoints": true
     }
   ]
 }

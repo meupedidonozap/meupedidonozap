@@ -8,12 +8,15 @@ import { calculateCustomerOrder, canRecalculateOrder } from '@/lib/customerDisco
 import { resolveStorePriceTable } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 
-export default function RecalculateOrderButton({ order, store, products }: { order: any; store: any; products: any[] }) {
+export default function RecalculateOrderButton({ order, store, products, canChangeTable = false }: { order: any; store: any; products: any[]; canChangeTable?: boolean }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [table, setTable] = useState<string>('');
   if (store.slug !== 'dicolore' || !canRecalculateOrder(order)) return null;
+  const orderTable = String((order.customer as any)?.priceTable || '');
   async function recalculate() {
-    if (!confirm(`Recalcular o pedido #${order.orderNumber} com a tabela e a regra de desconto atuais do cliente?`)) return;
+    const chosen = canChangeTable && table ? Number(table) : null;
+    if (!confirm(chosen ? `Recalcular o pedido #${order.orderNumber} na Tabela ${chosen}?` : `Recalcular o pedido #${order.orderNumber} com a tabela e a regra de desconto atuais do cliente?`)) return;
     setBusy(true);
     try {
       const { data: auth, error: authError } = await supabase.auth.getUser();
@@ -32,16 +35,27 @@ export default function RecalculateOrderButton({ order, store, products }: { ord
       if (profileError) throw profileError;
       const profile = profiles?.[0];
       if (!profile) throw new Error('Cadastro do cliente não encontrado.');
-      const table = resolveStorePriceTable(store.slug, profile.price_table);
-      const calculated = calculateCustomerOrder(current.items, products, store.settings.discountRules || [], table, profile.no_discount);
-      const { data, error } = await supabase.rpc('recalculate_customer_order', { p_order_id: order.id, p_items: calculated.items as any, p_discount: calculated.discount, p_table: table });
+      const target = resolveStorePriceTable(store.slug, chosen ?? (current.customer as any)?.priceTable ?? profile.price_table);
+      const calculated = calculateCustomerOrder(current.items, products, store.settings.discountRules || [], target, profile.no_discount);
+      const { data, error } = await supabase.rpc('recalculate_customer_order', { p_order_id: order.id, p_items: calculated.items as any, p_discount: calculated.discount, p_table: target });
       if (error) throw error;
       if (!data) throw new Error('O pedido não foi recalculado.');
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['seller-orders'] });
-      toast.success(`Pedido #${order.orderNumber} recalculado sem criar outro pedido`);
+      toast.success(`Pedido #${order.orderNumber} recalculado na Tabela ${target}`);
+      setTable('');
     } catch (e: any) { toast.error(e.message); }
     finally { setBusy(false); }
   }
-  return <Button variant="outline" size="sm" title="Recalcular com o cadastro atual do cliente" disabled={busy} onClick={recalculate}><RefreshCw className={`mr-1 h-3 w-3 ${busy ? 'animate-spin' : ''}`} />Recalcular</Button>;
+  const button = <Button variant="outline" size="sm" title="Recalcular com o cadastro atual do cliente" disabled={busy} onClick={recalculate}><RefreshCw className={`mr-1 h-3 w-3 ${busy ? 'animate-spin' : ''}`} />Recalcular</Button>;
+  if (!canChangeTable) return button;
+  return (
+    <div className="flex items-center gap-1">
+      <select aria-label="Tabela de preço do pedido" className="h-8 rounded-md border border-input bg-background px-1 text-xs" value={table} onChange={(e) => setTable(e.target.value)} disabled={busy}>
+        <option value="">Tab. {orderTable || 'cliente'}</option>
+        {['1', '3', '4', '8', '9', '11'].map(t => <option key={t} value={t}>Tabela {t}</option>)}
+      </select>
+      {button}
+    </div>
+  );
 }

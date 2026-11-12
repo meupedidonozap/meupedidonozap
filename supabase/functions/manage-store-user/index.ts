@@ -16,6 +16,7 @@ interface Permissions {
   can_manage_products?: boolean;
   can_view_customers?: boolean;
   can_manage_tables?: boolean;
+  can_change_price_table?: boolean;
 }
 
 interface Body {
@@ -93,6 +94,7 @@ Deno.serve(async (req) => {
       can_manage_products: !!perms.can_manage_products,
       can_view_customers: !!perms.can_view_customers,
       can_manage_tables: !!perms.can_manage_tables,
+      can_change_price_table: !!perms.can_change_price_table,
     };
 
     const sellerCodes: string[] | undefined = Array.isArray(body.sellerCodes)

@@ -46,6 +46,7 @@ const PERMISSIONS: PermissionItem[] = [
   { key: 'can_manage_orders', label: 'Gerenciar Pedidos', description: 'Mudar status, editar pedidos' },
   { key: 'can_manage_products', label: 'Gerenciar Produtos', description: 'Criar/editar produtos e categorias' },
   { key: 'can_view_customers', label: 'Ver Clientes', description: 'Acessar a aba de clientes' },
+  { key: 'can_change_price_table', label: 'Alterar tabela de preço no pedido', description: 'Trocar a tabela do pedido (ex.: 1 ↔ 9) e recalcular', showFor: ['LOJA'] },
   { key: 'can_manage_tables', label: 'Garçom (Mesas)', description: 'Abrir mesas, lançar pedidos via cardápio e cobrar' },
 ];
 
@@ -57,6 +58,7 @@ const emptyPerms: StorePermissions = {
   can_manage_products: false,
   can_view_customers: false,
   can_manage_tables: false,
+  can_change_price_table: false,
 };
 
 const GARCOM_PERMS: StorePermissions = {
@@ -127,6 +129,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
       can_manage_products: u.can_manage_products,
       can_view_customers: u.can_view_customers,
       can_manage_tables: u.can_manage_tables,
+      can_change_price_table: !!u.can_change_price_table,
     });
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
