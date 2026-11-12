@@ -18,6 +18,7 @@ export interface StoreUser {
   can_manage_products: boolean;
   can_view_customers: boolean;
   can_manage_tables: boolean;
+  can_change_price_table?: boolean;
   seller_codes: string[];
   role: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
   seller_id?: string | null;
