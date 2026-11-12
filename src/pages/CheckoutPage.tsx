@@ -839,6 +839,21 @@ export default function CheckoutPage() {
       }
 
       if (sellerOrder && store.slug === 'dicolore') {
+        // Antiduplicação: bloqueia orçamento novo quando já existe um aberto e pede confirmação após pedido recente.
+        const ck = orderPayload.customer?.customerCode ? ['customer->>customerCode', String(orderPayload.customer.customerCode)]
+          : orderPayload.customer?.cpfCnpj ? ['customer->>cpfCnpj', String(orderPayload.customer.cpfCnpj)] : null;
+        if (ck) {
+          const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+          const { data: prev } = await supabase.from('orders').select('order_number,status,created_at')
+            .eq('store_id', store.id).filter(ck[0], 'eq', ck[1]).neq('status', 'cancelado')
+            .order('created_at', { ascending: false }).limit(20);
+          const open = (prev || []).find((o: any) => o.status === 'orcamento');
+          if (open) throw new Error(`Este cliente já tem o orçamento #${open.order_number} aberto. Abra-o em Vendas > Orçamentos e clique em Editar (ou cancele-o) — nenhum orçamento novo foi criado.`);
+          const recent = (prev || []).find((o: any) => o.created_at >= since);
+          if (recent && !window.confirm(`ATENÇÃO: o pedido #${recent.order_number} foi emitido para este cliente há ${Math.max(1, Math.round((Date.now() - new Date(recent.created_at).getTime()) / 60000))} min. Deseja realmente emitir OUTRO pedido?`)) {
+            throw new Error('Envio cancelado para evitar pedido duplicado.');
+          }
+        }
         orderPayload.clientOrderId = cartSubmissionKey(store.id,
           String(orderPayload.customer?.customerCode || orderPayload.customer?.cpfCnpj || formData.name),
           cart.items.map((i: any) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, price: i.price })));
