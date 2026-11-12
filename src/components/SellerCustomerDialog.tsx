@@ -14,6 +14,7 @@ import { formatCPFCNPJ, formatPhone, formatCEP } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import type { SellerCustomer } from '@/contexts/SellerContext';
 import { resolveStorePriceTable } from '@/lib/pricing';
+import { lookupCnpj } from '@/lib/cnpjLookup';
 import { supabase } from '@/integrations/supabase/client';
 import { getCustomerError } from '@/lib/customerValidation';
 
@@ -50,7 +51,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
     return msg;
   };
   const emptyForm = {
-    name: '', whatsapp: '', cpfCnpj: '', cep: '', uf: '', city: '',
+    name: '', whatsapp: '', cpfCnpj: '', ie: '', cep: '', uf: '', city: '',
     neighborhood: '', address: '', number: '', complement: '',
     priceTable: String(defaultPriceTable), sellerCode: sellerCodes[0] || '',
   };
@@ -117,6 +118,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
         address: form.address,
         number: form.number,
         complement: form.complement,
+        ie: form.ie,
         sellerCode: form.sellerCode || sellerCodes[0] || '',
         priceTable: Number(form.priceTable) as 1 | 3 | 4 | 8 | 9 | 11,
       });
@@ -184,23 +186,21 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
                     if (digits.length === 14) {
                       setCnpjLoading(true);
                       try {
-                        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-                        if (!res.ok) throw new Error();
-                        const d = await res.json();
-                        const phone = String(d.ddd_telefone_1 || '').replace(/\D/g, '');
+                        const d = await lookupCnpj(digits);
+                        if (!d) throw new Error();
                         setForm(f => ({
                           ...f,
-                          name: String(d.razao_social || f.name).toUpperCase(),
-                          whatsapp: f.whatsapp || (phone ? formatPhone(phone) : ''),
-                          cep: d.cep ? formatCEP(String(d.cep)) : f.cep,
-                          uf: d.uf || f.uf,
-                          city: d.municipio || f.city,
-                          neighborhood: d.bairro || f.neighborhood,
-                          address: [d.descricao_tipo_de_logradouro, d.logradouro].filter(Boolean).join(' ') || f.address,
-                          number: d.numero || f.number,
-                          complement: d.complemento || f.complement,
+                          name: d.name || f.name,
+                          ie: d.ie || f.ie,
+                          whatsapp: f.whatsapp || (d.phone ? formatPhone(d.phone) : ''),
+                          cep: d.cep ? formatCEP(d.cep) : f.cep,
+                          uf: d.uf || f.uf, city: d.city || f.city,
+                          neighborhood: d.neighborhood || f.neighborhood,
+                          address: d.address || f.address,
+                          number: d.number || f.number,
+                          complement: d.complement || f.complement,
                         }));
-                        toast.success('Dados do CNPJ preenchidos');
+                        toast.success(d.ie ? 'Dados do CNPJ e Inscrição Estadual preenchidos' : 'Dados do CNPJ preenchidos');
                       } catch {
                         toast.error('Não foi possível buscar este CNPJ. Preencha manualmente.');
                       } finally {
@@ -213,6 +213,8 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
               </div>
               {duplicate && <p className="rounded-md bg-destructive/10 p-2 text-xs font-medium text-destructive">{duplicate}</p>}
             </div>
+            <div className="grid gap-1"><Label className="text-sm">Inscrição Estadual</Label>
+              <Input value={form.ie} placeholder="IE ou ISENTO" onChange={e => setForm(f => ({ ...f, ie: e.target.value }))} /></div>
             <div className="grid gap-1"><Label className="text-sm">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value.toUpperCase() }))} /></div>
             <div className="grid gap-1"><Label className="text-sm">WhatsApp *</Label>

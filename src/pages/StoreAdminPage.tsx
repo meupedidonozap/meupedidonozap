@@ -118,6 +118,8 @@ import OrderErrorsDiagnosticsCard from '@/components/OrderErrorsDiagnosticsCard'
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 import { downloadCustomerXml } from '@/lib/customerXml';
 import { buildOrderProfileIndex } from '@/lib/orderProfileIndex';
+import { lookupCnpj } from '@/lib/cnpjLookup';
+import { formatCPFCNPJ as fmtDocCnpj, formatCEP as fmtCepCnpj, formatPhone as fmtPhoneCnpj } from '@/lib/formatters';
 
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -3679,7 +3681,15 @@ export default function StoreAdminPage() {
                 <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
                 <div className="grid gap-3 py-2 overflow-y-auto pr-1 flex-1">
                   <div className="grid gap-1"><Label className="text-sm">Nome *</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
-                  <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ *</Label><Input value={customerForm.cpfCnpj} onChange={e => setCustomerForm(f => ({ ...f, cpfCnpj: e.target.value }))} /></div>
+                  <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ *</Label><Input value={customerForm.cpfCnpj} placeholder={store?.slug === 'dicolore' ? 'Digite o CNPJ para buscar os dados' : undefined} onChange={async e => {
+                    const value = e.target.value;
+                    setCustomerForm(f => ({ ...f, cpfCnpj: value }));
+                    if (store?.slug !== 'dicolore' || value.replace(/\D/g, '').length !== 14) return;
+                    const d = await lookupCnpj(value);
+                    if (!d) { toast.error('Não foi possível buscar este CNPJ. Preencha manualmente.'); return; }
+                    setCustomerForm(f => ({ ...f, cpfCnpj: fmtDocCnpj(value), name: d.name || f.name, ie: d.ie || f.ie, cep: d.cep ? fmtCepCnpj(d.cep) : f.cep, uf: d.uf || f.uf, city: d.city || f.city, neighborhood: d.neighborhood || f.neighborhood, address: d.address || f.address, number: d.number || f.number, complement: d.complement || f.complement, whatsapp: f.whatsapp || (d.phone ? fmtPhoneCnpj(d.phone) : '') }));
+                    toast.success(d.ie ? 'Dados do CNPJ e Inscrição Estadual preenchidos' : 'Dados do CNPJ preenchidos');
+                  }} /></div>
                   <div className="grid gap-1"><Label className="text-sm">WhatsApp *</Label><Input value={customerForm.whatsapp} onChange={e => setCustomerForm(f => ({ ...f, whatsapp: e.target.value }))} /></div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="grid gap-1"><Label className="text-sm">CEP *</Label><Input value={customerForm.cep} onChange={e => setCustomerForm(f => ({ ...f, cep: e.target.value }))} /></div>
