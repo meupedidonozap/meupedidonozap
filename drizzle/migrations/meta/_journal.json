@@ -386,6 +386,13 @@
       "when": 1794575500388,
       "tag": "0054_manager_results_read",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794590588745,
+      "tag": "0055_confirm_external_order_customer",
+      "breakpoints": true
     }
   ]
 }
