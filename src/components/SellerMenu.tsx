@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Home, Gem, HeartPulse, LineChart, Package, FileText, Receipt } from 'lucide-react';
+import { Menu, Home, Gem, HeartPulse, LineChart, Package, FileText, Receipt, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,9 +9,11 @@ import AppUpdateButton from './AppUpdateButton';
 interface Props {
   store: { slug: string; name: string; logo?: string | null };
   sellerName?: string;
+  roleLabel?: string;
+  canAdmin?: boolean;
 }
 
-export default function SellerMenu({ store, sellerName }: Props) {
+export default function SellerMenu({ store, sellerName, roleLabel, canAdmin }: Props) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const base = `/${store.slug}/vendedor`;
@@ -23,6 +25,7 @@ export default function SellerMenu({ store, sellerName }: Props) {
     { to: `/${store.slug}`, label: 'Catálogo de Produtos', icon: Package },
     { to: `${base}/notas`, label: 'Notas Fiscais', icon: FileText },
     { to: `${base}/titulos`, label: 'Títulos', icon: Receipt },
+    ...(canAdmin ? [{ to: `/${store.slug}/admin`, label: 'Painel Admin', icon: Settings }] : []),
   ];
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -32,7 +35,7 @@ export default function SellerMenu({ store, sellerName }: Props) {
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader className="items-center border-b p-6 text-center">
           {store.logo && <img src={store.logo} alt={store.name} className="h-16 w-16 rounded-full bg-white object-contain" />}
-          <SheetTitle className="text-base">{sellerName || 'Vendedor'}</SheetTitle>
+          <SheetTitle className="text-base">{roleLabel || sellerName || 'Vendedor'}</SheetTitle>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </SheetHeader>
         <nav className="p-2">

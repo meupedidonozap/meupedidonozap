@@ -387,7 +387,7 @@ export default function ProductStorePage() {
         <div className={store.slug === 'dicolore' ? "container flex flex-col gap-2 py-2 overflow-x-hidden lg:h-16 lg:flex-row lg:items-center lg:gap-4 lg:py-0" : "container flex h-16 items-center justify-between gap-4"}>
           <div className={store.slug === 'dicolore' ? "flex flex-shrink-0 flex-row flex-wrap items-center gap-1.5" : "contents"}>
           {isSellerMode && store.slug === 'dicolore' && (
-            <SellerMenu store={store} sellerName={seller.sellerName} />
+            <SellerMenu store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />
           )}
           <Sheet open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
             <SheetTrigger asChild>
