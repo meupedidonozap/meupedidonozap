@@ -406,7 +406,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                     title="Aplicar permissões de Garçom (ver e gerenciar pedidos)">
                     🍽 Garçom
                   </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => setPerms(GERENTE_PERMS)}>👔 Gerente</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setRole('gerente'); setSellerCodes([]); setPerms(GERENTE_PERMS); }}>👔 Gerente</Button>
                 </div>
               </div>
               {isGarcomPreset(perms) && (

@@ -34,7 +34,8 @@ export function useSellerMode(storeId: string | undefined) {
       };
     },
     enabled: !!user && !!storeId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const isSeller = !!data?.isSeller;
