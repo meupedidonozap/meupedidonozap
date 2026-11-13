@@ -40,3 +40,20 @@ export function resolveExportProfile(
   }
   return userId ? unique(registered.filter(p => p.user_id === userId)) : undefined;
 }
+
+/** External prospect resolution is document-bound; a staff login is never the customer. */
+export function resolveExternalExportProfile(
+  profiles: ExportProfile[],
+  customer: { customerCode?: unknown; cpfCnpj?: unknown },
+): ExportProfile | undefined {
+  if (text(customer.customerCode)) return resolveExportProfile(profiles, customer);
+  const doc = digits(customer.cpfCnpj);
+  if (doc.length !== 11 && doc.length !== 14) return undefined;
+  const matching = [...new Map(profiles.filter(p => digits(p.cpf_cnpj) === doc).map(p => [p.id, p])).values()];
+  const registered = matching.filter(p => text(p.customer_code));
+  if (registered.length) return resolveExportProfile(registered, customer);
+  return matching.length === 1 ? matching[0] : undefined;
+}
+
+export const usesUnifiedExternalFlow = (slug: string, settings: { useExternalIntegrator?: unknown } | null, source: string) =>
+  slug === 'dicolore' && settings?.useExternalIntegrator === true && source === 'externa';

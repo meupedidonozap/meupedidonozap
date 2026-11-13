@@ -4,8 +4,8 @@
 import { fillMissingDiscounts } from "../_shared/groupDiscounts.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { resolveExportProfile } from "../_shared/customerExportProfile.ts";
-import { normalizeFrete } from "../_shared/dwCliente.ts";
+import { resolveExportProfile, resolveExternalExportProfile, usesUnifiedExternalFlow } from "../_shared/customerExportProfile.ts";
+import { normalizeFrete, toDwCliente } from "../_shared/dwCliente.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       const external = (store.settings as any)?.useExternalIntegrator === true;
       const fromExternal = url.searchParams.get("source") === "externa";
       if (external !== fromExternal) return json({ orders: [], integrador_ativo: external ? "externo" : "bat" });
+      const unified = usesUnifiedExternalFlow(slug, store.settings as any, fromExternal ? "externa" : "bat");
 
       const { data: orders, error } = await admin.from("orders")
         .select("id, order_number, customer, items, subtotal, discount, delivery_fee, total, observations, created_at, status, user_id")
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
           if (d.length === 11) docs.add(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`); }
         if (o.user_id) uids.add(o.user_id);
       }
-      const sel = "id, updated_at, user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora, frete_codigo";
+      const sel = unified ? "*" : "id, updated_at, user_id, customer_code, cpf_cnpj, name, whatsapp, cep, uf, city, neighborhood, address, number, complement, seller_code, price_table, ie, transportadora, frete_codigo";
       const qs = [] as any[];
       if (codes.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("customer_code", [...codes]));
       if (docs.size) qs.push(admin.from("customer_profiles").select(sel).eq("store_id", store.id).in("cpf_cnpj", [...docs]));
@@ -106,7 +107,7 @@ Deno.serve(async (req) => {
 
       const out = orders.map((o: any) => {
         const c = o.customer || {};
-        const cp = resolveExportProfile(profiles, c, o.user_id);
+        const cp = unified ? resolveExternalExportProfile(profiles, c) : resolveExportProfile(profiles, c, o.user_id);
         const lines: any[] = [];
         const exportItems = fillMissingDiscounts(o.items || [], (store.settings as any)?.discountRules || [],
           c.priceTable ?? cp?.price_table, c.noDiscount === true);
@@ -148,6 +149,7 @@ Deno.serve(async (req) => {
         const tvCode = isTv ? (c.televendasErpCode || op?.erp_code || null) : null;
         return {
           id: o.id, order_number: o.order_number, created_at: o.created_at,
+          ...(unified ? { cliente: cp ? toDwCliente(cp) : null } : {}),
           customer: {
             code: pick(cp?.customer_code, c.customerCode), name: pick(cp?.name, c.name),
             cpf_cnpj: String(pick(cp?.cpf_cnpj, c.cpfCnpj) || "").replace(/\D/g, ""), ie: pick(cp?.ie, c.ie),
@@ -174,7 +176,7 @@ Deno.serve(async (req) => {
         };
       });
       // Cliente PROSPECT (sem código do ERP) aguarda a integração do cadastro pelo admin.
-      return json({ orders: out.filter((o: any) => String(o.customer?.code || "").trim()) });
+      return json({ orders: out.filter((o: any) => unified ? Boolean(o.cliente?.id_mpz) : String(o.customer?.code || "").trim()) });
     }
 
     if (req.method === "POST") {
