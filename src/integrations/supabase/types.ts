@@ -2656,6 +2656,10 @@ export type Database = {
         Args: { _store_id: string; _user_id: string }
         Returns: boolean
       }
+      is_store_manager: {
+        Args: { _store_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_store_seller_code: {
         Args: { _code: string; _store_id: string; _user_id: string }
         Returns: boolean
