@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     if (!uid) return json({ error: 'Unauthorized' }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const action = body?.action === 'info' ? 'info' : 'create';
+    const action = ['info','cancel'].includes(body?.action) ? body.action : 'create';
     const orderId = String(body?.orderId || '');
     if (!/^[0-9a-f-]{36}$/i.test(orderId)) return json({ error: 'orderId inválido' }, 400);
 
@@ -42,6 +42,20 @@ Deno.serve(async (req) => {
       Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json',
       'User-Agent': 'MeuPedidoNoZap (contato@meupedidonozap.online)',
     };
+
+    if (action === 'cancel') {
+      if (!order.superfrete_id) return json({ skipped: 'Pedido sem etiqueta SuperFrete' });
+      if (order.superfrete_status === 'canceled') return json({ ok: true, already: true });
+      const r = await fetch(`${SF}/api/v0/order/cancel`, { method: 'POST', headers, body: JSON.stringify({ order: { id: order.superfrete_id, description: `Pedido MPZ-${order.order_number} cancelado na loja` } }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const msg = String(d?.error || d?.message || `Erro ${r.status}`).slice(0, 500);
+        await admin.from('orders').update({ superfrete_error: `Cancelamento: ${msg}` }).eq('id', orderId);
+        return json({ error: msg }, 400);
+      }
+      await admin.from('orders').update({ superfrete_status: 'canceled', superfrete_error: null }).eq('id', orderId);
+      return json({ ok: true });
+    }
 
     if (action === 'info') {
       if (!order.superfrete_id) return json({ error: 'Pedido ainda não enviado ao SuperFrete' }, 400);
