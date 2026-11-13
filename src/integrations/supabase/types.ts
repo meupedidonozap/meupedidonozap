@@ -2613,6 +2613,16 @@ export type Database = {
         Returns: boolean
       }
       can_view_store_catalog: { Args: { _store_id: string }; Returns: boolean }
+      confirm_external_order_customer: {
+        Args: {
+          p_customer_code?: string
+          p_error?: string
+          p_order_code: string
+          p_order_id: string
+          p_profile_id: string
+        }
+        Returns: Json
+      }
       find_customer_by_document: {
         Args: { p_doc: string; p_store_id: string }
         Returns: {

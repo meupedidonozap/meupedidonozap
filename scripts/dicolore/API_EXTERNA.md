@@ -1,7 +1,6 @@
 # API Externa MPZ – DiColore
 
-Endereço base:
-https://buvhdqpbpbwpzidzmdqh.supabase.co/functions/v1/api-externa
+Endereço base: utilize o endereço de integração já configurado no seu programa.
 
 Cabeçalho obrigatório em todas as chamadas:
 x-api-key: <SUA CHAVE>
@@ -9,12 +8,24 @@ Content-Type: application/json
 
 ## 1. Pegar pedidos liberados para transmissão
 GET /pedidos?limite=50
-Resposta: { "pedidos": [ { "order_id": "...", "order_number": 650, "customer": {...}, "items": [...], ... } ] }
-(Mesmo conteúdo que o integrador atual recebe.)
+Disponível somente quando “Usar integrador EXTERNO?” está em SIM na DiColore.
+Resposta: { "pedidos": [ { "id": "...", "order_number": 650, "customer": {...}, "cliente": {...}, "items": [...], ... } ] }
+`cliente` contém o mesmo layout DW descrito abaixo, obtido do cadastro sincronizado no MPZ.
+Clientes novos também são enviados: `cliente.id_mpz` identifica o cadastro MPZ e `cliente.codigo` fica vazio até o cadastro no ERP.
+O campo `customer` existente permanece compatível. O integrador interno NÃO recebe essa mudança e continua aguardando o código ERP.
+Somente pedidos liberados e ainda não transmitidos são listados. Cadastros ausentes/ambíguos não são escolhidos arbitrariamente.
 
 ## 2. Confirmar pedido gravado no ERP
 POST /pedidos/confirmar
-{ "pedido_id": "<order_id>", "codigo_erp": "98960" }
+{ "pedido_id": "<id do pedido MPZ>", "codigo_erp": "723149", "cliente_codigo_erp": "98765" }
+`codigo_erp` é o NÚMERO DO PEDIDO no ERP, nunca o código do cliente.
+`cliente_codigo_erp` é obrigatório se o cliente ainda não tem código ERP; opcional para cliente já cadastrado.
+O integrador deve buscar/cadastrar o cliente e gravar o pedido no ERP antes de confirmar.
+Cliente e pedido são confirmados na mesma transação; falha em qualquer validação não confirma nenhum dos dois.
+Um código atribuído a outro cadastro ou divergente do já salvo é recusado, sem sobrescrever identidade.
+Resposta: { "ok": true, "atualizados": ["<pedido_id>"], "clientes": [{"pedido_id":"...", "cliente_codigo_erp":"98765"}], "falhas": [] }
+Em lote, conferir `falhas`: somente os IDs em `atualizados` foram confirmados. Repetir o mesmo número de pedido já confirmado é seguro.
+Se a opção EXTERNO estiver em NÃO, a confirmação externa é recusada (409), sem gravação.
 Com erro: { "pedido_id": "<order_id>", "erro": "motivo" }
 Vários: { "resultados": [ {...}, {...} ] }
 Confirmado => status "Confirmado" no MPZ e não volta mais na lista.
@@ -59,4 +70,4 @@ Resposta: { "ok": true, "atualizados": [...], "falhas": [ { "id_mpz", "erro" } ]
 Código já usado por outro cliente da loja é recusado.
 
 ## Exemplo (curl)
-curl -H "x-api-key: SUA_CHAVE" https://buvhdqpbpbwpzidzmdqh.supabase.co/functions/v1/api-externa/pedidos
+curl -H "x-api-key: SUA_CHAVE" "ENDERECO_BASE_CONFIGURADO/pedidos?limite=50"
