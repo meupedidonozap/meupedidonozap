@@ -2197,7 +2197,8 @@ export default function StoreAdminPage() {
 
           {/* Discounts by group */}
           <TabsContent value="discounts" className="animate-fade-in">
-            <div className="space-y-6">
+            <div className={`space-y-6 ${!isAdmin && !permissions.can_manage_discounts ? '[&_button]:pointer-events-none [&_button]:opacity-50 [&_input]:pointer-events-none' : ''}`}>
+              {!isAdmin && !permissions.can_manage_discounts && <p className="text-sm text-muted-foreground">Somente consulta — você não tem permissão para editar descontos.</p>}
               <Card>
                 <CardHeader>
                   <CardTitle>Nova Regra de Desconto por Grupo</CardTitle>
