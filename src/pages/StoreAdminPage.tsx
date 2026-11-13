@@ -2337,7 +2337,7 @@ export default function StoreAdminPage() {
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportRulesOpen(true)}>
                       <Upload className="h-4 w-4" /> Importar Planilha
                     </Button>
-                    <Button onClick={handleSaveDiscountRules} disabled={savingRules} size="sm" className="gap-2">
+                    <Button onClick={handleSaveDiscountRules} disabled={savingRules || (!isAdmin && !permissions.can_manage_discounts)} size="sm" className="gap-2">
                       {savingRules ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       Salvar Regras
                     </Button>
