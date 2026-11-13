@@ -2220,13 +2220,20 @@ export type Database = {
       store_users: {
         Row: {
           can_change_price_table: boolean
+          can_manage_categories: boolean
+          can_manage_customers: boolean
+          can_manage_discounts: boolean
           can_manage_orders: boolean
           can_manage_products: boolean
           can_manage_service_orders: boolean
           can_manage_tables: boolean
+          can_manage_technical_materials: boolean
+          can_view_atendimento: boolean
           can_view_customers: boolean
+          can_view_discounts: boolean
           can_view_orders: boolean
           can_view_service_orders: boolean
+          can_view_wishlist: boolean
           created_at: string
           email: string
           erp_code: string | null
@@ -2242,13 +2249,20 @@ export type Database = {
         }
         Insert: {
           can_change_price_table?: boolean
+          can_manage_categories?: boolean
+          can_manage_customers?: boolean
+          can_manage_discounts?: boolean
           can_manage_orders?: boolean
           can_manage_products?: boolean
           can_manage_service_orders?: boolean
           can_manage_tables?: boolean
+          can_manage_technical_materials?: boolean
+          can_view_atendimento?: boolean
           can_view_customers?: boolean
+          can_view_discounts?: boolean
           can_view_orders?: boolean
           can_view_service_orders?: boolean
+          can_view_wishlist?: boolean
           created_at?: string
           email?: string
           erp_code?: string | null
@@ -2264,13 +2278,20 @@ export type Database = {
         }
         Update: {
           can_change_price_table?: boolean
+          can_manage_categories?: boolean
+          can_manage_customers?: boolean
+          can_manage_discounts?: boolean
           can_manage_orders?: boolean
           can_manage_products?: boolean
           can_manage_service_orders?: boolean
           can_manage_tables?: boolean
+          can_manage_technical_materials?: boolean
+          can_view_atendimento?: boolean
           can_view_customers?: boolean
+          can_view_discounts?: boolean
           can_view_orders?: boolean
           can_view_service_orders?: boolean
+          can_view_wishlist?: boolean
           created_at?: string
           email?: string
           erp_code?: string | null
@@ -2720,6 +2741,10 @@ export type Database = {
         }[]
       }
       store_tracks_stock: { Args: { _store_id: string }; Returns: boolean }
+      update_store_group_discount_rules: {
+        Args: { p_rules: Json; p_store_id: string }
+        Returns: undefined
+      }
       upsert_customer_push_subscription: {
         Args: {
           p_auth: string

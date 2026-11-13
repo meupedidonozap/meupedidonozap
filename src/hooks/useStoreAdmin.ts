@@ -11,6 +11,13 @@ export interface StorePermissions {
   can_view_customers: boolean;
   can_manage_tables: boolean;
   can_change_price_table: boolean;
+  can_manage_categories: boolean;
+  can_view_atendimento: boolean;
+  can_view_discounts: boolean;
+  can_manage_discounts: boolean;
+  can_manage_customers: boolean;
+  can_view_wishlist: boolean;
+  can_manage_technical_materials: boolean;
 }
 
 const FULL_PERMS: StorePermissions = {
@@ -22,6 +29,13 @@ const FULL_PERMS: StorePermissions = {
   can_view_customers: true,
   can_manage_tables: true,
   can_change_price_table: true,
+  can_manage_categories: true,
+  can_view_atendimento: true,
+  can_view_discounts: true,
+  can_manage_discounts: true,
+  can_manage_customers: true,
+  can_view_wishlist: true,
+  can_manage_technical_materials: true,
 };
 
 const NO_PERMS: StorePermissions = {
@@ -33,6 +47,13 @@ const NO_PERMS: StorePermissions = {
   can_view_customers: false,
   can_manage_tables: false,
   can_change_price_table: false,
+  can_manage_categories: false,
+  can_view_atendimento: false,
+  can_view_discounts: false,
+  can_manage_discounts: false,
+  can_manage_customers: false,
+  can_view_wishlist: false,
+  can_manage_technical_materials: false,
 };
 
 export function useStoreAdmin(storeId: string | undefined) {
@@ -68,7 +89,7 @@ export function useStoreAdmin(storeId: string | undefined) {
       // Check secondary store user (limit 1 avoids failure if duplicated rows exist)
       const { data: storeUserRows, error: suErr } = await supabase
         .from('store_users')
-        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, can_manage_tables, can_change_price_table, is_active, seller_codes')
+        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, can_manage_tables, can_change_price_table, can_manage_categories, can_view_atendimento, can_view_discounts, can_manage_discounts, can_manage_customers, can_view_wishlist, can_manage_technical_materials, is_active, seller_codes, role')
         .eq('store_id', storeId)
         .eq('user_id', user.id)
         .eq('is_active', true)
@@ -89,6 +110,13 @@ export function useStoreAdmin(storeId: string | undefined) {
             can_view_customers: !!storeUser.can_view_customers,
             can_manage_tables: !!(storeUser as any).can_manage_tables,
             can_change_price_table: !!(storeUser as any).can_change_price_table,
+            can_manage_categories: !!(storeUser as any).can_manage_categories,
+            can_view_atendimento: !!(storeUser as any).can_view_atendimento,
+            can_view_discounts: !!(storeUser as any).can_view_discounts,
+            can_manage_discounts: !!(storeUser as any).can_manage_discounts,
+            can_manage_customers: !!(storeUser as any).can_manage_customers,
+            can_view_wishlist: !!(storeUser as any).can_view_wishlist,
+            can_manage_technical_materials: !!(storeUser as any).can_manage_technical_materials,
           },
           sellerCodes: sellerCodesArr,
         };

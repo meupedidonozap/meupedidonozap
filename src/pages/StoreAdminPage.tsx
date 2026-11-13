@@ -1167,10 +1167,16 @@ export default function StoreAdminPage() {
         ...(store.settings.discountRules || []).filter((r: DiscountRule) => r.type !== 'group'),
         ...discountRules,
       ];
-      await updateStore.mutateAsync({
-        id: store.id,
-        settings: { ...store.settings, discountRules: allRules },
-      });
+      if (isAdmin) {
+        await updateStore.mutateAsync({
+          id: store.id,
+          settings: { ...store.settings, discountRules: allRules },
+        });
+      } else {
+        if (!permissions.can_manage_discounts) throw new Error('Sem permissão para alterar descontos');
+        const { error } = await supabase.rpc('update_store_group_discount_rules' as any, { p_store_id: store.id, p_rules: discountRules as any });
+        if (error) throw error;
+      }
       toast.success('Regras de desconto salvas!');
     } catch (err: any) {
       console.error('Erro ao salvar regras:', err);
@@ -1284,7 +1290,7 @@ export default function StoreAdminPage() {
             {(isAdmin || permissions.can_manage_products) && (
               <TabsTrigger value="products" className="gap-2"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
             )}
-            {(isAdmin || permissions.can_manage_products) && (
+            {(isAdmin || permissions.can_manage_products || permissions.can_manage_categories) && (
               <TabsTrigger value="categories" className="gap-2"><Tags className="h-4 w-4" /> Categorias</TabsTrigger>
             )}
             {(isAdmin || permissions.can_view_orders || permissions.can_manage_orders) && (
@@ -1293,13 +1299,13 @@ export default function StoreAdminPage() {
                 {stats.pendingOrders > 0 && <Badge className="ml-1 bg-destructive text-destructive-foreground">{stats.pendingOrders}</Badge>}
               </TabsTrigger>
             )}
-            {store.slug === 'dicolore' && (isAdmin || (userSellerCodes?.length || 0) > 0) && (
+            {store.slug === 'dicolore' && (isAdmin || permissions.can_view_atendimento || (userSellerCodes?.length || 0) > 0) && (
               <TabsTrigger value="atendimento" className="gap-2"><MapPin className="h-4 w-4" /> Atendimento</TabsTrigger>
             )}
             {isAdmin && (
               <TabsTrigger value="coupons" className="gap-2"><Percent className="h-4 w-4" /> Cupons</TabsTrigger>
             )}
-            {isAdmin && (
+            {(isAdmin || permissions.can_view_discounts || permissions.can_manage_discounts) && (
               <TabsTrigger value="discounts" className="gap-2"><Layers className="h-4 w-4" /> Descontos</TabsTrigger>
             )}
             {store.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders || permissions.can_manage_service_orders) && (
@@ -1320,7 +1326,7 @@ export default function StoreAdminPage() {
             {(isAdmin || permissions.can_view_customers) && (
               <TabsTrigger value="customers" className="gap-2"><Users className="h-4 w-4" /> Clientes</TabsTrigger>
             )}
-            {(isAdmin || permissions.can_view_customers) && (
+            {(isAdmin || permissions.can_view_customers || permissions.can_view_wishlist) && (
               <TabsTrigger value="wishlist" className="gap-2"><Heart className="h-4 w-4" /> Lista de Desejos</TabsTrigger>
             )}
             {isAdmin && (
@@ -1344,12 +1350,12 @@ export default function StoreAdminPage() {
             {store.slug === 'dicolore' && isAdmin && (
               <TabsTrigger value="notas" className="gap-2"><FileText className="h-4 w-4" /> Notas Fiscais</TabsTrigger>
             )}
-            {store.slug === 'dicolore' && (isAdmin || permissions?.can_manage_products) && (
+            {store.slug === 'dicolore' && (isAdmin || permissions?.can_manage_products || permissions?.can_manage_technical_materials) && (
               <TabsTrigger value="material-tecnico" className="gap-2"><FileText className="h-4 w-4" /> {materialLabel(store.settings)}</TabsTrigger>
             )}
           </TabsList>
 
-          {store.slug === 'dicolore' && (isAdmin || permissions?.can_manage_products) && (
+          {store.slug === 'dicolore' && (isAdmin || permissions?.can_manage_products || permissions?.can_manage_technical_materials) && (
             <TabsContent value="material-tecnico" className="animate-fade-in">
               <TechnicalMaterialsAdminTab store={store} products={products as any[]} />
             </TabsContent>
@@ -2191,7 +2197,8 @@ export default function StoreAdminPage() {
 
           {/* Discounts by group */}
           <TabsContent value="discounts" className="animate-fade-in">
-            <div className="space-y-6">
+            <div className={`space-y-6 ${!isAdmin && !permissions.can_manage_discounts ? '[&_button]:pointer-events-none [&_button]:opacity-50 [&_input]:pointer-events-none' : ''}`}>
+              {!isAdmin && !permissions.can_manage_discounts && <p className="text-sm text-muted-foreground">Somente consulta — você não tem permissão para editar descontos.</p>}
               <Card>
                 <CardHeader>
                   <CardTitle>Nova Regra de Desconto por Grupo</CardTitle>
@@ -2331,7 +2338,7 @@ export default function StoreAdminPage() {
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportRulesOpen(true)}>
                       <Upload className="h-4 w-4" /> Importar Planilha
                     </Button>
-                    <Button onClick={handleSaveDiscountRules} disabled={savingRules} size="sm" className="gap-2">
+                    <Button onClick={handleSaveDiscountRules} disabled={savingRules || (!isAdmin && !permissions.can_manage_discounts)} size="sm" className="gap-2">
                       {savingRules ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       Salvar Regras
                     </Button>
@@ -2506,12 +2513,12 @@ export default function StoreAdminPage() {
           </TabsContent>
 
           {/* Atendimento (Dicolore) */}
-          {store.slug === 'dicolore' && (isAdmin || (userSellerCodes?.length || 0) > 0) && (
+          {store.slug === 'dicolore' && (isAdmin || permissions.can_view_atendimento || (userSellerCodes?.length || 0) > 0) && (
             <TabsContent value="atendimento" className="animate-fade-in">
               <AtendimentoTab
                 storeId={store.id}
                 sellerCodes={userSellerCodes || []}
-                isAdmin={isAdmin}
+                isAdmin={isAdmin || !!permissions.can_view_atendimento}
                 visitReasons={((store.settings as any)?.visitReasons as string[]) || DEFAULT_VISIT_REASONS}
 
               />

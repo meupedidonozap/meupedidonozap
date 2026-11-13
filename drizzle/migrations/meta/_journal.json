@@ -365,6 +365,20 @@
       "when": 1794489861508,
       "tag": "0051_audit_log_orders_customers",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794572552372,
+      "tag": "0052_store_manager_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794572593980,
+      "tag": "0053_atendimento_manager_read",
+      "breakpoints": true
     }
   ]
 }

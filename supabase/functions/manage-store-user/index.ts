@@ -17,6 +17,13 @@ interface Permissions {
   can_view_customers?: boolean;
   can_manage_tables?: boolean;
   can_change_price_table?: boolean;
+  can_manage_categories?: boolean;
+  can_view_atendimento?: boolean;
+  can_view_discounts?: boolean;
+  can_manage_discounts?: boolean;
+  can_manage_customers?: boolean;
+  can_view_wishlist?: boolean;
+  can_manage_technical_materials?: boolean;
 }
 
 interface Body {
@@ -30,7 +37,7 @@ interface Body {
   isActive?: boolean;
   sellerCodes?: string[];
   erpCode?: string | null;
-  role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+  role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom' | 'gerente';
   sellerId?: string | null;
 }
 
@@ -95,6 +102,13 @@ Deno.serve(async (req) => {
       can_view_customers: !!perms.can_view_customers,
       can_manage_tables: !!perms.can_manage_tables,
       can_change_price_table: !!perms.can_change_price_table,
+      can_manage_categories: !!perms.can_manage_categories,
+      can_view_atendimento: !!perms.can_view_atendimento,
+      can_view_discounts: !!perms.can_view_discounts,
+      can_manage_discounts: !!perms.can_manage_discounts,
+      can_manage_customers: !!perms.can_manage_customers,
+      can_view_wishlist: !!perms.can_view_wishlist,
+      can_manage_technical_materials: !!perms.can_manage_technical_materials,
     };
 
     const sellerCodes: string[] | undefined = Array.isArray(body.sellerCodes)
@@ -102,7 +116,7 @@ Deno.serve(async (req) => {
       : undefined;
 
     const role: Body['role'] | undefined =
-      body.role && ['auxiliar', 'vendedor', 'televendas', 'garcom'].includes(body.role)
+      body.role && ['auxiliar', 'vendedor', 'televendas', 'garcom', 'gerente'].includes(body.role)
         ? body.role
         : undefined;
 
