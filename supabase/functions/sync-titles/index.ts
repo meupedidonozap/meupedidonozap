@@ -152,6 +152,31 @@ Deno.serve(async (req) => {
     return json({ ok: true, marked: keys.length, deleted: keys.length });
   }
 
+  // Notas canceladas no ERP somem da view; remove do MPZ as notas do período que não vieram mais (vale p/ todos vendedores/televendas).
+  if (raw?.action === "reconcile_invoices" && typeof raw.store_slug === "string" && Array.isArray(raw.keys)) {
+    const de = String(raw.de || ""), ate = String(raw.ate || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(de) || !/^\d{4}-\d{2}-\d{2}$/.test(ate)) return json({ error: "Período inválido" }, 400);
+    const present = new Set(raw.keys.map((k: unknown) => String(k ?? "")));
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: st } = await sb.from("stores").select("id").eq("slug", raw.store_slug).maybeSingle();
+    if (!st) return json({ error: "Loja não encontrada" }, 404);
+    // Proteção: lista vazia nunca apaga (falha de leitura no ERP).
+    if (!present.size) return json({ ok: true, removed: 0 });
+    const stale: string[] = [];
+    for (let f = 0; ; f += 1000) {
+      const { data, error } = await sb.from("customer_invoices").select("id, external_key")
+        .eq("store_id", st.id).gte("data_emissao", de).lte("data_emissao", ate).range(f, f + 999);
+      if (error) return json({ error: error.message }, 500);
+      for (const r of data || []) if (!present.has(r.external_key)) stale.push(r.id);
+      if (!data || data.length < 1000) break;
+    }
+    for (let i = 0; i < stale.length; i += 200) {
+      const { error } = await sb.from("customer_invoices").delete().in("id", stale.slice(i, i + 200));
+      if (error) return json({ error: error.message, removed: i }, 500);
+    }
+    return json({ ok: true, removed: stale.length });
+  }
+
   {
     const parsed = BodySchema.safeParse(raw);
     if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
