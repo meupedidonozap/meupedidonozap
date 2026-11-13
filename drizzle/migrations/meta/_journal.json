@@ -372,6 +372,13 @@
       "when": 1794572552372,
       "tag": "0052_store_manager_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794572593980,
+      "tag": "0053_atendimento_manager_read",
+      "breakpoints": true
     }
   ]
 }
