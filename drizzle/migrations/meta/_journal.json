@@ -379,6 +379,13 @@
       "when": 1794572593980,
       "tag": "0053_atendimento_manager_read",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794575500388,
+      "tag": "0054_manager_results_read",
+      "breakpoints": true
     }
   ]
 }
