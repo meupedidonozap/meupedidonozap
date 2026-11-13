@@ -48,7 +48,7 @@ export function useSellerMode(storeId: string | undefined) {
     isAdmin: isAdmin || isManager,
     isManager,
     sellerCodes: data?.sellerCodes ?? [],
-    sellerName: data?.sellerName || (isManager ? 'Gerente' : ''),
+    sellerName: data?.sellerName || '',
     /** Usuário logado é televendas */
     isTelevendas: data?.role === 'televendas',
     /** Código ERP da televendas logada */
