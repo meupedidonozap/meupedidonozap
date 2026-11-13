@@ -375,7 +375,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar Usuário' : 'Novo Usuário da Loja'}</DialogTitle>
           </DialogHeader>
