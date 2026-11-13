@@ -38,13 +38,16 @@ export function useSellerMode(storeId: string | undefined) {
   });
 
   const isSeller = !!data?.isSeller;
+  const isManager = data?.role === 'gerente';
   return {
     /** Pode escolher o cliente na vitrine */
-    canSell: isSeller || isAdmin,
+    canSell: isSeller || isAdmin || isManager,
     isSeller,
-    isAdmin,
+    /** Admin ou Gerente: visão geral de todos os vendedores */
+    isAdmin: isAdmin || isManager,
+    isManager,
     sellerCodes: data?.sellerCodes ?? [],
-    sellerName: data?.sellerName ?? '',
+    sellerName: data?.sellerName || (isManager ? 'Gerente' : ''),
     /** Usuário logado é televendas */
     isTelevendas: data?.role === 'televendas',
     /** Código ERP da televendas logada */
