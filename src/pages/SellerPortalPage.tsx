@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CheckinDialog from '@/components/CheckinDialog';
+import TeamVisitsPanel from '@/components/TeamVisitsPanel';
 import SellerMenu from '@/components/SellerMenu';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -221,7 +222,7 @@ export default function SellerPortalPage() {
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center gap-2">
           <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
-          <SellerMenu store={store} sellerName={seller.sellerName} />
+          <SellerMenu store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />
           <h1 className="font-bold">{TITLES[section]}</h1>
         </div>
       </header>
@@ -301,7 +302,9 @@ export default function SellerPortalPage() {
           <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} company={store.settings.titlesCompany} sellerCodes={store.slug === 'dicolore' && !seller.isAdmin ? seller.sellerCodes : undefined} />
         )}
 
-        {section === 'atendimento' && (
+        {section === 'atendimento' && seller.isAdmin && <TeamVisitsPanel storeId={store.id} />}
+
+        {section === 'atendimento' && !seller.isAdmin && (
           <CheckinDialog
             open
             onOpenChange={(o) => { if (!o) navigate(`/${store.slug}`); }}
