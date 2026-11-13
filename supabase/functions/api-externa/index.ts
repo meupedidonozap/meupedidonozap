@@ -6,6 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { toDwCliente } from "../_shared/dwCliente.ts";
+import { resolveExternalExportProfile } from "../_shared/customerExportProfile.ts";
 
 const SLUG = "dicolore";
 const json = (body: unknown, status = 200) =>
@@ -14,6 +15,7 @@ const json = (body: unknown, status = 200) =>
 const PedidoConf = z.object({
   pedido_id: z.string().uuid(),
   codigo_erp: z.string().trim().min(1).max(50).optional(),
+  cliente_codigo_erp: z.string().trim().regex(/^\d{1,30}$/).optional(),
   erro: z.string().max(1000).optional(),
 }).refine((v) => v.codigo_erp || v.erro, { message: "informe codigo_erp ou erro" });
 
@@ -43,7 +45,7 @@ Deno.serve(async (req) => {
   const limit = Math.min(Math.max(Number(url.searchParams.get("limite") || 50) || 50, 1), 50);
 
   try {
-    const { data: store } = await admin.from("stores").select("id").eq("slug", SLUG).single();
+    const { data: store } = await admin.from("stores").select("id, settings").eq("slug", SLUG).single();
     if (!store) return json({ erro: "loja nao encontrada" }, 404);
 
     // ---------- PEDIDOS ----------
@@ -57,15 +59,37 @@ Deno.serve(async (req) => {
         return json({ pedidos: body.orders ?? [], ...(body.integrador_ativo === "bat" ? { aviso: "integrador externo desativado na loja" } : {}) });
       }
       if (route === "/pedidos/confirmar" && req.method === "POST") {
+        if ((store.settings as any)?.useExternalIntegrator !== true) return json({ erro: "integrador externo desativado na loja" }, 409);
         const p = listOf(PedidoConf).safeParse(await req.json().catch(() => null));
         if (!p.success) return json({ erro: p.error.flatten() }, 400);
-        const results = p.data.resultados.map((x) =>
-          x.codigo_erp ? { order_id: x.pedido_id, ok: true, erp_order_code: x.codigo_erp }
-                       : { order_id: x.pedido_id, ok: false, error: x.erro });
-        const r = await fetch(exportUrl, { method: "POST", headers: hdr, body: JSON.stringify({ results }) });
-        const body = await r.json();
-        if (!r.ok) return json({ erro: body?.error || "falha" }, r.status);
-        return json({ ok: true, atualizados: body.updated ?? [] });
+        const atualizados: string[] = [];
+        const falhas: { pedido_id: string; erro: string }[] = [];
+        const clientes: { pedido_id: string; cliente_codigo_erp: string }[] = [];
+        for (const x of p.data.resultados) {
+          const { data: order, error: orderError } = await admin.from("orders").select("id, customer")
+            .eq("id", x.pedido_id).eq("store_id", store.id).maybeSingle();
+          if (orderError || !order) { falhas.push({ pedido_id: x.pedido_id, erro: "pedido nao encontrado" }); continue; }
+          const c = (order.customer || {}) as any;
+          const code = String(c.customerCode || "").trim();
+          const doc = String(c.cpfCnpj || "").replace(/\D/g, "");
+          const docs = [doc, String(c.cpfCnpj || "").trim()];
+          if (doc.length === 11) docs.push(`${doc.slice(0,3)}.${doc.slice(3,6)}.${doc.slice(6,9)}-${doc.slice(9)}`);
+          if (doc.length === 14) docs.push(`${doc.slice(0,2)}.${doc.slice(2,5)}.${doc.slice(5,8)}/${doc.slice(8,12)}-${doc.slice(12)}`);
+          const query = admin.from("customer_profiles").select("*").eq("store_id", store.id);
+          const { data: profiles, error: profileError } = code ? await query.eq("customer_code", code) : await query.in("cpf_cnpj", docs);
+          if (profileError) { falhas.push({ pedido_id: x.pedido_id, erro: profileError.message }); continue; }
+          const cp = resolveExternalExportProfile(profiles || [], c);
+          const { data, error } = await admin.rpc("confirm_external_order_customer", {
+            p_order_id: x.pedido_id, p_profile_id: cp?.id ?? null, p_order_code: x.codigo_erp ?? null,
+            p_customer_code: x.cliente_codigo_erp ?? null, p_error: x.codigo_erp ? null : x.erro ?? null,
+          });
+          if (error) falhas.push({ pedido_id: x.pedido_id, erro: error.message });
+          else {
+            atualizados.push(x.pedido_id);
+            if (data?.cliente_codigo_erp) clientes.push({ pedido_id: x.pedido_id, cliente_codigo_erp: data.cliente_codigo_erp });
+          }
+        }
+        return json({ ok: falhas.length === 0, atualizados, clientes, falhas });
       }
     }
 
