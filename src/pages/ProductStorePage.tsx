@@ -436,7 +436,7 @@ export default function ProductStorePage() {
                   <Button variant="ghost" size="sm" className="gap-1">
                     <User className="h-5 w-5" />
                     <span className="text-sm max-w-[100px] truncate">
-                      {customerProfile?.name?.split(' ')[0] || 'Perfil'}
+                      {customerProfile?.name?.split(' ')[0] || seller.sellerName?.split(' ')[0] || user.email?.split('@')[0] || 'Perfil'}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
