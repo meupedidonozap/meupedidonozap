@@ -47,6 +47,13 @@ const PERMISSIONS: PermissionItem[] = [
   { key: 'can_manage_products', label: 'Gerenciar Produtos', description: 'Criar/editar produtos e categorias' },
   { key: 'can_view_customers', label: 'Ver Clientes', description: 'Acessar a aba de clientes' },
   { key: 'can_change_price_table', label: 'Alterar tabela de preço no pedido', description: 'Trocar a tabela do pedido (ex.: 1 ↔ 9) e recalcular', showFor: ['LOJA'] },
+  { key: 'can_manage_categories', label: 'Editar Categorias', description: 'Criar, editar e excluir categorias (sem isso, só consulta)' },
+  { key: 'can_manage_customers', label: 'Editar Clientes', description: 'Alterar cadastro de clientes (sem isso, só consulta)' },
+  { key: 'can_view_discounts', label: 'Ver Descontos', description: 'Consultar regras de desconto por grupo' },
+  { key: 'can_manage_discounts', label: 'Editar Descontos', description: 'Criar, editar e excluir regras de desconto por grupo' },
+  { key: 'can_view_atendimento', label: 'Atendimento (geral)', description: 'Ver, consultar, filtrar e exportar atendimentos de todos os vendedores', showFor: ['LOJA'] },
+  { key: 'can_view_wishlist', label: 'Ver Lista de Desejos', description: 'Consultar a lista de desejos dos clientes' },
+  { key: 'can_manage_technical_materials', label: 'Cadastrar Material Técnico', description: 'Cadastrar e editar materiais técnicos', showFor: ['LOJA'] },
   { key: 'can_manage_tables', label: 'Garçom (Mesas)', description: 'Abrir mesas, lançar pedidos via cardápio e cobrar' },
 ];
 
@@ -59,11 +66,25 @@ const emptyPerms: StorePermissions = {
   can_view_customers: false,
   can_manage_tables: false,
   can_change_price_table: false,
+  can_manage_categories: false,
+  can_view_atendimento: false,
+  can_view_discounts: false,
+  can_manage_discounts: false,
+  can_manage_customers: false,
+  can_view_wishlist: false,
+  can_manage_technical_materials: false,
 };
 
 const GARCOM_PERMS: StorePermissions = {
   ...emptyPerms,
   can_manage_tables: true,
+};
+
+const GERENTE_PERMS: StorePermissions = {
+  ...emptyPerms,
+  can_view_orders: true, can_manage_orders: true, can_manage_products: true, can_manage_categories: true,
+  can_view_customers: true, can_manage_customers: true, can_view_discounts: true, can_manage_discounts: true,
+  can_view_atendimento: true, can_view_wishlist: true, can_manage_technical_materials: true,
 };
 
 const isGarcomPreset = (p: { [k in keyof StorePermissions]?: boolean }) =>
@@ -92,7 +113,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
   const [perms, setPerms] = useState<StorePermissions>(emptyPerms);
   const [sellerCodes, setSellerCodes] = useState<string[]>([]);
   const [sellerFilter, setSellerFilter] = useState('');
-  const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas'>('auxiliar');
+  const [role, setRole] = useState<'auxiliar' | 'vendedor' | 'televendas' | 'gerente'>('auxiliar');
   const [sellerId, setSellerId] = useState<string>('');
   const [erpCode, setErpCode] = useState<string>('');
 
@@ -130,6 +151,13 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
       can_view_customers: u.can_view_customers,
       can_manage_tables: u.can_manage_tables,
       can_change_price_table: !!u.can_change_price_table,
+      can_manage_categories: !!(u as any).can_manage_categories,
+      can_view_atendimento: !!(u as any).can_view_atendimento,
+      can_view_discounts: !!(u as any).can_view_discounts,
+      can_manage_discounts: !!(u as any).can_manage_discounts,
+      can_manage_customers: !!(u as any).can_manage_customers,
+      can_view_wishlist: !!(u as any).can_view_wishlist,
+      can_manage_technical_materials: !!(u as any).can_manage_technical_materials,
     });
     setSellerCodes(Array.isArray(u.seller_codes) ? [...u.seller_codes] : []);
     setSellerFilter('');
@@ -155,7 +183,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           storeUserId: editing.id,
           name,
           permissions: perms,
-          sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
+          sellerCodes: (role === 'auxiliar' || role === 'gerente') ? [] : sellerCodes,
           role,
           sellerId: role === 'televendas' ? (sellerId || null) : null,
           erpCode: role === 'televendas' ? (erpCode.trim() || null) : null,
@@ -172,7 +200,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
           password,
           name: name.trim(),
           permissions: perms,
-          sellerCodes: role === 'auxiliar' ? [] : sellerCodes,
+          sellerCodes: (role === 'auxiliar' || role === 'gerente') ? [] : sellerCodes,
           role,
           sellerId: role === 'televendas' ? (sellerId || null) : null,
           erpCode: role === 'televendas' ? (erpCode.trim() || null) : null,
@@ -378,6 +406,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                     title="Aplicar permissões de Garçom (ver e gerenciar pedidos)">
                     🍽 Garçom
                   </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setPerms(GERENTE_PERMS)}>👔 Gerente</Button>
                 </div>
               </div>
               {isGarcomPreset(perms) && (
@@ -404,13 +433,15 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
               <div className="grid gap-2">
                 <Label className="text-sm font-semibold">Tipo de Usuário</Label>
                 <Select value={role} onValueChange={(v) => {
-                  const r = v as 'auxiliar' | 'vendedor' | 'televendas';
+                  const r = v as 'auxiliar' | 'vendedor' | 'televendas' | 'gerente';
                   setRole(r);
-                  if (r === 'auxiliar') setSellerCodes([]);
+                  if (r === 'auxiliar' || r === 'gerente') setSellerCodes([]);
+                  if (r === 'gerente') setPerms(GERENTE_PERMS);
                   if (r === 'vendedor' && sellerCodes.length > 1) setSellerCodes([sellerCodes[0]]);
                 }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="gerente">Gerente — visão geral, permissões configuráveis</SelectItem>
                     <SelectItem value="auxiliar">Auxiliar — vê todos os clientes</SelectItem>
                     <SelectItem value="vendedor">Vendedor — vê apenas os seus clientes</SelectItem>
                     <SelectItem value="televendas">Televendas — vê os clientes de vários vendedores</SelectItem>
@@ -418,7 +449,7 @@ export default function StoreUsersTab({ storeId, storeType }: Props) {
                 </Select>
               </div>
 
-              {role !== 'auxiliar' && (
+              {role !== 'auxiliar' && role !== 'gerente' && (
                 <>
               {role === 'televendas' && (
                 <div className="grid gap-2 pt-1">

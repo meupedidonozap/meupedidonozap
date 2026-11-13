@@ -19,8 +19,15 @@ export interface StoreUser {
   can_view_customers: boolean;
   can_manage_tables: boolean;
   can_change_price_table?: boolean;
+  can_manage_categories?: boolean;
+  can_view_atendimento?: boolean;
+  can_view_discounts?: boolean;
+  can_manage_discounts?: boolean;
+  can_manage_customers?: boolean;
+  can_view_wishlist?: boolean;
+  can_manage_technical_materials?: boolean;
   seller_codes: string[];
-  role: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+  role: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom' | 'gerente';
   seller_id?: string | null;
   erp_code?: string | null;
 }
@@ -71,7 +78,7 @@ export function useCreateStoreUser() {
       name: string;
       permissions: Partial<StorePermissions>;
       sellerCodes?: string[];
-      role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+      role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom' | 'gerente';
       sellerId?: string | null;
       erpCode?: string | null;
     }) => {
@@ -104,7 +111,7 @@ export function useUpdateStoreUser() {
       isActive?: boolean;
       permissions?: Partial<StorePermissions>;
       sellerCodes?: string[];
-      role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom';
+      role?: 'auxiliar' | 'vendedor' | 'televendas' | 'garcom' | 'gerente';
       sellerId?: string | null;
       erpCode?: string | null;
     }) => {
