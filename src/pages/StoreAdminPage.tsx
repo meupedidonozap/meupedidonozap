@@ -1969,6 +1969,7 @@ export default function StoreAdminPage() {
                                   if (mpPaid) {
                                     const { data, error } = await supabase.functions.invoke('mercadopago', { body: { action: 'refund', orderId: order.id } });
                                     if (error || data?.error) throw new Error(data?.error || 'Falha no estorno');
+                                    await supabase.functions.invoke('superfrete-label', { body: { action: 'cancel', orderId: order.id } }).catch(() => {});
                                     qc.invalidateQueries({ queryKey: ['orders'] });
                                     toast.success('Pedido cancelado e valor estornado pelo Mercado Pago.');
                                     return;

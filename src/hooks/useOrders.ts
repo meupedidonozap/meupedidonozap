@@ -128,6 +128,10 @@ export function useUpdateOrderStatus() {
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
       const { error } = await supabase.from('orders').update({ status }).eq('id', id);
       if (error) throw error;
+      if (status === 'cancelado') {
+        const { data } = await supabase.functions.invoke('superfrete-label', { body: { action: 'cancel', orderId: id } });
+        if (data?.error) throw new Error(`Pedido cancelado, mas o SuperFrete recusou o cancelamento da etiqueta: ${data.error}`);
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['orders'] }); qc.invalidateQueries({ queryKey: ['seller-orders'] }); },
   });
