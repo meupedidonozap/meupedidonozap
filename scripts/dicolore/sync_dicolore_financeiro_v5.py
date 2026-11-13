@@ -266,6 +266,12 @@ def sync_financeiro_periodo(cur, de, ate):
             chunk = invoices[i:i + INVOICES_BATCH]
             res = post({"store_slug": STORE_SLUG, "invoices": chunk})
             log(f"  Notas {i + 1}-{i + len(chunk)}: {res.get('invoicesUpserted')} gravadas")
+        # Remove do MPZ notas canceladas no ERP (sumiram da view) dentro do período
+        if invoices:
+            keys = [f"{str(n.get('filial_codigo') or '1')}|{n.get('numero')}|{n.get('serie')}" for n in invoices]
+            res = post({"store_slug": STORE_SLUG, "action": "reconcile_invoices",
+                        "de": f"{de:%Y-%m-%d}", "ate": f"{ate:%Y-%m-%d}", "keys": keys})
+            log(f"  Notas canceladas removidas: {res.get('removed', 0)}")
     except psycopg2.Error as e:
         log(f"Notas fiscais: falha na leitura ({e.__class__.__name__}); seguindo para os boletos.")
     # 3) Boletos: só as NFs com título em aberto no período, em lotes pequenos
