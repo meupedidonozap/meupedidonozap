@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Cliente e pedido no integrador externo DiColore
-- [ ] Incluir cadastro DW e clientes sem código ERP somente com integrador externo ativo
-- [ ] Confirmar código do cliente e pedido em gravação única, mantendo integração interna
-- [ ] Testar isolamento, validação e publicar funções; transmissão real depende do integrador do dev
+- [x] Incluir cadastro DW e clientes sem código ERP somente com integrador externo ativo
+- [x] Confirmar código do cliente e pedido em gravação única, mantendo integração interna
+- [x] Nove testes passaram; funções publicadas; API real bloqueia listagem/confirmação externa com opção NÃO e exige chave
+- [ ] Confirmar transmissão cliente/pedido no ERP — opção atual está NÃO; depende de ativar SIM e executar o integrador do dev
 
 ## Identificação e recebimento DiColore
 - [x] Identificar clientes sem desconto na lista e ocultar registro manual até habilitar recebimento PIX ou cartão, sem alterar outras lojas
