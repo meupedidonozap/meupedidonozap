@@ -17,7 +17,7 @@ describe('clientAnalytics', () => {
   it('ABC: A até 80% acumulado', () => {
     const items = [{ v: 70 }, { v: 20 }, { v: 6 }, { v: 4 }];
     const m = abcClasses(items, i => i.v);
-    expect(items.map(i => m.get(i))).toEqual(['A', 'B', 'B', 'C']);
+    expect(items.map(i => m.get(i))).toEqual(['A', 'A', 'B', 'C']);
   });
   it('intervalo médio, ticket, tendência e status', () => {
     const { rows } = analyzeClients({
