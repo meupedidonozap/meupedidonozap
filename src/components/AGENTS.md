@@ -1,0 +1,1 @@
+- DiColore attendance supervision uses paginated authorized reads, normalized ERP identities and a store-scoped configuration RPC; other stores keep the legacy panel to avoid cross-tenant behavior changes.

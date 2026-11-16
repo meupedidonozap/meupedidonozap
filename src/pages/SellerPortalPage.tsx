@@ -302,7 +302,7 @@ export default function SellerPortalPage() {
           <InvoicesPanel storeId={store.id} startDate={store.settings.titlesStartDate} company={store.settings.titlesCompany} sellerCodes={store.slug === 'dicolore' && !seller.isAdmin ? seller.sellerCodes : undefined} />
         )}
 
-        {section === 'atendimento' && seller.isAdmin && <TeamVisitsPanel storeId={store.id} />}
+        {section === 'atendimento' && seller.isAdmin && <TeamVisitsPanel storeId={store.id} enhanced={store.slug === 'dicolore'} />}
 
         {section === 'atendimento' && !seller.isAdmin && (
           <CheckinDialog

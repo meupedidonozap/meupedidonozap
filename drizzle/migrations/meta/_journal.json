@@ -393,6 +393,13 @@
       "when": 1794590588745,
       "tag": "0055_confirm_external_order_customer",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794856370303,
+      "tag": "0056_dicolore_attendance_configuration",
+      "breakpoints": true
     }
   ]
 }

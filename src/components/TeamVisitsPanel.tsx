@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AttendanceDashboard from '@/components/AttendanceDashboard';
 
 const PERIODS = [
   { v: '0', l: 'Hoje' }, { v: '7', l: 'Últimos 7 dias' }, { v: '30', l: 'Últimos 30 dias' }, { v: '90', l: 'Últimos 90 dias' },
@@ -16,7 +17,11 @@ function fmtDur(s?: number | null) {
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 
 /** Visão de supervisão: check-ins de toda a equipe (Gerente/Admin). */
-export default function TeamVisitsPanel({ storeId }: { storeId: string }) {
+export default function TeamVisitsPanel({ storeId, enhanced = false }: { storeId: string; enhanced?: boolean }) {
+  return enhanced ? <AttendanceDashboard storeId={storeId} /> : <LegacyTeamVisitsPanel storeId={storeId} />;
+}
+
+function LegacyTeamVisitsPanel({ storeId }: { storeId: string }) {
   const [period, setPeriod] = useState('7');
   const [seller, setSeller] = useState('all');
 
