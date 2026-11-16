@@ -19,9 +19,9 @@ export function calendarDays(from: string, to: string) {
 export const businessDays = (from: string, to: string) => calendarDays(from, to).filter(d => ![0, 6].includes(new Date(d + 'T12:00:00Z').getUTCDay())).length;
 export const durationLabel = (seconds: number | null | undefined) => seconds == null ? '—' : [Math.floor(seconds / 3600), Math.floor(seconds % 3600 / 60), Math.floor(seconds % 60)].map(x => String(x).padStart(2, '0')).join(':');
 export const validPurchase = (status: string) => !['101', 'cancelado', 'cancelada', 'canceled', 'cancelled', 'orcamento'].includes(status.toLowerCase());
-export interface AttendanceClient { id: string; name: string; nome_fantasia: string | null; customer_code: string; seller_code: string; city: string; uf: string; data_ultima_compra: string | null; }
+export interface AttendanceClient { id: string; name: string; nome_fantasia: string | null; customer_code: string; seller_code: string; city: string; uf: string; data_ultima_compra: string | null; is_active?: boolean; cpf_cnpj?: string; }
 export interface AttendanceVisit { id: string; seller_user_id: string; seller_code: string | null; customer_profile_id: string; checked_in_at: string; checked_out_at: string | null; duration_seconds: number | null; checkout_reason: string | null; checkout_notes: string | null; distance_meters_at_checkin: number | null; out_of_range_reason: string | null; }
-export interface AttendancePurchase { cliente_codigo: string; data_emissao: string | null; status: string; valor_total_nota_fiscal?: number; }
+export interface AttendancePurchase { cliente_codigo: string; data_emissao: string | null; status: string; valor_total_nota_fiscal?: number; customer_profile_id?: string; }
 export interface AttendanceGoal { visitsPerDay: number; minutesPerVisit: number; }
 export interface AttendanceSettings { staleDays: number; goals: Record<string, AttendanceGoal>; }
 export function validSettings(settings: AttendanceSettings) {
@@ -41,12 +41,12 @@ export function attendanceReport(clients: AttendanceClient[], visits: Attendance
   const bought = new Set<string>();
   const lifetime = new Map<string, number>();
   purchases.filter(p => p.data_emissao && validPurchase(p.status)).forEach(p => {
-    const key = `erp:${codeKey(p.cliente_codigo)}`, day = p.data_emissao || '';
+    const key = p.customer_profile_id ? identities.get(p.customer_profile_id) || `mpz:${p.customer_profile_id}` : `erp:${codeKey(p.cliente_codigo)}`, day = p.data_emissao || '';
     if (day <= to) lifetime.set(key, (lifetime.get(key) || 0) + Number(p.valor_total_nota_fiscal || 0));
     if (day >= from && day <= to && day >= (firstVisit.get(key) || '9999')) bought.add(key);
   });
   const seen = new Set<string>();
-  const coverage = clients.filter(c => seller === 'all' || codeKey(c.seller_code) === codeKey(seller)).filter(c => {
+  const coverage = clients.filter(c => c.is_active !== false && (seller === 'all' || codeKey(c.seller_code) === codeKey(seller))).filter(c => {
     const key = clientIdentity(c.id, c.customer_code); if (seen.has(key)) return false; seen.add(key); return true;
   }).map(c => {
     const key = clientIdentity(c.id, c.customer_code), last = history.get(key) || null;

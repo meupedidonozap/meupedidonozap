@@ -3,6 +3,14 @@ import { attendanceReport, periodBounds, validSettings, type AttendanceClient, t
 const client = (id: string, code: string, seller = '32'): AttendanceClient => ({ id, customer_code: code, name: id, nome_fantasia: null, seller_code: seller, city: 'Joinville', uf: 'SC', data_ultima_compra: null });
 const visit = (id: string, date: string, seller = '32', duration: number | null = 600): AttendanceVisit => ({ id: date + id, customer_profile_id: id, seller_code: seller, seller_user_id: seller, checked_in_at: date + 'T15:00:00Z', checked_out_at: duration == null ? null : date + 'T15:10:00Z', duration_seconds: duration, checkout_reason: 'Sem interesse', checkout_notes: null, distance_meters_at_checkin: 10, out_of_range_reason: null });
 describe('supervisão de atendimento', () => {
+  it('pedido realizado por prospect conta como compra mesmo sem NF ou código ERP', () => {
+    const result = attendanceReport([client('a', '')], [visit('a', '2026-11-02')], [{ cliente_codigo: '', customer_profile_id: 'a', data_emissao: '2026-11-03', status: 'pendente' }], '2026-11-01', '2026-11-16', 'all', 90);
+    expect(result.bought).toBe(1); expect(result.withoutPurchase).toBe(0);
+  });
+  it('cadastro inativo mantém identidade da visita mas sai da carteira ativa', () => {
+    const result = attendanceReport([{ ...client('a', '1'), is_active: false }], [visit('a', '2026-11-02')], [{ cliente_codigo: '1', data_emissao: '2026-11-03', status: '100' }], '2026-11-01', '2026-11-16', 'all', 90);
+    expect(result.bought).toBe(1); expect(result.coverage).toHaveLength(0);
+  });
   it('inclui A e B, não inclui o dia seguinte', () => {
     const result = attendanceReport([client('a', '001')], [visit('a', '2026-11-01'), visit('a', '2026-11-02'), visit('a', '2026-11-03')], [], '2026-11-01', '2026-11-02', 'all', 90);
     expect(result.rows.length).toBe(2);

@@ -21,6 +21,7 @@ async function allRows<T>(build: (from: number, to: number) => PromiseLike<{ dat
   }
 }
 type Seller = { code: string; name: string };
+type LocalPurchase = { customer: unknown; status: string; created_at: string };
 const fmtDate = (date: string | null) => date ? new Date(date.length === 10 ? date + 'T12:00:00' : date).toLocaleString('pt-BR', date.length === 10 ? { day: '2-digit', month: '2-digit', year: 'numeric' } : { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 const percent = (part: number, total: number) => total ? `${(part * 100 / total).toFixed(1)}%` : '—';
 function DataTable({ rows }: { rows: Record<string, string | number>[] }) {
@@ -50,14 +51,21 @@ export default function AttendanceDashboard({ storeId }: { storeId: string }) {
       const { data: store, error } = await supabase.from('stores').select('slug, settings').eq('id', storeId).single();
       if (error) throw error;
       if (store.slug !== 'dicolore') throw new Error('Relatório exclusivo da DiColore');
-      const [clients, visits, invoices, sellers] = await Promise.all([
-        allRows<AttendanceClient>((f, t) => supabase.from('customer_profiles').select('id, name, nome_fantasia, customer_code, seller_code, city, uf, data_ultima_compra').eq('store_id', storeId).eq('is_active', true).order('id').range(f, t)),
+      const [clients, visits, invoices, sellers, erpOrders, localOrders] = await Promise.all([
+        allRows<AttendanceClient>((f, t) => supabase.from('customer_profiles').select('id, name, nome_fantasia, customer_code, seller_code, city, uf, data_ultima_compra, is_active, cpf_cnpj').eq('store_id', storeId).order('id').range(f, t)),
         allRows<AttendanceVisit>((f, t) => supabase.from('customer_visits').select('id, seller_user_id, seller_code, customer_profile_id, checked_in_at, checked_out_at, duration_seconds, checkout_reason, checkout_notes, distance_meters_at_checkin, out_of_range_reason').eq('store_id', storeId).order('id').range(f, t)),
         allRows<AttendancePurchase>((f, t) => supabase.from('customer_invoices').select('cliente_codigo, data_emissao, status, valor_total_nota_fiscal').eq('store_id', storeId).order('id').range(f, t)),
         allRows<Seller>((f, t) => supabase.from('store_sellers').select('code,name').eq('store_id', storeId).order('id').range(f, t)),
+        allRows<AttendancePurchase>((f, t) => supabase.from('erp_orders').select('cliente_codigo, data_emissao, status').eq('store_id', storeId).order('id').range(f, t)),
+        allRows<LocalPurchase>((f, t) => supabase.from('orders').select('customer, status, created_at').eq('store_id', storeId).not('status', 'in', '(orcamento,cancelado)').order('id').range(f, t)),
       ]);
       const settings = store.settings as unknown as { attendanceManagement?: AttendanceSettings; maxCheckinDistanceMeters?: number; titlesCompany?: string };
-      return { clients, visits, invoices, sellers, settings: settings.attendanceManagement || { staleDays: 90, goals: {} }, radius: settings.maxCheckinDistanceMeters || 300 };
+      const byDocument = new Map(clients.filter(c => c.cpf_cnpj).map(c => [(c.cpf_cnpj || '').replace(/\D/g, ''), c.id]));
+      const purchases: AttendancePurchase[] = localOrders.map(o => {
+        const customer = o.customer as { customerCode?: string; cpfCnpj?: string };
+        return { cliente_codigo: customer.customerCode || '', customer_profile_id: customer.customerCode ? undefined : byDocument.get((customer.cpfCnpj || '').replace(/\D/g, '')), data_emissao: dayKey(o.created_at), status: o.status };
+      });
+      return { clients, visits, invoices: [...invoices, ...erpOrders, ...purchases], sellers, settings: settings.attendanceManagement || { staleDays: 90, goals: {} }, radius: settings.maxCheckinDistanceMeters || 300 };
     },
   });
   const data = query.data;
