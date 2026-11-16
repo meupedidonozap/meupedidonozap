@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Supervisão de atendimento DiColore
-- [x] Filtros de período/equipe, gráficos, cobertura, conversão por NF após visita e última visita
+- [x] Filtros de período/equipe, gráficos, cobertura, conversão por pedido/NF após visita e última visita
 - [x] Metas por representante e prazo sem visita configuráveis por gerente/admin, com RPC exclusivo da DiColore
-- [x] Oito testes passaram; painel autenticado com 35 visitas/33 clientes; filtro Bety; prazo salvo e relido; PDF/Excel baixados e inspecionados; computador/celular sem erros
+- [x] Dez testes passaram; entrada pelo menu e quatro abas em computador/celular, claro/escuro; períodos rápidos e intervalo A/B; paginação/exportação filtrada; metas 8 visitas/20 minutos salvas, relidas e revertidas a zero; sem erros
 
 ## Cliente e pedido no integrador externo DiColore
 - [x] Incluir cadastro DW e clientes sem código ERP somente com integrador externo ativo
