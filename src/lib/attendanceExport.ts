@@ -2,12 +2,12 @@ import * as XLSX from '@e965/xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 export type ReportSheet = { name: string; rows: Record<string, string | number>[] };
-export function exportAttendanceExcel(sheets: ReportSheet[], stamp: string) {
+export function exportAttendanceExcel(sheets: ReportSheet[], stamp: string, prefix = 'atendimento-dicolore') {
   const book = XLSX.utils.book_new();
   sheets.forEach(sheet => XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(sheet.rows.length ? sheet.rows : [{ Resultado: 'Sem registros' }]), sheet.name));
-  XLSX.writeFile(book, `atendimento-dicolore-${stamp}.xlsx`);
+  XLSX.writeFile(book, `${prefix}-${stamp}.xlsx`);
 }
-export function exportAttendancePdf(sheets: ReportSheet[], stamp: string, charts: { title: string; labels: string[]; values: number[] }[]) {
+export function exportAttendancePdf(sheets: ReportSheet[], stamp: string, charts: { title: string; labels: string[]; values: number[] }[], prefix = 'atendimento-dicolore') {
   const doc = new jsPDF({ orientation: 'landscape' });
   const width = doc.internal.pageSize.getWidth();
   sheets.forEach((sheet, index) => {
@@ -32,5 +32,5 @@ export function exportAttendancePdf(sheets: ReportSheet[], stamp: string, charts
   });
   const pages = doc.getNumberOfPages();
   for (let p = 1; p <= pages; p++) { doc.setPage(p); doc.setFontSize(8); doc.text(`${p}/${pages}`, width - 20, doc.internal.pageSize.getHeight() - 6); }
-  doc.save(`atendimento-dicolore-${stamp}.pdf`);
+  doc.save(`${prefix}-${stamp}.pdf`);
 }

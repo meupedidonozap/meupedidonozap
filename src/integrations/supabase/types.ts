@@ -350,6 +350,65 @@ export type Database = {
           },
         ]
       }
+      customer_invoice_items: {
+        Row: {
+          cfop: string | null
+          cliente_codigo: string
+          comissao_valor: number
+          created_at: string
+          data_emissao: string | null
+          external_key: string
+          id: string
+          invoice_key: string
+          produto_codigo: string
+          quantidade: number
+          store_id: string
+          valor_total: number
+          valor_unitario: number
+          vendedor_codigo: string
+        }
+        Insert: {
+          cfop?: string | null
+          cliente_codigo?: string
+          comissao_valor?: number
+          created_at?: string
+          data_emissao?: string | null
+          external_key: string
+          id?: string
+          invoice_key: string
+          produto_codigo: string
+          quantidade?: number
+          store_id: string
+          valor_total?: number
+          valor_unitario?: number
+          vendedor_codigo?: string
+        }
+        Update: {
+          cfop?: string | null
+          cliente_codigo?: string
+          comissao_valor?: number
+          created_at?: string
+          data_emissao?: string | null
+          external_key?: string
+          id?: string
+          invoice_key?: string
+          produto_codigo?: string
+          quantidade?: number
+          store_id?: string
+          valor_total?: number
+          valor_unitario?: number
+          vendedor_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_invoice_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_invoices: {
         Row: {
           base_icms: number
@@ -2613,6 +2672,29 @@ export type Database = {
         Returns: boolean
       }
       can_view_store_catalog: { Args: { _store_id: string }; Returns: boolean }
+      client_mix_summary: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: {
+          categoria: string
+          cliente_codigo: string
+          notas: number
+          quantidade: number
+          valor: number
+          vendedor_codigo: string
+        }[]
+      }
+      client_product_summary: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: {
+          categoria: string
+          clientes: number
+          produto_codigo: string
+          produto_nome: string
+          quantidade: number
+          valor: number
+          vendedor_codigo: string
+        }[]
+      }
       confirm_external_order_customer: {
         Args: {
           p_customer_code?: string
@@ -2747,6 +2829,10 @@ export type Database = {
         Returns: Json
       }
       save_attendance_settings: {
+        Args: { p_settings: Json; p_store_id: string }
+        Returns: Json
+      }
+      save_client_analytics_settings: {
         Args: { p_settings: Json; p_store_id: string }
         Returns: Json
       }

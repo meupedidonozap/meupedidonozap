@@ -33,11 +33,12 @@ import InvoicesPanel from '@/components/InvoicesPanel';
 import ErpOrdersPanel from '@/components/ErpOrdersPanel';
 import SellerPendingOrderDialog from '@/components/SellerPendingOrderDialog';
 import ResultsDrilldown from '@/components/results/ResultsDrilldown';
+import ClientIntelligencePanel from '@/components/ClientIntelligencePanel';
 import { useAuth } from '@/hooks/useAuth';
 
-type Section = 'atendimento' | 'vendas' | 'resultados' | 'notas' | 'titulos';
+type Section = 'atendimento' | 'vendas' | 'clientes' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
-  atendimento: 'Atendimento', vendas: 'Vendas', resultados: 'Resultados', notas: 'Notas Fiscais', titulos: 'Títulos',
+  atendimento: 'Atendimento', vendas: 'Vendas', clientes: 'Clientes', resultados: 'Resultados', notas: 'Notas Fiscais', titulos: 'Títulos',
 };
 
 export function sellerOrderStage(status: string): { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' } {
@@ -222,7 +223,7 @@ export default function SellerPortalPage() {
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center gap-2">
           <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
-          <SellerMenu store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />
+          <SellerMenu showClients={store.slug === 'dicolore'} store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />
           <h1 className="font-bold">{TITLES[section]}</h1>
         </div>
       </header>
@@ -276,6 +277,9 @@ export default function SellerPortalPage() {
           </Tabs>
         )}
 
+        {section === 'clientes' && (store.slug === 'dicolore'
+          ? <ClientIntelligencePanel storeId={store.id} sellerCodes={seller.isAdmin ? [] : seller.sellerCodes} canManage={seller.isAdmin} />
+          : <p className="py-8 text-center text-sm text-muted-foreground">Disponível em breve.</p>)}
         {section === 'resultados' && (
           <ResultsDrilldown
             storeId={store.id}
