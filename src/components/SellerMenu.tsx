@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Home, Gem, HeartPulse, LineChart, Package, FileText, Receipt, Settings } from 'lucide-react';
+import { Menu, Users, Home, Gem, HeartPulse, LineChart, Package, FileText, Receipt, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,9 +11,10 @@ interface Props {
   sellerName?: string;
   roleLabel?: string;
   canAdmin?: boolean;
+  showClients?: boolean;
 }
 
-export default function SellerMenu({ store, sellerName, roleLabel, canAdmin }: Props) {
+export default function SellerMenu({ store, sellerName, roleLabel, canAdmin, showClients }: Props) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const base = `/${store.slug}/vendedor`;
@@ -21,6 +22,7 @@ export default function SellerMenu({ store, sellerName, roleLabel, canAdmin }: P
     { to: `/${store.slug}`, label: 'Início', icon: Home },
     { to: `${base}/atendimento`, label: 'Atendimento', icon: Gem },
     { to: `${base}/vendas`, label: 'Vendas', icon: HeartPulse },
+    ...(showClients ? [{ to: `${base}/clientes`, label: 'Clientes', icon: Users }] : []),
     { to: `${base}/resultados`, label: 'Resultados', icon: LineChart },
     { to: `/${store.slug}`, label: 'Catálogo de Produtos', icon: Package },
     { to: `${base}/notas`, label: 'Notas Fiscais', icon: FileText },
