@@ -2672,6 +2672,29 @@ export type Database = {
         Returns: boolean
       }
       can_view_store_catalog: { Args: { _store_id: string }; Returns: boolean }
+      client_mix_summary: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: {
+          categoria: string
+          cliente_codigo: string
+          notas: number
+          quantidade: number
+          valor: number
+          vendedor_codigo: string
+        }[]
+      }
+      client_product_summary: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: {
+          categoria: string
+          clientes: number
+          produto_codigo: string
+          produto_nome: string
+          quantidade: number
+          valor: number
+          vendedor_codigo: string
+        }[]
+      }
       confirm_external_order_customer: {
         Args: {
           p_customer_code?: string
@@ -2806,6 +2829,10 @@ export type Database = {
         Returns: Json
       }
       save_attendance_settings: {
+        Args: { p_settings: Json; p_store_id: string }
+        Returns: Json
+      }
+      save_client_analytics_settings: {
         Args: { p_settings: Json; p_store_id: string }
         Returns: Json
       }
