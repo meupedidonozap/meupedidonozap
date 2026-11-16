@@ -52,6 +52,11 @@ const OrderItemSchema = z.object({
   quantidade_un_1: num, quantidade_un_1_faturada: num, valor_unitario_venda: num,
   valor_total_com_impostos: num, percentual_total_descontos: num, status: str,
 }).passthrough();
+const InvoiceItemSchema = z.object({
+  nota_fiscal_numero: str, nota_fiscal_serie: str, filial_codigo: str, produto_codigo: str,
+  valor_total_faturamento: num, quantidade_total_faturamento: num, valor_unitario_faturamento: num,
+  comissao_valor: num, cfop: str,
+}).passthrough();
 const BodySchema = z.object({
   store_slug: z.string().min(1).max(100),
   titles: z.array(TitleSchema).max(5000).default([]),
@@ -59,6 +64,7 @@ const BodySchema = z.object({
   invoices: z.array(InvoiceSchema).max(5000).default([]),
   orders: z.array(OrderSchema).max(5000).default([]),
   order_items: z.array(OrderItemSchema).max(10000).default([]),
+  invoice_items: z.array(InvoiceItemSchema).max(10000).default([]),
 });
 
 /** Chave única: filial|nota|serie+parcela (mesmo formato da coluna parcela da view). */
@@ -367,5 +373,51 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, titlesUpserted, invoicesUpserted, boletosSaved, ordersUpserted, orderItemsSaved, boletoErrors: boletoErrors.slice(0, 50) });
+  // 6) Itens das notas fiscais (dw_nota_fiscal_item) — substitui os itens de cada nota recebida
+  let invoiceItemsSaved = 0;
+  const invoiceItemsMissing: string[] = [];
+  if (body.invoice_items.length) {
+    const seq = new Map<string, number>();
+    const rows = body.invoice_items.map((it) => {
+      const ik = invoiceKeyOf(it.filial_codigo, it.nota_fiscal_numero, it.nota_fiscal_serie);
+      const base = `${ik}|${it.produto_codigo}`;
+      const n = (seq.get(base) || 0) + 1; seq.set(base, n);
+      return {
+        store_id: store.id, invoice_key: ik, external_key: `${base}|${n}`,
+        cliente_codigo: "", vendedor_codigo: "", data_emissao: null as string | null,
+        produto_codigo: it.produto_codigo, quantidade: it.quantidade_total_faturamento,
+        valor_unitario: it.valor_unitario_faturamento, valor_total: it.valor_total_faturamento,
+        comissao_valor: it.comissao_valor, cfop: it.cfop || null,
+      };
+    });
+    const keys = [...new Set(rows.map((r) => r.invoice_key))];
+    const head = new Map<string, { cliente_codigo: string; vendedor_codigo: string; data_emissao: string | null }>();
+    for (let i = 0; i < keys.length; i += 300) {
+      const { data, error } = await supabase.from("customer_invoices").select("external_key, cliente_codigo, vendedor_codigo, data_emissao")
+        .eq("store_id", store.id).in("external_key", keys.slice(i, i + 300));
+      if (error) return json({ error: `Falha ao ler notas: ${error.message}` }, 500);
+      for (const d of data || []) head.set(d.external_key, d);
+    }
+    const valid = rows.filter((r) => {
+      const h = head.get(r.invoice_key);
+      if (!h) return false;
+      r.cliente_codigo = h.cliente_codigo; r.vendedor_codigo = h.vendedor_codigo; r.data_emissao = h.data_emissao;
+      return true;
+    });
+    invoiceItemsMissing.push(...keys.filter((k) => !head.has(k)));
+    const okKeys = keys.filter((k) => head.has(k));
+    for (let i = 0; i < okKeys.length; i += 300) {
+      const { error } = await supabase.from("customer_invoice_items").delete()
+        .eq("store_id", store.id).in("invoice_key", okKeys.slice(i, i + 300));
+      if (error) return json({ error: `Falha ao limpar itens de NF: ${error.message}` }, 500);
+    }
+    for (let i = 0; i < valid.length; i += 1000) {
+      const chunk = valid.slice(i, i + 1000);
+      const { error } = await supabase.from("customer_invoice_items").insert(chunk);
+      if (error) return json({ error: `Falha ao gravar itens de NF: ${error.message}`, invoiceItemsSaved }, 500);
+      invoiceItemsSaved += chunk.length;
+    }
+  }
+
+  return json({ ok: true, titlesUpserted, invoicesUpserted, boletosSaved, ordersUpserted, orderItemsSaved, invoiceItemsSaved, invoiceItemsMissing: invoiceItemsMissing.slice(0, 100), boletoErrors: boletoErrors.slice(0, 50) });
 });
