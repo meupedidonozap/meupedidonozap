@@ -1,5 +1,10 @@
 # Roadmap
 
+## Supervisão de atendimento DiColore
+- [ ] Filtros de período/equipe, gráficos, cobertura, conversão e última visita
+- [ ] Metas por representante e prazo sem visita configuráveis por gerente/admin
+- [ ] PDF/Excel de todos os resultados; testes e conferência autenticada
+
 ## Cliente e pedido no integrador externo DiColore
 - [x] Incluir cadastro DW e clientes sem código ERP somente com integrador externo ativo
 - [x] Confirmar código do cliente e pedido em gravação única, mantendo integração interna
