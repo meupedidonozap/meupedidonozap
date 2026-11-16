@@ -38,3 +38,4 @@
 - DiColore admin customer rows are paginated after full-list filtering, and order profile lookups use memoized identity buckets with the shared ERP resolver; this bounds tab rendering without changing customer identity or other stores.
 - DiColore client-created orders keep their creator fields on every edit; the first staff member to save becomes claimedBy, enforced by a DB trigger (non-admins cannot change or override a claim), so ownership never depends only on the UI.
 - Checkout loads discount rules from store settings; orders-export refills missing item discounts.
+- DiColore client intelligence (menu Clientes) aggregates ERP invoice headers client-side and invoice items through invoker RPCs (RLS-respecting); invoice items come from dw_nota_fiscal_item via sync-titles invoice_items, replaced per invoice, and goals/line grouping are saved only through a store-scoped DiColore RPC.
