@@ -2746,6 +2746,10 @@ export type Database = {
         Args: { p_method: string; p_note?: string; p_order_id: string }
         Returns: Json
       }
+      save_attendance_settings: {
+        Args: { p_settings: Json; p_store_id: string }
+        Returns: Json
+      }
       store_reserved_stock: {
         Args: { _store_id: string }
         Returns: {
