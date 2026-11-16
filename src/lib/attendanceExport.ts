@@ -25,7 +25,7 @@ export function exportAttendancePdf(sheets: ReportSheet[], stamp: string, charts
       chart.labels.slice(start, start + chunk).forEach((label, i) => {
         const value = chart.values[start + i], y = 32 + i * 6;
         doc.text(label.slice(0, 42), 14, y + 3);
-        doc.setFillColor(70); doc.rect(95, y, (width - 140) * value / max, 4, 'F');
+        doc.setFillColor('0.27'); doc.rect(95, y, (width - 140) * value / max, 4, 'F');
         doc.text(String(Math.round(value * 10) / 10), width - 35, y + 3);
       });
     }
