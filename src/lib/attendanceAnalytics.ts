@@ -12,6 +12,7 @@ export function periodBounds(period: string, today: string) {
   return { from: new Date(Date.parse(today + 'T12:00:00Z') - 89 * 86400000).toISOString().slice(0, 10), to: today };
 }
 export function calendarDays(from: string, to: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return [];
   const size = daysBetween(from, to) + 1;
   return Array.from({ length: Math.max(0, Math.min(size, 3660)) }, (_, i) => new Date(Date.parse(from + 'T12:00:00Z') + i * 86400000).toISOString().slice(0, 10));
 }

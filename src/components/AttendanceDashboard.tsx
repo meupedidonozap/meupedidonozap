@@ -21,7 +21,7 @@ async function allRows<T>(build: (from: number, to: number) => PromiseLike<{ dat
   }
 }
 type Seller = { code: string; name: string };
-const fmtDate = (date: string | null) => date ? new Date(date.length === 10 ? date + 'T12:00:00' : date).toLocaleString('pt-BR', date.length === 10 ? { day: '2-digit', month: '2-digit', year: 'numeric' } : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const fmtDate = (date: string | null) => date ? new Date(date.length === 10 ? date + 'T12:00:00' : date).toLocaleString('pt-BR', date.length === 10 ? { day: '2-digit', month: '2-digit', year: 'numeric' } : { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 const percent = (part: number, total: number) => total ? `${(part * 100 / total).toFixed(1)}%` : '—';
 function DataTable({ rows }: { rows: Record<string, string | number>[] }) {
   const [page, setPage] = useState(0);
@@ -82,7 +82,7 @@ export default function AttendanceDashboard({ storeId }: { storeId: string }) {
   const previous = periodBounds('previous', today);
   const prev = attendanceReport(data?.clients || [], data?.visits || [], [], previous.from, previous.to, seller, config.staleDays);
   let currentSum = 0, previousSum = 0;
-  const comparison = prev.daily.map((d, i) => { currentSum += month.daily[i]?.visits || 0; previousSum += d.visits; return { day: i + 1, Atual: i < month.daily.length ? currentSum : null, Anterior: previousSum }; });
+  const comparison = Array.from({ length: Math.max(prev.daily.length, month.daily.length) }, (_, i) => { currentSum += month.daily[i]?.visits || 0; previousSum += prev.daily[i]?.visits || 0; return { day: i + 1, Atual: i < month.daily.length ? currentSum : null, Anterior: i < prev.daily.length ? previousSum : null }; });
   const summaries: Record<string, string | number>[] = [
     { Indicador: 'Visitas', Valor: report.rows.length }, { Indicador: 'Clientes visitados', Valor: report.visited }, { Indicador: 'Compraram após visita (NF no período)', Valor: report.bought }, { Indicador: 'Visitados sem compra (NF)', Valor: report.withoutPurchase }, { Indicador: 'Tempo médio', Valor: durationLabel(report.averageSeconds) }, { Indicador: 'Clientes ativos da carteira', Valor: report.coverage.length }, { Indicador: 'Clientes sem visita no período', Valor: report.coverage.filter(c => !c.visited).length }, { Indicador: `Clientes há mais de ${config.staleDays} dias / nunca visitados`, Valor: report.coverage.filter(c => c.stale).length },
   ];
@@ -109,7 +109,7 @@ export default function AttendanceDashboard({ storeId }: { storeId: string }) {
   }
   if (query.isLoading) return <p className="py-10 text-center text-muted-foreground">Carregando atendimentos e carteira…</p>;
   if (query.isError) return <div role="alert" className="space-y-3 text-destructive"><p>Não foi possível carregar todos os dados de atendimento.</p><Button variant="outline" onClick={() => query.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Tentar novamente</Button></div>;
-  return <div className="space-y-5">
+  return <div className="min-w-0 space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Visitas e cobertura de atendimento</h2><div className="flex gap-2"><Button variant="outline" size="sm" disabled={!validRange || exporting} onClick={() => download(true)}><FileText className="mr-2 h-4 w-4" />PDF</Button><Button variant="outline" size="sm" disabled={!validRange || exporting} onClick={() => download(false)}><Download className="mr-2 h-4 w-4" />Excel</Button></div></div>
     <div className="grid gap-3 sm:grid-cols-2"><Select value={seller} onValueChange={setSeller}><SelectTrigger aria-label="Representante"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Toda a equipe</SelectItem>{representatives.map(c => <SelectItem key={c} value={c}>{nameOf(c)}</SelectItem>)}</SelectContent></Select><Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Período"><SelectValue /></SelectTrigger><SelectContent>{[['today','Hoje'],['month','Este mês'],['previous','Mês passado'],['90','Últimos 90 dias'],['custom','De A até B']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></div>
     {period === 'custom' && <div className="grid grid-cols-2 gap-3"><label className="text-sm">De<Input type="date" value={custom.from} max={today} onChange={e => setCustom({ ...custom, from: e.target.value })} /></label><label className="text-sm">Até<Input type="date" value={custom.to} max={today} onChange={e => setCustom({ ...custom, to: e.target.value })} /></label></div>}
