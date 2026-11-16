@@ -350,6 +350,65 @@ export type Database = {
           },
         ]
       }
+      customer_invoice_items: {
+        Row: {
+          cfop: string | null
+          cliente_codigo: string
+          comissao_valor: number
+          created_at: string
+          data_emissao: string | null
+          external_key: string
+          id: string
+          invoice_key: string
+          produto_codigo: string
+          quantidade: number
+          store_id: string
+          valor_total: number
+          valor_unitario: number
+          vendedor_codigo: string
+        }
+        Insert: {
+          cfop?: string | null
+          cliente_codigo?: string
+          comissao_valor?: number
+          created_at?: string
+          data_emissao?: string | null
+          external_key: string
+          id?: string
+          invoice_key: string
+          produto_codigo: string
+          quantidade?: number
+          store_id: string
+          valor_total?: number
+          valor_unitario?: number
+          vendedor_codigo?: string
+        }
+        Update: {
+          cfop?: string | null
+          cliente_codigo?: string
+          comissao_valor?: number
+          created_at?: string
+          data_emissao?: string | null
+          external_key?: string
+          id?: string
+          invoice_key?: string
+          produto_codigo?: string
+          quantidade?: number
+          store_id?: string
+          valor_total?: number
+          valor_unitario?: number
+          vendedor_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_invoice_items_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_invoices: {
         Row: {
           base_icms: number
