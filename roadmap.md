@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Performance Atendimento e Clientes DiColore
-- [ ] Reduzir leituras históricas com resumos autorizados no banco e consultas por período
-- [ ] Reutilizar carteira em cache e evitar cálculos repetidos ao filtrar
-- [ ] Validar equivalência dos indicadores, filtros e exportações com sessão real
+- [x] Resumos históricos invoker preservam RLS; visitas/pedidos limitados ao período, sem baixar cabeçalhos de NF
+- [x] Carteira em cache por 5 minutos, paginação paralela limitada a quatro leituras e gráficos diários calculados em uma passagem
+- [x] 21 testes; sessão admin real, filtros de cobertura/busca, gráficos, Excel/PDF e celular sem overflow; retorno pelo menu 1,6–3,3s, primeira entrada 6,4–10,2s; build OK
 
 ## Supervisão de atendimento DiColore
 - [x] Filtros de período/equipe, gráficos, cobertura, conversão por pedido/NF após visita e última visita
