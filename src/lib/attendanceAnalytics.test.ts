@@ -55,3 +55,25 @@ describe('supervisão de atendimento', () => {
     expect(validSettings({ staleDays: 90, goals: { '32': { visitsPerDay: -1, minutesPerVisit: 20 } } })).toBe(false);
   });
 });
+import { hourBand, groupVisits, orderOrigin, inScope } from './attendanceAnalytics';
+describe('análise de atendimentos por nível', () => {
+  it('faixa horária usa horário de Brasília', () => {
+    expect(hourBand('2026-11-17T12:30:00Z')).toBe('08h–10h');
+    expect(hourBand('2026-11-17T22:00:00Z')).toBe('Após 18h');
+  });
+  it('agrupa por semana e mês', () => {
+    const d = [{ day: '2026-11-16', visits: 2 }, { day: '2026-11-17', visits: 1 }, { day: '2026-11-23', visits: 4 }];
+    expect(groupVisits(d, 'week')).toEqual([{ label: 'Sem. 2026-11-16', visits: 3 }, { label: 'Sem. 2026-11-23', visits: 4 }]);
+    expect(groupVisits(d, 'month')).toEqual([{ label: '2026-11', visits: 7 }]);
+  });
+  it('origem do pedido', () => {
+    expect(orderOrigin({ customer: { createdByRole: 'televendas' } })).toBe('Televendas');
+    expect(orderOrigin({ origem: 'web', customer: {} })).toBe('Cliente');
+    expect(orderOrigin({ customer: { createdByRole: 'vendedor' } })).toBe('Vendedor');
+  });
+  it('vendedor só vê seus códigos; gerente vê todos', () => {
+    expect(inScope('007', ['7'])).toBe(true);
+    expect(inScope('8', ['7'])).toBe(false);
+    expect(inScope('8', undefined)).toBe(true);
+  });
+});

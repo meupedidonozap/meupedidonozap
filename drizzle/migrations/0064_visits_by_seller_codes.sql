@@ -1,0 +1,1 @@
+CREATE POLICY "Sellers view visits of their codes" ON public.customer_visits FOR SELECT TO authenticated USING (public.is_store_seller_code(auth.uid(), store_id, seller_code));

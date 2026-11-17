@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CheckinDialog from '@/components/CheckinDialog';
+import AttendanceDashboard from '@/components/AttendanceDashboard';
 import TeamVisitsPanel from '@/components/TeamVisitsPanel';
 import SellerMenu from '@/components/SellerMenu';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
@@ -60,6 +61,7 @@ export default function SellerPortalPage() {
   const { selectCustomer } = useSellerContext();
   const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [search, setSearch] = useState('');
+  const [checkinOpen, setCheckinOpen] = useState(true);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   const codes = seller.isAdmin ? [] : seller.sellerCodes;
@@ -308,10 +310,13 @@ export default function SellerPortalPage() {
 
         {section === 'atendimento' && seller.isAdmin && <TeamVisitsPanel storeId={store.id} enhanced={store.slug === 'dicolore'} />}
 
-        {section === 'atendimento' && !seller.isAdmin && (
+        {section === 'atendimento' && !seller.isAdmin && store.slug === 'dicolore' && !checkinOpen && (
+          <div className="space-y-4"><Button onClick={() => setCheckinOpen(true)}>Fazer check-in</Button><AttendanceDashboard storeId={store.id} scopeCodes={codes} /></div>
+        )}
+        {section === 'atendimento' && !seller.isAdmin && checkinOpen && (
           <CheckinDialog
             open
-            onOpenChange={(o) => { if (!o) navigate(`/${store.slug}`); }}
+            onOpenChange={(o) => { if (!o) { if (store.slug === 'dicolore') setCheckinOpen(false); else navigate(`/${store.slug}`); } }}
             storeId={store.id}
             sellerCodes={codes}
             unvisitedPeriodDays={Number((store.settings as any)?.unvisitedPeriodDays) || 30}

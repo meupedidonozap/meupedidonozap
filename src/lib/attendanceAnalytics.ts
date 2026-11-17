@@ -41,11 +41,13 @@ export function attendanceReport(clients: AttendanceClient[], visits: Attendance
   const firstVisit = new Map<string, string>();
   rows.forEach(v => { const key = identityOfVisit(v), day = dayKey(v.checked_in_at); if (day < (firstVisit.get(key) || '9999')) firstVisit.set(key, day); });
   const bought = new Set<string>();
+  const purchased = new Set<string>();
   const lifetime = new Map<string, number>();
   summary?.revenue.forEach(p => { const key = `erp:${codeKey(p.cliente_codigo)}`; lifetime.set(key, (lifetime.get(key) || 0) + Number(p.valor_total_nota_fiscal)); });
   purchases.filter(p => p.data_emissao && validPurchase(p.status)).forEach(p => {
     const key = p.customer_profile_id ? identities.get(p.customer_profile_id) || `mpz:${p.customer_profile_id}` : `erp:${codeKey(p.cliente_codigo)}`, day = p.data_emissao || '';
     if (!summary && day <= to) lifetime.set(key, (lifetime.get(key) || 0) + Number(p.valor_total_nota_fiscal || 0));
+    if (day >= from && day <= to) purchased.add(key);
     if (day >= from && day <= to && day >= (firstVisit.get(key) || '9999')) bought.add(key);
   });
   const seen = new Set<string>();
@@ -54,7 +56,7 @@ export function attendanceReport(clients: AttendanceClient[], visits: Attendance
   }).map(c => {
     const key = clientIdentity(c.id, c.customer_code), last = history.get(key) || null;
     const visited = firstVisit.has(key);
-    return { ...c, last, days: last ? daysBetween(last, to) : null, visited, bought: bought.has(key), revenue: lifetime.get(key) || 0, stale: !last || daysBetween(last, to) > staleDays };
+    return { ...c, last, days: last ? daysBetween(last, to) : null, visited, bought: bought.has(key), purchased: purchased.has(key), revenue: lifetime.get(key) || 0, stale: !last || daysBetween(last, to) > staleDays };
   });
   const closed = rows.filter(v => v.checked_out_at && v.duration_seconds != null);
   const averageSeconds = closed.length ? closed.reduce((sum, v) => sum + Number(v.duration_seconds), 0) / closed.length : 0;
@@ -71,4 +73,40 @@ export function attendanceReport(clients: AttendanceClient[], visits: Attendance
   const regions = new Map<string, { city: string; clients: number; visited: number }>();
   coverage.forEach(c => { const city = `${c.city || 'Não informada'}/${c.uf || '—'}`, item = regions.get(city) || { city, clients: 0, visited: 0 }; item.clients++; if (c.visited) item.visited++; regions.set(city, item); });
   return { rows, coverage, daily, reasons: [...reasons].map(([reason, count]) => ({ reason, count })), regions: [...regions.values()], averageSeconds, visited: firstVisit.size, bought: bought.size, withoutPurchase: firstVisit.size - bought.size, workdays: businessDays(from, to) };
+}
+/** Faixas horárias (horário de Brasília) em que as visitas começaram. */
+export const HOUR_BANDS = ['Antes das 08h', '08h–10h', '10h–12h', '12h–14h', '14h–16h', '16h–18h', 'Após 18h'];
+export function hourBand(iso: string) {
+  const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(new Date(iso)));
+  if (h < 8) return HOUR_BANDS[0];
+  if (h >= 18) return HOUR_BANDS[6];
+  return HOUR_BANDS[1 + Math.floor((h - 8) / 2)];
+}
+export function visitsByHour(visits: { checked_in_at: string }[]) {
+  const counts = new Map(HOUR_BANDS.map(b => [b, 0]));
+  visits.forEach(v => { const b = hourBand(v.checked_in_at); counts.set(b, (counts.get(b) || 0) + 1); });
+  return HOUR_BANDS.map(band => ({ band, visits: counts.get(band) || 0 }));
+}
+/** Agrupa a série diária em dia, semana (início na segunda) ou mês. */
+export function groupVisits(daily: { day: string; visits: number }[], by: 'day' | 'week' | 'month') {
+  if (by === 'day') return daily.map(d => ({ label: d.day, visits: d.visits }));
+  const map = new Map<string, number>();
+  daily.forEach(d => {
+    let key = d.day.slice(0, 7);
+    if (by === 'week') { const t = Date.parse(d.day + 'T12:00:00Z'), dow = (new Date(t).getUTCDay() + 6) % 7; key = new Date(t - dow * 86400000).toISOString().slice(0, 10); }
+    map.set(key, (map.get(key) || 0) + d.visits);
+  });
+  return [...map].map(([label, visits]) => ({ label: by === 'week' ? `Sem. ${label}` : label, visits }));
+}
+export type OrderOrigin = 'Vendedor' | 'Cliente' | 'Televendas';
+/** Origem do pedido pelo papel de quem o criou. */
+export function orderOrigin(order: { origem?: string | null; customer?: { createdByRole?: string; isTelevendas?: boolean } | null }): OrderOrigin {
+  const role = order.customer?.createdByRole;
+  if (role === 'televendas' || (!role && order.customer?.isTelevendas)) return 'Televendas';
+  if (role === 'cliente' || (!role && order.origem === 'web')) return 'Cliente';
+  return 'Vendedor';
+}
+/** Mantém só os dados dos códigos de vendedor permitidos (undefined = todos). */
+export function inScope(code: string | null | undefined, scope?: string[]) {
+  return !scope || scope.map(codeKey).includes(codeKey(code));
 }
