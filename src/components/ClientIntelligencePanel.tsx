@@ -113,13 +113,9 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
   const mixQ = useQuery({
     queryKey: ['client-intel-mix', storeId, own.join(','), range.from, range.to], enabled: valid && !!invoicesQ.data && tab === 'produtos', staleTime: 5 * 60000, retry: 1,
     queryFn: async () => {
-      const load = (r: { from: string; to: string }) => allRows<any>((f, t) => supabase.rpc('client_mix_summary', { p_store_id: storeId, p_from: r.from, p_to: r.to }).range(f, t));
-      const loadP = (r: { from: string; to: string }) => allRows<any>((f, t) => supabase.rpc('client_product_summary', { p_store_id: storeId, p_from: r.from, p_to: r.to }).range(f, t));
-      const mc = await load(range);
-      const mp = await load(prev);
-      const pc = await loadP(range);
-      const pp = await loadP(prev);
-      return { mixCur: mc, mixPrev: mp, prodCur: pc, prodPrev: pp };
+      const { data, error } = await supabase.rpc('client_mix_analytics', { p_store_id: storeId, p_from: range.from, p_to: range.to });
+      if (error) throw error;
+      return data as unknown as { mixCur: any[]; mixPrev: any[]; prodCur: any[]; prodPrev: any[] };
     },
   });
 
