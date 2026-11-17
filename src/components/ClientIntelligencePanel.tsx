@@ -196,6 +196,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
   const mixRows = rows.filter(r => r.missingLines.length).sort((a, b) => b.revenue - a.revenue).map(r => ({ Código: r.code, Cliente: r.name, 'Cidade/UF': `${r.city}/${r.uf}`, Vendedor: sellerName(r.seller), Faturado: money(r.revenue), 'Compra as linhas': r.lines.join(', '), 'Não compra': r.missingLines.join(', ') }));
 
   // Metas
+  const [cityAll, setCityAll] = useState(false);
   const [goalDraft, setGoalDraft] = useState<Record<string, { revenue: number; buyers: number }> | null>(null);
   const [lineDraft, setLineDraft] = useState<Record<string, string> | null>(null);
   const goals = goalDraft || data?.goals || {};
@@ -227,7 +228,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
       const { exportAttendanceExcel, exportAttendancePdf } = await import('@/lib/attendanceExport');
       if (!pdf) exportAttendanceExcel(sheets(), stamp, 'clientes-dicolore');
       else exportAttendancePdf(sheets(), stamp, [
-    { title: 'Faturamento por cidade (top 25)', labels: cityStats.slice(0, 25).map(c => c.key), values: cityStats.slice(0, 25).map(c => c.revenue) },
+    { title: `Faturamento por cidade (${cityAll ? 'completa' : 'top 25'})`, labels: cityStats.slice(0, cityAll ? undefined : 25).map(c => c.key), values: cityStats.slice(0, cityAll ? undefined : 25).map(c => c.revenue) },
     { title: 'Faturamento por linha', labels: lineRows.map(l => l.Linha), values: lineRows.map(l => l.valor) },
     { title: 'Evolução mensal', labels: monthly.map(m => m.Mês), values: monthly.map(m => m.Faturado) },
       ], 'clientes-dicolore');
@@ -304,7 +305,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
         </TabsContent>
         <TabsContent value="rec"><DataTable rows={recovery} /></TabsContent>
         <TabsContent value="cidades" className="space-y-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Faturamento por cidade (top 15)</CardTitle></CardHeader><CardContent><HBar data={cityStats.slice(0, 15).map(c => ({ Cidade: c.key, Faturado: c.revenue }))} dataKey="Faturado" label="Cidade" /></CardContent></Card>
+          <Card><CardHeader className="flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Faturamento por cidade ({cityAll ? `análise completa — ${cityStats.length}` : 'top 15'})</CardTitle><Button size="sm" variant={cityAll ? 'secondary' : 'outline'} onClick={() => setCityAll(!cityAll)}>{cityAll ? 'Ver top 15' : 'Análise completa'}</Button></CardHeader><CardContent><HBar data={cityStats.slice(0, cityAll ? undefined : 15).map(c => ({ Cidade: c.key, Faturado: c.revenue }))} dataKey="Faturado" label="Cidade" /></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal no intervalo comparado</CardTitle></CardHeader><CardContent><HBar data={monthly} dataKey="Faturado" label="Mês" /></CardContent></Card>
           <DataTable rows={cityRows} />
         </TabsContent>
