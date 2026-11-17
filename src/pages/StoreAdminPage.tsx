@@ -612,6 +612,7 @@ export default function StoreAdminPage() {
   const [discountRules, setDiscountRulesLocal] = useState<DiscountRule[]>([]);
   const [discountRulesInitialized, setDiscountRulesInitialized] = useState(false);
   const [ruleFilterGroup, setRuleFilterGroup] = useState('all');
+  const [ruleSearch, setRuleSearch] = useState('');
   const [ruleFilterTable, setRuleFilterTable] = useState('all');
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editRule, setEditRule] = useState({ groupId: '', minQuantity: '', discountPercent: '', description: '', priceTable: 'all' });
@@ -2311,6 +2312,19 @@ export default function StoreAdminPage() {
                 <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
                   <div className="flex flex-wrap items-center gap-3">
                     <CardTitle>Regras Cadastradas</CardTitle>
+                    <div className="relative">
+                      <Input
+                        className="h-9 w-[220px] pr-8"
+                        placeholder="Pesquisar grupo ou produto"
+                        value={ruleSearch}
+                        onChange={e => setRuleSearch(e.target.value)}
+                      />
+                      {ruleSearch && (
+                        <button type="button" aria-label="Limpar pesquisa" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setRuleSearch('')}>
+                          <XIcon className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                     <Select value={ruleFilterGroup} onValueChange={setRuleFilterGroup}>
                       <SelectTrigger className="h-9 w-[180px]"><SelectValue placeholder="Grupo" /></SelectTrigger>
                       <SelectContent>
@@ -2363,6 +2377,12 @@ export default function StoreAdminPage() {
                       <TableBody>
                         {[...discountRules]
                           .filter(r => ruleFilterGroup === 'all' || r.groupId === ruleFilterGroup)
+                          .filter(r => {
+                            const q = ruleSearch.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                            if (!q) return true;
+                            const label = r.scope === 'product' ? (r.targetLabel || products.find(p => p.id === r.productId)?.name || '') : r.scope === 'category' ? (r.targetLabel || categories.find(c => c.id === r.categoryId)?.name || '') : (r.groupId || '');
+                            return `${label} ${r.description || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q);
+                          })
                           .filter(r => ruleFilterTable === 'all' || (ruleFilterTable === 'none' ? !r.priceTable : String(r.priceTable) === ruleFilterTable))
                           .sort((a, b) => (a.groupId || '').localeCompare(b.groupId || '') || (a.minQuantity || 0) - (b.minQuantity || 0))
                           .map(rule => editingRuleId === rule.id ? (
