@@ -1,5 +1,10 @@
 # Roadmap
 
+## Mapa SC — inteligência geográfica DiColore
+- [ ] Aba própria com ciclo de vida, filtros por vendedor/cidade/bairro e pontos agrupados
+- [ ] Coordenadas cadastradas ou referência municipal explicitamente aproximada; clientes sem localização contabilizados
+- [ ] Gráficos por status e cidade/bairro, testes e verificação autenticada em computador/celular
+
 ## Ciclo de vida dos clientes DiColore
 - [x] Resumo autorizado de dias de compra nos últimos 24 meses, carregado somente na nova aba
 - [x] Frequência histórica/recente, recência, primeiras compras observadas e reativados, filtros por cidade/vendedor e exportação; ausência não comprova nunca comprou
