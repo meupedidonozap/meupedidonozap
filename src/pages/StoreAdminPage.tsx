@@ -3695,6 +3695,9 @@ export default function StoreAdminPage() {
                           if (dup) { toast.error(`Código ${codigo} já usado pelo cliente ${dup.name}.`); return; }
                         }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
+                        // Mostra a alteração na hora, sem esperar recarregar toda a carteira.
+                        qc.setQueryData(['store-customer-profiles', editingCustomer.storeId], (list: any) =>
+                          Array.isArray(list) ? list.map((c: any) => c.id === editingCustomer.id ? { ...c, ...customerForm } : c) : list);
                         { const { error: dwErr } = await supabase.from('customer_profiles').update(dwUpdateFromForm(dwForm) as any).eq('id', editingCustomer.id); if (dwErr) throw dwErr; }
                         if (!editingCustomer.userId && (codigo || login)) {
                           await createCustomerAccess({ storeId: editingCustomer.storeId, codigo, form: { ...customerForm, customerCode: codigo } });
