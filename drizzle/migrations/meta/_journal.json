@@ -428,6 +428,13 @@
       "when": 1794876007325,
       "tag": "0060_client_analytics_bounded_period",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794876151167,
+      "tag": "0061_client_mix_compact_single_read",
+      "breakpoints": true
     }
   ]
 }
