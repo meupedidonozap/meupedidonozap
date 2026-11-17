@@ -19,7 +19,7 @@ function Points({ points, onSelect }: Props) {
     map.invalidateSize();
     if (points.length) map.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lng])), { padding: [30, 30], maxZoom: 13 });
     else map.fitBounds([[-29.4, -53.8], [-25.9, -48.3]]);
-    const observer = new ResizeObserver(() => map.invalidateSize()); observer.observe(map.getContainer());
+    const observer = new ResizeObserver(() => { map.invalidateSize(); if (points.length) map.fitBounds(L.latLngBounds(points.map(p => [p.lat, p.lng])), { padding: [30, 30], maxZoom: 13 }); }); observer.observe(map.getContainer());
     return () => observer.disconnect();
   }, [map, points]);
   const clusters = useMemo(() => { const b = map.getBounds(); return index.getClusters([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], Math.floor(map.getZoom())); }, [map, index, view]);
@@ -38,5 +38,5 @@ function Points({ points, onSelect }: Props) {
   })}</>;
 }
 export default function ClientGeoMap(props: Props) {
-  return <MapContainer center={[-27.2, -50.7]} zoom={7} className="h-[480px] w-full rounded-md z-0 sm:h-[540px]" scrollWheelZoom><TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" /><Points {...props} /></MapContainer>;
+  return <MapContainer center={[-27.2, -50.7]} zoom={7} className="client-intelligence-map h-[480px] w-full rounded-md z-0 sm:h-[540px]" scrollWheelZoom><TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" /><Points {...props} /></MapContainer>;
 }
