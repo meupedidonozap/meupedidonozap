@@ -46,12 +46,15 @@ export function computeGroupDiscounts(
     return normalizeGroupId(r.groupId);
   };
   const chosen = new Map<CartItem, number>();
+  // Produto com regra própria fica isolado: nunca soma nem recebe desconto do grupo/categoria.
+  const ownRule = new Set(groupRules.filter(r => scopeOf(r) === 'product').map(r => r.productId || '').filter(Boolean));
   for (const scope of ['product', 'group', 'category'] as const) {
     const scoped = groupRules.filter(r => scopeOf(r) === scope);
     if (scoped.length === 0) continue;
     const buckets = new Map<string, CartItem[]>();
     for (const item of items) {
       if (chosen.has(item)) continue;
+      if (scope !== 'product' && ownRule.has(item.productId)) continue;
       const k = keyFor(scope, item);
       if (!k) continue;
       const list = buckets.get(k) || [];

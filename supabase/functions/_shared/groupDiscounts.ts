@@ -17,12 +17,14 @@ export function fillMissingDiscounts(items: any[], rules: any[], priceTable: unk
   const keyFor = (scope: string, it: any) => scope === "product" ? (it.productId || "") : scope === "category" ? (it.categoryId || "") : norm(it.groupId);
   const ruleKey = (r: any) => scopeOf(r) === "product" ? (r.productId || "") : scopeOf(r) === "category" ? (r.categoryId || "") : norm(r.groupId);
   const chosen = new Map<any, number>();
+  const ownRule = new Set(groupRules.filter((r) => scopeOf(r) === "product").map((r) => r.productId || "").filter(Boolean));
   for (const scope of ["product", "group", "category"]) {
     const scoped = groupRules.filter((r) => scopeOf(r) === scope);
     if (!scoped.length) continue;
     const buckets = new Map<string, any[]>();
     for (const it of items) {
       if (chosen.has(it)) continue;
+      if (scope !== "product" && ownRule.has(it.productId)) continue;
       const k = keyFor(scope, it); if (!k) continue;
       const l = buckets.get(k) || []; l.push(it); buckets.set(k, l);
     }

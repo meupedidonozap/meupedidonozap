@@ -35,3 +35,25 @@ describe('promoção com quantidade mínima 0', () => {
     expect(itemDiscounts['p1-']).toBe(15);
   });
 });
+
+describe('desconto por produto isolado do grupo', () => {
+  const rules = [
+    rule({ scope: 'product', productId: 'ox8', minQuantity: 3, discountPercent: 20 }),
+    rule({ groupId: 'OXIDANTES', minQuantity: 6, discountPercent: 5 }),
+  ];
+  it('produto com regra não soma na faixa do grupo', () => {
+    const r = computeGroupDiscounts([
+      item({ productId: 'ox8', groupId: 'OXIDANTES', quantity: 3 }),
+      item({ productId: 'ox20', groupId: 'OXIDANTES', quantity: 2 }),
+      item({ productId: 'ox30', groupId: 'OXIDANTES', quantity: 2 }),
+    ], rules);
+    expect(r.itemDiscounts).toEqual({ 'ox8-': 20 });
+  });
+  it('produto abaixo da sua faixa não recebe desconto do grupo', () => {
+    const r = computeGroupDiscounts([
+      item({ productId: 'ox8', groupId: 'OXIDANTES', quantity: 2 }),
+      item({ productId: 'ox20', groupId: 'OXIDANTES', quantity: 6 }),
+    ], rules);
+    expect(r.itemDiscounts).toEqual({ 'ox20-': 5 });
+  });
+});
