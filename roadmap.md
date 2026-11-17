@@ -1,5 +1,10 @@
 # Roadmap
 
+## Performance Atendimento e Clientes DiColore
+- [ ] Reduzir leituras históricas com resumos autorizados no banco e consultas por período
+- [ ] Reutilizar carteira em cache e evitar cálculos repetidos ao filtrar
+- [ ] Validar equivalência dos indicadores, filtros e exportações com sessão real
+
 ## Supervisão de atendimento DiColore
 - [x] Filtros de período/equipe, gráficos, cobertura, conversão por pedido/NF após visita e última visita
 - [x] Metas por representante e prazo sem visita configuráveis por gerente/admin, com RPC exclusivo da DiColore
