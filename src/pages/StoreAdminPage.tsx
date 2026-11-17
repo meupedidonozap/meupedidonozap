@@ -337,7 +337,10 @@ export default function StoreAdminPage() {
     const base = customerApprovalFilter === 'pending'
       ? scopedCustomerProfiles.filter((cp: any) => cp.approvalStatus === 'pending')
       : scopedCustomerProfiles;
-    if (!term) return base;
+    // DiColore: inativos do ERP ficam ocultos; aparecem só ao pesquisar (nome, código, CNPJ...).
+    if (!term) return store?.slug === 'dicolore' && customerApprovalFilter !== 'pending'
+      ? base.filter((cp: any) => cp.isActive !== false || cp.approvalStatus === 'pending')
+      : base;
     const digits = term.replace(/\D/g, '');
     return base.filter((cp: any) => {
       const haystack = [
@@ -351,7 +354,7 @@ export default function StoreAdminPage() {
       }
       return false;
     });
-  }, [scopedCustomerProfiles, customerSearch, customerApprovalFilter]);
+  }, [scopedCustomerProfiles, customerSearch, customerApprovalFilter, store?.slug]);
   const [customersPage, setCustomersPage] = useState(1);
   const [customersPageSize, setCustomersPageSize] = useState(50);
   const paginateCustomers = store?.slug === 'dicolore';

@@ -83,14 +83,15 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
 
   const scoped = useMemo(() => {
     const codes = new Set(sellerCodes.map(c => c.trim()));
-    const base = (profiles as any[]).filter(p => p.isActive !== false);
+    // Inativos ficam fora da lista inicial, mas podem ser encontrados pela pesquisa para emitir pedido.
+    const base = (profiles as any[]).filter(p => storeSlug === 'dicolore' || p.isActive !== false);
     if (codes.size === 0) return base;
     return base.filter(p => codes.has(String(p.sellerCode || '').trim()));
-  }, [profiles, sellerCodes]);
+  }, [profiles, sellerCodes, storeSlug]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return scoped.slice(0, 300);
+    if (!term) return scoped.filter((p: any) => p.isActive !== false).slice(0, 300);
     const digits = term.replace(/\D/g, '');
     return scoped.filter((c: any) => {
       const hay = [c.name, c.customerCode, c.cpfCnpj, c.whatsapp, c.city, c.uf, c.address]
