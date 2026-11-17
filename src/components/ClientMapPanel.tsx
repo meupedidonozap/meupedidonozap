@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, X, Download, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { lifecycleRows, lifecycleStages, type LifecycleSummary } from '@/lib/clientLifecycle';
@@ -21,6 +22,7 @@ export default function ClientMapPanel({ storeId, customers, range, seller, city
   const [selected, setSelected] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [missingOnly, setMissingOnly] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const query = useQuery({
     queryKey: ['client-lifecycle', storeId, scopeKey, range.to], staleTime: 5 * 60000, retry: 1,
     queryFn: async () => { const { data, error } = await supabase.rpc('client_lifecycle_days', { p_store_id: storeId, p_to: range.to }); if (error) throw error; return data as unknown as LifecycleSummary; },
@@ -39,12 +41,33 @@ export default function ClientMapPanel({ storeId, customers, range, seller, city
   const list = rows.filter(r => !missingOnly || !r.location).sort((a, b) => a.name.localeCompare(b.name));
   const current = Math.min(page, Math.max(0, Math.ceil(list.length / 25) - 1));
   const detail = rows.find(r => r.code === selected);
+  const download = async (pdf: boolean) => {
+    setExporting(true);
+    try {
+      const { exportAttendanceExcel, exportAttendancePdf } = await import('@/lib/attendanceExport');
+      const stamp = `${range.from}_a_${range.to}`;
+      const sheets = [
+        { name: 'Filtros', rows: [{ Período: `${range.from} a ${range.to}`, Vendedor: seller === 'all' ? 'Todos' : sellerName(seller), Cidade: city === 'all' ? 'Todas' : city, Bairro: effectiveNeighborhood === 'all' ? 'Todos' : effectiveNeighborhood, Status: stage === 'all' ? 'Todos' : stage, Busca: search, Clientes: rows.length }] },
+        { name: 'Status', rows: statusData.map(s => ({ Status: s.name, Clientes: s.count, '%': `${(100 * s.count / rows.length).toFixed(1)}%` })) },
+        { name: groupBy === 'city' ? 'Cidades' : 'Bairros', rows: [...groups.values()].sort((a, b) => b.revenue - a.revenue).map(g => ({ Local: g.name, Clientes: g.clients, Compradores: g.buyers, Faturado: formatCurrency(g.revenue) })) },
+        { name: 'Clientes', rows: [...rows].sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ Código: r.code, Cliente: r.name, Vendedor: sellerName(r.seller), Cidade: r.city, Bairro: r.neighborhood, Status: r.stage, 'Dias sem comprar': r.daysSince ?? '—', Faturado: formatCurrency(r.revenue), Ticket: formatCurrency(r.ticket), Localização: r.location?.precision || 'Sem localização' })) },
+      ];
+      if (pdf) exportAttendancePdf(sheets, stamp, [
+        { title: 'Clientes por status', labels: statusData.map(s => s.name), values: statusData.map(s => s.count) },
+        { title: `Top 12 ${groupBy === 'city' ? 'cidades' : 'bairros'} (${metric === 'clients' ? 'clientes' : 'faturamento'})`, labels: ranking.map(g => g.name), values: ranking.map(g => metric === 'clients' ? g.clients : g.revenue) },
+      ], 'mapa-sc-dicolore');
+      else exportAttendanceExcel(sheets, stamp, 'mapa-sc-dicolore');
+    } catch { toast.error('Não foi possível exportar.'); } finally { setExporting(false); }
+  };
   if (query.isLoading) return <div className="flex justify-center gap-2 py-12"><Loader2 className="h-5 w-5 animate-spin" />Carregando mapa e compras…</div>;
   if (query.isError) return <div role="alert" className="py-8 text-destructive">Não foi possível carregar o mapa. <Button variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>;
   return <div className="min-w-0 overflow-hidden space-y-4">
     <div className="flex flex-wrap items-end gap-3">
       <label className="w-full space-y-1 text-xs sm:w-64">Status<Select value={stage} onValueChange={v => { setStage(v); setPage(0); }}><SelectTrigger aria-label="Status no mapa"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os status</SelectItem>{lifecycleStages.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></label>
-      <label className="w-full space-y-1 text-xs sm:w-64">Bairro<Select value={effectiveNeighborhood} onValueChange={v => { setNeighborhood(v); setPage(0); }}><SelectTrigger aria-label="Bairro no mapa"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os bairros</SelectItem>{neighborhoods.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></label>
+      <label className="w-full space-y-1 text-xs sm:w-64">Bairro{city === 'all' && <span className="text-muted-foreground"> (todas as cidades)</span>}<div className="flex gap-1"><Select value={effectiveNeighborhood} onValueChange={v => { setNeighborhood(v); setPage(0); }}><SelectTrigger aria-label="Bairro no mapa"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os bairros</SelectItem>{neighborhoods.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select>{effectiveNeighborhood !== 'all' && <Button size="icon" variant="outline" className="shrink-0" aria-label="Limpar bairro" onClick={() => setNeighborhood('all')}><X className="h-4 w-4" /></Button>}</div></label>
+      {city !== 'all' && <Button variant="outline" onClick={() => { onCity('all'); setNeighborhood('all'); }}><X className="mr-1 h-4 w-4" />{city}</Button>}
+      <Button variant="outline" disabled={exporting} onClick={() => download(false)}><Download className="mr-1 h-4 w-4" />Excel</Button>
+      <Button variant="outline" disabled={exporting} onClick={() => download(true)}><FileText className="mr-1 h-4 w-4" />PDF</Button>
       <Button variant="outline" onClick={() => { onCity('all'); setNeighborhood('all'); setStage('all'); setMissingOnly(false); setSelected(null); }}>Limpar filtros do mapa</Button>
     </div>
     <div className="grid grid-cols-2 gap-3 border-y py-3 sm:grid-cols-4">

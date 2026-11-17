@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, FileText, Loader2, Search } from 'lucide-react';
+import { Download, FileText, Loader2, Search, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -247,7 +247,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
           {sel(period, setPeriod, [['month', 'Este mês'], ['last', 'Mês passado'], ['60d', 'Últimos 60 dias'], ['90d', 'Últimos 90 dias'], ['180d', 'Últimos 180 dias'], ['365d', 'Últimos 12 meses'], ['year', 'Ano atual'], ['custom', 'De A até B']], 'Período')}
           {period === 'custom' && <div className="flex gap-1"><Input type="date" value={custom.from} max={today} onChange={e => setCustom({ ...custom, from: e.target.value })} /><Input type="date" value={custom.to} max={today} onChange={e => setCustom({ ...custom, to: e.target.value })} /></div>}
           {(!own.length || own.length > 1) && sel(seller, v => { setSeller(v); setCity('all'); }, [['all', 'Todos os vendedores'], ...sellers.map(s => [s, sellerName(s)] as [string, string])], 'Vendedor')}
-          {sel(city, setCity, [['all', 'Todas as cidades'], ...cities.map(c => [c, c] as [string, string])], 'Cidade')}
+          <div className="flex gap-1"><div className="min-w-0 flex-1">{sel(city, setCity, [['all', 'Todas as cidades'], ...cities.map(c => [c, c] as [string, string])], 'Cidade')}</div>{city !== 'all' && <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" aria-label="Limpar cidade" onClick={() => setCity('all')}><X className="h-4 w-4" /></Button>}</div>
           {!['ciclo', 'mapa'].includes(tab) && <>
           {sel(abc, setAbc, [['all', 'Curva ABC: todas'], ['A', 'Curva A'], ['B', 'Curva B'], ['C', 'Curva C'], ['-', 'Sem faturamento']], 'ABC')}
           {sel(status, setStatus, [['all', 'Situação: todas'], ['Ativo', 'Ativo'], ['Em risco', 'Em risco'], ['Inativo', 'Inativo'], ['Sem compras no intervalo', 'Sem compras no intervalo']], 'Situação')}
