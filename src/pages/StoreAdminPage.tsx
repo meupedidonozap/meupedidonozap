@@ -2224,10 +2224,16 @@ export default function StoreAdminPage() {
                     <div className="grid gap-1">
                       <Label className="text-sm">ID do Grupo *</Label>
                       <Input
-                        placeholder="ex: GRUPO-A"
+                        list="discount-rule-groups"
+                        placeholder="Digite ou escolha o grupo"
                         value={newRule.groupId}
                         onChange={e => setNewRule(r => ({ ...r, groupId: e.target.value.toUpperCase() }))}
                       />
+                      <datalist id="discount-rule-groups">
+                        {Array.from(new Set(products.map(p => (p.groupId || categories.find(c => c.id === p.categoryId)?.name || '').trim().toUpperCase()).filter(Boolean)))
+                          .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+                          .map(g => <option key={g} value={g} />)}
+                      </datalist>
                     </div>
                     )}
                     {newRule.scope === 'category' && (
