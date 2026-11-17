@@ -47,6 +47,9 @@
     
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
+    --map-critical: 350 75% 35%;
+    --map-new: 270 55% 55%;
+    --map-single: 190 60% 38%;
 
     /* Sidebar */
     --sidebar-background: 222 47% 11%;
@@ -98,6 +101,9 @@
     --border: 222 47% 18%;
     --input: 222 47% 18%;
     --ring: 142 70% 45%;
+    --map-critical: 350 80% 65%;
+    --map-new: 270 70% 75%;
+    --map-single: 190 60% 60%;
 
     --sidebar-background: 222 47% 6%;
     --sidebar-foreground: 220 14% 96%;
@@ -126,6 +132,20 @@
 }
 
 @layer utilities {
+  .client-map-count.leaflet-tooltip {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: hsl(var(--foreground));
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .client-map-count.leaflet-tooltip::before { display: none; }
+  .client-intelligence-map .leaflet-popup-content-wrapper,
+  .client-intelligence-map .leaflet-popup-tip {
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
   .gradient-primary {
     background: var(--gradient-primary);
   }

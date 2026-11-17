@@ -1,5 +1,10 @@
 # Roadmap
 
+## Mapa SC — inteligência geográfica DiColore
+- [x] Aba própria com ciclo de vida, filtros por vendedor/cidade/bairro e pontos agrupados por status predominante
+- [x] 10.980 clientes SC na conta autorizada: 1.606 coordenadas cadastradas e 9.374 referências municipais aproximadas; sem envio de endereços a geocodificador
+- [x] 21 testes passaram; mapa com 18 tiles carregados, filtros/status/bairros, gráficos, detalhes pelos agrupamentos e celular sem overflow/erros; build OK
+
 ## Ciclo de vida dos clientes DiColore
 - [x] Resumo autorizado de dias de compra nos últimos 24 meses, carregado somente na nova aba
 - [x] Frequência histórica/recente, recência, primeiras compras observadas e reativados, filtros por cidade/vendedor e exportação; ausência não comprova nunca comprou
