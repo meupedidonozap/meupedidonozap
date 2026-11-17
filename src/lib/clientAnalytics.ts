@@ -3,6 +3,7 @@ export const normCode = (c: unknown) => String(c ?? '').trim().replace(/^0+(?=\d
 
 export interface CA_Customer { code: string; name: string; city: string; uf: string; seller: string; active: boolean }
 export interface CA_Invoice { customer: string; seller: string; date: string; value: number }
+export interface CA_InvoiceSummary { code: string; history_revenue: number; history_orders: number; orders: number; revenue: number; prev_orders: number; prev_revenue: number; first_purchase: string | null; last_purchase: string | null; purchase_days: number; }
 export interface CA_Mix { customer: string; category: string; value: number; period: 'cur' | 'prev' }
 export interface CA_Range { from: string; to: string }
 export type Frequency = 'Semanal' | 'Quinzenal' | 'Mensal' | 'Bimestral' | 'Trimestral' | 'Esporádico' | 'Compra única' | 'Sem compras';
@@ -56,6 +57,7 @@ export const pct = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / pr
 
 export interface AnalyticsInput {
   customers: CA_Customer[]; invoices: CA_Invoice[]; mix: CA_Mix[]; range: CA_Range; today: string;
+  invoiceSummaries?: CA_InvoiceSummary[];
   riskDays?: number; inactiveDays?: number; lineMap?: Record<string, string>;
   /** Agrupamento da curva ABC */
   abcBy?: 'seller' | 'city' | 'all';
@@ -68,11 +70,12 @@ export function analyzeClients(inp: AnalyticsInput) {
   const byCode = new Map<string, CA_Customer>();
   for (const c of inp.customers) { const k = normCode(c.code); if (k && (!byCode.has(k) || c.active)) byCode.set(k, c); }
   const inv = new Map<string, CA_Invoice[]>();
-  for (const i of inp.invoices) { const k = normCode(i.customer); if (!byCode.has(k) || !i.date) continue; (inv.get(k) || inv.set(k, []).get(k)!).push(i); }
+  for (const i of inp.invoices) { const k = normCode(i.customer); if (!byCode.has(k) || !i.date) continue; const list = inv.get(k) || []; list.push(i); inv.set(k, list); }
+  const summaries = new Map(inp.invoiceSummaries?.map(s => [normCode(s.code), s]));
   const lineSets = new Map<string, { cur: Map<string, number>; prev: Map<string, number> }>();
   for (const m of inp.mix) {
     const k = normCode(m.customer); if (!byCode.has(k)) continue;
-    const s = lineSets.get(k) || lineSets.set(k, { cur: new Map(), prev: new Map() }).get(k)!;
+    const s = lineSets.get(k) || { cur: new Map<string, number>(), prev: new Map<string, number>() }; lineSets.set(k, s);
     const t = s[m.period]; t.set(line(m.category), (t.get(line(m.category)) || 0) + m.value);
   }
   const lineTotals = new Map<string, number>();
@@ -81,33 +84,37 @@ export function analyzeClients(inp: AnalyticsInput) {
 
   const rows: CustomerRow[] = [];
   for (const [code, c] of byCode) {
-    if (!c.active && !inv.has(code)) continue;
+    const summary = summaries.get(code);
+    if (!c.active && !inv.has(code) && !summary) continue;
     const list = (inv.get(code) || []).slice().sort((a, b) => a.date.localeCompare(b.date));
     const inR = (i: CA_Invoice, r: CA_Range) => i.date >= r.from && i.date <= r.to;
     const cur = list.filter(i => inR(i, inp.range)), pr = list.filter(i => inR(i, prev));
     const sum = (l: CA_Invoice[]) => l.reduce((s, i) => s + i.value, 0);
     const days = [...new Set(list.filter(i => i.date <= inp.range.to).map(i => i.date))];
-    const avgInterval = days.length > 1 ? Math.round((toDay(days[days.length - 1]) - toDay(days[0])) / DAY / (days.length - 1)) : null;
-    const last = days[days.length - 1] || null;
+    const purchaseDays = summary ? Number(summary.purchase_days) : days.length;
+    const first = summary ? summary.first_purchase : days[0];
+    const last = summary ? summary.last_purchase : days[days.length - 1] || null;
+    const avgInterval = purchaseDays > 1 && first && last ? Math.round((toDay(last) - toDay(first)) / DAY / (purchaseDays - 1)) : null;
     const daysSince = last ? Math.round((toDay(inp.today) - toDay(last)) / DAY) : null;
-    const revenue = sum(cur), prevRevenue = sum(pr);
-    const status: Status = !last ? 'Nunca comprou' : daysSince! > inactiveDays ? 'Inativo' : daysSince! > riskDays ? 'Em risco' : 'Ativo';
+    const revenue = summary ? Number(summary.revenue) : sum(cur), prevRevenue = summary ? Number(summary.prev_revenue) : sum(pr);
+    const orderCount = summary ? Number(summary.orders) : cur.length, prevOrderCount = summary ? Number(summary.prev_orders) : pr.length;
+    const status: Status = daysSince === null ? 'Nunca comprou' : daysSince > inactiveDays ? 'Inativo' : daysSince > riskDays ? 'Em risco' : 'Ativo';
     const ls = lineSets.get(code);
     const lines = ls ? [...ls.cur.keys()].sort() : [];
-    const missingLines = lines.length ? coreLines.filter(l => !ls!.cur.has(l)) : [];
-    const ticket = cur.length ? revenue / cur.length : 0, prevTicket = pr.length ? prevRevenue / pr.length : 0;
+    const missingLines = lines.length ? coreLines.filter(l => !ls?.cur.has(l)) : [];
+    const ticket = orderCount ? revenue / orderCount : 0, prevTicket = prevOrderCount ? prevRevenue / prevOrderCount : 0;
     rows.push({
       code, name: c.name, city: c.city, uf: c.uf, seller: normCode(c.seller), revenue, prevRevenue,
-      orders: cur.length, prevOrders: pr.length, ticket, prevTicket, historyRevenue: sum(list), historyOrders: list.length,
-      avgInterval, frequency: frequencyOf(avgInterval, days.length), lastPurchase: last, daysSince,
+      orders: orderCount, prevOrders: prevOrderCount, ticket, prevTicket, historyRevenue: summary ? Number(summary.history_revenue) : sum(list), historyOrders: summary ? Number(summary.history_orders) : list.length,
+      avgInterval, frequency: frequencyOf(avgInterval, purchaseDays), lastPurchase: last, daysSince,
       trend: pct(revenue, prevRevenue), status, abc: '-', lines, missingLines, opportunities: [],
       recovery: Math.max(0, prevRevenue - revenue),
     });
   }
   // ABC por grupo
   const groups = new Map<string, CustomerRow[]>();
-  for (const r of rows) { const g = inp.abcBy === 'city' ? `${r.city}/${r.uf}` : inp.abcBy === 'all' ? '*' : r.seller; (groups.get(g) || groups.set(g, []).get(g)!).push(r); }
-  for (const list of groups.values()) { const m = abcClasses(list, r => r.revenue); for (const r of list) r.abc = m.get(r)!; }
+  for (const r of rows) { const g = inp.abcBy === 'city' ? `${r.city}/${r.uf}` : inp.abcBy === 'all' ? '*' : r.seller; const list = groups.get(g) || []; list.push(r); groups.set(g, list); }
+  for (const list of groups.values()) { const m = abcClasses(list, r => r.revenue); for (const r of list) r.abc = m.get(r) || '-'; }
   // Oportunidades
   const tickets = rows.filter(r => r.orders > 0).map(r => r.ticket).sort((a, b) => a - b);
   const medianTicket = tickets.length ? tickets[Math.floor(tickets.length / 2)] : 0;

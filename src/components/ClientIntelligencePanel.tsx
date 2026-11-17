@@ -5,8 +5,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
-import { analyzeClients, concentration, goalProgress, groupStats, normCode, pct, previousRange, type CA_Mix, type CustomerRow } from '@/lib/clientAnalytics';
-import { exportAttendanceExcel, exportAttendancePdf, type ReportSheet } from '@/lib/attendanceExport';
+import { analyzeClients, concentration, goalProgress, groupStats, normCode, pct, previousRange, type CA_Mix, type CA_InvoiceSummary, type CustomerRow } from '@/lib/clientAnalytics';
+import type { ReportSheet } from '@/lib/attendanceExport';
+import { analyticsRows as allRows } from '@/lib/analyticsRead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,16 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 type Cell = string | number;
 type Row = Record<string, Cell>;
 
-async function allRows<T>(build: (from: number, to: number) => any): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await build(from, from + 999);
-    if (error) throw error;
-    out.push(...(data || []));
-    if (!data || data.length < 1000) break;
-  }
-  return out;
-}
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const todayIso = () => new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
 function bounds(p: string, today: string) {
@@ -89,7 +80,8 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
   const [period, setPeriod] = useState('90d');
   const [custom, setCustom] = useState(bounds('90d', today));
   const range = period === 'custom' ? custom : bounds(period, today);
-  const prev = previousRange(range);
+  const valid = Boolean(range.from && range.to && range.from <= range.to && range.to <= today);
+  const prev = valid ? previousRange(range) : range;
   const [seller, setSeller] = useState('all');
   const [city, setCity] = useState('all');
   const [abc, setAbc] = useState('all');
@@ -101,25 +93,32 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
   const [riskDays, setRiskDays] = useState(60);
   const [inactiveDays, setInactiveDays] = useState(120);
   const own = sellerCodes.map(normCode);
-  const valid = range.from && range.to && range.from <= range.to;
+  const [exporting, setExporting] = useState(false);
 
   const base = useQuery({
-    queryKey: ['client-intel-base', storeId, own.join(',')], staleTime: 60000,
+    queryKey: ['client-intel-base', storeId, own.join(',')], staleTime: 5 * 60000, gcTime: 15 * 60000,
     queryFn: async () => {
       const { data: st, error } = await supabase.from('stores').select('slug, settings').eq('id', storeId).single();
       if (error) throw error;
       if (st.slug !== 'dicolore') throw new Error('Análise exclusiva da DiColore');
-      const [customers, invoices, sellers] = await Promise.all([
+      const [customers, sellers] = await Promise.all([
         allRows<any>((f, t) => supabase.from('customer_profiles').select('customer_code, name, nome_fantasia, city, uf, seller_code, is_active').eq('store_id', storeId).neq('customer_code', '').order('id').range(f, t)),
-        allRows<any>((f, t) => supabase.from('customer_invoices').select('cliente_codigo, vendedor_codigo, data_emissao, valor_total_nota_fiscal').eq('store_id', storeId).order('id').range(f, t)),
         allRows<any>((f, t) => supabase.from('store_sellers').select('code, name').eq('store_id', storeId).order('id').range(f, t)),
       ]);
       const ca = ((st.settings as any)?.clientAnalytics || {}) as { goals?: Record<string, { revenue: number; buyers: number }>; lineMap?: Record<string, string> };
-      return { customers, invoices, sellers, goals: ca.goals || {}, lineMap: ca.lineMap || {} };
+      return { customers, sellers, goals: ca.goals || {}, lineMap: ca.lineMap || {} };
+    },
+  });
+  const invoicesQ = useQuery({
+    queryKey: ['client-intel-invoices', storeId, own.join(','), range.from, range.to], enabled: valid && !!base.data, staleTime: 60000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('client_invoice_analytics', { p_store_id: storeId, p_from: range.from, p_to: range.to });
+      if (error) throw error;
+      return data as unknown as { summaries: CA_InvoiceSummary[]; monthly: { code: string; month: string; value: number }[] };
     },
   });
   const mixQ = useQuery({
-    queryKey: ['client-intel-mix', storeId, range.from, range.to], enabled: !!valid, staleTime: 60000,
+    queryKey: ['client-intel-mix', storeId, own.join(','), range.from, range.to], enabled: valid && !!base.data, staleTime: 60000,
     queryFn: async () => {
       const load = (r: { from: string; to: string }) => allRows<any>((f, t) => supabase.rpc('client_mix_summary', { p_store_id: storeId, p_from: r.from, p_to: r.to }).range(f, t));
       const loadP = (r: { from: string; to: string }) => allRows<any>((f, t) => supabase.rpc('client_product_summary', { p_store_id: storeId, p_from: r.from, p_to: r.to }).range(f, t));
@@ -143,9 +142,9 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     ];
     return analyzeClients({
       customers: scopedCustomers, range, today, riskDays, inactiveDays, lineMap, abcBy, mix,
-      invoices: (data?.invoices || []).map((i: any) => ({ customer: i.cliente_codigo, seller: i.vendedor_codigo, date: i.data_emissao || '', value: Number(i.valor_total_nota_fiscal || 0) })),
+      invoices: [], invoiceSummaries: invoicesQ.data?.summaries,
     });
-  }, [data, mixQ.data, scopedCustomers, range.from, range.to, riskDays, inactiveDays, abcBy]);
+  }, [data, invoicesQ.data, mixQ.data, scopedCustomers, range.from, range.to, riskDays, inactiveDays, abcBy, today]);
 
   const scopeRows = analysis.rows.filter(r => (seller === 'all' || r.seller === seller) && (city === 'all' || `${r.city}/${r.uf}` === city));
   const q = search.toLocaleLowerCase('pt-BR');
@@ -215,9 +214,9 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
   const categories = [...new Set([...(mixQ.data?.mixCur || []), ...(mixQ.data?.mixPrev || [])].map((x: any) => x.categoria as string))].sort();
   const monthly = useMemo(() => {
     const m = new Map<string, number>();
-    for (const i of data?.invoices || []) { if (!i.data_emissao || !codes.has(normCode(i.cliente_codigo))) continue; const k = i.data_emissao.slice(0, 7); m.set(k, (m.get(k) || 0) + Number(i.valor_total_nota_fiscal || 0)); }
+    for (const i of invoicesQ.data?.monthly || []) { if (!codes.has(normCode(i.code))) continue; m.set(i.month, (m.get(i.month) || 0) + Number(i.value)); }
     return [...m.entries()].sort().slice(-12).map(([Mês, v]) => ({ Mês, Faturado: v }));
-  }, [data, rows.length, seller, city]);
+  }, [invoicesQ.data, rows.map(r => r.code).join(',')]);
 
   const stamp = `${range.from}_a_${range.to}`;
   const sheets = (): ReportSheet[] => [
@@ -227,15 +226,21 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     { name: 'Produtos', rows: productRows }, { name: 'Linhas x Cidade', rows: cityLineRows }, { name: 'Mix a ampliar', rows: mixRows },
     { name: 'Metas', rows: goalRows.map(g => ({ Vendedor: sellerName(g.seller), 'Meta faturamento': money(g.goalRevenue), Faturado: money(g.revenue), 'Atingimento R$': g.revenuePct === null ? '—' : `${g.revenuePct.toFixed(1)}%`, 'Meta positivação': g.goalBuyers, Positivados: g.buyers, 'Atingimento posit.': g.buyersPct === null ? '—' : `${g.buyersPct.toFixed(1)}%` })) },
   ];
-  const doExcel = () => exportAttendanceExcel(sheets(), stamp, 'clientes-dicolore');
-  const doPdf = () => exportAttendancePdf(sheets(), stamp, [
+  const download = async (pdf: boolean) => {
+    setExporting(true);
+    try {
+      const { exportAttendanceExcel, exportAttendancePdf } = await import('@/lib/attendanceExport');
+      if (!pdf) exportAttendanceExcel(sheets(), stamp, 'clientes-dicolore');
+      else exportAttendancePdf(sheets(), stamp, [
     { title: 'Faturamento por cidade (top 25)', labels: cityStats.slice(0, 25).map(c => c.key), values: cityStats.slice(0, 25).map(c => c.revenue) },
     { title: 'Faturamento por linha', labels: lineRows.map(l => l.Linha), values: lineRows.map(l => l.valor) },
     { title: 'Evolução mensal', labels: monthly.map(m => m.Mês), values: monthly.map(m => m.Faturado) },
-  ], 'clientes-dicolore');
+      ], 'clientes-dicolore');
+    } catch { toast.error('Não foi possível exportar.'); } finally { setExporting(false); }
+  };
 
-  if (base.isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (base.error) return <p className="py-8 text-center text-sm text-destructive">{(base.error as Error).message}</p>;
+  if (base.isLoading || invoicesQ.isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (base.error || invoicesQ.error) return <div role="alert" className="py-8 text-center text-sm text-destructive"><p>Não foi possível carregar os clientes.</p><Button variant="outline" onClick={() => { base.refetch(); invoicesQ.refetch(); }}>Tentar novamente</Button></div>;
   const sel = (value: string, set: (v: string) => void, opts: [string, string][], ph: string) => (
     <Select value={value} onValueChange={set}><SelectTrigger className="h-9"><SelectValue placeholder={ph} /></SelectTrigger><SelectContent>{opts.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select>
   );
@@ -254,7 +259,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
           {sel(opp, setOpp, [['all', 'Oportunidade: todas'], ...['Parou de comprar', 'Reduziu compras', 'Menor frequência', 'Frequente com ticket baixo', 'Mix reduzido', 'Longo tempo sem pedido', 'Potencial de crescimento'].map(f => [f, f] as [string, string])], 'Oportunidade')}
           <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="h-9 pl-8" placeholder="Buscar cliente, código, cidade" value={search} onChange={e => setSearch(e.target.value)} /></div>
           <div className="flex items-center gap-1 text-xs">Em risco após<Input className="h-9 w-20" type="number" min={1} value={riskDays} onChange={e => setRiskDays(Math.max(1, Number(e.target.value) || 1))} />inativo após<Input className="h-9 w-20" type="number" min={1} value={inactiveDays} onChange={e => setInactiveDays(Math.max(riskDays + 1, Number(e.target.value) || 1))} />dias</div>
-          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={doExcel}><Download className="mr-1 h-4 w-4" />Excel</Button><Button size="sm" variant="outline" onClick={doPdf}><FileText className="mr-1 h-4 w-4" />PDF</Button></div>
+          <div className="flex gap-2"><Button size="sm" variant="outline" disabled={!valid || exporting || mixQ.isFetching || mixQ.isError} onClick={() => download(false)}><Download className="mr-1 h-4 w-4" />Excel</Button><Button size="sm" variant="outline" disabled={!valid || exporting || mixQ.isFetching || mixQ.isError} onClick={() => download(true)}><FileText className="mr-1 h-4 w-4" />PDF</Button></div>
         </CardContent>
       </Card>
       {!valid && <p className="text-sm text-destructive">Informe um período válido.</p>}
@@ -267,6 +272,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
         <Kpi label="Recuperação possível" value={money(recoveryTotal)} hint="Queda vs. período anterior" />
       </div>
       {mixQ.isLoading && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Carregando produtos e linhas…</p>}
+      {mixQ.isError && <div role="alert" className="text-sm text-destructive">Não foi possível carregar produtos e linhas. <Button variant="outline" size="sm" onClick={() => mixQ.refetch()}>Tentar novamente</Button></div>}
       <Tabs defaultValue="carteira">
         <TabsList className="flex h-auto flex-wrap justify-start">
           <TabsTrigger value="carteira">Carteira e frequência</TabsTrigger>

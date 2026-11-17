@@ -5,6 +5,22 @@ const cust = (code: string, seller = '10', city = 'Campinas') => ({ code, name: 
 const range = { from: '2026-10-01', to: '2026-10-31' };
 
 describe('clientAnalytics', () => {
+  it('resumo autorizado preserva frequência, totais históricos, ticket e ABC', () => {
+    const common = { customers: [cust('001'), cust('2')], range, today: '2026-11-16', mix: [] };
+    const legacy = analyzeClients({ ...common, invoices: [
+      { customer: '1', seller: '10', date: '2026-09-10', value: 800 },
+      { customer: '1', seller: '10', date: '2026-10-01', value: 100 },
+      { customer: '1', seller: '10', date: '2026-10-31', value: 300 },
+      { customer: '2', seller: '10', date: '2026-05-01', value: 50 },
+    ] });
+    const compact = analyzeClients({ ...common, invoices: [], invoiceSummaries: [
+      { code: '1', history_revenue: 1200, history_orders: 3, orders: 2, revenue: 400, prev_orders: 1, prev_revenue: 800, first_purchase: '2026-09-10', last_purchase: '2026-10-31', purchase_days: 3 },
+      { code: '2', history_revenue: 50, history_orders: 1, orders: 0, revenue: 0, prev_orders: 0, prev_revenue: 0, first_purchase: '2026-05-01', last_purchase: '2026-05-01', purchase_days: 1 },
+    ] });
+    expect(compact.rows).toEqual(legacy.rows);
+    expect(compact.rows[0].ticket).toBe(200);
+    expect(compact.rows[0].historyRevenue).toBe(1200);
+  });
   it('período anterior tem a mesma duração', () => {
     expect(previousRange(range)).toEqual({ from: '2026-08-31', to: '2026-09-30' });
   });

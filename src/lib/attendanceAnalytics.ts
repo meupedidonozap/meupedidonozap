@@ -24,25 +24,28 @@ export interface AttendanceVisit { id: string; seller_user_id: string; seller_co
 export interface AttendancePurchase { cliente_codigo: string; data_emissao: string | null; status: string; valor_total_nota_fiscal?: number; customer_profile_id?: string; }
 export interface AttendanceGoal { visitsPerDay: number; minutesPerVisit: number; }
 export interface AttendanceSettings { staleDays: number; goals: Record<string, AttendanceGoal>; }
+export interface AttendanceHistory { history: { customer_profile_id: string; last: string }[]; revenue: { cliente_codigo: string; valor_total_nota_fiscal: number }[]; }
 export function validSettings(settings: AttendanceSettings) {
   return Number.isInteger(settings.staleDays) && settings.staleDays >= 1 && settings.staleDays <= 3650 && Object.entries(settings.goals).every(([code, goal]) => /^\d+$/.test(code) && Number.isInteger(goal.visitsPerDay) && goal.visitsPerDay >= 0 && goal.visitsPerDay <= 1000 && Number.isFinite(goal.minutesPerVisit) && goal.minutesPerVisit >= 0 && goal.minutesPerVisit <= 1440);
 }
-export function attendanceReport(clients: AttendanceClient[], visits: AttendanceVisit[], purchases: AttendancePurchase[], from: string, to: string, seller: string, staleDays: number) {
+export function attendanceReport(clients: AttendanceClient[], visits: AttendanceVisit[], purchases: AttendancePurchase[], from: string, to: string, seller: string, staleDays: number, summary?: AttendanceHistory) {
   const clientIdentity = (id: string, code: string) => codeKey(code) ? `erp:${codeKey(code)}` : `mpz:${id}`;
   const identities = new Map(clients.map(c => [c.id, clientIdentity(c.id, c.customer_code)]));
   const identityOfVisit = (v: AttendanceVisit) => identities.get(v.customer_profile_id) || `mpz:${v.customer_profile_id}`;
   const matching = visits.filter(v => seller === 'all' || codeKey(v.seller_code) === codeKey(seller));
   const rows = matching.filter(v => dayKey(v.checked_in_at) >= from && dayKey(v.checked_in_at) <= to);
   const history = new Map<string, string>();
+  summary?.history.forEach(v => { const key = identities.get(v.customer_profile_id) || `mpz:${v.customer_profile_id}`; if (v.last <= to && v.last > (history.get(key) || '')) history.set(key, v.last); });
   // Last visit is independent of the current portfolio representative; transfers retain history.
   visits.forEach(v => { const day = dayKey(v.checked_in_at); const key = identityOfVisit(v); if (day <= to && day > (history.get(key) || '')) history.set(key, day); });
   const firstVisit = new Map<string, string>();
   rows.forEach(v => { const key = identityOfVisit(v), day = dayKey(v.checked_in_at); if (day < (firstVisit.get(key) || '9999')) firstVisit.set(key, day); });
   const bought = new Set<string>();
   const lifetime = new Map<string, number>();
+  summary?.revenue.forEach(p => { const key = `erp:${codeKey(p.cliente_codigo)}`; lifetime.set(key, (lifetime.get(key) || 0) + Number(p.valor_total_nota_fiscal)); });
   purchases.filter(p => p.data_emissao && validPurchase(p.status)).forEach(p => {
     const key = p.customer_profile_id ? identities.get(p.customer_profile_id) || `mpz:${p.customer_profile_id}` : `erp:${codeKey(p.cliente_codigo)}`, day = p.data_emissao || '';
-    if (day <= to) lifetime.set(key, (lifetime.get(key) || 0) + Number(p.valor_total_nota_fiscal || 0));
+    if (!summary && day <= to) lifetime.set(key, (lifetime.get(key) || 0) + Number(p.valor_total_nota_fiscal || 0));
     if (day >= from && day <= to && day >= (firstVisit.get(key) || '9999')) bought.add(key);
   });
   const seen = new Set<string>();
@@ -55,11 +58,14 @@ export function attendanceReport(clients: AttendanceClient[], visits: Attendance
   });
   const closed = rows.filter(v => v.checked_out_at && v.duration_seconds != null);
   const averageSeconds = closed.length ? closed.reduce((sum, v) => sum + Number(v.duration_seconds), 0) / closed.length : 0;
-  const daily = calendarDays(from, to).map(day => {
-    const list = rows.filter(v => dayKey(v.checked_in_at) === day);
-    const complete = list.filter(v => v.checked_out_at && v.duration_seconds != null);
-    return { day, visits: list.length, minutes: complete.length ? complete.reduce((a, v) => a + Number(v.duration_seconds), 0) / complete.length / 60 : 0 };
-  });
+  const byDay = new Map<string, { visits: number; seconds: number; closed: number }>();
+  for (const v of rows) {
+    const key = dayKey(v.checked_in_at), item = byDay.get(key) || { visits: 0, seconds: 0, closed: 0 };
+    item.visits++;
+    if (v.checked_out_at && v.duration_seconds != null) { item.seconds += Number(v.duration_seconds); item.closed++; }
+    byDay.set(key, item);
+  }
+  const daily = calendarDays(from, to).map(day => { const item = byDay.get(day); return { day, visits: item?.visits || 0, minutes: item?.closed ? item.seconds / item.closed / 60 : 0 }; });
   const reasons = new Map<string, number>();
   rows.forEach(v => { const key = v.checkout_reason || (v.checked_out_at ? 'Não informado' : 'Em andamento'); reasons.set(key, (reasons.get(key) || 0) + 1); });
   const regions = new Map<string, { city: string; clients: number; visited: number }>();
