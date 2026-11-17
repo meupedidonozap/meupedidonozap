@@ -2646,6 +2646,10 @@ export type Database = {
         Args: { _items: Json; _sign: number; _store_id: string }
         Returns: undefined
       }
+      attendance_history_summary: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: Json
+      }
       audit_actor_name: {
         Args: { _store: string; _uid: string }
         Returns: string
@@ -2672,6 +2676,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_store_catalog: { Args: { _store_id: string }; Returns: boolean }
+      client_invoice_analytics: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: Json
+      }
       client_mix_summary: {
         Args: { p_from: string; p_store_id: string; p_to: string }
         Returns: {
