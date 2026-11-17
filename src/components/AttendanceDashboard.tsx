@@ -9,17 +9,8 @@ import { BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, L
 import { Download, FileText, Save, Search, RefreshCw } from 'lucide-react';
 import { attendanceReport, codeKey, dayKey, durationLabel, periodBounds, validSettings, type AttendanceClient, type AttendanceVisit, type AttendancePurchase, type AttendanceSettings, type AttendanceHistory } from '@/lib/attendanceAnalytics';
 import type { ReportSheet } from '@/lib/attendanceExport';
+import { analyticsRows as allRows } from '@/lib/analyticsRead';
 
-// Read every authorized page; an incomplete request must never masquerade as zero visits.
-async function allRows<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const rows: T[] = [];
-  for (let start = 0; ; start += 1000) {
-    const { data, error } = await build(start, start + 999);
-    if (error) throw error;
-    rows.push(...(data || []));
-    if (!data || data.length < 1000) return rows;
-  }
-}
 type Seller = { code: string; name: string };
 type LocalPurchase = { customer: unknown; status: string; created_at: string };
 const fmtDate = (date: string | null) => date ? new Date(date.length === 10 ? date + 'T12:00:00' : date).toLocaleString('pt-BR', date.length === 10 ? { day: '2-digit', month: '2-digit', year: 'numeric' } : { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';

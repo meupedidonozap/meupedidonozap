@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
 import { analyzeClients, concentration, goalProgress, groupStats, normCode, pct, previousRange, type CA_Mix, type CA_InvoiceSummary, type CustomerRow } from '@/lib/clientAnalytics';
 import type { ReportSheet } from '@/lib/attendanceExport';
+import { analyticsRows as allRows } from '@/lib/analyticsRead';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,16 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 type Cell = string | number;
 type Row = Record<string, Cell>;
 
-async function allRows<T>(build: (from: number, to: number) => any): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await build(from, from + 999);
-    if (error) throw error;
-    out.push(...(data || []));
-    if (!data || data.length < 1000) break;
-  }
-  return out;
-}
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const todayIso = () => new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
 function bounds(p: string, today: string) {
