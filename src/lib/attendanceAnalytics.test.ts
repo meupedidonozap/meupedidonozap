@@ -3,6 +3,16 @@ import { attendanceReport, periodBounds, validSettings, type AttendanceClient, t
 const client = (id: string, code: string, seller = '32'): AttendanceClient => ({ id, customer_code: code, name: id, nome_fantasia: null, seller_code: seller, city: 'Joinville', uf: 'SC', data_ultima_compra: null });
 const visit = (id: string, date: string, seller = '32', duration: number | null = 600): AttendanceVisit => ({ id: date + id, customer_profile_id: id, seller_code: seller, seller_user_id: seller, checked_in_at: date + 'T15:00:00Z', checked_out_at: duration == null ? null : date + 'T15:10:00Z', duration_seconds: duration, checkout_reason: 'Sem interesse', checkout_notes: null, distance_meters_at_checkin: 10, out_of_range_reason: null });
 describe('supervisão de atendimento', () => {
+  it('resumos mantêm última visita de outra carteira, faturamento e conversão', () => {
+    const clients = [client('a', '001', '53'), client('b', '1', '53')];
+    const visits = [visit('a', '2026-08-01', '32'), visit('b', '2026-11-02', '53')];
+    const purchases = [{ cliente_codigo: '1', data_emissao: '2026-05-01', status: '100', valor_total_nota_fiscal: 900 }, { cliente_codigo: '1', data_emissao: '2026-11-03', status: '100', valor_total_nota_fiscal: 100 }];
+    const full = attendanceReport(clients, visits, purchases, '2026-11-01', '2026-11-16', '53', 90);
+    const compact = attendanceReport(clients, visits.slice(1), purchases.slice(1).map(p => ({ ...p, valor_total_nota_fiscal: undefined })), '2026-11-01', '2026-11-16', '53', 90, { history: [{ customer_profile_id: 'a', last: '2026-08-01' }, { customer_profile_id: 'b', last: '2026-11-02' }], revenue: [{ cliente_codigo: '1', valor_total_nota_fiscal: 1000 }] });
+    expect(compact).toEqual(full);
+    expect(compact.coverage[0].revenue).toBe(1000);
+    expect(compact.bought).toBe(1);
+  });
   it('pedido realizado por prospect conta como compra mesmo sem NF ou código ERP', () => {
     const result = attendanceReport([client('a', '')], [visit('a', '2026-11-02')], [{ cliente_codigo: '', customer_profile_id: 'a', data_emissao: '2026-11-03', status: 'pendente' }], '2026-11-01', '2026-11-16', 'all', 90);
     expect(result.bought).toBe(1); expect(result.withoutPurchase).toBe(0);
