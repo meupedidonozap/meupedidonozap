@@ -2680,6 +2680,10 @@ export type Database = {
         Args: { p_from: string; p_store_id: string; p_to: string }
         Returns: Json
       }
+      client_mix_analytics: {
+        Args: { p_from: string; p_store_id: string; p_to: string }
+        Returns: Json
+      }
       client_mix_summary: {
         Args: { p_from: string; p_store_id: string; p_to: string }
         Returns: {

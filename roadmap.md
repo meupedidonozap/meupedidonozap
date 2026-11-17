@@ -1,5 +1,10 @@
 # Roadmap
 
+## Clientes recentes durante carga histórica
+- [x] Abrir em 60 dias e limitar notas ao período atual/anterior; não classificar ausência parcial como nunca comprou
+- [x] Consolidar mix em uma única leitura sob demanda, isolando falhas e mantendo exportação da carteira
+- [x] 12 testes; abertura admin real em 7,2s, nenhuma consulta de mix na entrada; produtos/gráficos carregados sem alerta, Excel baixado e celular sem overflow; build OK
+
 ## Performance Atendimento e Clientes DiColore
 - [x] Resumos históricos invoker preservam RLS; visitas/pedidos limitados ao período, sem baixar cabeçalhos de NF
 - [x] Carteira em cache por 5 minutos, paginação paralela limitada a quatro leituras e gráficos diários calculados em uma passagem

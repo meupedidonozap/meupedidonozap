@@ -7,7 +7,7 @@ export interface CA_InvoiceSummary { code: string; history_revenue: number; hist
 export interface CA_Mix { customer: string; category: string; value: number; period: 'cur' | 'prev' }
 export interface CA_Range { from: string; to: string }
 export type Frequency = 'Semanal' | 'Quinzenal' | 'Mensal' | 'Bimestral' | 'Trimestral' | 'Esporádico' | 'Compra única' | 'Sem compras';
-export type Status = 'Ativo' | 'Em risco' | 'Inativo' | 'Nunca comprou';
+export type Status = 'Ativo' | 'Em risco' | 'Inativo' | 'Nunca comprou' | 'Sem compras no intervalo';
 export type Abc = 'A' | 'B' | 'C' | '-';
 
 export interface CustomerRow {
@@ -58,6 +58,7 @@ export const pct = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / pr
 export interface AnalyticsInput {
   customers: CA_Customer[]; invoices: CA_Invoice[]; mix: CA_Mix[]; range: CA_Range; today: string;
   invoiceSummaries?: CA_InvoiceSummary[];
+  boundedHistory?: boolean;
   riskDays?: number; inactiveDays?: number; lineMap?: Record<string, string>;
   /** Agrupamento da curva ABC */
   abcBy?: 'seller' | 'city' | 'all';
@@ -98,7 +99,7 @@ export function analyzeClients(inp: AnalyticsInput) {
     const daysSince = last ? Math.round((toDay(inp.today) - toDay(last)) / DAY) : null;
     const revenue = summary ? Number(summary.revenue) : sum(cur), prevRevenue = summary ? Number(summary.prev_revenue) : sum(pr);
     const orderCount = summary ? Number(summary.orders) : cur.length, prevOrderCount = summary ? Number(summary.prev_orders) : pr.length;
-    const status: Status = daysSince === null ? 'Nunca comprou' : daysSince > inactiveDays ? 'Inativo' : daysSince > riskDays ? 'Em risco' : 'Ativo';
+    const status: Status = daysSince === null ? (inp.boundedHistory ? 'Sem compras no intervalo' : 'Nunca comprou') : daysSince > inactiveDays ? 'Inativo' : daysSince > riskDays ? 'Em risco' : 'Ativo';
     const ls = lineSets.get(code);
     const lines = ls ? [...ls.cur.keys()].sort() : [];
     const missingLines = lines.length ? coreLines.filter(l => !ls?.cur.has(l)) : [];

@@ -5,6 +5,10 @@ const cust = (code: string, seller = '10', city = 'Campinas') => ({ code, name: 
 const range = { from: '2026-10-01', to: '2026-10-31' };
 
 describe('clientAnalytics', () => {
+  it('ausência no período não significa que o cliente nunca comprou', () => {
+    const result = analyzeClients({ customers: [cust('1')], range, today: '2026-11-16', invoices: [], mix: [], invoiceSummaries: [], boundedHistory: true });
+    expect(result.rows[0].status).toBe('Sem compras no intervalo');
+  });
   it('resumo autorizado preserva frequência, totais históricos, ticket e ABC', () => {
     const common = { customers: [cust('001'), cust('2')], range, today: '2026-11-16', mix: [] };
     const legacy = analyzeClients({ ...common, invoices: [

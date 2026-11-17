@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { analyzeClients, concentration, goalProgress, groupStats, normCode, pct, previousRange, type CA_Mix, type CA_InvoiceSummary, type CustomerRow } from '@/lib/clientAnalytics';
 import type { ReportSheet } from '@/lib/attendanceExport';
 import { analyticsRows as allRows } from '@/lib/analyticsRead';
+import { clientPeriodBounds as bounds, DEFAULT_CLIENT_PERIOD } from '@/lib/clientPeriod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,16 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 type Cell = string | number;
 type Row = Record<string, Cell>;
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 const todayIso = () => new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
-function bounds(p: string, today: string) {
-  const t = new Date(today + 'T12:00:00Z'), y = t.getUTCFullYear(), m = t.getUTCMonth();
-  if (p === 'month') return { from: iso(new Date(Date.UTC(y, m, 1))), to: today };
-  if (p === 'last') return { from: iso(new Date(Date.UTC(y, m - 1, 1))), to: iso(new Date(Date.UTC(y, m, 0))) };
-  if (p === 'year') return { from: `${y}-01-01`, to: today };
-  const days = Number(p.replace('d', '')) || 90;
-  return { from: iso(new Date(t.getTime() - (days - 1) * 86400000)), to: today };
-}
 const money = (n: number) => formatCurrency(n);
 const pctLabel = (v: number | null) => (v === null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`);
 const fmtD = (s: string | null) => (s ? s.split('-').reverse().join('/') : '—');
@@ -77,8 +69,9 @@ interface Props { storeId: string; sellerCodes: string[]; canManage: boolean }
 export default function ClientIntelligencePanel({ storeId, sellerCodes, canManage }: Props) {
   const qc = useQueryClient();
   const today = todayIso();
-  const [period, setPeriod] = useState('90d');
-  const [custom, setCustom] = useState(bounds('90d', today));
+  const [period, setPeriod] = useState(DEFAULT_CLIENT_PERIOD);
+  const [custom, setCustom] = useState(bounds(DEFAULT_CLIENT_PERIOD, today));
+  const [tab, setTab] = useState('carteira');
   const range = period === 'custom' ? custom : bounds(period, today);
   const valid = Boolean(range.from && range.to && range.from <= range.to && range.to <= today);
   const prev = valid ? previousRange(range) : range;
@@ -110,7 +103,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     },
   });
   const invoicesQ = useQuery({
-    queryKey: ['client-intel-invoices', storeId, own.join(','), range.from, range.to], enabled: valid && !!base.data, staleTime: 60000,
+    queryKey: ['client-intel-invoices', storeId, own.join(','), range.from, range.to], enabled: valid && !!base.data, staleTime: 60000, retry: 1,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('client_invoice_analytics', { p_store_id: storeId, p_from: range.from, p_to: range.to });
       if (error) throw error;
@@ -118,12 +111,11 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     },
   });
   const mixQ = useQuery({
-    queryKey: ['client-intel-mix', storeId, own.join(','), range.from, range.to], enabled: valid && !!base.data, staleTime: 60000,
+    queryKey: ['client-intel-mix', storeId, own.join(','), range.from, range.to], enabled: valid && !!invoicesQ.data && tab === 'produtos', staleTime: 5 * 60000, retry: 1,
     queryFn: async () => {
-      const load = (r: { from: string; to: string }) => allRows<any>((f, t) => supabase.rpc('client_mix_summary', { p_store_id: storeId, p_from: r.from, p_to: r.to }).range(f, t));
-      const loadP = (r: { from: string; to: string }) => allRows<any>((f, t) => supabase.rpc('client_product_summary', { p_store_id: storeId, p_from: r.from, p_to: r.to }).range(f, t));
-      const [mc, mp, pc, pp] = await Promise.all([load(range), load(prev), loadP(range), loadP(prev)]);
-      return { mixCur: mc, mixPrev: mp, prodCur: pc, prodPrev: pp };
+      const { data, error } = await supabase.rpc('client_mix_analytics', { p_store_id: storeId, p_from: range.from, p_to: range.to });
+      if (error) throw error;
+      return data as unknown as { mixCur: any[]; mixPrev: any[]; prodCur: any[]; prodPrev: any[] };
     },
   });
 
@@ -142,7 +134,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     ];
     return analyzeClients({
       customers: scopedCustomers, range, today, riskDays, inactiveDays, lineMap, abcBy, mix,
-      invoices: [], invoiceSummaries: invoicesQ.data?.summaries,
+      invoices: [], invoiceSummaries: invoicesQ.data?.summaries, boundedHistory: true,
     });
   }, [data, invoicesQ.data, mixQ.data, scopedCustomers, range.from, range.to, riskDays, inactiveDays, abcBy, today]);
 
@@ -173,7 +165,7 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     .sort((a, b) => b.recovery - a.recovery || b.historyRevenue - a.historyRevenue).map(r => ({
       Código: r.code, Cliente: r.name, 'Cidade/UF': `${r.city}/${r.uf}`, Vendedor: sellerName(r.seller), Situação: r.status, 'Dias sem comprar': r.daysSince ?? '—',
       'Comprava (anterior)': money(r.prevRevenue), 'Compra (atual)': money(r.revenue), 'Oportunidade R$': money(r.recovery), 'Ticket atual': money(r.ticket), 'Ticket anterior': money(r.prevTicket),
-      'Histórico total': money(r.historyRevenue), Motivos: r.opportunities.join(', '), 'Linhas a ofertar': r.missingLines.join(', ') || '—',
+      'Total no intervalo comparado': money(r.historyRevenue), Motivos: r.opportunities.join(', '), 'Linhas a ofertar': r.missingLines.join(', ') || '—',
     }));
   const recoveryTotal = rows.reduce((s, r) => s + r.recovery, 0);
   const cityStats = groupStats(rows, r => `${r.city}/${r.uf}`);
@@ -222,8 +214,8 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
   const sheets = (): ReportSheet[] => [
     { name: 'Resumo', rows: [{ Período: `${fmtD(range.from)} a ${fmtD(range.to)}`, 'Período anterior': `${fmtD(prev.from)} a ${fmtD(prev.to)}`, Vendedor: seller === 'all' ? 'Todos' : sellerName(seller), Cidade: city === 'all' ? 'Todas' : city, Clientes: rows.length, Compradores: buyers, Faturado: money(revenue), Anterior: money(prevRevenue), Variação: pctLabel(pct(revenue, prevRevenue)), 'Ticket médio': money(orders ? revenue / orders : 0), 'Clientes p/ 80%': conc.n80, 'Oportunidade de recuperação': money(recoveryTotal) }] },
     { name: 'Carteira', rows: portfolio }, { name: 'Curva ABC', rows: abcRows }, { name: 'Recuperação', rows: recovery },
-    { name: 'Cidades', rows: cityRows }, { name: 'Vendedores', rows: sellerRows }, { name: 'Linhas', rows: lineRows.map(({ valor, ...r }) => r) },
-    { name: 'Produtos', rows: productRows }, { name: 'Linhas x Cidade', rows: cityLineRows }, { name: 'Mix a ampliar', rows: mixRows },
+    { name: 'Cidades', rows: cityRows }, { name: 'Vendedores', rows: sellerRows },
+    ...(mixQ.data ? [{ name: 'Linhas', rows: lineRows.map(({ valor, ...r }) => r) }, { name: 'Produtos', rows: productRows }, { name: 'Linhas x Cidade', rows: cityLineRows }, { name: 'Mix a ampliar', rows: mixRows }] : []),
     { name: 'Metas', rows: goalRows.map(g => ({ Vendedor: sellerName(g.seller), 'Meta faturamento': money(g.goalRevenue), Faturado: money(g.revenue), 'Atingimento R$': g.revenuePct === null ? '—' : `${g.revenuePct.toFixed(1)}%`, 'Meta positivação': g.goalBuyers, Positivados: g.buyers, 'Atingimento posit.': g.buyersPct === null ? '—' : `${g.buyersPct.toFixed(1)}%` })) },
   ];
   const download = async (pdf: boolean) => {
@@ -249,20 +241,21 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
     <div className="space-y-4">
       <Card>
         <CardContent className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
-          {sel(period, setPeriod, [['month', 'Este mês'], ['last', 'Mês passado'], ['90d', 'Últimos 90 dias'], ['180d', 'Últimos 180 dias'], ['365d', 'Últimos 12 meses'], ['year', 'Ano atual'], ['custom', 'De A até B']], 'Período')}
+          {sel(period, setPeriod, [['month', 'Este mês'], ['last', 'Mês passado'], ['60d', 'Últimos 60 dias'], ['90d', 'Últimos 90 dias'], ['180d', 'Últimos 180 dias'], ['365d', 'Últimos 12 meses'], ['year', 'Ano atual'], ['custom', 'De A até B']], 'Período')}
           {period === 'custom' && <div className="flex gap-1"><Input type="date" value={custom.from} max={today} onChange={e => setCustom({ ...custom, from: e.target.value })} /><Input type="date" value={custom.to} max={today} onChange={e => setCustom({ ...custom, to: e.target.value })} /></div>}
           {(!own.length || own.length > 1) && sel(seller, v => { setSeller(v); setCity('all'); }, [['all', 'Todos os vendedores'], ...sellers.map(s => [s, sellerName(s)] as [string, string])], 'Vendedor')}
           {sel(city, setCity, [['all', 'Todas as cidades'], ...cities.map(c => [c, c] as [string, string])], 'Cidade')}
           {sel(abc, setAbc, [['all', 'Curva ABC: todas'], ['A', 'Curva A'], ['B', 'Curva B'], ['C', 'Curva C'], ['-', 'Sem faturamento']], 'ABC')}
-          {sel(status, setStatus, [['all', 'Situação: todas'], ['Ativo', 'Ativo'], ['Em risco', 'Em risco'], ['Inativo', 'Inativo'], ['Nunca comprou', 'Nunca comprou']], 'Situação')}
+          {sel(status, setStatus, [['all', 'Situação: todas'], ['Ativo', 'Ativo'], ['Em risco', 'Em risco'], ['Inativo', 'Inativo'], ['Sem compras no intervalo', 'Sem compras no intervalo']], 'Situação')}
           {sel(freq, setFreq, [['all', 'Frequência: todas'], ...['Semanal', 'Quinzenal', 'Mensal', 'Bimestral', 'Trimestral', 'Esporádico', 'Compra única', 'Sem compras'].map(f => [f, f] as [string, string])], 'Frequência')}
           {sel(opp, setOpp, [['all', 'Oportunidade: todas'], ...['Parou de comprar', 'Reduziu compras', 'Menor frequência', 'Frequente com ticket baixo', 'Mix reduzido', 'Longo tempo sem pedido', 'Potencial de crescimento'].map(f => [f, f] as [string, string])], 'Oportunidade')}
           <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="h-9 pl-8" placeholder="Buscar cliente, código, cidade" value={search} onChange={e => setSearch(e.target.value)} /></div>
           <div className="flex items-center gap-1 text-xs">Em risco após<Input className="h-9 w-20" type="number" min={1} value={riskDays} onChange={e => setRiskDays(Math.max(1, Number(e.target.value) || 1))} />inativo após<Input className="h-9 w-20" type="number" min={1} value={inactiveDays} onChange={e => setInactiveDays(Math.max(riskDays + 1, Number(e.target.value) || 1))} />dias</div>
-          <div className="flex gap-2"><Button size="sm" variant="outline" disabled={!valid || exporting || mixQ.isFetching || mixQ.isError} onClick={() => download(false)}><Download className="mr-1 h-4 w-4" />Excel</Button><Button size="sm" variant="outline" disabled={!valid || exporting || mixQ.isFetching || mixQ.isError} onClick={() => download(true)}><FileText className="mr-1 h-4 w-4" />PDF</Button></div>
+          <div className="flex gap-2"><Button size="sm" variant="outline" disabled={!valid || exporting || (tab === 'produtos' && (mixQ.isFetching || !mixQ.data))} onClick={() => download(false)}><Download className="mr-1 h-4 w-4" />Excel</Button><Button size="sm" variant="outline" disabled={!valid || exporting || (tab === 'produtos' && (mixQ.isFetching || !mixQ.data))} onClick={() => download(true)}><FileText className="mr-1 h-4 w-4" />PDF</Button></div>
         </CardContent>
       </Card>
       {!valid && <p className="text-sm text-destructive">Informe um período válido.</p>}
+      <p className="text-xs text-muted-foreground">Compras e frequência apuradas de {fmtD(prev.from)} a {fmtD(range.to)}: período selecionado e comparação anterior.</p>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
         <Kpi label="Clientes" value={String(rows.length)} hint={`${buyers} compraram (${rows.length ? ((buyers / rows.length) * 100).toFixed(1) : 0}%)`} />
         <Kpi label="Faturado" value={money(revenue)} hint={`Anterior ${money(prevRevenue)} (${pctLabel(pct(revenue, prevRevenue))})`} />
@@ -271,9 +264,9 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
         <Kpi label="Em risco / inativos" value={`${rows.filter(r => r.status === 'Em risco').length} / ${rows.filter(r => r.status === 'Inativo').length}`} />
         <Kpi label="Recuperação possível" value={money(recoveryTotal)} hint="Queda vs. período anterior" />
       </div>
-      {mixQ.isLoading && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Carregando produtos e linhas…</p>}
-      {mixQ.isError && <div role="alert" className="text-sm text-destructive">Não foi possível carregar produtos e linhas. <Button variant="outline" size="sm" onClick={() => mixQ.refetch()}>Tentar novamente</Button></div>}
-      <Tabs defaultValue="carteira">
+      {tab === 'produtos' && mixQ.isFetching && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Carregando produtos e linhas…</p>}
+      {tab === 'produtos' && mixQ.isError && <div role="alert" className="text-sm text-destructive">Não foi possível carregar produtos e linhas. <Button variant="outline" size="sm" onClick={() => mixQ.refetch()}>Tentar novamente</Button></div>}
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex h-auto flex-wrap justify-start">
           <TabsTrigger value="carteira">Carteira e frequência</TabsTrigger>
           <TabsTrigger value="abc">Curva ABC</TabsTrigger>
@@ -295,11 +288,11 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
         <TabsContent value="rec"><DataTable rows={recovery} /></TabsContent>
         <TabsContent value="cidades" className="space-y-3">
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Faturamento por cidade (top 15)</CardTitle></CardHeader><CardContent><HBar data={cityStats.slice(0, 15).map(c => ({ Cidade: c.key, Faturado: c.revenue }))} dataKey="Faturado" label="Cidade" /></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal (12 meses)</CardTitle></CardHeader><CardContent><HBar data={monthly} dataKey="Faturado" label="Mês" /></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Evolução mensal no intervalo comparado</CardTitle></CardHeader><CardContent><HBar data={monthly} dataKey="Faturado" label="Mês" /></CardContent></Card>
           <DataTable rows={cityRows} />
         </TabsContent>
         <TabsContent value="produtos" className="space-y-3">
-          {!mixQ.isLoading && !lineRows.length && <p className="rounded-md border p-3 text-sm text-muted-foreground">Ainda não há itens de notas fiscais neste período. Eles aparecem após rodar o programa de itens das notas no servidor do ERP.</p>}
+          {mixQ.isSuccess && !lineRows.length && <p className="rounded-md border p-3 text-sm text-muted-foreground">Ainda não há itens de notas fiscais neste período.</p>}
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Participação por linha</CardTitle></CardHeader><CardContent className="space-y-3">{lineRows.length > 0 && <HBar data={lineRows.map(l => ({ Linha: l.Linha, Faturado: l.valor }))} dataKey="Faturado" label="Linha" />}<DataTable rows={lineRows.map(({ valor, ...r }) => r)} /></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Linhas por cidade</CardTitle></CardHeader><CardContent><DataTable rows={cityLineRows} /></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Clientes para ampliar o mix</CardTitle></CardHeader><CardContent><DataTable rows={mixRows} /></CardContent></Card>
