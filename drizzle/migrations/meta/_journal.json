@@ -442,6 +442,13 @@
       "when": 1794877174442,
       "tag": "0062_has_store_permission_static",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794878909539,
+      "tag": "0063_client_lifecycle_purchase_days",
+      "breakpoints": true
     }
   ]
 }

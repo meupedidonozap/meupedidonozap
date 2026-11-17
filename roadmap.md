@@ -1,5 +1,10 @@
 # Roadmap
 
+## Ciclo de vida dos clientes DiColore
+- [x] Resumo autorizado de dias de compra nos últimos 24 meses, carregado somente na nova aba
+- [x] Frequência histórica/recente, recência, primeiras compras observadas e reativados, filtros por cidade/vendedor e exportação; ausência não comprova nunca comprou
+- [x] 17 testes passaram; aba autenticada abriu sem alertas, filtro de frequência em queda, detalhe de compras e download Excel verificados; celular 390px sem overflow e sem erros; build OK
+
 ## Clientes recentes durante carga histórica
 - [x] Abrir em 60 dias e limitar notas ao período atual/anterior; não classificar ausência parcial como nunca comprou
 - [x] Consolidar mix em uma única leitura sob demanda, isolando falhas e mantendo exportação da carteira

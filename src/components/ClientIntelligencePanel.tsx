@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ClientLifecyclePanel from '@/components/ClientLifecyclePanel';
 
 type Cell = string | number;
 type Row = Record<string, Cell>;
@@ -245,16 +246,21 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
           {period === 'custom' && <div className="flex gap-1"><Input type="date" value={custom.from} max={today} onChange={e => setCustom({ ...custom, from: e.target.value })} /><Input type="date" value={custom.to} max={today} onChange={e => setCustom({ ...custom, to: e.target.value })} /></div>}
           {(!own.length || own.length > 1) && sel(seller, v => { setSeller(v); setCity('all'); }, [['all', 'Todos os vendedores'], ...sellers.map(s => [s, sellerName(s)] as [string, string])], 'Vendedor')}
           {sel(city, setCity, [['all', 'Todas as cidades'], ...cities.map(c => [c, c] as [string, string])], 'Cidade')}
+          {tab !== 'ciclo' && <>
           {sel(abc, setAbc, [['all', 'Curva ABC: todas'], ['A', 'Curva A'], ['B', 'Curva B'], ['C', 'Curva C'], ['-', 'Sem faturamento']], 'ABC')}
           {sel(status, setStatus, [['all', 'Situação: todas'], ['Ativo', 'Ativo'], ['Em risco', 'Em risco'], ['Inativo', 'Inativo'], ['Sem compras no intervalo', 'Sem compras no intervalo']], 'Situação')}
           {sel(freq, setFreq, [['all', 'Frequência: todas'], ...['Semanal', 'Quinzenal', 'Mensal', 'Bimestral', 'Trimestral', 'Esporádico', 'Compra única', 'Sem compras'].map(f => [f, f] as [string, string])], 'Frequência')}
           {sel(opp, setOpp, [['all', 'Oportunidade: todas'], ...['Parou de comprar', 'Reduziu compras', 'Menor frequência', 'Frequente com ticket baixo', 'Mix reduzido', 'Longo tempo sem pedido', 'Potencial de crescimento'].map(f => [f, f] as [string, string])], 'Oportunidade')}
+          </>}
           <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="h-9 pl-8" placeholder="Buscar cliente, código, cidade" value={search} onChange={e => setSearch(e.target.value)} /></div>
+          {tab !== 'ciclo' && <>
           <div className="flex items-center gap-1 text-xs">Em risco após<Input className="h-9 w-20" type="number" min={1} value={riskDays} onChange={e => setRiskDays(Math.max(1, Number(e.target.value) || 1))} />inativo após<Input className="h-9 w-20" type="number" min={1} value={inactiveDays} onChange={e => setInactiveDays(Math.max(riskDays + 1, Number(e.target.value) || 1))} />dias</div>
           <div className="flex gap-2"><Button size="sm" variant="outline" disabled={!valid || exporting || (tab === 'produtos' && (mixQ.isFetching || !mixQ.data))} onClick={() => download(false)}><Download className="mr-1 h-4 w-4" />Excel</Button><Button size="sm" variant="outline" disabled={!valid || exporting || (tab === 'produtos' && (mixQ.isFetching || !mixQ.data))} onClick={() => download(true)}><FileText className="mr-1 h-4 w-4" />PDF</Button></div>
+          </>}
         </CardContent>
       </Card>
       {!valid && <p className="text-sm text-destructive">Informe um período válido.</p>}
+      {tab !== 'ciclo' && <>
       <p className="text-xs text-muted-foreground">Compras e frequência apuradas de {fmtD(prev.from)} a {fmtD(range.to)}: período selecionado e comparação anterior.</p>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
         <Kpi label="Clientes" value={String(rows.length)} hint={`${buyers} compraram (${rows.length ? ((buyers / rows.length) * 100).toFixed(1) : 0}%)`} />
@@ -264,17 +270,22 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
         <Kpi label="Em risco / inativos" value={`${rows.filter(r => r.status === 'Em risco').length} / ${rows.filter(r => r.status === 'Inativo').length}`} />
         <Kpi label="Recuperação possível" value={money(recoveryTotal)} hint="Queda vs. período anterior" />
       </div>
+      </>}
       {tab === 'produtos' && mixQ.isFetching && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Carregando produtos e linhas…</p>}
       {tab === 'produtos' && mixQ.isError && <div role="alert" className="text-sm text-destructive">Não foi possível carregar produtos e linhas. <Button variant="outline" size="sm" onClick={() => mixQ.refetch()}>Tentar novamente</Button></div>}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex h-auto flex-wrap justify-start">
           <TabsTrigger value="carteira">Carteira e frequência</TabsTrigger>
+          <TabsTrigger value="ciclo">Ciclo de vida</TabsTrigger>
           <TabsTrigger value="abc">Curva ABC</TabsTrigger>
           <TabsTrigger value="rec">Recuperação</TabsTrigger>
           <TabsTrigger value="cidades">Cidades</TabsTrigger>
           <TabsTrigger value="produtos">Produtos e linhas</TabsTrigger>
           <TabsTrigger value="metas">Metas</TabsTrigger>
         </TabsList>
+        <TabsContent value="ciclo">
+          {tab === 'ciclo' && valid && <ClientLifecyclePanel storeId={storeId} customers={scopedCustomers} range={range} seller={seller} city={city} search={search} sellerName={sellerName} scopeKey={own.join(',')} />}
+        </TabsContent>
         <TabsContent value="carteira" className="space-y-3">
           <div className="flex flex-wrap gap-1">{['Semanal', 'Quinzenal', 'Mensal', 'Bimestral', 'Trimestral', 'Esporádico', 'Compra única', 'Sem compras'].map(f => <Badge key={f} variant={freq === f ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setFreq(freq === f ? 'all' : f)}>{f}: {scopeRows.filter(r => r.frequency === f).length}</Badge>)}</div>
           <DataTable rows={portfolio} />
