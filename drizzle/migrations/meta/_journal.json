@@ -435,6 +435,13 @@
       "when": 1794876151167,
       "tag": "0061_client_mix_compact_single_read",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794877174442,
+      "tag": "0062_has_store_permission_static",
+      "breakpoints": true
     }
   ]
 }
