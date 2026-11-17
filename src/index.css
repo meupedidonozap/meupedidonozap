@@ -132,6 +132,15 @@
 }
 
 @layer utilities {
+  .client-map-count.leaflet-tooltip {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: hsl(var(--foreground));
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .client-map-count.leaflet-tooltip::before { display: none; }
   .gradient-primary {
     background: var(--gradient-primary);
   }

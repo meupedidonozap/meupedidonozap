@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import Supercluster from 'supercluster';
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { stageColors } from '@/lib/clientMap';
 import type { LifecycleStage } from '@/lib/clientLifecycle';
 import { formatCurrency } from '@/lib/formatters';
@@ -27,7 +27,10 @@ function Points({ points, onSelect }: Props) {
     const [lng, lat] = feature.geometry.coordinates;
     if ('cluster' in feature.properties && feature.properties.cluster) {
       const id = feature.properties.cluster_id, count = feature.properties.point_count;
-      return <CircleMarker key={`cluster-${id}`} center={[lat, lng]} radius={Math.min(26, 12 + Math.log2(count))} pathOptions={{ color: 'hsl(var(--primary))', fillColor: 'hsl(var(--background))', fillOpacity: 0.95, weight: 3 }} eventHandlers={{ click: () => map.setView([lat, lng], Math.min(19, index.getClusterExpansionZoom(id))) }}><Popup><div className="space-y-2"><strong>{count} clientes nesta área</strong><p className="text-xs">{index.getLeaves(id, Infinity).reduce<Record<string, number>>((a, f) => { const s = f.properties.point.stage; a[s] = (a[s] || 0) + 1; return a; }, {}) && Object.entries(index.getLeaves(id, Infinity).reduce<Record<string, number>>((a, f) => { const s = f.properties.point.stage; a[s] = (a[s] || 0) + 1; return a; }, {})).map(([s, n]) => `${s}: ${n}`).join(' • ')}</p></div></Popup></CircleMarker>;
+      const leaves = index.getLeaves(id, Infinity);
+      const counts = leaves.reduce<Partial<Record<LifecycleStage, number>>>((a, f) => { const s = f.properties.point.stage; a[s] = (a[s] || 0) + 1; return a; }, {});
+      const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as LifecycleStage | undefined;
+      return <CircleMarker key={`cluster-${id}`} center={[lat, lng]} radius={Math.min(26, 12 + Math.log2(count))} pathOptions={{ color: dominant ? stageColors[dominant] : 'hsl(var(--primary))', fillColor: 'hsl(var(--background))', fillOpacity: 0.95, weight: 3 }}><Tooltip permanent direction="center" className="client-map-count" opacity={1}>{count}</Tooltip><Popup><div className="space-y-2"><strong>{count} clientes nesta área</strong><p className="text-xs">{Object.entries(counts).map(([s, n]) => `${s}: ${n}`).join(' • ')}</p><Button size="sm" variant="outline" onClick={() => map.setView([lat, lng], Math.min(19, index.getClusterExpansionZoom(id)))}>Aproximar</Button><div className="max-h-48 overflow-y-auto">{leaves.slice(0, 50).map(f => <Button key={f.properties.point.code} variant="link" className="h-auto w-full justify-start whitespace-normal py-1 text-left text-xs" onClick={() => onSelect(f.properties.point.code)}>{f.properties.point.name} — {f.properties.point.stage}</Button>)}</div>{count > 50 && <p className="text-xs">Primeiros 50 de {count} clientes; lista completa abaixo do mapa.</p>}</div></Popup></CircleMarker>;
     }
     const p = feature.properties.point;
     if (!p) return null;

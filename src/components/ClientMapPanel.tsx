@@ -27,21 +27,21 @@ export default function ClientMapPanel({ storeId, customers, range, seller, city
   });
   const all = useMemo(() => query.data ? lifecycleRows(customers, query.data, range) : [], [customers, query.data, range.from, range.to]);
   const geo = useMemo(() => new Map(customers.map(c => [c.code.replace(/^0+(?=\d)/, ''), c])), [customers]);
-  const sc = all.filter(r => normalizePlace(r.uf) === 'SC' && (seller === 'all' || r.seller === seller) && (city === 'all' || `${r.city}/${r.uf}` === city) && (!search || normalizePlace(`${r.name} ${r.code} ${r.city} ${geo.get(r.code)?.neighborhood || ''}`).includes(normalizePlace(search))));
+  const sc = all.filter(r => normalizePlace(r.uf) === 'SC' && (seller === 'all' || r.seller === seller) && (city === 'all' || normalizePlace(`${r.city}/${r.uf}`) === normalizePlace(city)) && (!search || normalizePlace(`${r.name} ${r.code} ${r.city} ${geo.get(r.code)?.neighborhood || ''}`).includes(normalizePlace(search))));
   const neighborhoods = [...new Set(sc.map(r => geo.get(r.code)?.neighborhood || 'Não informado'))].sort((a, b) => a.localeCompare(b));
   const effectiveNeighborhood = neighborhoods.includes(neighborhood) ? neighborhood : 'all';
   const rows = sc.filter(r => (stage === 'all' || r.stage === stage) && (effectiveNeighborhood === 'all' || (geo.get(r.code)?.neighborhood || 'Não informado') === effectiveNeighborhood)).map(r => { const g = geo.get(r.code); return { ...r, neighborhood: g?.neighborhood || 'Não informado', location: g ? locateClient(g) : null }; });
   const points = useMemo(() => rows.flatMap(r => r.location ? [{ ...r, ...r.location, seller: sellerName(r.seller) }] : []), [all, customers, seller, city, search, stage, effectiveNeighborhood]);
   const statusData = lifecycleStages.map(name => ({ name, count: rows.filter(r => r.stage === name).length })).filter(s => s.count);
   const groups = new Map<string, { name: string; cityKey: string; neighborhood: string; clients: number; revenue: number; buyers: number }>();
-  for (const r of rows) { const name = groupBy === 'city' ? r.city : `${r.neighborhood} • ${r.city}`; const g = groups.get(name) || { name, cityKey: `${r.city}/${r.uf}`, neighborhood: r.neighborhood, clients: 0, revenue: 0, buyers: 0 }; g.clients++; g.revenue += r.revenue; if (r.invoices) g.buyers++; groups.set(name, g); }
+  for (const r of rows) { const name = groupBy === 'city' ? r.city : `${r.neighborhood} • ${r.city}`; const key = normalizePlace(name); const g = groups.get(key) || { name, cityKey: `${r.city}/${r.uf}`, neighborhood: r.neighborhood, clients: 0, revenue: 0, buyers: 0 }; g.clients++; g.revenue += r.revenue; if (r.invoices) g.buyers++; groups.set(key, g); }
   const ranking = [...groups.values()].sort((a, b) => (metric === 'clients' ? b.clients - a.clients : b.revenue - a.revenue)).slice(0, 12);
   const list = rows.filter(r => !missingOnly || !r.location).sort((a, b) => a.name.localeCompare(b.name));
   const current = Math.min(page, Math.max(0, Math.ceil(list.length / 25) - 1));
   const detail = rows.find(r => r.code === selected);
   if (query.isLoading) return <div className="flex justify-center gap-2 py-12"><Loader2 className="h-5 w-5 animate-spin" />Carregando mapa e compras…</div>;
   if (query.isError) return <div role="alert" className="py-8 text-destructive">Não foi possível carregar o mapa. <Button variant="outline" onClick={() => query.refetch()}>Tentar novamente</Button></div>;
-  return <div className="space-y-4">
+  return <div className="min-w-0 overflow-hidden space-y-4">
     <div className="flex flex-wrap items-end gap-3">
       <label className="w-full space-y-1 text-xs sm:w-64">Status<Select value={stage} onValueChange={v => { setStage(v); setPage(0); }}><SelectTrigger aria-label="Status no mapa"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os status</SelectItem>{lifecycleStages.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></label>
       <label className="w-full space-y-1 text-xs sm:w-64">Bairro<Select value={effectiveNeighborhood} onValueChange={v => { setNeighborhood(v); setPage(0); }}><SelectTrigger aria-label="Bairro no mapa"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos os bairros</SelectItem>{neighborhoods.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></label>
