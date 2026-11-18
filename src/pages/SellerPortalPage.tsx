@@ -36,6 +36,11 @@ import SellerPendingOrderDialog from '@/components/SellerPendingOrderDialog';
 import ResultsDrilldown from '@/components/results/ResultsDrilldown';
 import ClientIntelligencePanel from '@/components/ClientIntelligencePanel';
 import { useAuth } from '@/hooks/useAuth';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
+import { mapOrder } from '@/hooks/useOrders';
+import { getReleaseIssues } from '@/lib/orderReleaseCheck';
+import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 
 type Section = 'atendimento' | 'vendas' | 'clientes' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -105,6 +110,51 @@ export default function SellerPortalPage() {
     if (error) { toast.error(error.message); return; }
     toast.success(status === 'pendente' ? 'Orçamento finalizado como pedido' : 'Orçamento cancelado');
     qc.invalidateQueries({ queryKey: ['seller-orders'] });
+  };
+
+  // Finalizar orçamento (DiColore): 1) virar pedido? 2) liberar p/ transmissão?
+  const [finalizeQuote, setFinalizeQuote] = useState<{ id: string; step: 'convert' | 'release' } | null>(null);
+  const [finalizeBusy, setFinalizeBusy] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState<any>(null);
+  const finalizeAndRelease = async (id: string) => {
+    if (!store) return;
+    const notify = getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp;
+    setFinalizeBusy(true);
+    try {
+      const { data: auth, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !auth.user) throw new Error('Faça login novamente.');
+      const { data: row, error } = await supabase.from('orders').select('*').eq('id', id).eq('store_id', store.id).single();
+      if (error) throw error;
+      if (row.status !== 'orcamento' || row.xml_downloaded_at) throw new Error('Este orçamento já foi finalizado');
+      const saved = mapOrder(row);
+      const issues = getReleaseIssues({ customer: saved.customer as any, items: saved.items as any, requirePayment: releasePaymentRequired(store.slug, store.settings) });
+      const paymentOnly = issues.length > 0 && issues.every(i => i === 'Falta forma de pagamento' || i === 'Falta condição de pagamento');
+      if (issues.length === 0) {
+        const win = notify ? window.open('about:blank', '_blank') : null;
+        const { error: relErr } = await supabase.from('orders').update({ status: 'liberado_transmissao' }).eq('id', id).eq('status', 'orcamento').select().single();
+        if (relErr) { win?.close(); throw relErr; }
+        if (win) {
+          const st: any = store.settings || {};
+          const c: any = saved.customer || {};
+          const wa = String(st.erpReleaseWhatsappByTable?.[String(c.priceTable || '')] || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
+          win.opener = null;
+          win.location.href = `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${saved.orderNumber} do cliente "${c.name || ''}" pode ser transmitido`)}`;
+        }
+        toast.success(`Pedido #${saved.orderNumber} finalizado e liberado p/ transmissão`);
+      } else {
+        const { error: pErr } = await supabase.from('orders').update({ status: 'pendente' }).eq('id', id).eq('status', 'orcamento').select().single();
+        if (pErr) throw pErr;
+        if (paymentOnly) { setPaymentOrder({ ...saved, status: 'pendente' }); toast.info('Pedido salvo como Pendente. Informe o pagamento para liberar.'); }
+        else toast.error(`Pedido salvo como Pendente. Complete: ${issues.join('; ')}`, { duration: 8000 });
+      }
+      qc.invalidateQueries({ queryKey: ['seller-orders'] });
+      qc.invalidateQueries({ queryKey: ['orders'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Não foi possível finalizar o orçamento');
+    } finally {
+      setFinalizeBusy(false);
+      setFinalizeQuote(null);
+    }
   };
 
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -201,7 +251,7 @@ export default function SellerPortalPage() {
                 <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
                   {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
                 </Button>
-                <Button size="sm" className="w-full sm:w-auto" onClick={() => setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
+                <Button size="sm" className="w-full sm:w-auto" onClick={() => store.slug === 'dicolore' ? setFinalizeQuote({ id: o.id, step: 'convert' }) : setStatus(o.id, 'pendente')}><CheckCircle2 className="mr-1 h-4 w-4" /> Finalizar</Button>
                 <Button size="sm" variant="ghost" className="col-span-2 w-full text-destructive sm:w-auto" onClick={() => setStatus(o.id, 'cancelado')}><XCircle className="mr-1 h-4 w-4" /> Cancelar</Button>
               </>)}
             </div>
@@ -251,6 +301,29 @@ export default function SellerPortalPage() {
             )}
             {ordersLoading && queue.length === 0 && online ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : (
               <>
+                <AlertDialog open={!!finalizeQuote} onOpenChange={v => { if (!v && !finalizeBusy) setFinalizeQuote(null); }}>
+                  <AlertDialogContent>
+                    {finalizeQuote?.step === 'convert' ? (<>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Finalizar orçamento</AlertDialogTitle>
+                        <AlertDialogDescription>Deseja transformar o orçamento em pedido?</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => { setFinalizeQuote(null); toast.success('Orçamento mantido salvo'); }}>Não, manter orçamento</Button>
+                        <Button onClick={() => setFinalizeQuote(f => f && { ...f, step: 'release' })}>Sim, finalizar pedido</Button>
+                      </AlertDialogFooter>
+                    </>) : (<>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Liberar p/ transmissão</AlertDialogTitle>
+                        <AlertDialogDescription>Deseja LIBERAR P/ TRANSMISSÃO?</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="gap-2">
+                        <Button variant="outline" disabled={finalizeBusy} onClick={async () => { const id = finalizeQuote!.id; setFinalizeQuote(null); await setStatus(id, 'pendente'); }}>Não, deixar Pendente</Button>
+                        <Button disabled={finalizeBusy} onClick={() => finalizeAndRelease(finalizeQuote!.id)}>{finalizeBusy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Sim, liberar</Button>
+                      </AlertDialogFooter>
+                    </>)}
+                  </AlertDialogContent>
+                </AlertDialog>
                 <TabsContent value="orcamentos" className="space-y-2">
                   <p className="text-right text-xs text-muted-foreground">{quotes.length} Orçamentos<br />{formatCurrency(sum(quotes))}</p>
                   {quotes.length === 0 && <p className="py-8 text-center text-muted-foreground">Nenhum orçamento salvo.</p>}
@@ -261,6 +334,7 @@ export default function SellerPortalPage() {
                     <>
                       <ErpOrdersPanel storeId={store.id} allowedSellerCodes={codes} localOrders={allOrders.filter((o: any) => !['orcamento', 'cancelado'].includes(o.status))} onLocalClick={setPendingOrderId} />
                       <SellerPendingOrderDialog orderId={pendingOrderId} store={store} onClose={() => setPendingOrderId(null)} />
+                      <ReleasePaymentDialog order={paymentOrder} store={store} viewer={{ isAdmin: seller.isAdmin, isTelevendas: seller.isTelevendas, name: seller.sellerName, erpCode: seller.erpCode }} onClose={() => setPaymentOrder(null)} onReleased={() => qc.invalidateQueries({ queryKey: ['seller-orders'] })} />
                     </>
                   ) : (
                     <>
