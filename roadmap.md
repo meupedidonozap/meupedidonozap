@@ -3,7 +3,8 @@
 ## Ponto real do check-in DiColore
 - [x] Gravar visita e ponto juntos, com autorização e endereço ERP preservado
 - [x] Avisar fora do raio sem impedir confirmação; usar GPS atual em todas as entradas
-- [ ] Testar gravação, retorno e isolamento; emitir atualização só DiColore
+- [x] 11 testes passaram; check-in real fora de 300 m sem justificativa, retorno a 0 m e endereço intocado confirmados na tela; cadastros temporários removidos; atualização só DiColore
+- [ ] Conferir desenho do mapa no domínio publicado — chave Google Maps rejeita localhost; gravação e leitura das coordenadas verificadas
 
 ## Mapa SC — inteligência geográfica DiColore
 - [x] Aba própria com ciclo de vida, filtros por vendedor/cidade/bairro e pontos agrupados por status predominante
