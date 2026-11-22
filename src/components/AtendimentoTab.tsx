@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import GeoBatchPanel from '@/components/GeoBatchPanel';
+import { useCheckinPolicy } from '@/hooks/useCustomerVisits';
+import { checkinDistance } from '@/lib/checkinPolicy';
 
 
 const MAX_CHECKIN_METERS = 300;
@@ -185,6 +187,8 @@ export default function AtendimentoTab(props: { storeId: string; sellerCodes: st
 
 function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT_VISIT_REASONS }: { storeId: string; sellerCodes: string[]; isAdmin: boolean; visitReasons?: string[] }) {
   const qc = useQueryClient();
+  const { data: pointPolicy } = useCheckinPolicy(storeId);
+  const radius = pointPolicy?.fixesPoint ? pointPolicy.radius : MAX_CHECKIN_METERS;
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sellerCoords, setSellerCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -361,11 +365,16 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
   }
 
   async function handleCheckIn(c: CustomerRow) {
-    const geo = await ensureCustomerGeo(c);
-    const my = sellerCoords ?? (await acquireLocation());
+    if (!pointPolicy) { toast.error('Aguarde carregar as configurações da loja.'); return; }
+    // Start fresh GPS on the click, before any other asynchronous request.
+    const position = pointPolicy.fixesPoint ? acquireLocation() : null;
+    const geo = pointPolicy.fixesPoint
+      ? c.geo_lat != null && c.geo_lng != null ? { lat: Number(c.geo_lat), lng: Number(c.geo_lng) } : null
+      : await ensureCustomerGeo(c);
+    const my = position ? await position : sellerCoords ?? (await acquireLocation());
     if (!my) return;
-    const dist = geo ? haversineMeters(my.lat, my.lng, geo.lat, geo.lng) : Infinity;
-    if (dist > MAX_CHECKIN_METERS) {
+    const dist = pointPolicy.fixesPoint ? checkinDistance(my, geo) : geo ? haversineMeters(my.lat, my.lng, geo.lat, geo.lng) : Infinity;
+    if (dist > radius) {
       setOorReason('');
       setOorNotes('');
       setOorUpdateGeo(true);
@@ -389,8 +398,8 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
 
   async function confirmOutOfRange() {
     if (!outOfRange) return;
-    if (!oorReason) { toast.error('Escolha a justificativa.'); return; }
-    if (oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
+    if (!pointPolicy?.fixesPoint && !oorReason) { toast.error('Escolha a justificativa.'); return; }
+    if (!pointPolicy?.fixesPoint && oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
     const { customer: c, my, dist } = outOfRange;
     setOorSaving(true);
     try {
@@ -404,7 +413,7 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
         outOfRangeReason: oorReason,
         outOfRangeNotes: oorNotes.trim() || null,
       });
-      if (oorUpdateGeo) {
+      if (oorUpdateGeo && !pointPolicy?.fixesPoint) {
         const newAddress = await reverseGeocode(my.lat, my.lng);
         await logGeoChange({
           store_id: storeId,
@@ -427,7 +436,7 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
         await qc.invalidateQueries({ queryKey: ['atendimento-customers', storeId] });
         await qc.invalidateQueries({ queryKey: ['customer-geo-changes', storeId] });
       }
-      toast.success(oorUpdateGeo ? 'Check-in registrado e localização do cliente atualizada.' : 'Check-in registrado com justificativa.');
+      toast.success(pointPolicy?.fixesPoint || oorUpdateGeo ? 'Check-in registrado e ponto no mapa atualizado.' : 'Check-in registrado com justificativa.');
       setOutOfRange(null);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao registrar check-in.');
@@ -750,11 +759,11 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
             <div className="space-y-3">
               <p className="text-sm rounded-md border border-destructive/40 bg-destructive/5 p-2">
                 {outOfRange.dist != null
-                  ? <>Você está a <b>{Math.round(outOfRange.dist)} m</b> do local registrado do cliente (limite {MAX_CHECKIN_METERS} m).</>
+                  ? <>Você está a <b>{Math.round(outOfRange.dist)} m</b> do local registrado do cliente (limite {radius} m).</>
                   : <>O cliente ainda não tem localização registrada.</>}
               </p>
               <div className="grid gap-1">
-                <Label className="text-sm">Justificativa *</Label>
+                <Label className="text-sm">Justificativa {pointPolicy?.fixesPoint ? '(opcional)' : '*'}</Label>
                 <Select value={oorReason} onValueChange={setOorReason}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -766,10 +775,10 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
                 <Label className="text-sm">Detalhes</Label>
                 <Textarea rows={3} value={oorNotes} onChange={(e) => setOorNotes(e.target.value)} placeholder="Explique o motivo..." />
               </div>
-              <label className="flex items-start gap-2 text-sm">
+              {!pointPolicy?.fixesPoint && <label className="flex items-start gap-2 text-sm">
                 <Checkbox checked={oorUpdateGeo} onCheckedChange={(v) => setOorUpdateGeo(!!v)} />
                 <span>Gravar minha posição atual como nova localização deste cliente</span>
-              </label>
+              </label>}
               <Button className="w-full" onClick={confirmOutOfRange} disabled={oorSaving}>
                 {oorSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogInIcon className="mr-2 h-4 w-4" />}
                 Confirmar check-in

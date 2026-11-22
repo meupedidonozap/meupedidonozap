@@ -1,5 +1,10 @@
 # Roadmap
 
+## Ponto real do check-in DiColore
+- [x] Gravar visita e ponto juntos, com autorização e endereço ERP preservado
+- [x] Avisar fora do raio sem impedir confirmação; usar GPS atual em todas as entradas
+- [ ] Testar gravação, retorno e isolamento; emitir atualização só DiColore
+
 ## Mapa SC — inteligência geográfica DiColore
 - [x] Aba própria com ciclo de vida, filtros por vendedor/cidade/bairro e pontos agrupados por status predominante
 - [x] 10.980 clientes SC na conta autorizada: 1.606 coordenadas cadastradas e 9.374 referências municipais aproximadas; sem envio de endereços a geocodificador
