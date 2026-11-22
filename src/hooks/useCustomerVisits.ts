@@ -1,5 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { checkinPolicy } from '@/lib/checkinPolicy';
+
+export function useCheckinPolicy(storeId: string) {
+  return useQuery({
+    queryKey: ['checkin-policy', storeId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('stores').select('slug, settings').eq('id', storeId).single();
+      if (error) throw error;
+      const settings = data.settings as { maxCheckinDistanceMeters?: number } | null;
+      return checkinPolicy(data.slug, settings?.maxCheckinDistanceMeters ?? 300);
+    },
+    staleTime: 60_000,
+  });
+}
 
 export interface CustomerVisit {
   id: string;
@@ -97,6 +111,16 @@ export function useCheckIn() {
       return data as CustomerVisit;
     },
     onSuccess: (v) => {
+      // The DiColore trigger has already persisted the GPS point atomically.
+      const policy = qc.getQueryData<ReturnType<typeof checkinPolicy>>(['checkin-policy', v.store_id]);
+      if (policy?.fixesPoint) {
+        for (const key of ['checkin-customers', 'atendimento-customers']) {
+          qc.setQueriesData({ queryKey: [key, v.store_id] }, (rows: unknown) =>
+            Array.isArray(rows) ? rows.map(c => c.id === v.customer_profile_id ? { ...c, geo_lat: v.checkin_lat, geo_lng: v.checkin_lng } : c) : rows);
+          qc.invalidateQueries({ queryKey: [key, v.store_id] });
+        }
+        qc.invalidateQueries({ queryKey: ['customer-geo-changes', v.store_id] });
+      }
       qc.invalidateQueries({ queryKey: ['customer-visits', v.store_id] });
     },
   });

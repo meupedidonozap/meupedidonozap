@@ -20,6 +20,8 @@ import {
   OUT_OF_RANGE_REASONS, logGeoChange, reverseGeocode,
 } from '@/hooks/useCustomerVisits';
 import { isUnattendedCustomer } from '@/lib/visitStatus';
+import { checkinDistance } from '@/lib/checkinPolicy';
+import { useCheckinPolicy } from '@/hooks/useCustomerVisits';
 import CustomerFileDialog from '@/components/CustomerFileDialog';
 import CustomersMap, { type MapPoint } from '@/components/CustomersMap';
 import type { SellerCustomer } from '@/contexts/SellerContext';
@@ -94,6 +96,7 @@ export default function CheckinDialog({
   unvisitedPeriodDays, visitReasons, maxDistanceMeters, onCustomerSelected,
 }: Props) {
   const qc = useQueryClient();
+  const { data: pointPolicy } = useCheckinPolicy(storeId);
   const [search, setSearch] = useState('');
   const [onlyUnvisited, setOnlyUnvisited] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -173,6 +176,7 @@ export default function CheckinDialog({
   }, [unvisitedPeriodDays]);
 
   async function handleCheckIn(c: CustomerRow) {
+    if (!pointPolicy) { toast.error('Aguarde carregar as configurações da loja.'); return; }
     setBusyId(c.id);
     // IMPORTANTE (Safari/iOS): o pedido de localização precisa sair no mesmo
     // gesto do toque. Por isso disparamos o GPS ANTES de qualquer await.
@@ -184,24 +188,24 @@ export default function CheckinDialog({
     try {
       let geo = c.geo_lat != null && c.geo_lng != null
         ? { lat: Number(c.geo_lat), lng: Number(c.geo_lng) }
-        : await geocodeAddress(fullAddress(c));
+        : pointPolicy.fixesPoint ? null : await geocodeAddress(fullAddress(c));
 
       const my = await positionPromise;
       if (!my) { setGpsHelp({ kind: geoErr, customer: c }); return; }
 
 
-      if (!geo) {
+      if (!geo && !pointPolicy.fixesPoint) {
         geo = my;
         await saveCustomerGeo(c.id, my.lat, my.lng);
         qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
         toast.info('Local do cliente salvo pela sua posição atual.');
       }
 
-      const dist = haversineMeters(my.lat, my.lng, geo.lat, geo.lng);
+      const dist = checkinDistance(my, geo);
       if (dist > maxDistanceMeters) {
         // Fora do raio: exige justificativa antes de registrar.
         setOorReason(''); setOorNotes(''); setOorUpdateGeo(true);
-        setOutRange({ customer: c, my, geo, dist });
+        if (geo) setOutRange({ customer: c, my, geo, dist });
         return;
       }
       await finishCheckIn(c, my, dist);
@@ -238,13 +242,13 @@ export default function CheckinDialog({
 
   async function confirmOutOfRange() {
     if (!outRange) return;
-    if (!oorReason) { toast.error('Escolha a justificativa.'); return; }
-    if (oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
+    if (!pointPolicy?.fixesPoint && !oorReason) { toast.error('Escolha a justificativa.'); return; }
+    if (!pointPolicy?.fixesPoint && oorReason === 'Outro' && !oorNotes.trim()) { toast.error('Descreva a justificativa.'); return; }
     const { customer: c, my, geo, dist } = outRange;
     setOorSaving(true);
     try {
       await finishCheckIn(c, my, dist, { reason: oorReason, notes: oorNotes.trim() });
-      if (oorUpdateGeo) {
+      if (oorUpdateGeo && !pointPolicy?.fixesPoint) {
         await saveCustomerGeo(c.id, my.lat, my.lng);
         const newAddress = await reverseGeocode(my.lat, my.lng).catch(() => null);
         await logGeoChange({
@@ -615,10 +619,10 @@ export default function CheckinDialog({
           {outRange && (
             <div className="space-y-3 text-sm">
               <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                Você está a <b>{outRange.dist >= 1000 ? `${(outRange.dist / 1000).toFixed(1)} km` : `${Math.round(outRange.dist)} m`}</b> do local registrado de <b>{outRange.customer.name}</b> (limite {maxDistanceMeters} m). Informe a justificativa para continuar.
+                Você está a <b>{outRange.dist >= 1000 ? `${(outRange.dist / 1000).toFixed(1)} km` : `${Math.round(outRange.dist)} m`}</b> do local registrado de <b>{outRange.customer.name}</b> (limite {maxDistanceMeters} m). {pointPolicy?.fixesPoint ? 'Confirme para registrar neste ponto.' : 'Informe a justificativa para continuar.'}
               </p>
               <div className="grid gap-1">
-                <Label>Justificativa *</Label>
+                <Label>Justificativa {pointPolicy?.fixesPoint ? '(opcional)' : '*'}</Label>
                 <Select value={oorReason} onValueChange={setOorReason}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -630,10 +634,10 @@ export default function CheckinDialog({
                 <Label>Detalhes {oorReason === 'Outro' ? '*' : ''}</Label>
                 <Textarea rows={3} value={oorNotes} onChange={e => setOorNotes(e.target.value)} />
               </div>
-              <label className="flex items-start gap-2">
+              {!pointPolicy?.fixesPoint && <label className="flex items-start gap-2">
                 <input type="checkbox" className="mt-1" checked={oorUpdateGeo} onChange={e => setOorUpdateGeo(e.target.checked)} />
                 <span>Gravar minha posição atual como nova localização deste cliente</span>
-              </label>
+              </label>}
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setOutRange(null)} disabled={oorSaving}>Cancelar</Button>
                 <Button onClick={confirmOutOfRange} disabled={oorSaving}>
