@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
+import { FINANCIAL_DATA } from '@/lib/dicoloreRefresh';
 
 type Filter = 'todos' | 'ABERTO' | 'VENCIDO' | 'PAGO';
 
@@ -82,6 +84,7 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
   });
 
   const codes = useMemo(() => [...new Set(titles.map((t: any) => t.cliente_codigo).filter(Boolean))], [titles]);
+  useDicoloreRefresh(storeId, FINANCIAL_DATA, customerCode || 'titles-entry');
   const { data: names = {} } = useQuery({
     queryKey: ['titles-customer-names', storeId, codes.length],
     enabled: codes.length > 0 && !customerCode,

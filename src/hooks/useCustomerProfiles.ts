@@ -37,7 +37,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
 // Lista leve: lojas com milhares de clientes (DiColore) travavam ao baixar todas as colunas.
 const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo,no_discount';
 
-export function useStoreCustomerProfiles(storeId: string | undefined) {
+export function useStoreCustomerProfiles(storeId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: ['store-customer-profiles', storeId],
     queryFn: async () => {
@@ -59,7 +59,7 @@ export function useStoreCustomerProfiles(storeId: string | undefined) {
       }
       return all.map(mapProfile);
     },
-    enabled: !!storeId,
+    enabled: !!storeId && enabled,
     staleTime: 30_000,
   });
 }

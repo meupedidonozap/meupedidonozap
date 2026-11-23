@@ -1,5 +1,12 @@
 # Roadmap
 
+## Atualização por entrada DiColore
+- [x] Reconsultar dados visíveis ao entrar, navegar e voltar de outro aplicativo, sem consultas periódicas novas e sem alterar outras lojas
+- [x] Atualizar carteira ao abrir seleção, ler cadastro oficial antes de selecionar e revalidar financeiro/estoque na passagem ao carrinho
+- [x] 40 testes passaram; sessão autenticada confirmou carteira, seleção 83658, estoque, retorno ao app e reentrada Vendas; financeiro real com 20 títulos pagos, retorno e celular sem overflow/erros; boleto não baixado pois esse cliente não tem títulos abertos
+- [x] Preparar release com lista de avisos vazia, sem atualização obrigatória para esta melhoria; código antigo recebe os gatilhos somente depois de reabrir/recarregar
+- [ ] Disponibilizar no site publicado — depende de publicação pelo usuário
+
 ## Navegação/WhatsApp web e preparação Android
 - [x] Voltar do painel DiColore leva à loja; todas as cinco entradas de liberação oferecem WhatsApp somente após salvar, sem abas vazias e sem mudar outras lojas
 - [x] 27 testes passaram; painel/portal autenticados em Chromium (celular com agente Firefox e computador), botão Agora não/Escape mantêm endereço e aba, link mantém #913; nenhuma liberação real nem envio de WhatsApp foi realizado

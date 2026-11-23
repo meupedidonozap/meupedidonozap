@@ -31,6 +31,7 @@ import OfflineBanner from "./components/OfflineBanner";
 import UpdateBanner from "./components/UpdateBanner";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
 import ReleaseWhatsAppDialog from './components/ReleaseWhatsAppDialog';
+import DicoloreDataRefresh from './components/DicoloreDataRefresh';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,7 @@ const App = () => (
         <Sonner />
         <OfflineBanner />
         <BrowserRouter>
+          <DicoloreDataRefresh />
           <UpdateBanner />
           <ReleaseWhatsAppDialog />
           <Routes>

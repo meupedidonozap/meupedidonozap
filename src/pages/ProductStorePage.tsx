@@ -15,6 +15,8 @@ import {
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useCategories } from '@/hooks/useCategories';
 import { useProducts } from '@/hooks/useProducts';
+import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
+import { STOCK_DATA } from '@/lib/dicoloreRefresh';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
@@ -84,6 +86,7 @@ export default function ProductStorePage() {
     selectCustomer,
     seller,
   } = useActiveCustomerProfile(store?.id);
+  useDicoloreRefresh(store?.id, STOCK_DATA, selectedCustomer?.id || 'catalog-entry');
   const isJewos = store?.slug === 'jewosnewborn';
   const stockEnabled = (store?.settings as any)?.useStockIntegration === true || isJewos;
   // Jewos: todos veem o saldo. Demais lojas: só Vendedor/Televendas.

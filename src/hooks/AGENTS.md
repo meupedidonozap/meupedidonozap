@@ -1,0 +1,2 @@
+- DiColore refresh uses workflow entry and visible resume events with scoped query keys and in-flight deduplication, never polling or a global focus default, to avoid changing other stores or fetching hidden reports.
+- Workflow refresh starts after persisted cache restoration; selecting an existing DiColore customer reads the authorized official profile before continuing, so stale portfolio rows cannot determine current ownership or pricing.

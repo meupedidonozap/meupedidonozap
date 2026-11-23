@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllStoreSellers } from '@/hooks/useStoreSellers';
+import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
+import { ORDER_DATA } from '@/lib/dicoloreRefresh';
 
 type Props = {
   storeId: string;
@@ -83,6 +85,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
   });
 
   const clientCodes = useMemo(() => [...new Set(orders.map((o: any) => o.cliente_codigo).filter(Boolean))], [orders]);
+  useDicoloreRefresh(storeId, ORDER_DATA);
   const { data: clients = {} } = useQuery({
     queryKey: ['erp-orders-clients', storeId, clientCodes.join(',')],
     enabled: clientCodes.length > 0,

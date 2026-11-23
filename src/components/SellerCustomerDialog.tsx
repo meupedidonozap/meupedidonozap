@@ -17,6 +17,10 @@ import { resolveStorePriceTable } from '@/lib/pricing';
 import { lookupCnpj } from '@/lib/cnpjLookup';
 import { supabase } from '@/integrations/supabase/client';
 import { getCustomerError } from '@/lib/customerValidation';
+import { useQueryClient } from '@tanstack/react-query';
+import { mapProfile } from '@/hooks/useCustomerProfile';
+import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
+import { CUSTOMER_DATA, FINANCIAL_DATA, STOCK_DATA, refreshDicoloreData } from '@/lib/dicoloreRefresh';
 
 interface Props {
   open: boolean;
@@ -31,7 +35,10 @@ interface Props {
 
 export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenChange, storeId, storeSlug, sellerCodes, onSelected }: Props) {
   const defaultPriceTable = resolveStorePriceTable(storeSlug);
-  const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId);
+  const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId, storeSlug !== 'dicolore' || open);
+  const client = useQueryClient();
+  const [selecting, setSelecting] = useState(false);
+  useDicoloreRefresh(storeId, CUSTOMER_DATA, open);
   const createCustomer = useCreateCustomerProfileAdmin();
   const [draft] = useState(() => loadCustomerDraft(storeId));
   const [search, setSearch] = useState(draft?.search ?? '');
@@ -131,6 +138,28 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
     }
   };
 
+  const handleSelect = async (customer: SellerCustomer) => {
+    if (selecting) return;
+    if (storeSlug !== 'dicolore') { onSelected(customer); onOpenChange(false); return; }
+    setSelecting(true);
+    try {
+      const { data, error } = await supabase.from('customer_profiles').select('*')
+        .eq('store_id', storeId).eq('id', customer.id).single();
+      if (error) throw error;
+      const fresh = mapProfile(data);
+      if (sellerCodes.length && !sellerCodes.map(code => code.trim()).includes((fresh.sellerCode || '').trim())) {
+        throw new Error('Este cliente não pertence mais à sua carteira. Selecione outro cliente.');
+      }
+      client.setQueryData(['selected-customer-profile', storeId, fresh.id], fresh);
+      await refreshDicoloreData(client, storeSlug, storeId, FINANCIAL_DATA, false);
+      onSelected(fresh);
+      void refreshDicoloreData(client, storeSlug, storeId, STOCK_DATA);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível atualizar o cliente. Tente novamente.');
+    } finally { setSelecting(false); }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -155,17 +184,18 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
               ) : (
                 <div className="divide-y">
                   {filtered.map((c: any) => (
-                    <button
+                    <Button variant="ghost"
                       key={c.id}
-                      className="w-full p-3 text-left transition-colors hover:bg-muted/50"
-                      onClick={() => { onSelected(c as SellerCustomer); onOpenChange(false); }}
+                      className="h-auto w-full flex-col items-start whitespace-normal p-3 text-left transition-colors hover:bg-muted/50"
+                      disabled={selecting}
+                      onClick={() => void handleSelect(c as SellerCustomer)}
                     >
                       <p className="text-sm font-medium">{c.name || '—'}</p>
                       <p className="text-xs text-muted-foreground">
                         {c.customerCode ? `#${c.customerCode} • ` : 'PROSPECT • '}{c.whatsapp || '—'}
                         {c.city ? ` • ${c.city}/${c.uf}` : ''} • Tabela {resolveStorePriceTable(storeSlug, c.priceTable)}
                       </p>
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}

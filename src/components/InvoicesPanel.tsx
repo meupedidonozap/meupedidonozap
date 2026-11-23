@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
+import { FINANCIAL_DATA } from '@/lib/dicoloreRefresh';
 
 type Period = 'hoje' | '30dias' | 'todos' | 'mes' | '90dias';
 
@@ -125,6 +127,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
     () => [...new Set(invoices.map((invoice) => invoice.cliente_codigo).filter(Boolean))],
     [invoices],
   );
+  useDicoloreRefresh(storeId, FINANCIAL_DATA, customerCode || 'invoices-entry');
   const { data: customerNames = {} } = useQuery({
     queryKey: ['invoice-customer-names', storeId, customerCodes.join(',')],
     enabled: customerCodes.length > 0 && !customerCode,

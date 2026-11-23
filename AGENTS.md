@@ -38,3 +38,4 @@
 - DiColore admin customer rows are paginated after full-list filtering, and order profile lookups use memoized identity buckets with the shared ERP resolver; this bounds tab rendering without changing customer identity or other stores.
 - DiColore claims preserve creation data and use trigger guards; admin/manager reassignment uses a row-locked RPC with store-resolved staff and audit before transmission, so responsibility corrections never alter customer identity or amounts.
 - Checkout loads discount rules from store settings; orders-export refills missing item discounts.
+- DiColore event refresh follows src/hooks/AGENTS.md.
