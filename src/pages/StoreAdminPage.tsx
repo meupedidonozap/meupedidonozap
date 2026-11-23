@@ -38,6 +38,7 @@ import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
 import StoreRulesSettings from '@/components/StoreRulesSettings';
 import RecalculateOrderButton from '@/components/RecalculateOrderButton';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
+import { requestReleaseWhatsApp, storeBackPath } from '@/lib/releaseWhatsApp';
 import { useStoreUsers as useStoreUsersForSeller } from '@/hooks/useStoreUsers';
 import { useAllStoreSellers, useCreateStoreSeller, useUpdateStoreSeller, useDeleteStoreSeller } from '@/hooks/useStoreSellers';
 import { VisitsBarChart, VisitsHourChart } from '@/components/VisitsCharts';
@@ -1217,7 +1218,7 @@ export default function StoreAdminPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <Button variant="ghost" size="icon" asChild className="text-primary-foreground hover:bg-primary-foreground/10 flex-shrink-0">
-                <Link to="/admin"><ArrowLeft className="h-5 w-5" /></Link>
+                <Link to={storeBackPath(store.slug)} aria-label="Voltar"><ArrowLeft className="h-5 w-5" /></Link>
               </Button>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base sm:text-xl font-bold break-words line-clamp-2">{store.name}</h1>
@@ -4124,11 +4125,11 @@ export default function StoreAdminPage() {
                 const waNumber = resolveErpWhatsapp(pending.priceTable);
                 const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
                 const notify = getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp;
-                const waWin = notify ? window.open('about:blank', '_blank') : null;
+                const waWin = notify && store.slug !== 'dicolore' ? window.open('about:blank', '_blank') : null;
                 setUpdatingStatusId(pending.orderId);
                 try {
                   await updateOrderStatus.mutateAsync({ id: pending.orderId, status: 'liberado_transmissao' });
-                  if (notify) { if (waWin) { waWin.opener = null; waWin.location.href = waUrl; } else window.location.href = waUrl; }
+                  if (notify) requestReleaseWhatsApp(store.slug, waUrl, waWin);
                   toast.success('Status atualizado!');
                 } catch (err: any) {
                   waWin?.close();

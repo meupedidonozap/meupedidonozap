@@ -7,6 +7,7 @@ import { getStoreFormas, getStoreCondicoes } from '@/lib/dicolorePayments';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { mergeEditedCustomer } from '@/lib/orderOwnership';
+import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,7 +25,7 @@ export default function ReleasePaymentDialog({ order, store, viewer, onClose, on
     if (!order || !forma || !condicao || busy) return;
     // Reserve the window during the click; send the message only after the save succeeds.
     const notify = getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp;
-    const win = notify ? window.open('about:blank', '_blank') : null;
+    const win = notify && store.slug !== 'dicolore' ? window.open('about:blank', '_blank') : null;
     setBusy(true);
     try {
       const { data: auth, error: authError } = await supabase.auth.getUser();
@@ -45,8 +46,7 @@ export default function ReleasePaymentDialog({ order, store, viewer, onClose, on
         const s = store.settings || {};
         const wa = String(s.erpReleaseWhatsappByTable?.[String(customer.priceTable || '')] || s.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
         const url = `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${saved.orderNumber} do cliente "${customer.name || ''}" pode ser transmitido`)}`;
-        if (win) { win.opener = null; win.location.href = url; }
-        else window.location.href = url;
+        requestReleaseWhatsApp(store.slug, url, win);
       }
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['seller-orders'] });

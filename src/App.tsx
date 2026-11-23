@@ -30,6 +30,7 @@ import NoIndex from "./components/NoIndex";
 import OfflineBanner from "./components/OfflineBanner";
 import UpdateBanner from "./components/UpdateBanner";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
+import ReleaseWhatsAppDialog from './components/ReleaseWhatsAppDialog';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,7 @@ const App = () => (
         <OfflineBanner />
         <BrowserRouter>
           <UpdateBanner />
+          <ReleaseWhatsAppDialog />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/admin" element={<><NoIndex /><AdminPage /></>} />

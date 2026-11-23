@@ -22,6 +22,7 @@ import { mergeEditedCustomer } from '@/lib/orderOwnership';
 import type { Order } from '@/types';
 import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
+import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
 
 type Props = { orderId: string | null; store: any; onClose: () => void };
 
@@ -118,18 +119,19 @@ export default function SellerPendingOrderDialog({ orderId, store, onClose }: Pr
       return;
     }
     if (!confirm(`Liberar o pedido #${order.orderNumber} para transmissão ao ERP?`)) return;
-    // Abre o WhatsApp antes de qualquer await (iOS bloqueia depois).
+    // DiColore opens WhatsApp only from an explicit action after saving.
     const s = store?.settings || {};
     const pt = (order.customer as any)?.priceTable ? String((order.customer as any).priceTable) : '';
     const wa = String((pt && s.erpReleaseWhatsappByTable?.[pt]) || s.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-    const win = wa && getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp ? window.open('about:blank', '_blank') : null;
+    const notify = wa && getStoreRules(store.slug, store.settings).notifyReleaseWhatsapp;
+    const win = notify && store.slug !== 'dicolore' ? window.open('about:blank', '_blank') : null;
     setBusy(true);
     const { data: auth, error: authError } = await supabase.auth.getUser();
     if (authError || !auth.user) { win?.close(); setBusy(false); toast.error('Faça login novamente.'); return; }
     const { error } = await supabase.from('orders').update({ status: 'liberado_transmissao', observations: obs.trim() || null }).eq('id', order.id).select().single();
     setBusy(false);
     if (error) { win?.close(); return toast.error(error.message); }
-    if (win) { win.opener = null; win.location.href = `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${order.orderNumber} do cliente "${order.customer?.name || ''}" pode ser transmitido`)}`; }
+    if (notify && (store.slug === 'dicolore' || win)) requestReleaseWhatsApp(store.slug, `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${order.orderNumber} do cliente "${order.customer?.name || ''}" pode ser transmitido`)}`, win);
     toast.success('Pedido liberado para transmissão');
     refresh();
     onClose();

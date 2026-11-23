@@ -1,5 +1,12 @@
 # Roadmap
 
+## Navegação/WhatsApp web e preparação Android
+- [x] Voltar do painel DiColore leva à loja; todas as cinco entradas de liberação oferecem WhatsApp somente após salvar, sem abas vazias e sem mudar outras lojas
+- [x] 27 testes passaram; painel/portal autenticados em Chromium (celular com agente Firefox e computador), botão Agora não/Escape mantêm endereço e aba, link mantém #913; nenhuma liberação real nem envio de WhatsApp foi realizado
+- [x] Configuração Capacitor com site publicado por padrão, prévia somente por opção explícita, dependências e guia ANDROID.md com configuração completa
+- [ ] Confirmar liberação real e abertura/cancelamento no Firefox Android físico — depende de pedido de teste autorizado e aparelho; passagem navegador/WhatsApp não pode ser comprovada no Chromium do sandbox
+- [ ] Compilar/assinar APK e testar WhatsApp/voltar no Android físico — depende de Android Studio, SDK e assinatura local
+
 ## Responsável pelo pedido DiColore
 - [x] Atribuir/desvincular no Editar somente a admin/gerente, com gravação autorizada, autoria preservada e histórico
 - [x] 27 testes passaram; atribuição/desvinculação e leitura na tela confirmadas em orçamento temporário, com valores/cadastro/pagamento intactos; gerente autorizado, vendedor/televendas e edição desatualizada bloqueados; celular sem overflow, sem erros; #904 consultado como Cancelado e intocado

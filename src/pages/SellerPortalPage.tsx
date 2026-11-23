@@ -41,6 +41,7 @@ import ReleasePaymentDialog from '@/components/ReleasePaymentDialog';
 import { mapOrder } from '@/hooks/useOrders';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
+import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
 
 type Section = 'atendimento' | 'vendas' | 'clientes' | 'resultados' | 'notas' | 'titulos';
 const TITLES: Record<Section, string> = {
@@ -130,15 +131,14 @@ export default function SellerPortalPage() {
       const issues = getReleaseIssues({ customer: saved.customer as any, items: saved.items as any, requirePayment: releasePaymentRequired(store.slug, store.settings) });
       const paymentOnly = issues.length > 0 && issues.every(i => i === 'Falta forma de pagamento' || i === 'Falta condição de pagamento');
       if (issues.length === 0) {
-        const win = notify ? window.open('about:blank', '_blank') : null;
+        const win = notify && store.slug !== 'dicolore' ? window.open('about:blank', '_blank') : null;
         const { error: relErr } = await supabase.from('orders').update({ status: 'liberado_transmissao' }).eq('id', id).eq('status', 'orcamento').select().single();
         if (relErr) { win?.close(); throw relErr; }
-        if (win) {
+        if (notify && (store.slug === 'dicolore' || win)) {
           const st: any = store.settings || {};
           const c: any = saved.customer || {};
           const wa = String(st.erpReleaseWhatsappByTable?.[String(c.priceTable || '')] || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-          win.opener = null;
-          win.location.href = `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${saved.orderNumber} do cliente "${c.name || ''}" pode ser transmitido`)}`;
+          requestReleaseWhatsApp(store.slug, `https://wa.me/${wa}?text=${encodeURIComponent(`Olá, o pedido #${saved.orderNumber} do cliente "${c.name || ''}" pode ser transmitido`)}`, win);
         }
         toast.success(`Pedido #${saved.orderNumber} finalizado e liberado p/ transmissão`);
       } else {

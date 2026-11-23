@@ -6,6 +6,7 @@ import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
 import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
+import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
@@ -587,14 +588,17 @@ export default function CheckoutPage() {
     }
   };
 
-  // Mensagem de liberação com o nº do pedido: a janela é aberta no clique
-  // (iOS) e só recebe o link depois que o pedido é salvo e liberado.
+  // DiColore offers an explicit WhatsApp action only after a successful release.
   const notifyRelease = (rw: { win: Window | null; number: string } | undefined, released: boolean, orderNumber?: number | string) => {
-    if (!rw?.win) return;
-    if (!released) { rw.win.close(); return; }
+    if (!released) { rw?.win?.close(); return; }
+    if (!getStoreRules(store?.slug, store?.settings).notifyReleaseWhatsapp) return;
+    if (store?.slug !== 'dicolore' && !rw?.win) return;
+    const st: any = store?.settings || {};
+    const pt = String(activePriceTable || '');
+    const number = rw?.number || String(st.erpReleaseWhatsappByTable?.[pt] || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
     const num = orderNumber ? `#${orderNumber} ` : '';
     const text = `Olá, o pedido ${num}do cliente "${formData.name}" pode ser transmitido`;
-    rw.win.location.href = `https://wa.me/${rw.number}?text=${encodeURIComponent(text)}`;
+    requestReleaseWhatsApp(store?.slug, `https://wa.me/${number}?text=${encodeURIComponent(text)}`, rw?.win);
   };
 
   const handleSendWhatsApp = async (asQuote = false, opts: { decided?: boolean; release?: boolean; releaseWa?: { win: Window | null; number: string } } = {}) => {
@@ -1026,7 +1030,7 @@ export default function CheckoutPage() {
                   const st: any = store?.settings || {};
                   const pt = String(activePriceTable || '');
                   const wa = String((pt && st.erpReleaseWhatsappByTable?.[pt]) || st.erpReleaseWhatsapp || '5547992491139').replace(/\D/g, '');
-                  const win = wa && getStoreRules(store?.slug, store?.settings).notifyReleaseWhatsapp ? window.open('', '_blank') : null;
+                  const win = store?.slug !== 'dicolore' && wa && getStoreRules(store?.slug, store?.settings).notifyReleaseWhatsapp ? window.open('', '_blank') : null;
                   setFinalizeAsk(null); setReleaseConfirm(false);
                   handleSendWhatsApp(false, { decided: true, release: true, releaseWa: { win, number: wa } });
                 }}>Liberar p/ transmissão</Button>
