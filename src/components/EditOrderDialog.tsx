@@ -21,6 +21,8 @@ import { Label } from '@/components/ui/label';
 import { useSellerMode } from '@/hooks/useSellerMode';
 import { mergeEditedCustomer, canEditOrder } from '@/lib/orderOwnership';
 import { supabase } from '@/integrations/supabase/client';
+import OrderResponsibleEditor from '@/components/OrderResponsibleEditor';
+import { canManageOrderResponsible } from '@/lib/orderResponsible';
 
 interface EditOrderDialogProps {
   open: boolean;
@@ -36,9 +38,10 @@ interface EditOrderDialogProps {
   noDiscount?: boolean;
   /** Se informado, recalcula automaticamente os preços por esta tabela ao abrir. */
   autoRecalcTable?: PriceTable | null;
+  allowResponsibleManagement?: boolean;
 }
 
-export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable, autoRecalcTable, noDiscount: profileNoDiscount }: EditOrderDialogProps) {
+export default function EditOrderDialog({ open, onOpenChange, order, products, discountRules = [], categories = [], materialApoio, store, priceTable, autoRecalcTable, noDiscount: profileNoDiscount, allowResponsibleManagement = false }: EditOrderDialogProps) {
   const noDiscount = customerDiscountsBlocked(store?.slug, { noDiscount: profileNoDiscount ?? order?.customer?.noDiscount });
   const baseTable: PriceTable = normalizePriceTable(priceTable);
   const [tableOverride, setTableOverride] = useState<PriceTable | null>(null);
@@ -273,6 +276,9 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pb-32 sm:pb-0">
+          {allowResponsibleManagement && canManageOrderResponsible(store?.slug, sellerMode) && (
+            <OrderResponsibleEditor key={order.id} order={order} onSaved={() => onOpenChange(false)} />
+          )}
           {removeOnly && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
               Este pedido já foi transmitido. Você só pode <strong>excluir itens</strong> que o cliente desistiu — não é possível adicionar produtos ou aumentar quantidades.

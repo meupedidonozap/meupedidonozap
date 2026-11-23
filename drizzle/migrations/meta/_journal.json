@@ -463,6 +463,13 @@
       "when": 1795386545487,
       "tag": "0065_dicolore_checkin_point",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1795431880047,
+      "tag": "0066_dicolore_order_responsible",
+      "breakpoints": true
     }
   ]
 }

@@ -2852,6 +2852,59 @@ export type Database = {
         Args: { p_settings: Json; p_store_id: string }
         Returns: Json
       }
+      set_dicolore_order_responsible: {
+        Args: {
+          p_expected_customer: Json
+          p_order_id: string
+          p_store_user_id: string
+        }
+        Returns: {
+          bling_attempts: number
+          bling_error: string | null
+          bling_order_id: string | null
+          bling_sent_at: string | null
+          client_order_id: string | null
+          created_at: string
+          customer: Json
+          delivery_fee: number
+          delivery_shift: string
+          discount: number
+          erp_error: string | null
+          erp_order_code: string | null
+          erp_sent_at: string | null
+          id: string
+          items: Json
+          observations: string | null
+          order_number: number
+          origem: string
+          paid_at: string | null
+          payment_environment: string | null
+          payment_error: string | null
+          payment_manual_record: Json | null
+          payment_method: string
+          payment_session_id: string | null
+          payment_status: string
+          shipping_code: string | null
+          shipping_deadline: number | null
+          shipping_service: string | null
+          shipping_tracking: string | null
+          status: string
+          store_id: string
+          subtotal: number
+          superfrete_error: string | null
+          superfrete_id: string | null
+          superfrete_status: string | null
+          total: number
+          user_id: string | null
+          xml_downloaded_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       store_reserved_stock: {
         Args: { _store_id: string }
         Returns: {

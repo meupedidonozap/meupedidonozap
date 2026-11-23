@@ -1,5 +1,9 @@
 # Roadmap
 
+## Responsável pelo pedido DiColore
+- [x] Atribuir/desvincular no Editar somente a admin/gerente, com gravação autorizada, autoria preservada e histórico
+- [x] 27 testes passaram; atribuição/desvinculação e leitura na tela confirmadas em orçamento temporário, com valores/cadastro/pagamento intactos; gerente autorizado, vendedor/televendas e edição desatualizada bloqueados; celular sem overflow, sem erros; #904 consultado como Cancelado e intocado
+
 ## Ponto real do check-in DiColore
 - [x] Gravar visita e ponto juntos, com autorização e endereço ERP preservado
 - [x] Avisar fora do raio sem impedir confirmação; usar GPS atual em todas as entradas

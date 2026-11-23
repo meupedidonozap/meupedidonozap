@@ -2097,12 +2097,12 @@ export default function StoreAdminPage() {
                             }}>
                               <Download className="h-4 w-4" />
                             </Button>
-                            {order.status !== 'cancelado' && (isAdmin || permissions.can_manage_orders || restrictBySeller) && (() => {
+                            {order.status !== 'cancelado' && (isAdmin || permissions.can_manage_orders || restrictBySeller || (store?.slug === 'dicolore' && sellerMode.isManager)) && (() => {
                               if (restrictBySeller && !permissions.can_manage_orders) {
                                 const code = whatsappToSellerCode.get(last8(order?.customer?.whatsapp || ''));
                                 if (!code || !sellerCodeSet.has(code)) return false;
                               }
-                              if (!isAdmin && !canEditOrder(order as any, { isAdmin: false, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode })) return false;
+                              if (!isAdmin && !(store?.slug === 'dicolore' && sellerMode.isManager) && !canEditOrder(order as any, { isAdmin: false, isTelevendas: sellerMode.isTelevendas, name: sellerMode.sellerName, erpCode: sellerMode.erpCode })) return false;
                               return true;
                             })() && (
                               <Button
@@ -3979,6 +3979,7 @@ export default function StoreAdminPage() {
       />
       <EditOrderDialog
         open={!!editingOrder}
+        allowResponsibleManagement
         onOpenChange={(v) => { if (!v) { setEditingOrder(null); setRecalcWithTable(null); } }}
         order={editingOrder}
         noDiscount={editingOrder ? (findOrderProfile(editingOrder) as any)?.noDiscount : false}
