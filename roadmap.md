@@ -1,10 +1,11 @@
 # Roadmap
 
 ## Finalização iPhone/Safari DiColore
-- [ ] Auditar escolha de destinatário, gravação antes do WhatsApp e retorno em todos os caminhos DiColore, sem alterar pedidos concluídos
-- [ ] Preservar destinatário por loja/conta/cliente, validar opções atuais e impedir perda de escolha em recargas
-- [ ] Evitar recarga por primeira leitura de versão e abrir WhatsApp somente após pedido salvo, mantendo outras lojas
-- [ ] Testar finalização autenticada, seleção restaurada e aviso obrigatório somente DiColore
+- [x] Auditar checkout/edição/portal/painel/pagamento/fila offline/gravação/exportação; correção do cliente preserva responsável salvo; pedidos concluídos e permissões intactos
+- [x] Preservar destinatário por loja/conta/cliente, validar opções atuais e impedir perda de escolha em recargas
+- [x] Evitar recarga por primeira leitura de versão, atualizar preços no checkout e abrir WhatsApp somente após pedido salvo, mantendo outras lojas
+- [x] 112 testes passaram; conta 98596 autenticada em Chromium com agente iPhone: Grazi restaurada, alteração de preços bloqueia sem recarga, confirmação com uma aba após gravação simulada, cancelamento volta à DiColore; aviso não dispensável só DiColore; nenhum pedido/mensagem real enviado
+- [ ] Confirmar salvamento real e passagem Safari/WhatsApp no iPhone físico — depende de pedido de teste autorizado e aparelho
 - [ ] Disponibilizar correção e aviso obrigatório — depende de publicação
 
 ## Cadastro PROSPECT DiColore

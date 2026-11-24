@@ -87,6 +87,18 @@ describe('televendas nome invertido', () => {
 
 import { mergeEditedCustomer, isUnclaimedCustomerOrder } from './orderOwnership';
 describe('dono do pedido do cliente (DiColore)', () => {
+  it('a customer correction preserves the saved Grazi recipient and claim', () => {
+    const saved = { customer: { name: 'Cliente', createdByRole: 'cliente', createdByName: 'Cliente',
+      ownerRole: 'televendas', ownerName: 'Televendas Grazi', isTelevendas: true,
+      televendasName: 'Televendas Grazi', claimedRole: 'televendas', claimedName: 'Televendas Grazi' } };
+    const edited = mergeEditedCustomer(saved, { name: 'Cliente corrigido', ownerRole: 'vendedor', ownerName: 'Rita' }, {});
+    expect(edited.name).toBe('Cliente corrigido');
+    expect(edited.ownerName).toBe('Televendas Grazi');
+    expect(edited.ownerRole).toBe('televendas');
+    expect(edited.claimedName).toBe('Televendas Grazi');
+    expect(edited.isTelevendas).toBe(true);
+    expect(edited.createdByRole).toBe('cliente');
+  });
   const ronaldo = { name: 'Ronaldo' };
   const denise = { isTelevendas: true, name: 'Denise', erpCode: '7' };
   const pedido = { origem: 'web', userId: 'u', customer: { name: 'ELIANE', createdByRole: 'cliente', ownerRole: 'vendedor', ownerName: 'Ronaldo' } };

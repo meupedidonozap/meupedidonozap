@@ -107,6 +107,7 @@ export default function CheckoutPage() {
     seller,
   } = useActiveCustomerProfile(store?.id);
   const sellerOrder = isSellerMode && !!selectedCustomer;
+  const selectingRecipient = !(store?.slug === 'dicolore' && editingQuote?.byCustomer);
   const { data: savedAddresses = [] } = useCustomerAddresses(user?.id, store?.id, store?.slug);
   const lockedCustomerData = customerDataIsReadOnly(store?.slug, isSellerMode);
   const canOfferRelease = sellerOrder && (seller.isSeller || seller.isTelevendas);
@@ -153,7 +154,7 @@ export default function CheckoutPage() {
   const [legacySellerId, setLegacySellerId] = useState<string>('');
   const [savedSellerId, setSavedSellerId] = useCheckoutRecipient(
     store?.slug, store?.id, user?.id, customerProfile?.id, recipientOptions,
-    store?.slug === 'dicolore' && recipientsReady && !!customerProfile && !sellerOrder,
+    store?.slug === 'dicolore' && recipientsReady && !!customerProfile && !sellerOrder && selectingRecipient,
     !!customerProfile?.sellerCode && recipientsRpc.length > 0,
   );
   const selectedSellerId = store?.slug === 'dicolore' ? savedSellerId : legacySellerId;
@@ -430,11 +431,11 @@ export default function CheckoutPage() {
         return false;
       }
     }
-    if (store.slug === 'dicolore' && !sellerOrder && !recipientsReady) {
+    if (store.slug === 'dicolore' && !sellerOrder && selectingRecipient && !recipientsReady) {
       toast.error(recipientsError ? 'Não foi possível carregar os destinatários. Reabra a finalização para tentar novamente.' : 'Aguarde o carregamento dos destinatários.');
       return false;
     }
-    if (recipientOptions.length > 0 && !sellerOrder && !selectedSellerId) {
+    if (recipientOptions.length > 0 && !sellerOrder && selectingRecipient && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
       return false;
     }
@@ -835,6 +836,15 @@ export default function CheckoutPage() {
         waWindow?.close();
         const byCustomer = !sellerOrder && !!editingQuote.byCustomer;
         let editedCustomer: any = orderPayload.customer;
+        if (byCustomer && store.slug === 'dicolore') {
+          const { data: saved, error: savedErr } = await supabase.from('orders')
+            .select('customer,origem,user_id,status,xml_downloaded_at').eq('id', editingQuote.id).eq('store_id', store.id).single();
+          if (savedErr || !saved || saved.status !== 'orcamento' || saved.xml_downloaded_at) {
+            throw new Error('Este pedido não está mais disponível para edição. Nenhum pedido novo foi criado.');
+          }
+          // A customer correction keeps the saved recipient/claim and original creator.
+          editedCustomer = mergeEditedCustomer(saved as any, orderPayload.customer, {});
+        }
         if (!byCustomer) {
           // Mantém quem criou/assumiu e confere o dono no estado atual do pedido.
           const { data: saved, error: savedErr } = await supabase.from('orders').select('customer,origem,user_id').eq('id', editingQuote.id).single();
@@ -1180,8 +1190,8 @@ export default function CheckoutPage() {
       )}
 
       <main className="container py-6">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
+        <div className={`grid gap-6 lg:grid-cols-3 ${store.slug === 'dicolore' ? 'grid-cols-1' : ''}`}>
+          <div className={`space-y-6 lg:col-span-2 ${store.slug === 'dicolore' ? 'min-w-0' : ''}`}>
             <Card>
               <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -1403,7 +1413,7 @@ export default function CheckoutPage() {
                     </RadioGroup>
                   )}
                 </div>
-                {recipientOptions.length > 0 && !sellerOrder && (
+                {recipientOptions.length > 0 && !sellerOrder && selectingRecipient && (
                   <div className="rounded-lg border-2 border-primary/60 bg-primary/5 p-4 space-y-3">
                     <Label className="text-base font-bold flex items-center gap-2">
                       📱 Enviar pedido para <span className="text-destructive">*</span>
@@ -1437,7 +1447,7 @@ export default function CheckoutPage() {
             </Card>
           </div>
 
-          <div className="space-y-4">
+          <div className={`space-y-4 ${store.slug === 'dicolore' ? 'min-w-0' : ''}`}>
             <Card className="sticky top-20">
               <CardHeader><CardTitle>Resumo do Pedido</CardTitle></CardHeader>
               <CardContent className="space-y-4">
