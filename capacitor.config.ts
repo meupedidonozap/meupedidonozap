@@ -10,7 +10,8 @@ const config: CapacitorConfig = {
     url: 'https://dfc9e1d2-017c-4c44-9932-8af8ac12f08f.lovableproject.com?forceHideBadge=true',
     cleartext: true,
   } : {
-    url: 'https://meupedidonozap.lovable.app',
+    // Abre direto na loja DiColore, sem passar pela página inicial geral.
+    url: 'https://meupedidonozap.lovable.app/dicolore?forceHideBadge=true',
     cleartext: false,
   },
 };
