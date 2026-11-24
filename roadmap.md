@@ -1,10 +1,17 @@
 # Roadmap
 
+## Limpa Telhas Brusque
+- [ ] Criar loja SERVICOS isolada; serviços como produtos selecionáveis, preços próprios cadastrados por tipo de telhado e adicionais
+- [ ] Cadastro/login por loja, aceite e solicitação de agendamento; pedidos no painel e WhatsApp após salvar
+- [ ] Menu lateral completo com agenda, atendimentos, clientes, estoque, compras e financeiro
+- [ ] Testar cálculo, isolamento, gravação/leitura real e telas no celular
+- [ ] Configurar destino WhatsApp +55 47 9711-5829 e cadastro editável de preços; valores comerciais serão preenchidos pelo administrador
+
 ## Acesso automático dos clientes DiColore
 - [x] Auditar clientes: 10.355 códigos ERP sem vínculo (2.406 ativos), dois já têm conta recuperável; 5.439 vinculados têm senha e confirmação, incluindo quatro logins personalizados
 - [x] Regularizar 10.351 acessos (10.349 contas novas e dois vínculos recuperados), preservando contas/senhas, preços, responsáveis e aprovação; novos códigos ERP usam criação limitada após gravação confirmada e retornam pendências ao monitor existente, sem polling ou alteração de scripts locais
 - [x] 66 testes de acesso/lotes e 13 testes do monitor passaram; login real do 99306 pela tela, cadastro oficial aprovado e bloqueio da operação administrativa para cliente confirmados; funções implantadas, build OK
-- [ ] Resolver códigos 4, 87371, 88888 e 8782 — regra de senha pelo código foi recusada pela proteção contra senhas fracas; aguarda escolha do usuário de senha diferente, sem desabilitar a proteção. Quatro PROSPECT sem código ERP ficam intocados
+- [x] Manter códigos 4, 87371, 88888 e 8782 pendentes por decisão do usuário, sem senha alternativa nem desabilitar proteção; PROSPECT sem código ERP intocado
 
 ## Finalização iPhone/Safari DiColore
 - [x] Auditar checkout/edição/portal/painel/pagamento/fila offline/gravação/exportação; correção do cliente preserva responsável salvo; pedidos concluídos e permissões intactos

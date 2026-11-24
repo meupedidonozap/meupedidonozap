@@ -162,6 +162,350 @@ export type Database = {
         }
         Relationships: []
       }
+      cleaning_appointments: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string
+          quote_id: string | null
+          starts_at: string
+          status: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          notes?: string
+          quote_id?: string | null
+          starts_at: string
+          status?: string
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          notes?: string
+          quote_id?: string | null
+          starts_at?: string
+          status?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_appointments_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_appointments_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_catalog: {
+        Row: {
+          id: string
+          kind: string
+          mode: string
+          price_ready: boolean
+          product_id: string
+          store_id: string
+        }
+        Insert: {
+          id?: string
+          kind?: string
+          mode?: string
+          price_ready?: boolean
+          product_id: string
+          store_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          mode?: string
+          price_ready?: boolean
+          product_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_catalog_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_catalog_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_inventory: {
+        Row: {
+          created_at: string
+          id: string
+          min_quantity: number
+          name: string
+          quantity: number
+          store_id: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          name: string
+          quantity?: number
+          store_id: string
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          name?: string
+          quantity?: number
+          store_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_inventory_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          kind: string
+          paid_at: string | null
+          party: string
+          payment_method: string
+          purchase_id: string | null
+          quote_id: string | null
+          store_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          kind: string
+          paid_at?: string | null
+          party?: string
+          payment_method?: string
+          purchase_id?: string | null
+          quote_id?: string | null
+          store_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          kind?: string
+          paid_at?: string | null
+          party?: string
+          payment_method?: string
+          purchase_id?: string | null
+          quote_id?: string | null
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_ledger_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: true
+            referencedRelation: "cleaning_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_ledger_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: true
+            referencedRelation: "cleaning_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_ledger_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_purchases: {
+        Row: {
+          client_key: string
+          created_at: string
+          due_date: string
+          id: string
+          inventory_id: string
+          quantity: number
+          received_at: string | null
+          store_id: string
+          supplier: string
+          total: number
+        }
+        Insert: {
+          client_key: string
+          created_at?: string
+          due_date: string
+          id?: string
+          inventory_id: string
+          quantity: number
+          received_at?: string | null
+          store_id: string
+          supplier: string
+          total: number
+        }
+        Update: {
+          client_key?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          inventory_id?: string
+          quantity?: number
+          received_at?: string | null
+          store_id?: string
+          supplier?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_purchases_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_purchases_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaning_quotes: {
+        Row: {
+          accepted_at: string | null
+          addons: Json
+          client_key: string
+          created_at: string
+          created_by: string | null
+          customer: Json
+          customer_profile_id: string
+          details: Json
+          id: string
+          items: Json
+          notes: string
+          number: number
+          order_id: string | null
+          service_order_id: string | null
+          status: string
+          store_id: string
+          total: number | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          addons?: Json
+          client_key: string
+          created_at?: string
+          created_by?: string | null
+          customer: Json
+          customer_profile_id: string
+          details?: Json
+          id?: string
+          items?: Json
+          notes?: string
+          number?: number
+          order_id?: string | null
+          service_order_id?: string | null
+          status?: string
+          store_id: string
+          total?: number | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          addons?: Json
+          client_key?: string
+          created_at?: string
+          created_by?: string | null
+          customer?: Json
+          customer_profile_id?: string
+          details?: Json
+          id?: string
+          items?: Json
+          notes?: string
+          number?: number
+          order_id?: string | null
+          service_order_id?: string | null
+          status?: string
+          store_id?: string
+          total?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_quotes_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "customer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_quotes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_quotes_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_quotes_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupons: {
         Row: {
           code: string
@@ -2676,6 +3020,220 @@ export type Database = {
         Returns: boolean
       }
       can_view_store_catalog: { Args: { _store_id: string }; Returns: boolean }
+      cleaning_accept_quote: {
+        Args: { p_expected_total: number; p_id: string }
+        Returns: {
+          accepted_at: string | null
+          addons: Json
+          client_key: string
+          created_at: string
+          created_by: string | null
+          customer: Json
+          customer_profile_id: string
+          details: Json
+          id: string
+          items: Json
+          notes: string
+          number: number
+          order_id: string | null
+          service_order_id: string | null
+          status: string
+          store_id: string
+          total: number | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cleaning_admin: { Args: { p_store: string }; Returns: boolean }
+      cleaning_appointment_action: {
+        Args: {
+          p_end?: string
+          p_id: string
+          p_start?: string
+          p_status: string
+        }
+        Returns: {
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string
+          quote_id: string | null
+          starts_at: string
+          status: string
+          store_id: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cleaning_busy: {
+        Args: { p_from: string; p_store: string; p_to: string }
+        Returns: {
+          ends_at: string
+          starts_at: string
+        }[]
+      }
+      cleaning_create_quote: {
+        Args: {
+          p_input: Json
+          p_key: string
+          p_profile: string
+          p_store: string
+        }
+        Returns: {
+          accepted_at: string | null
+          addons: Json
+          client_key: string
+          created_at: string
+          created_by: string | null
+          customer: Json
+          customer_profile_id: string
+          details: Json
+          id: string
+          items: Json
+          notes: string
+          number: number
+          order_id: string | null
+          service_order_id: string | null
+          status: string
+          store_id: string
+          total: number | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cleaning_purchase: {
+        Args: {
+          p_due: string
+          p_inventory: string
+          p_key: string
+          p_quantity: number
+          p_store: string
+          p_supplier: string
+          p_total: number
+        }
+        Returns: {
+          client_key: string
+          created_at: string
+          due_date: string
+          id: string
+          inventory_id: string
+          quantity: number
+          received_at: string | null
+          store_id: string
+          supplier: string
+          total: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cleaning_receive_purchase: {
+        Args: { p_id: string }
+        Returns: {
+          client_key: string
+          created_at: string
+          due_date: string
+          id: string
+          inventory_id: string
+          quantity: number
+          received_at: string | null
+          store_id: string
+          supplier: string
+          total: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cleaning_review_quote: {
+        Args: { p_id: string; p_total: number }
+        Returns: {
+          accepted_at: string | null
+          addons: Json
+          client_key: string
+          created_at: string
+          created_by: string | null
+          customer: Json
+          customer_profile_id: string
+          details: Json
+          id: string
+          items: Json
+          notes: string
+          number: number
+          order_id: string | null
+          service_order_id: string | null
+          status: string
+          store_id: string
+          total: number | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cleaning_save_catalog: {
+        Args: {
+          p_id: string
+          p_image?: string
+          p_kind: string
+          p_mode: string
+          p_name: string
+          p_price: number
+          p_ready: boolean
+          p_store: string
+        }
+        Returns: string
+      }
+      cleaning_schedule: {
+        Args: {
+          p_end: string
+          p_notes?: string
+          p_quote: string
+          p_start: string
+          p_store: string
+        }
+        Returns: {
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string
+          quote_id: string | null
+          starts_at: string
+          status: string
+          store_id: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       client_invoice_analytics: {
         Args: { p_from: string; p_store_id: string; p_to: string }
         Returns: Json

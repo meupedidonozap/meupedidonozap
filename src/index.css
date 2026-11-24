@@ -132,6 +132,43 @@
 }
 
 @layer utilities {
+  .cleaning-store {
+    --background: 190 22% 98%;
+    --foreground: 196 34% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 196 34% 15%;
+    --primary: 190 76% 30%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 43 86% 56%;
+    --accent-foreground: 196 34% 15%;
+    --secondary: 190 28% 94%;
+    --secondary-foreground: 196 34% 15%;
+    --muted: 190 20% 95%;
+    --muted-foreground: 195 13% 42%;
+    --border: 190 19% 87%;
+    --input: 190 19% 87%;
+    --ring: 190 76% 30%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 196 34% 15%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 196 34% 15%;
+    --sidebar-accent: 190 28% 94%;
+    --sidebar-accent-foreground: 190 76% 30%;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: 0;
+  }
+  .cleaning-store h1, .cleaning-store h2, .cleaning-store h3 { letter-spacing: 0; }
+  .dark .cleaning-store {
+    --background: 195 20% 10%; --foreground: 190 20% 96%;
+    --card: 195 20% 13%; --card-foreground: 190 20% 96%;
+    --primary: 187 64% 52%; --primary-foreground: 195 30% 10%;
+    --secondary: 195 20% 18%; --secondary-foreground: 190 20% 96%;
+    --muted: 195 20% 18%; --muted-foreground: 190 10% 68%;
+    --border: 195 15% 26%; --input: 195 15% 26%;
+    --popover: 195 20% 13%; --popover-foreground: 190 20% 96%;
+    --sidebar-background: 195 20% 13%; --sidebar-foreground: 190 20% 96%;
+    --sidebar-accent: 195 20% 18%; --sidebar-accent-foreground: 187 64% 52%;
+  }
   .client-map-count.leaflet-tooltip {
     background: transparent;
     border: 0;

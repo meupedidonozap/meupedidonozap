@@ -1,0 +1,6 @@
+- Only the cleaning store uses these screens; route the public experience by store slug and keep legacy service stores unchanged.
+- Services and extras reference store-owned products; official prices and readiness are resolved in the quote RPC, never trusted from client totals.
+- Quote acceptance locks and creates one mirrored order/OS plus one receivable; only paid receivables mark the OS paid, preventing double revenue.
+- Agenda > Bloquear horário writes a live blocked interval; canceling the block reopens it without removing appointments. Use this action for one-off closures; recurring hours are not configured yet.
+- Customers request date/time after acceptance; owner confirms after defining duration. Confirmed, underway and blocked intervals share a server overlap constraint.
+- Cleaning forms save before WhatsApp handoff; the direct link is an additional delivery action, not a substitute for stored submissions.

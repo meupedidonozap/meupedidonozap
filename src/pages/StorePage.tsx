@@ -11,6 +11,8 @@ import { Loader2 } from 'lucide-react';
 import WaiterModeFAB from '@/components/WaiterModeFAB';
 import DynamicManifest from '@/components/DynamicManifest';
 import StoreLoginGate from '@/components/StoreLoginGate';
+import CleaningStorePage from './CleaningStorePage';
+import { isCleaningStore } from '@/lib/cleaning';
 
 export default function StorePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -41,6 +43,7 @@ export default function StorePage() {
   const storeDesc = store ? `Faça seu pedido em ${storeName}. ${store.address || 'Peça online via WhatsApp.'}` : 'MeuPedidoNoZap';
 
   const inner =
+    store && isCleaningStore(store) ? <CleaningStorePage store={store} /> :
     store?.type === 'COMIDA' ? <FoodStorePage /> :
     store?.type === 'PIZZARIA' ? <PizzaStorePage /> :
     store?.type === 'SALAO' ? <SalonStorePage /> :

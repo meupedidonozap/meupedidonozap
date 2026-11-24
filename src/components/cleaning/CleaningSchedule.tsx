@@ -1,0 +1,19 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Field,Notes } from './CleaningFields';
+import { businessDate,cleaningDate } from '@/lib/cleaning';
+import { supabase } from '@/integrations/supabase/client';
+import { useCleaningActions,type CleaningQuote,type CleaningAppointment } from '@/hooks/useCleaning';
+import { CalendarCheck,Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+export default function CleaningSchedule({storeId,quote,appointment,block=false,onClose,onSaved}: {storeId:string;quote?:CleaningQuote;appointment?:CleaningAppointment;block?:boolean;onClose:()=>void;onSaved?:(a:CleaningAppointment)=>void}) {
+  const [date,setDate]=useState(businessDate()); const [time,setTime]=useState('09:00'); const [duration,setDuration]=useState('2'); const [notes,setNotes]=useState(''); const [busy,setBusy]=useState(false); const actions=useCleaningActions(storeId);
+  const {data:occupied=[]}=useQuery({queryKey:['cleaning','busy',storeId,date],queryFn:async()=>{ const {data,error}=await supabase.rpc('cleaning_busy',{p_store:storeId,p_from:`${date}T00:00:00-03:00`,p_to:`${date}T23:59:59-03:00`}); if(error) throw error;return data||[]; }});
+  async function submit(e:React.FormEvent) { e.preventDefault();setBusy(true);try{ const start=new Date(`${date}T${time}:00-03:00`);const hours=Number(duration); if(!Number.isFinite(hours)||hours<=0||hours>24) throw new Error('Informe uma duração entre 0 e 24 horas.'); const end=new Date(start.getTime()+hours*3600000);
+    const a=appointment ? await actions.appointment(appointment.id,'confirmado',start.toISOString(),end.toISOString()) : await actions.schedule(quote?.id||null,start.toISOString(),end.toISOString(),notes);
+    toast.success(block?'Horário bloqueado.':appointment?'Agendamento confirmado.':'Solicitação de horário salva.'); onSaved?.(a);onClose();
+  }catch(e){toast.error(e instanceof Error?e.message:'Não foi possível agendar.');}finally{setBusy(false);}}
+  return <Dialog open onOpenChange={open=>{if(!open&&!busy)onClose();}}><DialogContent className="cleaning-store max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>{block?'Bloquear horário':appointment?'Confirmar / reagendar':'Solicitar agendamento'}</DialogTitle><DialogDescription>{block?'Indisponibilidade da equipe':appointment?'Horário e duração do atendimento':`Orçamento #${quote?.number} · aguardará confirmação da empresa`}</DialogDescription></DialogHeader><form onSubmit={submit} className="space-y-4"><Field label="Data" type="date" value={date} onChange={setDate} min={businessDate()} required/><div className="grid grid-cols-2 gap-3"><Field label="Horário" type="time" value={time} onChange={setTime} required/><Field label="Duração estimada (h)" type="number" value={duration} onChange={setDuration} min="0.25" max="24" step="0.25" required/></div>{occupied.length>0&&<div className="border-l-2 border-primary pl-3 text-sm"><p className="mb-1 font-medium">Horários indisponíveis</p>{occupied.map((o,i)=><p key={i} className="text-muted-foreground">{cleaningDate(o.starts_at,true)} até {new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}).format(new Date(o.ends_at))}</p>)}</div>}<Notes value={notes} onChange={setNotes}/><Button type="submit" className="w-full" disabled={busy}>{busy?<Loader2 className="animate-spin"/>:<CalendarCheck/>}{block?'Bloquear':appointment?'Confirmar horário':'Solicitar horário'}</Button></form></DialogContent></Dialog>;
+}

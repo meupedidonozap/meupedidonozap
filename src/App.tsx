@@ -32,6 +32,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
 import ReleaseWhatsAppDialog from './components/ReleaseWhatsAppDialog';
 import DicoloreDataRefresh from './components/DicoloreDataRefresh';
+import CleaningAdminPage from './pages/CleaningAdminPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,6 +77,7 @@ const App = () => (
             <Route path="/admin" element={<><NoIndex /><AdminPage /></>} />
             <Route path="/redefinir-senha" element={<><NoIndex /><ResetPasswordPage /></>} />
             <Route path="/:slug" element={<StorePage />} />
+            <Route path="/limpa-telhas-brusque/admin" element={<><NoIndex /><CleaningAdminPage /></>} />
             <Route path="/:slug/admin" element={<><NoIndex /><StoreAdminPage /></>} />
             <Route path="/:slug/checkout" element={<><NoIndex /><CheckoutPage /></>} />
             <Route path="/mabelle/pagamento" element={<><NoIndex /><PaymentReturnPage /></>} />
