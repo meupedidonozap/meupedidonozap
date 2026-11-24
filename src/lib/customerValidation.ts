@@ -18,6 +18,23 @@ export const customerSchema = z.object({
 
 export const customerIdentitySchema = customerSchema.pick({ name: true, cpfCnpj: true, whatsapp: true });
 
+const prospectRegistrationSchema = customerSchema.extend({
+  cpfCnpj: z.string().trim().max(18).refine(value => !value || cpf.isValid(value) || cnpj.isValid(value), 'Informe um CPF/CNPJ válido.'),
+});
+
+/** Only DiColore prospects may omit the document at registration, never at finalization. */
+export function getCustomerRegistrationError(customer: unknown, storeSlug?: string): string | null {
+  const code = (customer as { customerCode?: unknown } | null)?.customerCode;
+  if (storeSlug !== 'dicolore' || String(code ?? '').trim()) return getCustomerError(customer);
+  const result = prospectRegistrationSchema.safeParse(customer);
+  return result.success ? null : result.error.issues[0]?.message || 'Preencha os dados obrigatórios.';
+}
+
+export function needsProspectCompletion(customer: unknown, storeSlug?: string): boolean {
+  const code = (customer as { customerCode?: unknown } | null)?.customerCode;
+  return !!customer && storeSlug === 'dicolore' && !String(code ?? '').trim() && !customerSchema.safeParse(customer).success;
+}
+
 export const isPickupCustomer = (customer: unknown) =>
   String((customer as { address?: unknown } | null)?.address ?? '').trim().toUpperCase() === 'RETIRAR NA LOJA';
 

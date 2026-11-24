@@ -1,5 +1,10 @@
 # Roadmap
 
+## Cadastro PROSPECT DiColore
+- [x] Permitir cadastro sem CPF/CNPJ somente de prospect DiColore, mantendo check-in/check-out e regras das demais lojas
+- [x] Conferir todos os dados ao finalizar; oferecer edição e voltar à finalização com cadastro salvo e carrinho preservado
+- [x] 63 testes distintos passaram, incluindo cinco de gravação real com check-in/check-out; cadastro e edição na tela autenticada, documento/número persistidos e usados no envio interceptado, carrinho preservado e formulário móvel conferidos; registros temporários removidos, nenhum pedido liberado ao ERP
+
 ## Atualização por entrada DiColore
 - [x] Reconsultar dados visíveis ao entrar, navegar e voltar de outro aplicativo, sem consultas periódicas novas e sem alterar outras lojas
 - [x] Atualizar carteira ao abrir seleção, ler cadastro oficial antes de selecionar e revalidar financeiro/estoque na passagem ao carrinho

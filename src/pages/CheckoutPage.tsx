@@ -9,6 +9,8 @@ import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
 import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { mapProfile } from '@/hooks/useCustomerProfile';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
@@ -63,7 +65,7 @@ import { getPaymentGateway } from '@/components/PaymentSettingsCard';
 import { getAvailablePaymentMethods } from '@/lib/paymentAvailability';
 import { buildPixPayload } from '@/lib/pixBrCode';
 import { getSuperfreteCustomerError } from '@/lib/superfreteCustomer';
-import { getCustomerError } from '@/lib/customerValidation';
+import { getCustomerError, needsProspectCompletion } from '@/lib/customerValidation';
 import { customerDataIsReadOnly } from '@/lib/customerDataAccess';
 
 interface ShippingOption {
@@ -80,6 +82,7 @@ const brazilianStates = [
 ];
 
 export default function CheckoutPage() {
+  const queryClient = useQueryClient();
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
@@ -160,7 +163,7 @@ export default function CheckoutPage() {
   const [finalizeAsk, setFinalizeAsk] = useState<FinalizeStep | null>(null);
   // Cliente PROSPECT sem CPF/CNPJ: 'ask' -> 'edit' -> 'finish'.
   const [prospectStep, setProspectStep] = useState<null | 'ask' | 'edit' | 'finish'>(null);
-  const [prospectForm, setProspectForm] = useState({ cpfCnpj: '', name: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '' });
+  const [prospectForm, setProspectForm] = useState({ cpfCnpj: '', name: '', whatsapp: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '', complement: '', ie: '' });
   const [prospectSaving, setProspectSaving] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
   const [paymentFormaCodigo, setPaymentFormaCodigo] = useState<string>('');
@@ -357,6 +360,17 @@ export default function CheckoutPage() {
   };
 
   const validateForm = () => {
+    // Check the official profile, not a partially edited checkout or document length alone.
+    if (sellerOrder && needsProspectCompletion(customerProfile, store.slug)) {
+      const c = customerProfile;
+      setProspectForm({
+        cpfCnpj: c?.cpfCnpj || '', name: c?.name || '', whatsapp: c?.whatsapp || '',
+        cep: c?.cep || '', uf: c?.uf || '', city: c?.city || '', neighborhood: c?.neighborhood || '',
+        address: c?.address || '', number: c?.number || '', complement: c?.complement || '', ie: c?.ie || '',
+      });
+      setProspectStep('ask');
+      return false;
+    }
     if (locationLoading || locationError) {
       toast.error(locationLoading ? 'Aguarde a consulta da cidade do seu cadastro.' : 'Não foi possível consultar a cidade do cadastro. Reabra a finalização para tentar novamente.');
       return false;
@@ -393,7 +407,7 @@ export default function CheckoutPage() {
           setProspectForm({
             cpfCnpj: formData.cpfCnpj || '', name: formData.name || '', whatsapp: formData.whatsapp || '',
             cep: formData.cep || '', uf: formData.uf || '', city: formData.city || '',
-            neighborhood: formData.neighborhood || '', address: formData.address || '', number: formData.number || '',
+            neighborhood: formData.neighborhood || '', address: formData.address || '', number: formData.number || '', complement: formData.complement || '', ie: selectedCustomer.ie || '',
           });
           setProspectStep('ask');
           return false;
@@ -568,19 +582,30 @@ export default function CheckoutPage() {
 
   const saveProspect = async () => {
     const f = prospectForm;
-    const customerError = getCustomerError(f);
+    const customerError = getCustomerError(f, { pickup: false });
     if (customerError) { toast.error(customerError); return; }
     if (!selectedCustomer?.id) return;
     setProspectSaving(true);
     try {
-      const { error } = await supabase.from('customer_profiles').update({
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error('Faça login novamente.');
+      const { data, error } = await supabase.from('customer_profiles').update({
         cpf_cnpj: f.cpfCnpj, name: f.name.trim().toUpperCase(), whatsapp: f.whatsapp, cep: f.cep, uf: f.uf,
         city: f.city, neighborhood: f.neighborhood, address: f.address, number: f.number,
-      }).eq('id', selectedCustomer.id).select().single();
+        complement: f.complement || null, ie: f.ie || null,
+      }).eq('id', selectedCustomer.id).eq('store_id', store.id).select().single();
       if (error) throw error;
-      selectCustomer({ ...selectedCustomer, ...f, name: f.name.trim().toUpperCase() } as any);
-      setFormData(prev => ({ ...prev, ...f, name: f.name.trim().toUpperCase() }));
-      setProspectStep('finish');
+      const saved = mapProfile(data);
+      queryClient.setQueryData(['selected-customer-profile', store.id, saved.id], saved);
+      selectCustomer(saved);
+      setFormData(prev => ({ ...prev, name: saved.name, cpfCnpj: saved.cpfCnpj, whatsapp: saved.whatsapp,
+        cep: saved.cep, uf: saved.uf, city: saved.city, neighborhood: saved.neighborhood,
+        address: saved.address, number: saved.number, complement: saved.complement || '' }));
+      void queryClient.invalidateQueries({ queryKey: ['store-customer-profiles', store.id] });
+      void queryClient.invalidateQueries({ queryKey: ['customer-profile'] });
+      setLocationError(false);
+      setProspectStep(store.slug === 'dicolore' ? null : 'finish');
+      toast.success('Cliente salvo. Continue a finalização do pedido.');
     } catch (e: any) {
       toast.error(e.message || 'Não foi possível salvar o cliente');
     } finally {
@@ -1044,12 +1069,12 @@ export default function CheckoutPage() {
           {prospectStep === 'ask' ? (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Cliente PROSPECT sem CPF/CNPJ</AlertDialogTitle>
-                <AlertDialogDescription>Este cliente ainda não é cliente final e não tem CPF/CNPJ. Deseja editar o cadastro agora?</AlertDialogDescription>
+                <AlertDialogTitle>Cliente faltando campos obrigatórios. Deseja alterar agora?</AlertDialogTitle>
+                <AlertDialogDescription>{getCustomerError(customerProfile, { pickup: false }) || 'Confira os dados cadastrais antes de finalizar.'}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setProspectStep(null)}>Agora não</Button>
-                <Button onClick={() => setProspectStep('edit')}>Editar cliente</Button>
+                <Button variant="outline" onClick={() => setProspectStep(null)}>Não</Button>
+                <Button onClick={() => setProspectStep('edit')}>Sim</Button>
               </AlertDialogFooter>
             </>
           ) : (
@@ -1077,15 +1102,17 @@ export default function CheckoutPage() {
             <div className="grid gap-1"><Label>Nome *</Label><Input value={prospectForm.name} onChange={e => setProspectForm(f => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid gap-1"><Label>WhatsApp *</Label><Input value={prospectForm.whatsapp} onChange={e => setProspectForm(f => ({ ...f, whatsapp: formatPhone(e.target.value) }))} /></div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="grid gap-1 col-span-2"><Label>CEP</Label><Input value={prospectForm.cep} onChange={e => setProspectForm(f => ({ ...f, cep: formatCEP(e.target.value) }))} /></div>
+              <div className="grid gap-1 col-span-2"><Label>CEP *</Label><Input value={prospectForm.cep} onChange={e => setProspectForm(f => ({ ...f, cep: formatCEP(e.target.value) }))} /></div>
               <div className="grid gap-1"><Label>UF *</Label><Input maxLength={2} value={prospectForm.uf} onChange={e => setProspectForm(f => ({ ...f, uf: e.target.value.toUpperCase() }))} /></div>
             </div>
             <div className="grid gap-1"><Label>Cidade *</Label><Input value={prospectForm.city} onChange={e => setProspectForm(f => ({ ...f, city: e.target.value }))} /></div>
-            <div className="grid gap-1"><Label>Bairro</Label><Input value={prospectForm.neighborhood} onChange={e => setProspectForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
+            <div className="grid gap-1"><Label>Bairro *</Label><Input value={prospectForm.neighborhood} onChange={e => setProspectForm(f => ({ ...f, neighborhood: e.target.value }))} /></div>
             <div className="grid grid-cols-3 gap-2">
               <div className="grid gap-1 col-span-2"><Label>Endereço *</Label><Input value={prospectForm.address} onChange={e => setProspectForm(f => ({ ...f, address: e.target.value }))} /></div>
-              <div className="grid gap-1"><Label>Número</Label><Input value={prospectForm.number} onChange={e => setProspectForm(f => ({ ...f, number: e.target.value }))} /></div>
+              <div className="grid gap-1"><Label>Número *</Label><Input value={prospectForm.number} onChange={e => setProspectForm(f => ({ ...f, number: e.target.value }))} /></div>
             </div>
+            <div className="grid gap-1"><Label>Complemento</Label><Input value={prospectForm.complement} onChange={e => setProspectForm(f => ({ ...f, complement: e.target.value }))} /></div>
+            <div className="grid gap-1"><Label>Inscrição Estadual</Label><Input value={prospectForm.ie} onChange={e => setProspectForm(f => ({ ...f, ie: e.target.value }))} /></div>
             <Button onClick={saveProspect} disabled={prospectSaving}>{prospectSaving ? 'Salvando...' : 'Salvar cliente'}</Button>
           </div>
         </DialogContent>

@@ -1,5 +1,5 @@
 import { normalizePriceTable } from '@/lib/pricing';
-import { getCustomerError } from '@/lib/customerValidation';
+import { getCustomerRegistrationError } from '@/lib/customerValidation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CustomerProfile } from './useCustomerProfile';
@@ -86,7 +86,11 @@ export function useCreateCustomerProfileAdmin() {
       customerCode?: string;
       noDiscount?: boolean;
     }) => {
-      const customerError = getCustomerError(params);
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error('Faça login novamente.');
+      const { data: store, error: storeError } = await supabase.from('stores').select('slug').eq('id', params.storeId).single();
+      if (storeError) throw storeError;
+      const customerError = getCustomerRegistrationError(params, store.slug);
       if (customerError) throw new Error(customerError);
       const { data, error } = await supabase
         .from('customer_profiles')

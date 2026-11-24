@@ -1,4 +1,4 @@
-import { getCustomerError } from '@/lib/customerValidation';
+import { getCustomerError, getCustomerRegistrationError } from '@/lib/customerValidation';
 import { WishlistPanel } from '@/components/admin/WishlistPanel';
 import { Heart } from 'lucide-react';
 import { DwCustomerFields } from '@/components/DwCustomerFields';
@@ -3726,7 +3726,7 @@ export default function StoreAdminPage() {
                 <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
                 <div className="grid gap-3 py-2 overflow-y-auto pr-1 flex-1">
                   <div className="grid gap-1"><Label className="text-sm">Nome *</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
-                  <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ *</Label><Input value={customerForm.cpfCnpj} placeholder={store?.slug === 'dicolore' ? 'Digite o CNPJ para buscar os dados' : undefined} onChange={async e => {
+                  <div className="grid gap-1"><Label className="text-sm">{store.slug === 'dicolore' && !customerForm.customerCode.trim() ? 'CPF/CNPJ (opcional)' : 'CPF/CNPJ *'}</Label><Input value={customerForm.cpfCnpj} placeholder={store?.slug === 'dicolore' ? 'Digite o CNPJ para buscar os dados' : undefined} onChange={async e => {
                     const value = e.target.value;
                     setCustomerForm(f => ({ ...f, cpfCnpj: value }));
                     if (store?.slug !== 'dicolore' || value.replace(/\D/g, '').length !== 14) return;
@@ -3804,7 +3804,7 @@ export default function StoreAdminPage() {
                 <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button variant="outline" onClick={() => setCreatingCustomer(false)}>Cancelar</Button>
                   <Button disabled={!customerForm.name.trim() || createCustomerProfile.isPending} onClick={async () => {
-                    const customerError = getCustomerError(customerForm);
+                    const customerError = getCustomerRegistrationError(customerForm, store.slug);
                     if (customerError) { toast.error(customerError); return; }
                     try {
                       const codigo = customerForm.customerCode.trim();

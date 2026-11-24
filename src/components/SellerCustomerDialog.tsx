@@ -16,7 +16,7 @@ import type { SellerCustomer } from '@/contexts/SellerContext';
 import { resolveStorePriceTable } from '@/lib/pricing';
 import { lookupCnpj } from '@/lib/cnpjLookup';
 import { supabase } from '@/integrations/supabase/client';
-import { getCustomerError } from '@/lib/customerValidation';
+import { getCustomerRegistrationError } from '@/lib/customerValidation';
 import { useQueryClient } from '@tanstack/react-query';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
@@ -109,7 +109,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
   }, [scoped, search]);
 
   const handleCreate = async () => {
-    const customerError = getCustomerError(form);
+    const customerError = getCustomerRegistrationError(form, storeSlug);
     if (customerError) { toast.error(customerError); return; }
     const dup = await checkDuplicate(form.cpfCnpj);
     if (dup) { toast.error(dup); return; }
@@ -203,7 +203,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
           </TabsContent>
 
           <TabsContent value="new" className="mt-3 space-y-3">
-            <div className="grid gap-1"><Label className="text-sm">CPF/CNPJ *</Label>
+            <div className="grid gap-1"><Label className="text-sm">{storeSlug === 'dicolore' ? 'CPF/CNPJ (opcional)' : 'CPF/CNPJ *'}</Label>
               <div className="relative">
                 <Input
                   value={form.cpfCnpj}

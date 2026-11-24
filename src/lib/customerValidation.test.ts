@@ -1,7 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { customerSchema, getCustomerError } from './customerValidation';
+import { customerSchema, getCustomerError, getCustomerRegistrationError, needsProspectCompletion } from './customerValidation';
 
 const complete = { name: 'Cliente Teste', cpfCnpj: '529.982.247-25', whatsapp: '(47) 99999-9999', cep: '88352-454', uf: 'SC', city: 'Brusque', neighborhood: 'Centro', address: 'Rua Teste', number: '10' };
+describe('PROSPECT DiColore', () => {
+  const prospect = { ...complete, cpfCnpj: '', customerCode: '' };
+  it('permite novo cadastro sem documento na DiColore', () => {
+    expect(getCustomerRegistrationError(prospect, 'dicolore')).toBeNull();
+  });
+  it.each(['jewos', 'dicoloresenses', undefined])('mantém documento obrigatório em %s', slug => {
+    expect(getCustomerRegistrationError(prospect, slug)).toBe('Informe um CPF/CNPJ válido.');
+  });
+  it('não dispensa documento de cliente com código ERP', () => {
+    expect(getCustomerRegistrationError({ ...prospect, customerCode: '83658' }, 'dicolore')).toBe('Informe um CPF/CNPJ válido.');
+  });
+  it('rejeita documento preenchido inválido no cadastro', () => {
+    expect(getCustomerRegistrationError({ ...prospect, cpfCnpj: '11111111111' }, 'dicolore')).toBe('Informe um CPF/CNPJ válido.');
+  });
+  it('não permite finalizar prospect sem documento', () => {
+    expect(needsProspectCompletion(prospect, 'dicolore')).toBe(true);
+    expect(getCustomerError(prospect, { pickup: false })).toBe('Informe um CPF/CNPJ válido.');
+  });
+  it.each(['name', 'whatsapp', 'cep', 'uf', 'city', 'neighborhood', 'address', 'number'])('conferência completa detecta %s mesmo com documento válido', field => {
+    expect(needsProspectCompletion({ ...complete, [field]: '' }, 'dicolore')).toBe(true);
+  });
+  it('cadastro salvo completo permite retomar a finalização', () => {
+    expect(needsProspectCompletion(complete, 'dicolore')).toBe(false);
+  });
+  it('não ativa a edição de prospect em outras lojas', () => {
+    expect(needsProspectCompletion(prospect, 'jewos')).toBe(false);
+  });
+});
 describe('dados obrigatórios em todas as lojas', () => {
   it('exige CPF/CNPJ e valida os dígitos verificadores', () => {
     for (const cpfCnpj of ['', '11111111111', '52998224724']) expect(customerSchema.safeParse({ ...complete, cpfCnpj }).success).toBe(false);

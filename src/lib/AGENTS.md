@@ -1,0 +1,1 @@
+- Prospect registration validation is separate from checkout validation and scoped by the official store slug, so allowing an empty document at registration cannot weaken order submission or other stores.
