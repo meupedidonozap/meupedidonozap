@@ -1,11 +1,13 @@
 # Roadmap
 
 ## Limpa Telhas Brusque
-- [ ] Criar loja SERVICOS isolada; serviços como produtos selecionáveis, preços próprios cadastrados por tipo de telhado e adicionais
-- [ ] Cadastro/login por loja, aceite e solicitação de agendamento; pedidos no painel e WhatsApp após salvar
-- [ ] Menu lateral completo com agenda, atendimentos, clientes, estoque, compras e financeiro
-- [ ] Testar cálculo, isolamento, gravação/leitura real e telas no celular
-- [ ] Configurar destino WhatsApp +55 47 9711-5829 e cadastro editável de preços; valores comerciais serão preenchidos pelo administrador
+- [x] Loja SERVICOS isolada; três serviços em produtos, preço próprio por tipo e adicionais editáveis em Serviços
+- [x] Cadastro/login existente por loja, aceite com pedido/OS/conta únicos, solicitação de horário e confirmação da empresa; WhatsApp direto após salvar orçamento/agendamento
+- [x] Menu lateral completo; clientes, estoque, compras com recebimento, contas e caixa realizado integrados; bloqueio/reabertura de horários sem sobreposição
+- [x] 19 testes passaram (10 com gravação real); cadastro, orçamento R$550, aceite, agenda, confirmação, conclusão, pagamento e compra/estoque relidos na tela; cliente bloqueado no painel, celular/desktop sem overflow; dados temporários removidos
+- [x] WhatsApp +55 47 9711-5829 configurado; preços comerciais não inventados, cadastro disponível em Serviços
+- [ ] Preencher preços comerciais — depende dos valores definidos pelo administrador; sem preço, pedido aguarda avaliação
+- [ ] Disponibilizar as novas telas no site publicado — depende de publicação; e-mail automático não ativado, WhatsApp requer confirmar envio no aplicativo
 
 ## Acesso automático dos clientes DiColore
 - [x] Auditar clientes: 10.355 códigos ERP sem vínculo (2.406 ativos), dois já têm conta recuperável; 5.439 vinculados têm senha e confirmação, incluindo quatro logins personalizados
