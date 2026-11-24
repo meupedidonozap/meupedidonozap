@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import release from '../../public/release.json';
 
 class Worker extends EventTarget {
   state = 'installing';
@@ -10,6 +11,16 @@ beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('app updates', () => {
+  it('targets this Safari correction only to DiColore', async () => {
+    const { requiresAppUpdate } = await import('./appUpdates');
+    expect(release.stores).toEqual(['dicolore']);
+    for (const screen of ['', '/checkout', '/vendedor/vendas', '/admin']) {
+      expect(requiresAppUpdate({ version: 'new', stores: release.stores }, `/dicolore${screen}`, 'old')).toBe(true);
+    }
+    for (const slug of ['jewosnewborn', 'dicoloresenses', 'senses', 'mabelle', 'admin']) {
+      expect(requiresAppUpdate({ version: 'new', stores: release.stores }, `/${slug}`, 'old')).toBe(false);
+    }
+  });
   it('requires JEWOS to update when its running version differs without any worker signal', async () => {
     const { requiresAppUpdate, getUpdateAvailable } = await import('./appUpdates');
     expect(getUpdateAvailable()).toBe(false);

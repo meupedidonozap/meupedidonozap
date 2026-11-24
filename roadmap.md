@@ -1,5 +1,12 @@
 # Roadmap
 
+## Finalização iPhone/Safari DiColore
+- [ ] Auditar escolha de destinatário, gravação antes do WhatsApp e retorno em todos os caminhos DiColore, sem alterar pedidos concluídos
+- [ ] Preservar destinatário por loja/conta/cliente, validar opções atuais e impedir perda de escolha em recargas
+- [ ] Evitar recarga por primeira leitura de versão e abrir WhatsApp somente após pedido salvo, mantendo outras lojas
+- [ ] Testar finalização autenticada, seleção restaurada e aviso obrigatório somente DiColore
+- [ ] Disponibilizar correção e aviso obrigatório — depende de publicação
+
 ## Cadastro PROSPECT DiColore
 - [x] Permitir cadastro sem CPF/CNPJ somente de prospect DiColore, mantendo check-in/check-out e regras das demais lojas
 - [x] Conferir todos os dados ao finalizar; oferecer edição e voltar à finalização com cadastro salvo e carrinho preservado

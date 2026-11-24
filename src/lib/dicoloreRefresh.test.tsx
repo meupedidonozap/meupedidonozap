@@ -5,7 +5,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { isStoreData, refreshDicoloreData, SCREEN_DATA, STOCK_DATA } from './dicoloreRefresh';
 import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
 import { requiresAppUpdate } from './appUpdates';
-import release from '../../public/release.json';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -108,7 +107,6 @@ describe('DiColore workflow refresh', () => {
   });
 
   it('ships this improvement without an obligatory update notice', () => {
-    expect(release.stores).toEqual([]);
-    expect(requiresAppUpdate({ version: 'new', stores: release.stores }, '/dicolore/vendedor/vendas', 'old')).toBe(false);
+    expect(requiresAppUpdate({ version: 'new', stores: [] }, '/dicolore/vendedor/vendas', 'old')).toBe(false);
   });
 });

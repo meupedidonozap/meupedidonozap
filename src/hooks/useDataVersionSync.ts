@@ -95,6 +95,12 @@ export async function ensureLatestDataVersion(slug: string, storeId: string): Pr
     if (!serverVersion) return false;
     const storageKey = `dv_${slug}`;
     const localVersion = localStorage.getItem(storageKey) || '';
+    // First observation is not evidence of stale prices. Safari may have no stored version.
+    // Keep the legacy guard for other stores; real DiColore version changes still block submission.
+    if (slug === 'dicolore' && !localVersion) {
+      localStorage.setItem(storageKey, serverVersion);
+      return false;
+    }
     if (localVersion !== serverVersion) {
       localStorage.setItem(storageKey, serverVersion);
       return true;

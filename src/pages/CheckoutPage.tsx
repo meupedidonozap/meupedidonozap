@@ -6,7 +6,7 @@ import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
 import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
-import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
+import { requestReleaseWhatsApp, releaseAppUrl } from '@/lib/releaseWhatsApp';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,6 +30,7 @@ import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
 import SellerCustomerDialog from '@/components/SellerCustomerDialog';
 import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
+import { useCheckoutRecipient } from '@/hooks/useCheckoutRecipient';
 import { useCart } from '@/contexts/CartContext';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
@@ -90,7 +91,7 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { data: allProductsCk = [] } = useProducts(store?.id);
   const editingQuote = useEditingQuote(store?.id);
-  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable, setDiscountRules } = useCart();
+  const { cart, clearCart, itemDiscounts, updateQuantity, removeItem, setStoreId, setDiscountsBlocked, setCustomerPriceTable, setDiscountRules, revalidatePrices } = useCart();
   // As regras de desconto vêm sempre da loja: o checkout pode ser aberto direto
   // (edição de pedido, recarga da página, aviso de atualização) sem passar pela vitrine.
   const discountRules = useMemo(() => ((store?.settings as any)?.discountRules || []) as DiscountRule[], [store?.settings]);
@@ -109,19 +110,24 @@ export default function CheckoutPage() {
   const { data: savedAddresses = [] } = useCustomerAddresses(user?.id, store?.id, store?.slug);
   const lockedCustomerData = customerDataIsReadOnly(store?.slug, isSellerMode);
   const canOfferRelease = sellerOrder && (seller.isSeller || seller.isTelevendas);
-  const { data: sellers = [] } = useStoreSellers(store?.id);
+  const { data: sellers = [], isLoading: sellersLoading } = useStoreSellers(store?.id);
   // Tabela de preço que prevalece em todo o pedido: a do cadastro do cliente,
   // com o padrão da loja como único fallback (mesma regra da vitrine).
   const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
   const noDiscount = customerDiscountsBlocked(store?.slug, customerProfile);
   useEffect(() => { setDiscountsBlocked(noDiscount); setCustomerPriceTable(activePriceTable); }, [noDiscount, activePriceTable, setDiscountsBlocked, setCustomerPriceTable]);
+  useEffect(() => {
+    if (store?.slug === 'dicolore' && allProductsCk.length) revalidatePrices(allProductsCk);
+  }, [store?.slug, allProductsCk, revalidatePrices]);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, activePriceTable);
-  const { data: recipientsRpc = [] } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
+  const { data: recipientsRpc = [], isLoading: recipientsLoading, isError: recipientsError } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
   // Otherwise fall back to all active sellers.
-  const recipientOptions = (customerProfile?.sellerCode && recipientsRpc.length > 0)
+  const recipientOptions = useMemo(() => (customerProfile?.sellerCode && recipientsRpc.length > 0)
     ? recipientsRpc.map(r => ({ id: r.id, name: r.name, whatsapp: r.whatsapp, kind: r.kind }))
-    : sellers.map(s => ({ id: s.id, name: s.name, whatsapp: s.whatsapp, kind: 'vendedor' as const }));
+    : sellers.map(s => ({ id: s.id, name: s.name, whatsapp: s.whatsapp, kind: 'vendedor' as const })),
+  [customerProfile?.sellerCode, recipientsRpc, sellers]);
+  const recipientsReady = !sellersLoading && (!customerProfile?.sellerCode || (!recipientsLoading && !recipientsError));
   const upsertProfile = useUpsertCustomerProfile();
   const storeOpenStatus = useStoreOpen(store);
   const dicolore = isDicoloreFlow(store?.slug, store?.settings);
@@ -144,7 +150,15 @@ export default function CheckoutPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState(false);
-  const [selectedSellerId, setSelectedSellerId] = useState<string>('');
+  const [legacySellerId, setLegacySellerId] = useState<string>('');
+  const [savedSellerId, setSavedSellerId] = useCheckoutRecipient(
+    store?.slug, store?.id, user?.id, customerProfile?.id, recipientOptions,
+    store?.slug === 'dicolore' && recipientsReady && !!customerProfile && !sellerOrder,
+    !!customerProfile?.sellerCode && recipientsRpc.length > 0,
+  );
+  const selectedSellerId = store?.slug === 'dicolore' ? savedSellerId : legacySellerId;
+  const setSelectedSellerId = store?.slug === 'dicolore' ? setSavedSellerId : setLegacySellerId;
+  const mobileWhatsApp = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
   useEffect(() => {
     if (hasOpenCustomerDraft(store?.id)) setSellerCustomerDialogOpen(true);
@@ -273,10 +287,10 @@ export default function CheckoutPage() {
 
   // Auto-select the only available recipient (e.g. customer has just one linked seller)
   useEffect(() => {
-    if (!selectedSellerId && recipientOptions.length === 1) {
-      setSelectedSellerId(recipientOptions[0].id);
+    if (store?.slug !== 'dicolore' && !legacySellerId && recipientOptions.length === 1) {
+      setLegacySellerId(recipientOptions[0].id);
     }
-  }, [recipientOptions, selectedSellerId]);
+  }, [recipientOptions, legacySellerId, store?.slug]);
 
   // "Salvar Orçamento" acionado direto da gaveta do carrinho
   const autoQuoteRef = useRef<{ done: boolean; run?: () => void }>({ done: false });
@@ -415,6 +429,10 @@ export default function CheckoutPage() {
         toast.error('Informe o CPF/CNPJ do cliente para finalizar o pedido');
         return false;
       }
+    }
+    if (store.slug === 'dicolore' && !sellerOrder && !recipientsReady) {
+      toast.error(recipientsError ? 'Não foi possível carregar os destinatários. Reabra a finalização para tentar novamente.' : 'Aguarde o carregamento dos destinatários.');
+      return false;
     }
     if (recipientOptions.length > 0 && !sellerOrder && !selectedSellerId) {
       toast.error('Selecione o vendedor para enviar o pedido');
@@ -658,7 +676,8 @@ export default function CheckoutPage() {
     const useMp = !sellerOrder && !isOnlinePayment && gateway.provider === 'mercadopago' && ((gateway.pixEnabled && formData.paymentMethod === 'pix') || (gateway.cardEnabled && formData.paymentMethod === 'cartao'));
     const usePixQr = !useMp && !sellerOrder && !isOnlinePayment && gateway.pixEnabled && !!gateway.pixKey && formData.paymentMethod === 'pix';
     const awaitsPayment = !sellerOrder && !isOnlinePayment && ((gateway.pixEnabled && formData.paymentMethod === 'pix') || (gateway.cardEnabled && formData.paymentMethod === 'cartao'));
-    const waWindow = sellerOrder || isOnlinePayment || usePixQr || useMp ? null : window.open('', '_blank');
+    // DiColore saves first and offers a direct tap; Safari never needs an empty popup.
+    const waWindow = store.slug === 'dicolore' || sellerOrder || isOnlinePayment || usePixQr || useMp ? null : window.open('', '_blank');
     setIsSubmitting(true);
     try {
       const offline = !isOnline();
@@ -671,10 +690,19 @@ export default function CheckoutPage() {
       if (!offline && slug && store?.id) {
         const wasStale = await ensureLatestDataVersion(slug, store.id);
         if (wasStale) {
+          waWindow?.close();
+          opts.releaseWa?.win?.close();
           toast.error('Os preços foram atualizados pela loja. Revise seu pedido antes de finalizar.');
           setIsSubmitting(false);
-          // Força recarregar a página para puxar preços novos do catálogo
-          setTimeout(() => window.location.reload(), 1200);
+          if (store.slug === 'dicolore') {
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['products', store.id] }),
+              queryClient.invalidateQueries({ queryKey: ['stores', store.slug] }),
+            ]);
+          } else {
+            // Preserve legacy behavior in other stores.
+            setTimeout(() => window.location.reload(), 1200);
+          }
           return;
         }
       }
@@ -940,7 +968,9 @@ export default function CheckoutPage() {
         ? recipientOptions.find(s => s.id === selectedSellerId)
         : undefined;
       const targetWhatsapp = chosenRecipient?.whatsapp || store.whatsapp;
-      const waUrl = buildWhatsAppUrl(targetWhatsapp, generateOrderMessage());
+      const waUrl = store.slug === 'dicolore'
+        ? `https://wa.me/${targetWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(generateOrderMessage())}`
+        : buildWhatsAppUrl(targetWhatsapp, generateOrderMessage());
 
       if (useMp && !asQuote && created?.id) {
         const method = formData.paymentMethod === 'pix' ? 'pix' : 'card';
@@ -1378,7 +1408,7 @@ export default function CheckoutPage() {
                     <Label className="text-base font-bold flex items-center gap-2">
                       📱 Enviar pedido para <span className="text-destructive">*</span>
                     </Label>
-                    <Select value={selectedSellerId} onValueChange={setSelectedSellerId}>
+                    <Select value={selectedSellerId} onValueChange={setSelectedSellerId} disabled={store.slug === 'dicolore' && (!recipientsReady || isSubmitting)}>
                       <SelectTrigger className="border-primary/40"><SelectValue placeholder="Selecione o vendedor" /></SelectTrigger>
                       <SelectContent className="max-h-[40vh]">
                         {recipientOptions.map(s => (
@@ -1537,8 +1567,8 @@ export default function CheckoutPage() {
           </DialogHeader>
           <Button asChild size="lg" className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
             <a
-              href={pendingWhatsApp?.url}
-              target="_blank"
+              href={pendingWhatsApp ? (store.slug === 'dicolore' && mobileWhatsApp ? releaseAppUrl(pendingWhatsApp.url) : pendingWhatsApp.url) : undefined}
+              target={store.slug === 'dicolore' && mobileWhatsApp ? undefined : '_blank'}
               rel="noopener noreferrer"
               onClick={() => { setPendingWhatsApp(null); setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 800); }}
             >
