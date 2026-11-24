@@ -477,6 +477,13 @@
       "when": 1795526835793,
       "tag": "0067_dicolore_prospect_registration",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1795538872316,
+      "tag": "0068_dicolore_customer_access_repair",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { customerPriceTablePatch, loadBatchCustomers, shouldCreateAccess } from "./batch.ts";
 import { resolveCustomerLocation } from '../_shared/customerLocation.ts';
+import { ensureDicoloreCustomerAccess } from '../_shared/dicoloreCustomerAccess.ts';
 
 // CSV exportado da planilha de clientes da Dicolore
 // (planilha compartilhada como "qualquer pessoa com o link")
@@ -303,8 +304,19 @@ Deno.serve(async (req) => {
     // Cria acesso do cliente (login = código, senha = código) para quem ainda não tem
     let accessCreated = 0;
     const missing: { id: string; code: string }[] = [];
-    // Monitor ERP não deve varrer/criar acessos nem redefinir senhas.
-    if (shouldCreateAccess(rowsMode)) {
+    // DiColore: only the received ERP codes, after profile writes are confirmed.
+    // Pending access codes are returned as failures so the monitor retries them.
+    if (storeSlug === 'dicolore') {
+      try {
+        const failedWrites = new Set(errors.map(error => error.codigo));
+        const confirmedCodes = [...sheetCodes].filter(code => !failedWrites.has(code));
+        const access = await ensureDicoloreCustomerAccess(supabase, storeSlug, confirmedCodes, { deadline: Date.now() + 40_000 });
+        accessCreated = access.linked;
+        errors.push(...access.errors);
+      } catch {
+        for (const codigo of sheetCodes) errors.push({ codigo, erro: 'Acesso não confirmado; repetir este código' });
+      }
+    } else if (shouldCreateAccess(rowsMode)) {
       let f = 0;
       while (true) {
         const { data } = await supabase

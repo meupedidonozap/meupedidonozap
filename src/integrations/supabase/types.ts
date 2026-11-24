@@ -2721,6 +2721,15 @@ export type Database = {
         }
         Returns: Json
       }
+      dicolore_access_targets: {
+        Args: { p_codes?: string[]; p_limit?: number }
+        Returns: {
+          customer_code: string
+          existing_account_id: string
+          profile_id: string
+          store_id: string
+        }[]
+      }
       find_customer_by_document: {
         Args: { p_doc: string; p_store_id: string }
         Returns: {
@@ -2770,6 +2779,14 @@ export type Database = {
       }
       is_store_seller_code: {
         Args: { _code: string; _store_id: string; _user_id: string }
+        Returns: boolean
+      }
+      link_dicolore_customer_access: {
+        Args: {
+          p_account_id: string
+          p_customer_code: string
+          p_profile_id: string
+        }
         Returns: boolean
       }
       mpz_customer_error: { Args: { c: Json }; Returns: string }
