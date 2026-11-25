@@ -111,6 +111,7 @@ import { buildRenewalLink } from '@/lib/supportContact';
 import { AlertTriangle, Receipt, FileText, Lock, Pencil, Check as CheckIcon, X as XIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import TitlesPanel from '@/components/TitlesPanel';
+import DicoloreReportBoundary from '@/components/DicoloreReportBoundary';
 import TechnicalMaterialsAdminTab from '@/components/TechnicalMaterialsAdminTab';
 import { materialLabel } from '@/hooks/useTechnicalMaterials';
 import InvoicesPanel from '@/components/InvoicesPanel';
@@ -174,6 +175,12 @@ export function requiresCustomerCode(store?: { slug?: string; settings?: any } |
 }
 
 export default function StoreAdminPage() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const report = activeTab === 'orders' ? 'pedidos' : activeTab === 'titulos' ? 'titulos' : activeTab === 'notas' ? 'notas' : undefined;
+  return <DicoloreReportBoundary report={report}><StoreAdminContent activeTab={activeTab} setActiveTab={setActiveTab} /></DicoloreReportBoundary>;
+}
+
+function StoreAdminContent({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
@@ -394,8 +401,6 @@ export default function StoreAdminPage() {
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
   const updateCategory = useUpdateCategory();
-
-  const [activeTab, setActiveTab] = useState('dashboard');
 
   // Pagination for Orders tab
   const [orderSearch, setOrderSearch] = useState('');

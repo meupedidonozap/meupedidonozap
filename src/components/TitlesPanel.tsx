@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery, useDicoloreRemoteTerm } from '@/hooks/useDicoloreQuery';
 import { Download, Loader2, Search, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,8 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
-import { FINANCIAL_DATA } from '@/lib/dicoloreRefresh';
 import { deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 
 type Filter = 'todos' | 'ABERTO' | 'VENCIDO' | 'PAGO';
@@ -42,7 +40,8 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
   initialFilter?: 'todos' | 'ABERTO';
 }) {
   const [search, setSearch] = useState('');
-  const [term, setTerm] = useState('');
+  const [searchTerm, setTerm] = useState('');
+  const term = useDicoloreRemoteTerm(searchTerm);
   useEffect(() => {
     const id = setTimeout(() => setTerm(search.trim().replace(/[,()%*]/g, ' ').trim()), 400);
     return () => clearTimeout(id);
@@ -87,9 +86,8 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
   });
 
   const codes = useMemo(() => [...new Set(titles.map((t: any) => t.cliente_codigo).filter(Boolean))], [titles]);
-  useDicoloreRefresh(storeId, FINANCIAL_DATA, customerCode || 'titles-entry');
   const { data: names = {} } = useQuery({
-    queryKey: ['titles-customer-names', storeId, codes.length],
+    queryKey: ['titles-customer-names', storeId, codes.join(',')],
     enabled: codes.length > 0 && !customerCode,
     queryFn: async () => {
       const map: Record<string, { name: string; city: string }> = {};

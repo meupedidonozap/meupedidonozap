@@ -1,6 +1,6 @@
 import { televendasOrderKeys, isTelevendasInvoice } from '@/lib/televendasSplit';
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery } from '@/hooks/useDicoloreQuery';
 import { ArrowDownRight, ArrowUpRight, Loader2, Minus, TrendingUp, Users, Package, MapPin, ShoppingCart, Receipt, DollarSign } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
@@ -231,6 +231,7 @@ export default function ResultsDrilldown({ storeId, mode, sellerCodes, userId, u
     },
   });
 
+  if (!data && !isLoading) return null;
   if (isLoading || !cmp || !data) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   const totalDur = data.visits.filter(v => inCurMonth(v.date)).reduce((a, v) => a + v.dur, 0);

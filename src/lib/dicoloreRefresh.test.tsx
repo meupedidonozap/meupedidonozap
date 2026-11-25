@@ -21,19 +21,31 @@ describe('DiColore workflow refresh', () => {
   it.each([
     ['store-access', 'dicolore-id', 'user-id', 'identity-v2'],
     ['products', 'dicolore-id'],
-    ['seller-orders', 'dicolore-id', '28'],
-    ['erp-orders', 'dicolore-id'],
-    ['customer-titles', 'dicolore-id', '28', '95134'],
     ['overdue-titles', 'dicolore-id', '95134'],
     ['store-customer-profiles', 'dicolore-id'],
+    ['client-intel-base', 'dicolore-id', '28'],
     ['selected-customer-profile', 'dicolore-id', 'customer-id'],
     ['customer-profile', 'user-id', 'dicolore-id'],
-    ['customer-orders', 'user-id', 'dicolore-id'],
   ])('revalidates %j at entry despite a fresh infinite cache', async (...key) => {
     const { client, queryFn, unsubscribe } = observe(key);
     await refreshDicoloreData(client, 'dicolore', 'dicolore-id', SCREEN_DATA);
     expect(queryFn).toHaveBeenCalledTimes(1);
     expect(client.getQueryData(key)).toBe('atualizado');
+    unsubscribe(); client.clear();
+  });
+
+  it.each([
+    ['seller-orders', 'dicolore-id', '28'],
+    ['erp-orders', 'dicolore-id'],
+    ['customer-titles', 'dicolore-id', '28', '95134'],
+    ['customer-invoices-v2', 'dicolore-id'],
+    ['customer-orders', 'user-id', 'dicolore-id'],
+    ['results-drill', 'dicolore-id'],
+  ])('does not automatically refresh the mounted report %j on entry/resume', async (...key) => {
+    const { client, queryFn, unsubscribe } = observe(key);
+    await refreshDicoloreData(client, 'dicolore', 'dicolore-id', SCREEN_DATA);
+    expect(queryFn).not.toHaveBeenCalled();
+    expect(client.getQueryData(key)).toBe('anterior');
     unsubscribe(); client.clear();
   });
 

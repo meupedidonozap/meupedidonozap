@@ -1,6 +1,7 @@
 import { normalizePriceTable } from '@/lib/pricing';
 import { getCustomerError } from '@/lib/customerValidation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDicoloreQuery } from './useDicoloreQuery';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CustomerProfile {
@@ -189,7 +190,7 @@ export function useUpsertCustomerProfile() {
 
 export function useCustomerOrders(userId: string | undefined, storeId: string | undefined, customerCode?: string) {
   const code = (customerCode || '').trim();
-  return useQuery({
+  return useDicoloreQuery({
     queryKey: ['customer-orders', userId, storeId, code],
     queryFn: async () => {
       let q = supabase.from('orders').select('*').eq('store_id', storeId!);
@@ -205,7 +206,7 @@ export function useCustomerOrders(userId: string | undefined, storeId: string | 
 /** Pedidos do ERP pelo código do cliente (feitos por ele, vendedor ou televendas). */
 export function useCustomerErpOrders(storeId: string | undefined, customerCode?: string) {
   const code = (customerCode || '').trim();
-  return useQuery({
+  return useDicoloreQuery({
     queryKey: ['customer-erp-orders', storeId, code],
     queryFn: async () => {
       const { data, error } = await supabase.from('erp_orders').select('*')

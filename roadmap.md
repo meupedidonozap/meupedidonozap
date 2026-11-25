@@ -1,5 +1,12 @@
 # Roadmap
 
+## Dados locais e atualização sob confirmação DiColore
+- [x] Notas, Pedidos, Títulos e Resultados: perguntar na entrada, usar dados locais ao recusar e atualizar somente a área confirmada; buscas locais preservam a lista
+- [x] Preservar atualização automática de clientes e estoque por novo pedido, sem reconsultar relatórios na retomada; carteira filtrada por vendedor
+- [x] Isolar cache por conta e escopo confirmado; primeira carga, reentrada, falha/offline e outras lojas cobertas por testes
+- [x] 90 testes passaram e build OK; títulos reais atualizados/relidos no computador sem novas consultas na recarga/retomada; 37 notas reais atualizadas/relidas no celular; perguntas/recusa em Vendas e Resultados verificadas a 390px sem erros
+- [ ] Disponibilizar no site e confirmar no APK físico — depende de publicação e aparelho do usuário; listas amplas de notas/pedidos/resultados na conta admin não tiveram leitura completa verificada no navegador (limite de execução), regras de aprovação cobertas por testes
+
 ## Orçamento por áreas Limpa Telhas Brusque
 - [x] Medição direta/calculada por área, inclinação e soma por serviço, com validação oficial
 - [x] Placas solares e faixas de quedas configuráveis; endereço por CEP e cálculo protegido de deslocamento de ida e volta a R$1,20/km

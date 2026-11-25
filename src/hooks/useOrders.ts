@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery } from './useDicoloreQuery';
 import { getCustomerError } from '@/lib/customerValidation';
 import { supabase } from '@/integrations/supabase/client';
 import type { Order, CustomerInfo, CartItem, PaymentMethod, DeliveryShift, OrderStatus } from '@/types';

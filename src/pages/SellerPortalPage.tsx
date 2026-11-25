@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery } from '@/hooks/useDicoloreQuery';
 import { ArrowLeft, Loader2, Search, Plus, TrendingUp, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
@@ -75,10 +76,11 @@ export default function SellerPortalPage() {
   const codes = seller.isAdmin ? [] : seller.sellerCodes;
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['seller-orders', store?.id, codes.join(',')],
-    enabled: !!store?.id && seller.canSell,
+    enabled: !!store?.id && seller.canSell && (store?.slug !== 'dicolore' || section === 'vendas'),
     queryFn: async () => {
+      if (!store) throw new Error('Loja não encontrada');
       let q = supabase.from('orders').select('id, order_number, customer, total, status, created_at, origem, erp_order_code')
-        .eq('store_id', store!.id).order('created_at', { ascending: false }).range(0, 4999);
+        .eq('store_id', store.id).order('created_at', { ascending: false }).range(0, 4999);
       if (codes.length) q = q.in('customer->>sellerCode', codes);
       const { data, error } = await q;
       if (error) throw error;

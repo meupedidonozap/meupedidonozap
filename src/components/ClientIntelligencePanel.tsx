@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery } from '@/hooks/useDicoloreQuery';
 import { Download, FileText, Loader2, Search, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { toast } from 'sonner';
@@ -97,7 +98,11 @@ export default function ClientIntelligencePanel({ storeId, sellerCodes, canManag
       if (error) throw error;
       if (st.slug !== 'dicolore') throw new Error('Análise exclusiva da DiColore');
       const [customers, sellers] = await Promise.all([
-        allRows<any>((f, t) => supabase.from('customer_profiles').select('customer_code, name, nome_fantasia, city, uf, seller_code, is_active, neighborhood, geo_lat, geo_lng, municipio_codigo_ibge').eq('store_id', storeId).neq('customer_code', '').order('id').range(f, t)),
+        allRows<any>((f, t) => {
+          let query = supabase.from('customer_profiles').select('customer_code, name, nome_fantasia, city, uf, seller_code, is_active, neighborhood, geo_lat, geo_lng, municipio_codigo_ibge').eq('store_id', storeId).neq('customer_code', '');
+          if (sellerCodes.length) query = query.in('seller_code', sellerCodes);
+          return query.order('id').range(f, t);
+        }),
         allRows<any>((f, t) => supabase.from('store_sellers').select('code, name').eq('store_id', storeId).order('id').range(f, t)),
       ]);
       const ca = ((st.settings as any)?.clientAnalytics || {}) as { goals?: Record<string, { revenue: number; buyers: number }>; lineMap?: Record<string, string> };

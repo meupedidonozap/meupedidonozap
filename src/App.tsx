@@ -32,6 +32,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
 import ReleaseWhatsAppDialog from './components/ReleaseWhatsAppDialog';
 import DicoloreDataRefresh from './components/DicoloreDataRefresh';
+import DicoloreReportBoundary from './components/DicoloreReportBoundary';
 import CleaningAdminPage from './pages/CleaningAdminPage';
 import OrderPdfPreviewDialog from './components/OrderPdfPreviewDialog';
 import OrderPriceIssuesDialog from './components/OrderPriceIssuesDialog';
@@ -86,7 +87,7 @@ const App = () => (
           <OrderPdfPreviewDialog />
           <OrderPriceIssuesDialog />
           <AndroidPermissionsDialog />
-          <Routes>
+          <DicoloreReportBoundary><Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/admin" element={<><NoIndex /><AdminPage /></>} />
             <Route path="/redefinir-senha" element={<><NoIndex /><ResetPasswordPage /></>} />
@@ -106,7 +107,7 @@ const App = () => (
             <Route path="/:slug/garcom" element={<><NoIndex /><WaiterPage /></>} />
             <Route path="/:slug/redefinir-senha" element={<><NoIndex /><ResetPasswordPage /></>} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
+          </Routes></DicoloreReportBoundary>
         </BrowserRouter>
         </SellerProvider>
       </CartProvider>

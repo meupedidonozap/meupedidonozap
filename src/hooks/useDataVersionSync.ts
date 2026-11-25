@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isStoreData, STOCK_DATA } from '@/lib/dicoloreRefresh';
 
 /**
  * Sincroniza a "versão dos dados" da loja entre o servidor e o cliente.
@@ -25,6 +26,9 @@ export function useDataVersionSync(slug: string | undefined, storeId: string | u
     if (!slug || !storeId) return;
     const storageKey = `dv_${slug}`;
     let cancelled = false;
+    const invalidate = () => slug === 'dicolore'
+      ? qc.invalidateQueries({ predicate: q => isStoreData(q.queryKey, storeId, STOCK_DATA) })
+      : qc.invalidateQueries();
 
     const check = async () => {
       try {
@@ -47,14 +51,14 @@ export function useDataVersionSync(slug: string | undefined, storeId: string | u
           } else if (localVersion !== serverVersion) {
             // Estava com versão antiga ao abrir → atualiza silenciosamente.
             localStorage.setItem(storageKey, serverVersion);
-            await qc.invalidateQueries();
+            await invalidate();
           }
           return;
         }
 
         if (localVersion !== serverVersion) {
           localStorage.setItem(storageKey, serverVersion);
-          await qc.invalidateQueries();
+          await invalidate();
           toast.info('Catálogo atualizado pela loja. Preços e produtos foram recarregados.');
         }
       } catch {

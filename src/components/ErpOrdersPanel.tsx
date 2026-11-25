@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery, useDicoloreRemoteTerm } from '@/hooks/useDicoloreQuery';
 import { Loader2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllStoreSellers } from '@/hooks/useStoreSellers';
-import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
-import { ORDER_DATA } from '@/lib/dicoloreRefresh';
 
 type Props = {
   storeId: string;
@@ -51,7 +49,8 @@ const clean = (s: string) => s.replace(/[%*(),[\]]/g, '').trim();
 
 export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick, allowedSellerCodes }: Props) {
   const [search, setSearch] = useState('');
-  const [term, setTerm] = useState('');
+  const [searchTerm, setTerm] = useState('');
+  const term = useDicoloreRemoteTerm(searchTerm);
   const [open, setOpen] = useState<any | null>(null);
   const [statusF, setStatusF] = useState('todos');
   const [period, setPeriod] = useState('todos');
@@ -85,7 +84,6 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
   });
 
   const clientCodes = useMemo(() => [...new Set(orders.map((o: any) => o.cliente_codigo).filter(Boolean))], [orders]);
-  useDicoloreRefresh(storeId, ORDER_DATA);
   const { data: clients = {} } = useQuery({
     queryKey: ['erp-orders-clients', storeId, clientCodes.join(',')],
     enabled: clientCodes.length > 0,
@@ -130,6 +128,9 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
   const filteredRows = useMemo(() => {
     const start = periodStart(period);
     return rows.filter((o: any) => {
+      const s = clean(search).toLowerCase();
+      const c = (clients as any)[String(o.cliente_codigo).trim()];
+      if (s && ![o.codigo, o.codigo_importacao, o.cliente_codigo, o.nota_fiscal_numero, o.ordem_faturamento, o._name, o._city, c?.name, c?.city].some(v => String(v || '').toLowerCase().includes(s))) return false;
       if (statusF === 'todos' ? o.status === 'C' : o.status !== statusF) return false;
       if (sellerF !== 'todos' && String(o._seller ?? o.vendedor_codigo ?? '').trim() !== sellerF) return false;
       const d = String(o.data_emissao || '').slice(0, 10);
@@ -137,7 +138,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
       if (period === 'mes_anterior' && d >= monthStart(0)) return false;
       return true;
     });
-  }, [rows, statusF, sellerF, period]);
+  }, [rows, statusF, sellerF, period, search, clients]);
 
   const total = filteredRows.reduce((a, o: any) => a + Number(o.valor_total || 0), 0);
 

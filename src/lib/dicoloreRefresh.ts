@@ -1,10 +1,11 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
-export const CUSTOMER_DATA = ['store-customer-profiles', 'customer-profile', 'selected-customer-profile', 'my-customer-code', 'titles-customer-names', 'invoice-customer-names', 'erp-orders-clients'];
-export const FINANCIAL_DATA = ['customer-titles', 'overdue-titles', 'customer-invoices-v2', 'invoice-items-v2'];
+export const CUSTOMER_DATA = ['store-customer-profiles', 'client-intel-base', 'customer-profile', 'selected-customer-profile', 'my-customer-code'];
+// Checkout still checks outstanding debt; report refresh belongs to its confirmation.
+export const FINANCIAL_DATA = ['overdue-titles'];
 export const ORDER_DATA = ['orders', 'seller-orders', 'customer-orders', 'customer-erp-orders', 'erp-orders', 'erp-order-items'];
 export const STOCK_DATA = ['products'];
-export const SCREEN_DATA = ['store-access', ...CUSTOMER_DATA, ...FINANCIAL_DATA, ...ORDER_DATA, ...STOCK_DATA];
+export const SCREEN_DATA = ['store-access', ...CUSTOMER_DATA, ...FINANCIAL_DATA, ...STOCK_DATA];
 
 // Legacy own-customer keys put the user before the store. Never match arbitrary
 // values in the key: customer/seller ids must not be mistaken for a store id.

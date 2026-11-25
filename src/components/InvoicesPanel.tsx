@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useDicoloreQuery as useQuery, useDicoloreRemoteTerm } from '@/hooks/useDicoloreQuery';
 import { CalendarDays, FileText, Loader2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
@@ -9,8 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
-import { FINANCIAL_DATA } from '@/lib/dicoloreRefresh';
 
 type Period = 'hoje' | '30dias' | 'todos' | 'mes' | '90dias';
 
@@ -80,7 +78,8 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
     return quickStart > startDate ? quickStart : startDate;
   }, [period, startDate]);
 
-  const [term, setTerm] = useState('');
+  const [searchTerm, setTerm] = useState('');
+  const term = useDicoloreRemoteTerm(searchTerm);
   useEffect(() => {
     const id = setTimeout(() => setTerm(search.trim().replace(/[,()%*]/g, ' ').trim()), 400);
     return () => clearTimeout(id);
@@ -127,7 +126,6 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
     () => [...new Set(invoices.map((invoice) => invoice.cliente_codigo).filter(Boolean))],
     [invoices],
   );
-  useDicoloreRefresh(storeId, FINANCIAL_DATA, customerCode || 'invoices-entry');
   const { data: customerNames = {} } = useQuery({
     queryKey: ['invoice-customer-names', storeId, customerCodes.join(',')],
     enabled: customerCodes.length > 0 && !customerCode,
