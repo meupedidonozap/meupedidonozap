@@ -34,6 +34,7 @@ import ReleaseWhatsAppDialog from './components/ReleaseWhatsAppDialog';
 import DicoloreDataRefresh from './components/DicoloreDataRefresh';
 import CleaningAdminPage from './pages/CleaningAdminPage';
 import OrderPdfPreviewDialog from './components/OrderPdfPreviewDialog';
+import OrderPriceIssuesDialog from './components/OrderPriceIssuesDialog';
 import AndroidPermissionsDialog from './components/AndroidPermissionsDialog';
 import TopLoadingBar from './components/TopLoadingBar';
 import { installNativeWhatsAppLinks } from './lib/nativeWhatsApp';
@@ -82,6 +83,7 @@ const App = () => (
           <UpdateBanner />
           <ReleaseWhatsAppDialog />
           <OrderPdfPreviewDialog />
+          <OrderPriceIssuesDialog />
           <AndroidPermissionsDialog />
           <Routes>
             <Route path="/" element={<HomePage />} />

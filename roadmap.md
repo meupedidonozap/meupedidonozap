@@ -1,5 +1,11 @@
 # Roadmap
 
+## Identificação dos produtos sem preço no recálculo DiColore
+- [x] Exibir todos os nomes/códigos e a tabela numa janela consultável, preservando o bloqueio e os valores do pedido
+- [x] Conferir e ajustar avisos equivalentes na edição (abertura e troca de tabela), criação, carrinho/catálogo e finalização; outras lojas mantêm seus avisos
+- [x] Ler recalculate_customer_order, enforce_customer_discount_policy e gravação/exportação: permissões, preços oficiais e registros concluídos intocados; nenhum ajuste no banco ou integradores
+- [x] 23 testes passaram; painel autenticado #973 em computador/390px, preço zero da caixa simulado apenas na resposta do catálogo porque já estava corrigido; lista de um item e rolagem de 65 itens, fechamento, ausência de gravação e leitura inalterada do pedido confirmados; build OK
+
 ## PDF e permissões no APK Android
 - [x] Entregar PDF por recursos nativos no APK, com prévia local/zoom/páginas, salvamento por seletor e compartilhamento; preservar navegador e finalização sem gravação
 - [x] Disponibilizar Baixar PDF nos pedidos MPZ DiColore independentemente do status, mantendo autorização; pedidos exclusivamente ERP mantêm a tela existente

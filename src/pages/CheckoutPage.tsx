@@ -34,6 +34,7 @@ import { useCheckoutRecipient } from '@/hooks/useCheckoutRecipient';
 import { useCart } from '@/contexts/CartContext';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
+import { reportOrderPriceIssues } from '@/lib/orderPriceIssues';
 import { useProducts } from '@/hooks/useProducts';
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { expandKitItems } from '@/lib/kitExpansion';
@@ -655,7 +656,7 @@ export default function CheckoutPage() {
     }
     // Nenhum item pode ser fechado sem preço válido na tabela do cliente.
     if (cart.items.some(i => !(Number(i.price) > 0))) {
-      toast.error('Alguns itens não têm preço para a sua tabela. Remova-os para continuar.');
+      if (!reportOrderPriceIssues({ items: cart.items.filter(i => !(Number(i.price) > 0)), table: activePriceTable, description: 'Sem preço válido. Remova estes itens para continuar a finalização.' }, store.slug)) toast.error('Alguns itens não têm preço para a sua tabela. Remova-os para continuar.');
       return;
     }
     if (!storeOpenStatus.open) {

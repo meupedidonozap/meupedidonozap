@@ -3,6 +3,7 @@ import type { CartItem, Cart, DiscountRule } from '@/types';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, type PriceTable } from '@/lib/pricing';
 import { toast } from 'sonner';
+import { reportOrderPriceIssues } from '@/lib/orderPriceIssues';
 
 /**
  * Composite key for grouping cart items. Two items only stack if their
@@ -105,7 +106,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const table = customerPriceTable as PriceTable;
     setCart(prev => {
       if (prev.items.length === 0) return prev;
-      let removed = 0;
+      const removed: CartItem[] = [];
       let outOfStock = 0;
       let changed = false;
       const next: CartItem[] = [];
@@ -115,7 +116,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const price = it.variantId
           ? getVariantPriceOrNull((product.variants || []).find((v: any) => v.id === it.variantId), table)
           : getProductPriceOrNull(product as any, table);
-        if (price === null) { removed++; changed = true; continue; }
+        if (price === null) { removed.push(it); changed = true; continue; }
         const variant = it.variantId
           ? (product.variants || []).find((v: any) => v.id === it.variantId)
           : null;
@@ -124,8 +125,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         else next.push(it);
       }
       if (!changed) return prev;
-      if (removed > 0) {
-        toast.error('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos');
+      if (removed.length > 0) {
+        if (!reportOrderPriceIssues({ items: removed, table, description: 'Estes itens ficaram sem preço na sua tabela e foram removidos do carrinho.' })) toast.error('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos');
       }
       if (outOfStock > 0) {
         toast.error('Alguns itens ficaram sem estoque e foram removidos do carrinho');

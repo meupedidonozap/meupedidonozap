@@ -19,6 +19,7 @@ import type { Store, Product, FoodItem, CartItem, PaymentMethod, DeliveryShift, 
 import { wouldExceedMaterialApoio, MATERIAL_APOIO_MSG } from '@/lib/materialApoio';
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
+import { reportOrderPriceIssues } from '@/lib/orderPriceIssues';
 import { getProductPriceOrNull, getVariantPriceOrNull, hasStock, normalizePriceTable, storeDefaultPriceTable, resolveStorePriceTable, type PriceTable } from '@/lib/pricing';
 
 interface CustomerProfile {
@@ -142,7 +143,7 @@ export default function NewOrderDialog({
   useEffect(() => {
     setOrderItems(prev => {
       if (prev.length === 0) return prev;
-      let removed = 0;
+      const removed: CartItem[] = [];
       const next: CartItem[] = [];
       for (const it of prev) {
         const product: any = catalogItems.find((p: any) => p.id === it.productId);
@@ -154,11 +155,11 @@ export default function NewOrderDialog({
         } else {
           price = priceOf(product);
         }
-        if (price === null) { removed++; continue; }
+        if (price === null) { removed.push(it); continue; }
         next.push(price === it.price ? it : { ...it, price });
       }
-      if (removed > 0) {
-        toast.error(`${removed} item(ns) sem preço na tabela ${activeTable} foram removidos do pedido.`);
+      if (removed.length > 0) {
+        if (!reportOrderPriceIssues({ items: removed, table: activeTable, description: 'Estes itens ficaram sem preço na tabela selecionada e foram removidos do pedido em criação.' }, store.slug)) toast.error(`${removed.length} item(ns) sem preço na tabela ${activeTable} foram removidos do pedido.`);
       }
       return next;
     });
@@ -200,7 +201,7 @@ export default function NewOrderDialog({
     }
     const unitPrice = priceOf(product);
     if (unitPrice === null) {
-      toast.error(`Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
+      toast.error(`${store.slug === 'dicolore' ? `${product.name} (Código: ${product.code || 'Não informado'}): ` : ''}Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
       return;
     }
     const check = wouldExceedMaterialApoio(orderItems, product.id, unitPrice, catalogItems as any, store.settings.materialApoio);
@@ -237,7 +238,7 @@ export default function NewOrderDialog({
     if (!variant) { toast.error('Variante indisponível'); return; }
     const variantPrice = getVariantPriceOrNull(variant, activeTable);
     if (variantPrice === null) {
-      toast.error(`Variação sem preço na tabela ${activeTable} do cliente.`);
+      toast.error(`${store.slug === 'dicolore' ? `${product.name} (Código: ${product.code || 'Não informado'}) ${[variant.color, variant.size].filter(Boolean).join(' / ')}: ` : ''}Variação sem preço na tabela ${activeTable} do cliente.`);
       return;
     }
     const check = wouldExceedMaterialApoio(orderItems, product.id, variantPrice, catalogItems as any, store.settings.materialApoio);
@@ -288,7 +289,7 @@ export default function NewOrderDialog({
     if (customerError) { toast.error(customerError); return; }
     if (orderItems.length === 0) { toast.error('Adicione pelo menos um item'); return; }
     if (orderItems.some(i => !(Number(i.price) > 0))) {
-      toast.error(`Há itens sem preço válido na tabela ${activeTable}. Remova-os antes de salvar.`);
+      if (!reportOrderPriceIssues({ items: orderItems.filter(i => !(Number(i.price) > 0)), table: activeTable, description: 'Sem preço válido. Remova estes itens antes de salvar o pedido.' }, store.slug)) toast.error(`Há itens sem preço válido na tabela ${activeTable}. Remova-os antes de salvar.`);
       return;
     }
 

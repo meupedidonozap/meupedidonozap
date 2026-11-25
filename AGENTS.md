@@ -39,3 +39,4 @@
 - DiColore claims preserve creation data and use trigger guards; admin/manager reassignment uses a row-locked RPC with store-resolved staff and audit before transmission, so responsibility corrections never alter customer identity or amounts.
 - Checkout loads discount rules from store settings; orders-export refills missing item discounts.
 - DiColore event refresh follows src/hooks/AGENTS.md.
+- Share price notices to avoid drift.

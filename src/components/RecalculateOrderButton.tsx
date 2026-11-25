@@ -4,9 +4,10 @@ import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { mapOrder } from '@/hooks/useOrders';
-import { calculateCustomerOrder, canRecalculateOrder } from '@/lib/customerDiscountPolicy';
+import { calculateCustomerOrder, canRecalculateOrder, MissingOrderPricesError } from '@/lib/customerDiscountPolicy';
 import { resolveStorePriceTable } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
+import { reportOrderPriceIssues } from '@/lib/orderPriceIssues';
 
 export default function RecalculateOrderButton({ order, store, products, canChangeTable = false }: { order: any; store: any; products: any[]; canChangeTable?: boolean }) {
   const qc = useQueryClient();
@@ -44,7 +45,10 @@ export default function RecalculateOrderButton({ order, store, products, canChan
       qc.invalidateQueries({ queryKey: ['seller-orders'] });
       toast.success(`Pedido #${order.orderNumber} recalculado na Tabela ${target}`);
       setTable('');
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: unknown) {
+      if (e instanceof MissingOrderPricesError) reportOrderPriceIssues({ items: e.items, table: e.table, orderNumber: order.orderNumber, description: 'Sem preço disponível nesta tabela. Nenhum recálculo foi salvo; o pedido permanece inalterado.' }, store.slug);
+      else toast.error(typeof e === 'object' && e !== null && 'message' in e && typeof e.message === 'string' ? e.message : 'Não foi possível recalcular o pedido.');
+    }
     finally { setBusy(false); }
   }
   const button = <Button variant="outline" size="sm" title="Recalcular com o cadastro atual do cliente" disabled={busy} onClick={recalculate}><RefreshCw className={`mr-1 h-3 w-3 ${busy ? 'animate-spin' : ''}`} />Recalcular</Button>;

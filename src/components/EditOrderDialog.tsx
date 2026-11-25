@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Plus, Minus, Trash2, Search, RefreshCw } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { repriceItems } from '@/lib/repriceOrder';
+import { reportOrderPriceIssues } from '@/lib/orderPriceIssues';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,6 +87,10 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         // Ao abrir: preços, grupos e descontos atuais antes de liberar a edição.
         const r = refreshItemsFromCatalog(baseItems, products as any[], baseTable);
         setItems(r.items);
+        if (store?.slug === 'dicolore') {
+          const missing = repriceItems(baseItems, products, baseTable).missing;
+          if (missing.length) reportOrderPriceIssues({ items: missing, table: baseTable, orderNumber: order.orderNumber, description: 'Sem preço disponível nesta tabela. Confira estes itens antes de salvar a edição.' }, store.slug);
+        }
         if (r.changed > 0) toast.info(`Pedido recalculado com preços e regras de desconto atuais (${r.changed} item(ns) atualizado(s)). Confira e salve.`, { duration: 8000 });
       }
       if (autoRecalcTable) {
@@ -94,7 +99,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
         setItems(r.items);
         setTableOverride(t);
         if (r.missing.length) {
-          toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
+          if (!reportOrderPriceIssues({ items: r.missing, table: t, orderNumber: order.orderNumber, description: 'Sem preço disponível nesta tabela. Remova ou ajuste estes itens antes de salvar.' }, store?.slug)) toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
         }
         if (r.changed > 0) {
           toast.success(`Pedido recalculado pela Tabela ${t}: ${r.changed} preço(s) alterado(s), faixas de desconto reaplicadas. Confira e salve.`, { duration: 8000 });
@@ -111,7 +116,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
     setItems(r.items);
     setTableOverride(t);
     if (r.missing.length) {
-      toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
+      if (!reportOrderPriceIssues({ items: r.missing, table: t, orderNumber: order?.orderNumber, description: 'Sem preço disponível nesta tabela. Remova ou ajuste estes itens antes de salvar.' }, store?.slug)) toast.warning(`${r.missing.length} item(ns) sem preço na Tabela ${t}: ${r.missing.map(m => m.name).join(', ')}. Remova ou ajuste antes de salvar.`, { duration: 10000 });
     }
     toast.success(`Pedido recalculado pela Tabela ${t} (${r.changed} preço(s) alterado(s)). Faixas de desconto reaplicadas.`);
   };
@@ -156,7 +161,7 @@ export default function EditOrderDialog({ open, onOpenChange, order, products, d
     const resolvedGroupId = p.groupId || category?.name || undefined;
     const unitPrice = getProductPriceOrNull(p, activeTable);
     if (unitPrice === null) {
-      toast.error(`Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
+      toast.error(`${store?.slug === 'dicolore' ? `${p.name} (Código: ${p.code || 'Não informado'}): ` : ''}Produto sem preço na tabela ${activeTable} do cliente. Não é possível vender por outra tabela.`);
       return;
     }
     const check = wouldExceedMaterialApoio(items, p.id, unitPrice, products, materialApoio);

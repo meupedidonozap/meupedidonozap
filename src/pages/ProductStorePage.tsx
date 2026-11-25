@@ -1,5 +1,6 @@
 import { computeGroupDiscounts } from '@/lib/groupDiscounts';
 import { customerDiscountsBlocked } from '@/lib/customerDiscountPolicy';
+import { reportOrderPriceIssues } from '@/lib/orderPriceIssues';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { effectiveMinOrder } from '@/lib/minOrder';
 import { useState, useMemo, useEffect } from 'react';
@@ -227,7 +228,7 @@ export default function ProductStorePage() {
       return;
     }
     invalid.forEach(item => removeItem(item.productId, item.variantId));
-    toast.warning('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos.');
+    if (!reportOrderPriceIssues({ items: invalid, table: activePriceTable, title: 'Produtos indisponíveis', description: 'Estes itens não estão mais disponíveis no catálogo para a tabela selecionada e foram removidos do carrinho.' }, store?.slug)) toast.warning('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos.');
   }, [purchasableProducts, allProducts, cart.items, removeItem, revalidatePrices]);
 
   const handleAddToCart = (product: Product, variant?: { color?: string; size?: string }) => {
@@ -241,7 +242,7 @@ export default function ProductStorePage() {
       ? getVariantPriceOrNull(variantData, activePriceTable)
       : getProductPriceOrNull(product, activePriceTable);
     if (unitPrice === null) {
-      toast.error('Este item não está disponível para a sua tabela de preço.');
+      toast.error(`${store?.slug === 'dicolore' ? `${product.name} (Código: ${product.code || 'Não informado'}): ` : ''}Este item não está disponível para a sua tabela de preço.`);
       return;
     }
     if (!hasStock(product, variantData, stockEnabled)) {

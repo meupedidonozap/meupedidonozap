@@ -11,9 +11,16 @@ export function canRecalculateOrder(order: { status: string; xmlDownloadedAt?: u
   return ['orcamento', 'pendente'].includes(order.status) && !order.xmlDownloadedAt && !order.erpSentAt && !order.erpOrderCode;
 }
 
+export class MissingOrderPricesError extends Error {
+  constructor(public readonly items: CartItem[], public readonly table: PriceTable) {
+    super('Há itens sem preço na tabela do cliente. Nenhum recálculo foi salvo.');
+    this.name = 'MissingOrderPricesError';
+  }
+}
+
 export function calculateCustomerOrder(items: CartItem[], products: any[], rules: DiscountRule[], table: PriceTable, blocked: boolean) {
   const repriced = repriceItems(items, products, table);
-  if (repriced.missing.length) throw new Error('Há itens sem preço na tabela do cliente. Nenhum recálculo foi salvo.');
+  if (repriced.missing.length) throw new MissingOrderPricesError(repriced.missing, table);
   const { quantityDiscount, itemDiscounts } = computeGroupDiscounts(repriced.items, rules, table, blocked);
   const stamped = repriced.items.map(it => ({ ...it, discountPercent: itemDiscounts[`${it.productId}-${it.variantId || ''}`] || 0 }));
   const subtotal = stamped.reduce((s, it) => s + it.price * it.quantity, 0);
