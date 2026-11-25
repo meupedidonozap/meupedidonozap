@@ -13,7 +13,7 @@ import { mapProfile } from './useCustomerProfile';
  */
 export function useActiveCustomerProfile(storeId: string | undefined) {
   const { user } = useAuth();
-  const { data: ownProfile } = useCustomerProfile(user?.id, storeId);
+  const { data: ownProfile, isLoading: ownProfileLoading } = useCustomerProfile(user?.id, storeId);
   const seller = useSellerMode(storeId);
   const { selectedCustomer, selectCustomer, clearSelectedCustomer } = useSellerContext();
 
@@ -21,7 +21,7 @@ export function useActiveCustomerProfile(storeId: string | undefined) {
   const selected = sellerActive && selectedCustomer && selectedCustomer.storeId === storeId
     ? selectedCustomer
     : null;
-  const { data: freshSelected } = useQuery({
+  const { data: freshSelected, isLoading: selectedLoading } = useQuery({
     queryKey: ['selected-customer-profile', storeId, selected?.id],
     enabled: !!selected,
     queryFn: async () => {
@@ -34,7 +34,8 @@ export function useActiveCustomerProfile(storeId: string | undefined) {
   });
 
   return {
-    profile: (selected ? freshSelected ?? selected : ownProfile) ?? null,
+    profileLoading: seller.loading || (selected ? selectedLoading : !!user && ownProfileLoading),
+    profile: !seller.loading && !seller.accessError ? (selected ? freshSelected ?? selected : ownProfile) ?? null : null,
     isSellerMode: sellerActive,
     selectedCustomer: selected,
     selectCustomer,

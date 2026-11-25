@@ -19,6 +19,7 @@ function observe(key: readonly string[], value: unknown = 'atualizado') {
 
 describe('DiColore workflow refresh', () => {
   it.each([
+    ['store-access', 'dicolore-id', 'user-id', 'identity-v2'],
     ['products', 'dicolore-id'],
     ['seller-orders', 'dicolore-id', '28'],
     ['erp-orders', 'dicolore-id'],

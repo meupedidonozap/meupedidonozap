@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useIsRestoring, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -56,91 +56,70 @@ const NO_PERMS: StorePermissions = {
   can_manage_technical_materials: false,
 };
 
+/** One authorized response defines both permissions and commercial identity. */
+export async function loadStoreAccess(storeId: string, userId: string) {
+  const [platformResult, adminResult, staffResult] = await Promise.all([
+    supabase.from('platform_admins').select('user_id').eq('user_id', userId).maybeSingle(),
+    supabase.from('store_admins').select('id').eq('store_id', storeId).eq('user_id', userId).maybeSingle(),
+    supabase.from('store_users')
+      .select('name, erp_code, role, seller_codes, can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, can_manage_tables, can_change_price_table, can_manage_categories, can_view_atendimento, can_view_discounts, can_manage_discounts, can_manage_customers, can_view_wishlist, can_manage_technical_materials, is_active')
+      .eq('store_id', storeId).eq('user_id', userId).eq('is_active', true).order('id').limit(1),
+  ]);
+  if (platformResult.error) throw platformResult.error;
+  if (adminResult.error) throw adminResult.error;
+  if (staffResult.error) throw staffResult.error;
+  const staff = staffResult.data?.[0];
+  const isAdmin = !!(platformResult.data || adminResult.data);
+  const staffSellerCodes = (staff?.seller_codes || []).map(c => String(c).trim()).filter(Boolean);
+  const permissions = isAdmin ? FULL_PERMS : staff
+    ? Object.fromEntries((Object.keys(NO_PERMS) as (keyof StorePermissions)[]).map(key => [key, !!staff[key]])) as unknown as StorePermissions
+    : NO_PERMS;
+  return {
+    isAdmin,
+    isStoreUser: !isAdmin && !!staff,
+    permissions,
+    sellerCodes: isAdmin ? [] : staffSellerCodes,
+    staffSellerCodes,
+    role: staff?.role || '',
+    sellerName: staff?.name || '',
+    erpCode: String(staff?.erp_code || '').trim(),
+  };
+}
+
 export function useStoreAdmin(storeId: string | undefined) {
   const { user, loading: authLoading } = useAuth();
-
-  const { data, isLoading: accessLoading } = useQuery({
-    queryKey: ['store-access', storeId, user?.id],
+  const restoring = useIsRestoring();
+  const { data, isPending, error, refetch } = useQuery({
+    // Ignore previously persisted partial identities; this result lives in memory only.
+    queryKey: ['store-access', storeId, user?.id, 'identity-v2'],
     queryFn: async () => {
-      if (!user || !storeId) {
-        return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
-      }
-      // Platform admin: full access to any store
-      const { data: platform, error: platformErr } = await supabase
-        .from('platform_admins')
-        .select('user_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (platformErr) throw platformErr;
-      if (platform) {
-        return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS, sellerCodes: [] as string[] };
-      }
-      // Check primary admin
-      const { data: adminRow, error: adminErr } = await supabase
-        .from('store_admins')
-        .select('id')
-        .eq('store_id', storeId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (adminErr) throw adminErr;
-      if (adminRow) {
-        return { isAdmin: true, isStoreUser: false, permissions: FULL_PERMS, sellerCodes: [] as string[] };
-      }
-      // Check secondary store user (limit 1 avoids failure if duplicated rows exist)
-      const { data: storeUserRows, error: suErr } = await supabase
-        .from('store_users')
-        .select('can_view_service_orders, can_manage_service_orders, can_view_orders, can_manage_orders, can_manage_products, can_view_customers, can_manage_tables, can_change_price_table, can_manage_categories, can_view_atendimento, can_view_discounts, can_manage_discounts, can_manage_customers, can_view_wishlist, can_manage_technical_materials, is_active, seller_codes, role')
-        .eq('store_id', storeId)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1);
-      if (suErr) throw suErr;
-      const storeUser = storeUserRows?.[0];
-      if (storeUser) {
-        const sellerCodesArr = (((storeUser as any).seller_codes) ?? []) as string[];
-        return {
-          isAdmin: false,
-          isStoreUser: true,
-          permissions: {
-            can_view_service_orders: !!storeUser.can_view_service_orders,
-            can_manage_service_orders: !!storeUser.can_manage_service_orders,
-            can_view_orders: !!storeUser.can_view_orders,
-            can_manage_orders: !!storeUser.can_manage_orders,
-            can_manage_products: !!storeUser.can_manage_products,
-            can_view_customers: !!storeUser.can_view_customers,
-            can_manage_tables: !!(storeUser as any).can_manage_tables,
-            can_change_price_table: !!(storeUser as any).can_change_price_table,
-            can_manage_categories: !!(storeUser as any).can_manage_categories,
-            can_view_atendimento: !!(storeUser as any).can_view_atendimento,
-            can_view_discounts: !!(storeUser as any).can_view_discounts,
-            can_manage_discounts: !!(storeUser as any).can_manage_discounts,
-            can_manage_customers: !!(storeUser as any).can_manage_customers,
-            can_view_wishlist: !!(storeUser as any).can_view_wishlist,
-            can_manage_technical_materials: !!(storeUser as any).can_manage_technical_materials,
-          },
-          sellerCodes: sellerCodesArr,
-        };
-      }
-      return { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
+      if (!user || !storeId) throw new Error('Acesso sem usuário ou loja');
+      return loadStoreAccess(storeId, user.id);
     },
     enabled: !!user && !!storeId,
     staleTime: 60 * 1000,
     retry: 3,
+    networkMode: 'online',
     refetchOnWindowFocus: true,
   });
-
-  const access = data ?? { isAdmin: false, isStoreUser: false, permissions: NO_PERMS, sellerCodes: [] as string[] };
-  // hasAccess = is admin OR is active store user with at least one permission
-  const hasAnyPermission = Object.values(access.permissions).some(Boolean);
-  const hasAccess = access.isAdmin || (access.isStoreUser && (hasAnyPermission || (access.sellerCodes?.length ?? 0) > 0));
-
+  // A previous user's response must not survive an account change or logout.
+  const access = user ? data : undefined;
+  const permissions = access?.permissions ?? NO_PERMS;
+  const hasAnyPermission = Object.values(permissions).some(Boolean);
+  const hasAccess = !!access && (access.isAdmin || (access.isStoreUser && (hasAnyPermission || access.sellerCodes.length > 0)));
   return {
     user,
-    isAdmin: access.isAdmin,
-    isStoreUser: access.isStoreUser,
+    isAdmin: access?.isAdmin ?? false,
+    isStoreUser: access?.isStoreUser ?? false,
     hasAccess,
-    permissions: access.permissions,
-    sellerCodes: access.sellerCodes,
-    loading: authLoading || accessLoading,
+    permissions,
+    sellerCodes: access?.sellerCodes ?? [],
+    staffSellerCodes: access?.staffSellerCodes ?? [],
+    role: access?.role || '',
+    sellerName: access?.sellerName || '',
+    erpCode: access?.erpCode || '',
+    accessError: !access ? error : null,
+    retryAccess: refetch,
+    loading: authLoading || (!!user && !!storeId && (restoring || isPending)),
   };
 }

@@ -39,6 +39,7 @@ import AndroidPermissionsDialog from './components/AndroidPermissionsDialog';
 import TopLoadingBar from './components/TopLoadingBar';
 import { installNativeWhatsAppLinks } from './lib/nativeWhatsApp';
 import { toast } from 'sonner';
+import { isAccessQuery } from './lib/dicoloreMenu';
 
 // APK: WhatsApp links leave the WebView through the native launcher.
 installNativeWhatsAppLinks(() => toast.error('Não foi possível abrir o WhatsApp. Copie a mensagem e envie manualmente.'));
@@ -68,7 +69,7 @@ const App = () => (
   <HelmetProvider>
   <PersistQueryClientProvider
     client={queryClient}
-    persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7 }}
+    persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 * 7, dehydrateOptions: { shouldDehydrateQuery: query => !isAccessQuery(query.queryKey) && query.state.status === 'success' } }}
   >
     <ThemeProvider attribute="class" defaultTheme="light" storageKey="mpz-theme" enableSystem={false}>
     <TooltipProvider>

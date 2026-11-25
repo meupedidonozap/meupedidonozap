@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import DicoloreMenu from '@/components/DicoloreMenu';
 
 export default function TechnicalMaterialsPage() {
   const { slug } = useParams();
@@ -31,6 +32,7 @@ export default function TechnicalMaterialsPage() {
       <header className="sticky top-0 z-40 border-b bg-card shadow-sm">
         <div className="container flex h-16 items-center gap-3">
           <Button variant="ghost" size="icon" asChild><Link to={`/${slug}`} aria-label="Voltar"><ArrowLeft className="h-5 w-5" /></Link></Button>
+          {store?.slug === 'dicolore' && <DicoloreMenu store={store} />}
           <h1 className="text-lg font-bold truncate">{label}</h1>
         </div>
       </header>

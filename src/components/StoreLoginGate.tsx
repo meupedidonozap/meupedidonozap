@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import CustomerAuthDialog, { ApprovalNotice } from '@/components/CustomerAuthDialog';
 import { buildAttendanceLink } from '@/lib/supportContact';
 import type { Store } from '@/types';
+import StoreAccessFeedback from './StoreAccessFeedback';
 
 /** Quando a loja exige login, só libera o catálogo para cliente aprovado, equipe ou admin. */
 export function storeRequiresLogin(store?: Store | null) {
@@ -17,7 +18,7 @@ export function storeRequiresLogin(store?: Store | null) {
 export default function StoreLoginGate({ store, children }: { store: Store; children: ReactNode }) {
   const required = storeRequiresLogin(store);
   const { user, loading: authLoading, signOut } = useAuth();
-  const { hasAccess, isStoreUser, loading: staffLoading } = useStoreAdmin(required ? store.id : undefined);
+  const { hasAccess, isStoreUser, loading: staffLoading, accessError, retryAccess } = useStoreAdmin(required ? store.id : undefined);
   const [open, setOpen] = useState(false);
   const allowSignup = store.settings?.allowCustomerSignup !== false;
   const supportWhatsapp = String((store.settings as any)?.approvalSupportWhatsapp || '');
@@ -35,6 +36,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
   });
 
   if (!required) return <>{children}</>;
+  if (store.slug === 'dicolore' && accessError) return <StoreAccessFeedback error={accessError} retry={retryAccess} />;
   if (authLoading || (user && (staffLoading || profileLoading))) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }

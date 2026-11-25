@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, Receipt } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,11 +7,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import TitlesPanel from '@/components/TitlesPanel';
 import CustomerPushCard from '@/components/CustomerPushCard';
+import DicoloreMenu from '@/components/DicoloreMenu';
+import StoreAccessFeedback from '@/components/StoreAccessFeedback';
+import { useSellerMode } from '@/hooks/useSellerMode';
 
 export default function CustomerTitlesPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, loading: authLoading } = useAuth();
+  const access = useSellerMode(store?.slug === 'dicolore' ? store.id : undefined);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['my-customer-code', user?.id, store?.id],
@@ -25,6 +29,8 @@ export default function CustomerTitlesPage() {
 
   const loader = <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   if (storeLoading || authLoading) return loader;
+  if (store?.slug === 'dicolore' && (access.loading || access.accessError)) return <StoreAccessFeedback error={access.accessError} retry={access.retryAccess} />;
+  if (store?.slug === 'dicolore' && access.isStaff) return <Navigate to="/dicolore/vendedor/titulos" replace />;
   if (!store) return <div className="p-10 text-center">Loja não encontrada</div>;
 
   const code = profile?.customer_code?.trim();
@@ -36,6 +42,7 @@ export default function CustomerTitlesPage() {
           <Button variant="ghost" size="icon" asChild>
             <Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link>
           </Button>
+          {store.slug === 'dicolore' && <DicoloreMenu store={store} />}
           <h1 className="font-bold">Meus Títulos / Boletos</h1>
         </div>
       </header>

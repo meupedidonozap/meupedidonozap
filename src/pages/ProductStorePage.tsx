@@ -45,7 +45,8 @@ import SellerModeBar from '@/components/SellerModeBar';
 import EditingQuoteBanner from '@/components/EditingQuoteBanner';
 import FinancialAlertBanner from '@/components/FinancialAlertBanner';
 import { useEditingQuote } from '@/lib/quoteEditing';
-import SellerMenu from '@/components/SellerMenu';
+import DicoloreMenu from '@/components/DicoloreMenu';
+import StoreAccessFeedback from '@/components/StoreAccessFeedback';
 import { useTechnicalMaterials, materialLabel } from '@/hooks/useTechnicalMaterials';
 import PendingOrdersCard from '@/components/PendingOrdersCard';
 import { isManagedCustomerStore } from '@/lib/customerDataAccess';
@@ -82,6 +83,7 @@ export default function ProductStorePage() {
   const { hasAccess: hasAdminAccess } = useStoreAdmin(store?.id);
   const {
     profile: customerProfile,
+    profileLoading,
     isSellerMode,
     selectedCustomer,
     selectCustomer,
@@ -125,7 +127,10 @@ export default function ProductStorePage() {
   // Sync the customer's price table into the cart (default 4 for visitors/unknown).
   const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
   const noDiscount = customerDiscountsBlocked(store?.slug, customerProfile);
-  useEffect(() => setDiscountsBlocked(noDiscount), [noDiscount, setDiscountsBlocked]);
+  useEffect(() => {
+    if (store?.slug === 'dicolore' && (profileLoading || seller.accessError)) return;
+    setDiscountsBlocked(noDiscount);
+  }, [noDiscount, setDiscountsBlocked, store?.slug, profileLoading, seller.accessError]);
 
   // Promoções com Qtd. mínima 0: mostra o preço promocional já no catálogo, sem estar no carrinho
   const previewPct = (product: Product): number => {
@@ -138,8 +143,9 @@ export default function ProductStorePage() {
     return computeGroupDiscounts(virtual, discountRules, activePriceTable).itemDiscounts[`${product.id}-`] || 0;
   };
   useEffect(() => {
+    if (store?.slug === 'dicolore' && (profileLoading || seller.accessError)) return;
     setCustomerPriceTable(activePriceTable);
-  }, [activePriceTable, setCustomerPriceTable]);
+  }, [activePriceTable, setCustomerPriceTable, store?.slug, profileLoading, seller.accessError]);
 
   // Somente produtos com preço válido (> 0) na tabela do cliente.
   // Produtos com variação mantêm apenas as variações com preço válido.
@@ -215,6 +221,7 @@ export default function ProductStorePage() {
 
   // Remove do carrinho itens que deixaram de ter preço na tabela atual do cliente
   useEffect(() => {
+    if (store?.slug === 'dicolore' && (profileLoading || seller.accessError)) return;
     if (!allProducts.length || !cart.items.length) return;
     const invalid = cart.items.filter(item => {
       const product = purchasableProducts.find(p => p.id === item.productId);
@@ -229,7 +236,7 @@ export default function ProductStorePage() {
     }
     invalid.forEach(item => removeItem(item.productId, item.variantId));
     if (!reportOrderPriceIssues({ items: invalid, table: activePriceTable, title: 'Produtos indisponíveis', description: 'Estes itens não estão mais disponíveis no catálogo para a tabela selecionada e foram removidos do carrinho.' }, store?.slug)) toast.warning('Alguns itens não estão disponíveis para a sua tabela de preço e foram removidos.');
-  }, [purchasableProducts, allProducts, cart.items, removeItem, revalidatePrices]);
+  }, [purchasableProducts, allProducts, cart.items, removeItem, revalidatePrices, store?.slug, profileLoading, seller.accessError]);
 
   const handleAddToCart = (product: Product, variant?: { color?: string; size?: string }) => {
     const variantData = variant && product.hasVariants
@@ -318,6 +325,10 @@ export default function ProductStorePage() {
     ? selectedProduct.variants.filter(v => v.color === selectedVariant.color).map(v => v.size).filter(Boolean)
     : uniqueSizes;
 
+  if (store?.slug === 'dicolore' && (profileLoading || seller.accessError)) {
+    return <StoreAccessFeedback error={seller.accessError} retry={seller.retryAccess} />;
+  }
+
   if (storeLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -390,12 +401,10 @@ export default function ProductStorePage() {
       <header className="sticky top-0 z-40 border-b bg-card shadow-sm">
         <div className={store.slug === 'dicolore' ? "container flex flex-col gap-2 py-2 overflow-x-hidden lg:h-16 lg:flex-row lg:items-center lg:gap-4 lg:py-0" : "container flex h-16 items-center justify-between gap-4"}>
           <div className={store.slug === 'dicolore' ? "flex flex-shrink-0 flex-row flex-wrap items-center gap-1.5" : "contents"}>
-          {isSellerMode && store.slug === 'dicolore' && (
-            <SellerMenu showClients={store.slug === 'dicolore'} store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />
-          )}
+          {store.slug === 'dicolore' && <DicoloreMenu store={store} />}
           <Sheet open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
             <SheetTrigger asChild>
-              {isSellerMode && store.slug === 'dicolore' ? (
+              {store.slug === 'dicolore' ? (
                 <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3" aria-label="Categorias"><FolderOpen className="h-4 w-4" /> Categorias</Button>
               ) : (
                 <Button variant="ghost" size="icon" aria-label="Categorias"><Menu className="h-5 w-5" /></Button>
@@ -447,10 +456,10 @@ export default function ProductStorePage() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem className="text-xs text-muted-foreground" disabled>{user.email}</DropdownMenuItem>
                   {!isManagedCustomerStore(store.slug) && <DropdownMenuItem asChild><Link to={`/${store.slug}/meus-dados`} className="gap-2"><User className="h-4 w-4" /> Meus dados</Link></DropdownMenuItem>}
-                  <DropdownMenuItem asChild>
+                  {!(store.slug === 'dicolore' && seller.isStaff) && <DropdownMenuItem asChild>
                     <Link to={`/${store.slug}/pedidos`} className="gap-2"><ShoppingBag className="h-4 w-4" /> Meus Pedidos</Link>
-                  </DropdownMenuItem>
-                  {store.slug === 'dicolore' && (
+                  </DropdownMenuItem>}
+                  {store.slug === 'dicolore' && !seller.isStaff && (
                     <>
                       <DropdownMenuItem asChild>
                         <Link to={`/${store.slug}/notas-fiscais`} className="gap-2"><FileText className="h-4 w-4" /> Minhas Notas Fiscais</Link>

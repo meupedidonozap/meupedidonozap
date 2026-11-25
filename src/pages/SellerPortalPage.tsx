@@ -17,6 +17,8 @@ import CheckinDialog from '@/components/CheckinDialog';
 import AttendanceDashboard from '@/components/AttendanceDashboard';
 import TeamVisitsPanel from '@/components/TeamVisitsPanel';
 import SellerMenu from '@/components/SellerMenu';
+import DicoloreMenu from '@/components/DicoloreMenu';
+import StoreAccessFeedback from '@/components/StoreAccessFeedback';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -206,8 +208,9 @@ export default function SellerPortalPage() {
     }
   };
 
+  if (store?.slug === 'dicolore' && (seller.loading || seller.accessError)) return <StoreAccessFeedback error={seller.accessError} retry={seller.retryAccess} />;
   if (isLoading || seller.loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
-  if (!store || !seller.canSell) {
+  if (!store || !(store.slug === 'dicolore' ? seller.isStaff : seller.canSell)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
         <h1 className="text-xl font-bold">Acesso exclusivo para vendedores</h1>
@@ -248,7 +251,7 @@ export default function SellerPortalPage() {
                   <Lock className="h-3 w-3" /> Pedido de outro responsável — somente visualização
                 </p>
               )}
-              {quote && canEditOrder(o, seller) && (<>
+              {quote && seller.canSell && canEditOrder(o, seller) && (<>
                 <Button size="sm" variant="outline" className="w-full sm:w-auto" disabled={editingId === o.id} onClick={() => editQuote(o.id)}>
                   {editingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Pencil className="mr-1 h-4 w-4" />} Editar
                 </Button>
@@ -276,7 +279,7 @@ export default function SellerPortalPage() {
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center gap-2">
           <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
-          <SellerMenu showClients={store.slug === 'dicolore'} store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />
+          {store.slug === 'dicolore' ? <DicoloreMenu store={store} /> : <SellerMenu store={store} sellerName={seller.sellerName} roleLabel={seller.isManager ? 'Gerente' : seller.isAdmin && !seller.isSeller ? 'Administrador' : undefined} canAdmin={seller.isAdmin} />}
           <h1 className="font-bold">{TITLES[section]}</h1>
         </div>
       </header>

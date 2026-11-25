@@ -28,6 +28,8 @@ import { useFoodItems } from '@/hooks/useFoodItems';
 import { useOrders, useUpdateOrderStatus, useUpdateOrder, useDeleteOrder, useMarkOrderXmlDownloaded } from '@/hooks/useOrders';
 import { useCoupons } from '@/hooks/useCoupons';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
+import DicoloreMenu from '@/components/DicoloreMenu';
+import StoreAccessFeedback from '@/components/StoreAccessFeedback';
 import { useAuth } from '@/hooks/useAuth';
 import { useServiceOrders, useCreateServiceOrder, useDeleteServiceOrder } from '@/hooks/useServiceOrders';
 import { useStoreCustomerProfiles, useUpdateCustomerProfileAdmin, useCreateCustomerProfileAdmin, useToggleCustomerActive, useDeleteCustomerProfile, checkCustomerHasOrders } from '@/hooks/useCustomerProfiles';
@@ -175,7 +177,7 @@ export default function StoreAdminPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
-  const { user, isAdmin, hasAccess, permissions, sellerCodes: userSellerCodes = [], loading: adminLoading } = useStoreAdmin(store?.id);
+  const { user, isAdmin, hasAccess, permissions, sellerCodes: userSellerCodes = [], loading: adminLoading, accessError, retryAccess } = useStoreAdmin(store?.id);
   const qc = useQueryClient();
   const updateStore = useUpdateStore();
   const { data: categories = [] } = useCategories(store?.id);
@@ -839,6 +841,7 @@ export default function StoreAdminPage() {
 
   // Auth gate
   if (!user) return <StoreAdminLogin storeName={store.name} />;
+  if (store.slug === 'dicolore' && accessError) return <StoreAccessFeedback error={accessError} retry={retryAccess} />;
   if (!hasAccess) {
     return <StoreAdminAccessDenied email={user.email ?? ''} slug={slug!} />;
   }
@@ -1234,6 +1237,7 @@ export default function StoreAdminPage() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 justify-end">
+              {store.slug === 'dicolore' && <DicoloreMenu store={store} />}
               <RefreshButton
                 variant="outline"
                 className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent h-9 px-3"

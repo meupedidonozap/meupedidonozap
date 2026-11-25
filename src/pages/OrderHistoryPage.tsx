@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { ArrowLeft, ShoppingBag, Loader2, Pencil, AlertCircle, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStoreBySlug } from '@/hooks/useStores';
@@ -14,6 +14,9 @@ import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import DicoloreMenu from '@/components/DicoloreMenu';
+import StoreAccessFeedback from '@/components/StoreAccessFeedback';
+import { useSellerMode } from '@/hooks/useSellerMode';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   orcamento: { label: 'Devolvido p/ ajuste', color: 'bg-amber-100 text-amber-800' },
@@ -39,6 +42,7 @@ export default function OrderHistoryPage() {
   const navigate = useNavigate();
   const { data: store, isLoading: storeLoading } = useStoreBySlug(slug || '');
   const { user, loading: authLoading } = useAuth();
+  const access = useSellerMode(store?.slug === 'dicolore' ? store.id : undefined);
   const { data: profile } = useCustomerProfile(user?.id, store?.id);
   const code = profile?.customerCode || '';
   const { data: localOrders = [], isLoading: ordersLoading } = useCustomerOrders(user?.id, store?.id, code);
@@ -86,6 +90,9 @@ export default function OrderHistoryPage() {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
 
+  if (store?.slug === 'dicolore' && (access.loading || access.accessError)) return <StoreAccessFeedback error={access.accessError} retry={access.retryAccess} />;
+  if (store?.slug === 'dicolore' && access.isStaff) return <Navigate to="/dicolore/vendedor/vendas" replace />;
+
   if (!store) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -115,6 +122,7 @@ export default function OrderHistoryPage() {
           <Button variant="ghost" size="icon" asChild>
             <Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link>
           </Button>
+          {store.slug === 'dicolore' && <DicoloreMenu store={store} />}
           <h1 className="font-bold">Meus Pedidos</h1>
         </div>
       </header>

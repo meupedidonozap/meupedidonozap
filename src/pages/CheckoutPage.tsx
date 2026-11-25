@@ -27,6 +27,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCustomerAddresses } from '@/hooks/useCustomerAddresses';
 import { useUpsertCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useActiveCustomerProfile } from '@/hooks/useActiveCustomerProfile';
+import DicoloreMenu from '@/components/DicoloreMenu';
+import StoreAccessFeedback from '@/components/StoreAccessFeedback';
 import SellerCustomerDialog from '@/components/SellerCustomerDialog';
 import { useStoreSellers } from '@/hooks/useStoreSellers';
 import { useOrderRecipients } from '@/hooks/useOrderRecipients';
@@ -101,6 +103,7 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const {
     profile: customerProfile,
+    profileLoading,
     isSellerMode,
     selectedCustomer,
     selectCustomer,
@@ -117,10 +120,13 @@ export default function CheckoutPage() {
   // com o padrão da loja como único fallback (mesma regra da vitrine).
   const activePriceTable: PriceTable = resolveStorePriceTable(store?.slug, customerProfile?.priceTable);
   const noDiscount = customerDiscountsBlocked(store?.slug, customerProfile);
-  useEffect(() => { setDiscountsBlocked(noDiscount); setCustomerPriceTable(activePriceTable); }, [noDiscount, activePriceTable, setDiscountsBlocked, setCustomerPriceTable]);
   useEffect(() => {
-    if (store?.slug === 'dicolore' && allProductsCk.length) revalidatePrices(allProductsCk);
-  }, [store?.slug, allProductsCk, revalidatePrices]);
+    if (store?.slug === 'dicolore' && (profileLoading || seller.accessError)) return;
+    setDiscountsBlocked(noDiscount); setCustomerPriceTable(activePriceTable);
+  }, [noDiscount, activePriceTable, setDiscountsBlocked, setCustomerPriceTable, store?.slug, profileLoading, seller.accessError]);
+  useEffect(() => {
+    if (store?.slug === 'dicolore' && !profileLoading && !seller.accessError && allProductsCk.length) revalidatePrices(allProductsCk);
+  }, [store?.slug, allProductsCk, revalidatePrices, profileLoading, seller.accessError]);
   const { data: kitMap = {} } = useStoreKitMap(store?.id, activePriceTable);
   const { data: recipientsRpc = [], isLoading: recipientsLoading, isError: recipientsError } = useOrderRecipients(store?.id, customerProfile?.sellerCode);
   // If customer has a linked seller, restrict the dropdown to that seller + any televendas linked to them.
@@ -320,6 +326,8 @@ export default function CheckoutPage() {
   if (storeLoading || authLoading) {
     return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
   }
+
+  if (store?.slug === 'dicolore' && (profileLoading || seller.accessError)) return <StoreAccessFeedback error={seller.accessError} retry={seller.retryAccess} />;
 
   if (!store) {
     return (
@@ -1027,6 +1035,7 @@ export default function CheckoutPage() {
       <header className="sticky top-0 z-40 border-b bg-card">
         <div className="container flex h-14 items-center gap-4">
           <Button variant="ghost" size="icon" asChild><Link to={`/${store.slug}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
+          {store.slug === 'dicolore' && <DicoloreMenu store={store} />}
           <div>
             <h1 className="font-bold">Dados do Cliente</h1>
             <p className="text-sm text-muted-foreground">{cart.items.length} itens • Total: {formatCurrency(totalWithDelivery)}</p>
