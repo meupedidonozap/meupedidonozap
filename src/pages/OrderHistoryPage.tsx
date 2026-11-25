@@ -200,13 +200,17 @@ export default function OrderHistoryPage() {
                       className="mt-3 w-full"
                       onClick={() => {
                         import('@/lib/shareOrderPdf')
-                          .then(m => m.shareOrderPdf(order.id, store.name))
+                          .then(m => m.shareOrderPdf(order.id, store.name, store.slug === 'dicolore' ? 'preview' : 'auto'))
                           .catch((e: any) => toast.error(e?.message || 'Não foi possível gerar o PDF'));
                       }}
                     >
                       <FileDown className="mr-2 h-4 w-4" />
-                      Baixar / Enviar PDF
+                      {store.slug === 'dicolore' ? 'Ver / Enviar PDF' : 'Baixar / Enviar PDF'}
                     </Button>
+                    {store.slug === 'dicolore' && <Button variant="outline" className="mt-2 w-full" onClick={() => {
+                      import('@/lib/shareOrderPdf').then(m => m.shareOrderPdf(order.id, store.name, 'download'))
+                        .catch((e: unknown) => toast.error(e instanceof Error ? e.message : 'Não foi possível baixar o PDF.'));
+                    }}><FileDown className="mr-2 h-4 w-4" />Baixar PDF</Button>}
                     {['pending', 'failed'].includes(order.payment_status) && order.status !== 'cancelado' && (
                       <Button className="mt-2 w-full" onClick={() => navigate(`/${store.slug}/pagar/${order.id}`)}>
                         Pagar agora (PIX / Cartão)

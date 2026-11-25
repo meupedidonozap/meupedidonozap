@@ -33,6 +33,8 @@ import PaymentReturnPage from "./pages/PaymentReturnPage";
 import ReleaseWhatsAppDialog from './components/ReleaseWhatsAppDialog';
 import DicoloreDataRefresh from './components/DicoloreDataRefresh';
 import CleaningAdminPage from './pages/CleaningAdminPage';
+import OrderPdfPreviewDialog from './components/OrderPdfPreviewDialog';
+import AndroidPermissionsDialog from './components/AndroidPermissionsDialog';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,6 +74,8 @@ const App = () => (
           <DicoloreDataRefresh />
           <UpdateBanner />
           <ReleaseWhatsAppDialog />
+          <OrderPdfPreviewDialog />
+          <AndroidPermissionsDialog />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/admin" element={<><NoIndex /><AdminPage /></>} />

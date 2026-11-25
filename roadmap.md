@@ -1,5 +1,14 @@
 # Roadmap
 
+## PDF e permissões no APK Android
+- [x] Entregar PDF por recursos nativos no APK, com prévia local/zoom/páginas, salvamento por seletor e compartilhamento; preservar navegador e finalização sem gravação
+- [x] Disponibilizar Baixar PDF nos pedidos MPZ DiColore independentemente do status, mantendo autorização; pedidos exclusivamente ERP mantêm a tela existente
+- [x] Solicitar contatos somente para leitura e localização em uso no Android; usar GPS nativo no check-in/check-out sem rastreamento contínuo
+- [x] 37 testes passaram; sessão autorizada, download/preview desktop e 390px; chamadas Android simuladas, cancelamento, GPS e 3 páginas conferidos; código completo dos scripts e guia para sincronizar/recompilar entregues
+- [ ] Disponibilizar alterações no site e instalar o APK atualizado — depende de publicação, compilação local e instalação pelo usuário
+- [ ] Confirmar permissões e PDF em Android físico — depende de nova compilação local e aparelho
+- [ ] Confirmar Ver PDF na pergunta de liberação do vendedor — depende de sessão de vendedor e APK; sessão disponível era admin, sem acesso a essa pergunta
+
 ## Limpa Telhas Brusque
 - [x] Loja SERVICOS isolada; três serviços em produtos, preço próprio por tipo e adicionais editáveis em Serviços
 - [x] Cadastro/login existente por loja, aceite com pedido/OS/conta únicos, solicitação de horário e confirmação da empresa; WhatsApp direto após salvar orçamento/agendamento

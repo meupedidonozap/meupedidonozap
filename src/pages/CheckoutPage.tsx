@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { mapProfile } from '@/hooks/useCustomerProfile';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Download, Eye, MessageCircle, Loader2, LogIn, Truck, Plus, Minus, X, ShoppingBag } from 'lucide-react';
 import { useStoreBySlug } from '@/hooks/useStores';
 import { useDataVersionSync, ensureLatestDataVersion } from '@/hooks/useDataVersionSync';
 import { enqueueOrder, newClientOrderId, isOnline } from '@/lib/offlineQueue';
@@ -573,7 +573,7 @@ export default function CheckoutPage() {
     toast.success('Arquivo baixado!');
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = (mode: 'download' | 'preview' = 'download') => {
     try {
       const { quantityDiscount, itemDiscounts: currentDiscounts } = computeGroupDiscounts(cart.items, discountRules, activePriceTable, noDiscount);
       const discount = cart.couponDiscount + quantityDiscount;
@@ -593,7 +593,7 @@ export default function CheckoutPage() {
         total: Math.max(0, cart.subtotal - discount) + deliveryFee,
         payment_method: formData.paymentMethod, observations: formData.observations,
       }, store.name);
-      void deliverOrderPdfFile(file).catch(() => toast.error('Não foi possível baixar o PDF.'));
+      void deliverOrderPdfFile(file, store.slug === 'dicolore' ? mode : 'auto').catch((e: unknown) => toast.error(e instanceof Error ? e.message : 'Não foi possível entregar o PDF.'));
     } catch {
       toast.error('Não foi possível gerar o PDF.');
     }
@@ -1072,7 +1072,8 @@ export default function CheckoutPage() {
                 <AlertDialogDescription>Deseja liberar p/ transmissão agora?</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="gap-2">
-                <Button variant="outline" onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4" />Baixar PDF</Button>
+                {store.slug === 'dicolore' && <Button variant="outline" onClick={() => handleDownloadPdf('preview')}><Eye className="mr-2 h-4 w-4" />Ver PDF</Button>}
+                <Button variant="outline" onClick={() => handleDownloadPdf()}><Download className="mr-2 h-4 w-4" />Baixar PDF</Button>
                 <Button variant="outline" onClick={() => { setFinalizeAsk(null); handleSendWhatsApp(false, { decided: true }); }}>Não, deixar Pendente</Button>
                 <Button onClick={() => setReleaseConfirm(true)}>Sim</Button>
               </AlertDialogFooter>

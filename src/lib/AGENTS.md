@@ -1,1 +1,2 @@
 - Prospect registration validation is separate from checkout validation and scoped by the official store slug, so allowing an empty document at registration cannot weaken order submission or other stores.
+- Android PDFs use the user-selected document destination without broad storage permission; previews render locally and never write orders. DiColore GPS uses foreground native calls, and contact permission is read-only with no agenda reads/uploads, preserving other stores and browser behavior.

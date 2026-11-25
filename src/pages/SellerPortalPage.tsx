@@ -21,7 +21,7 @@ import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
-import { Pencil, Share2, Lock } from 'lucide-react';
+import { Pencil, Share2, Lock, FileDown, Eye } from 'lucide-react';
 import { isCustomerOrder, canEditOrder, mergeEditedCustomer } from '@/lib/orderOwnership';
 import { shareOrderPdf } from '@/lib/shareOrderPdf';
 import { useCart } from '@/contexts/CartContext';
@@ -158,10 +158,10 @@ export default function SellerPortalPage() {
   };
 
   const [sharingId, setSharingId] = useState<string | null>(null);
-  const share = async (id: string) => {
+  const share = async (id: string, mode: 'auto' | 'preview' | 'download' = 'auto') => {
     if (!store) return;
     setSharingId(id);
-    try { await shareOrderPdf(id, store.name); }
+    try { await shareOrderPdf(id, store.name, mode); }
     catch (e: any) { toast.error(e.message || 'Não foi possível gerar o PDF'); }
     finally { setSharingId(null); }
   };
@@ -238,10 +238,11 @@ export default function SellerPortalPage() {
           </div>
           {!o._offline && (
             <div className="grid grid-cols-2 gap-2 border-t pt-3 sm:flex sm:justify-end">
-              <Button size="sm" variant="secondary" className="col-span-2 w-full sm:w-auto" disabled={sharingId === o.id} onClick={() => share(o.id)}>
-                {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Share2 className="mr-1 h-4 w-4" />}
-                Imprimir / Enviar PDF
+              <Button size="sm" variant="secondary" className="col-span-2 w-full sm:w-auto" disabled={sharingId === o.id} onClick={() => share(o.id, store.slug === 'dicolore' ? 'preview' : 'auto')}>
+                {sharingId === o.id ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : store.slug === 'dicolore' ? <Eye className="mr-1 h-4 w-4" /> : <Share2 className="mr-1 h-4 w-4" />}
+                {store.slug === 'dicolore' ? 'Ver PDF' : 'Imprimir / Enviar PDF'}
               </Button>
+              {store.slug === 'dicolore' && <Button size="sm" variant="outline" className="col-span-2 w-full sm:w-auto" disabled={sharingId === o.id} onClick={() => share(o.id, 'download')}><FileDown className="mr-1 h-4 w-4" />Baixar PDF</Button>}
               {quote && !canEditOrder(o, seller) && (
                 <p className="col-span-2 flex items-center justify-center gap-1 text-xs text-muted-foreground sm:self-center">
                   <Lock className="h-3 w-3" /> Pedido de outro responsável — somente visualização

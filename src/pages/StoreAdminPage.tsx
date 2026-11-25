@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Settings, Tags, Percent,
-  ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, CheckCircle, Clock,
+  ArrowLeft, Plus, Edit2, Trash2, Eye, Printer, Download, FileDown, CheckCircle, Clock,
   Truck, XCircle, ToggleLeft, ToggleRight, Loader2, Upload, LogOut, Send,
   CalendarIcon, ClipboardList, Users, Layers, BarChart3, RefreshCw, KeyRound, UserCog,
   Scissors, Salad, Pizza, Grid3x3,
@@ -2032,6 +2032,10 @@ export default function StoreAdminPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            {store.slug === 'dicolore' && <Button variant="outline" size="sm" title="Baixar PDF" onClick={() => {
+                              import('@/lib/shareOrderPdf').then(m => m.shareOrderPdf(order.id, store.name, 'download'))
+                                .catch((e: unknown) => toast.error(e instanceof Error ? e.message : 'Não foi possível baixar o PDF.'));
+                            }}><FileDown className="mr-1 h-4 w-4" />Baixar PDF</Button>}
                             {(isAdmin || permissions.can_manage_orders) && <RecalculateOrderButton order={order} store={store} products={products} canChangeTable={isAdmin || !!permissions.can_change_price_table} />}
                             {store.type === 'SERVICOS' && (isAdmin || permissions.can_manage_service_orders || permissions.can_view_service_orders) && (() => {
                               const existingSO = serviceOrders.find(so => so.orderId === order.id);

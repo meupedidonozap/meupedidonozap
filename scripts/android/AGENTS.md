@@ -1,0 +1,1 @@
+- Keep Android setup idempotent and preserve the existing Activity/manifest; use the document picker for PDF saves and read-only contacts plus foreground location permissions, avoiding broad storage, contact writes and background tracking.

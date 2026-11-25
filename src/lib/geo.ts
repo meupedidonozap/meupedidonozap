@@ -1,3 +1,5 @@
+import { isDicoloreAndroid } from '@/lib/nativeAndroid';
+
 // Haversine distance between two lat/lng points, in meters.
 export function haversineMeters(
   lat1: number,
@@ -32,6 +34,14 @@ export class GeoError extends Error {
 }
 
 function readPosition(options: PositionOptions): Promise<Coords> {
+  if (isDicoloreAndroid()) {
+    return import('@/lib/nativeLocation').then(m => m.readAndroidLocation(options)).catch((error: unknown) => {
+      const native = error as { code?: string; message?: string };
+      const kind: GeoErrorKind = ['OS-PLUG-GLOC-0003', 'OS-PLUG-GLOC-0009'].includes(native?.code || '')
+        ? 'denied' : native?.code === 'OS-PLUG-GLOC-0010' ? 'timeout' : 'unavailable';
+      throw new GeoError(kind, native?.message || 'Verifique o GPS e a permissão de localização do aplicativo.');
+    });
+  }
   return new Promise((resolve, reject) => {
     if (typeof window !== 'undefined' && !window.isSecureContext) {
       reject(new GeoError('insecure', 'A localização só funciona em endereço seguro (https).'));

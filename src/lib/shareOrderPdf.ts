@@ -2,12 +2,17 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
+import { isDicoloreAndroid, saveAndroidPdf, shareAndroidPdf } from '@/lib/nativeAndroid';
+import { previewOrderPdf } from '@/lib/orderPdfPreview';
+import { toast } from 'sonner';
+
+export type PdfDeliveryMode = 'auto' | 'preview' | 'download' | 'share';
 
 /** Gera o PDF do orçamento/pedido e abre a tela de compartilhamento do celular. */
-export async function shareOrderPdf(orderId: string, storeName: string): Promise<void> {
+export async function shareOrderPdf(orderId: string, storeName: string, mode: PdfDeliveryMode = 'auto'): Promise<void> {
   const { data: o, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
   if (error || !o) throw new Error(error?.message || 'Pedido não encontrado');
-  await deliverOrderPdfFile(buildOrderPdfFile(o, storeName));
+  await deliverOrderPdfFile(buildOrderPdfFile(o, storeName), mode);
 }
 
 /** Also supports an unsaved checkout snapshot without changing order status. */
@@ -76,12 +81,24 @@ export function buildOrderPdfFile(order: any, storeName: string): File {
 }
 
 /** Call directly from a click so mobile sharing retains user activation. */
-export async function deliverOrderPdfFile(file: File): Promise<void> {
+export async function deliverOrderPdfFile(file: File, mode: PdfDeliveryMode = 'auto'): Promise<void> {
+  if (mode === 'preview' || (isDicoloreAndroid() && mode === 'auto')) {
+    previewOrderPdf(file);
+    return;
+  }
+  if (isDicoloreAndroid()) {
+    if (mode === 'download') {
+      if (await saveAndroidPdf(file)) toast.success('PDF salvo na pasta escolhida.');
+    } else {
+      await shareAndroidPdf(file);
+    }
+    return;
+  }
   const name = file.name;
   const nav: any = navigator;
   const isTouch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   // Celular: compartilhamento nativo. Computador (Windows etc.): baixar e abrir.
-  if (isTouch && nav.canShare && nav.canShare({ files: [file] })) {
+  if (mode !== 'download' && (isTouch || mode === 'share') && nav.canShare && nav.canShare({ files: [file] })) {
     try {
       await nav.share({ files: [file], title: name });
       return;
@@ -94,6 +111,6 @@ export async function deliverOrderPdfFile(file: File): Promise<void> {
   const a = document.createElement('a');
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
-  if (!isTouch) { try { window.open(url, '_blank'); } catch { /* popup bloqueado */ } }
+  if (!isTouch && mode === 'auto') { try { window.open(url, '_blank'); } catch { /* popup bloqueado */ } }
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
