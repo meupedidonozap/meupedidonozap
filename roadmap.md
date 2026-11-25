@@ -1,11 +1,12 @@
 # Roadmap
 
 ## Orçamento por áreas Limpa Telhas Brusque
-- [ ] Medição direta/calculada por área, inclinação e soma por serviço, com validação oficial
-- [ ] Placas solares e faixas de quedas configuráveis; endereço por CEP e deslocamento a R$1,20/km
-- [ ] Fotos editáveis no admin e ícone para foto ausente ou quebrada
-- [ ] Testes e orçamento salvo/relido em computador e celular; demais lojas preservadas
-- [ ] Configurar base e valores dos adicionais — aguarda endereço da empresa e preços definidos pelo administrador
+- [x] Medição direta/calculada por área, inclinação e soma por serviço, com validação oficial
+- [x] Placas solares e faixas de quedas configuráveis; endereço por CEP e cálculo protegido de deslocamento de ida e volta a R$1,20/km
+- [x] Fotos editáveis no admin e ícone para foto ausente ou quebrada; upload salvo e relido na tela, foto anterior restaurada
+- [x] 27 testes passaram, oito com gravação real; orçamento 130+50=180m² salvo/relido com preço oficial, adicionais e endereço do local; computador/390px sem erro; dados temporários removidos
+- [x] Base cadastrada, alterada de número 10 para 20 e relida pelo Painel Admin; configurações de teste restauradas; valores dos adicionais preenchidos pelo administrador
+- [ ] Preencher base e adicionais reais e validar o trajeto no site publicado — depende do administrador e publicação; Google Maps não pode ser testado neste ambiente
 
 ## Menu estável por perfil DiColore
 - [x] Validar com a sessão autorizada da Rita: carteira real de pedidos/títulos, recarga, retomada, entradas antigas, Painel/Ver Loja e seleção 86877 → catálogo → finalização com tabela 4; nenhuma gravação de pedido/perfil nem erro de execução

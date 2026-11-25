@@ -26,6 +26,7 @@ import {
 import { useCleaningActions, type CleaningQuote } from "@/hooks/useCleaning";
 import CleaningSchedule from "./CleaningSchedule";
 import type { Json } from "@/integrations/supabase/types";
+import { siteAddressSchema, areaLabel } from "@/lib/cleaningMeasurements";
 import { toast } from "sonner";
 export function quoteCustomer(q?: CleaningQuote) {
   return (q?.customer || {}) as {
@@ -45,15 +46,21 @@ export function quoteLines(q: CleaningQuote) {
     total: number | null;
   }[];
 }
+export function quoteSite(q: CleaningQuote) {
+  const details = q.details as Record<string, Json>;
+  const parsed = siteAddressSchema.safeParse(details.site_address);
+  return parsed.success ? parsed.data : quoteCustomer(q);
+}
 export function quoteMessage(q: CleaningQuote) {
   const c = quoteCustomer(q);
+  const site = quoteSite(q);
   return `*Limpa Telhas Brusque*\nOrçamento #${q.number}\nCliente: ${c.name}\n${quoteLines(
     q,
   )
     .map((l) => `${l.name}: ${l.area} m²`)
     .join(
       "\n",
-    )}\nTotal: ${cleaningMoney(q.total)}\nEndereço: ${c.address}, ${c.number} — ${c.neighborhood}, ${c.city}\nSituação: ${cleaningStatus[q.status]}\n${q.notes}`;
+    )}\n${(q.addons as { name: string; total: number | null }[]).map(a => `${a.name}: ${cleaningMoney(a.total)}`).join("\n")}\nTotal: ${cleaningMoney(q.total)}\nEndereço do local: ${site.address}, ${site.number} — ${site.neighborhood}, ${site.city}\nSituação: ${cleaningStatus[q.status]}\n${q.notes}`;
 }
 export default function CleaningQuoteList({
   storeId,
@@ -276,10 +283,13 @@ export default function CleaningQuoteList({
           {detail && (
             <div className="space-y-4">
               <p className="text-sm">
-                {quoteCustomer(detail).address}, {quoteCustomer(detail).number}{" "}
-                · {quoteCustomer(detail).neighborhood} ·{" "}
-                {quoteCustomer(detail).city}
+                {quoteSite(detail).address}, {quoteSite(detail).number}{" "}
+                · {quoteSite(detail).neighborhood} ·{" "}
+                {quoteSite(detail).city}
               </p>
+              {Array.isArray((detail.details as Record<string, Json>).roof_areas) && <div className="space-y-2 text-sm">
+                {((detail.details as Record<string, Json>).roof_areas as { mode: string; length?: number; width?: number; slope?: number; estimated_area: number }[]).map((a, i) => <p key={i}>Área {i + 1}: {areaLabel(a.estimated_area)} m²{a.mode === "dimensions" ? ` · ${a.length} m × ${a.width} m · inclinação ${a.slope}%` : ""}</p>)}
+              </div>}
               {quoteLines(detail).map((l, i) => (
                 <div
                   className="flex justify-between gap-4 border-b pb-2 text-sm"

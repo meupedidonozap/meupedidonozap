@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -8,7 +8,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Pencil, Plus, Check, Loader2 } from "lucide-react";
+import { Pencil, Plus, Check, Loader2, Upload, Trash2 } from "lucide-react";
+import { uploadProductImage } from "@/lib/storage";
+import CleaningServiceImage from "./CleaningServiceImage";
 import { Field, Choice } from "./CleaningFields";
 import {
   useCleaningCatalog,
@@ -29,6 +31,11 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
   const [mode, setMode] = useState("per_m2");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [image, setImage] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const preview = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : image, [imageFile, image]);
+  useEffect(() => () => { if (imageFile) URL.revokeObjectURL(preview); }, [preview, imageFile]);
   function edit(c?: CleaningCatalog) {
     setItem(c || null);
     setName(c?.products?.name || "");
@@ -36,6 +43,8 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
     setKind(c?.kind || "service");
     setMode(c?.mode || "per_m2");
     setReady(c?.price_ready || false);
+    setImage(c?.products?.image_url || "");
+    setImageFile(null);
     setOpen(true);
   }
   return (
@@ -50,13 +59,7 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
       <div className="divide-y border-y">
         {catalog.map((c) => (
           <div key={c.id} className="flex items-center gap-4 py-4">
-            {c.products?.image_url && (
-              <img
-                src={c.products.image_url}
-                alt={c.products.name}
-                className="h-16 w-20 rounded-md object-contain bg-card"
-              />
-            )}
+            <CleaningServiceImage compact src={c.products?.image_url} name={c.products?.name || "Serviço"} />
             <div className="min-w-0 flex-1">
               <h3>{c.products?.name}</h3>
               <p className="text-sm text-muted-foreground">
@@ -79,6 +82,7 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
               size="icon"
               variant="ghost"
               title="Editar produto"
+              aria-label={`Editar ${c.products?.name}`}
               onClick={() => edit(c)}
             >
               <Pencil />
@@ -92,7 +96,7 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
           if (!busy) setOpen(o);
         }}
       >
-        <DialogContent className="cleaning-store">
+        <DialogContent className="cleaning-store max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {item ? "Editar produto / serviço" : "Novo produto / serviço"}
@@ -118,8 +122,9 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
               }
               setBusy(true);
               try {
-                await actions.run(() =>
-                  supabase.rpc("cleaning_save_catalog", {
+                await actions.run(async () => {
+                  const imageUrl = imageFile ? await uploadProductImage(imageFile, storeId) : image;
+                  return supabase.rpc("cleaning_save_catalog", {
                     p_store: storeId,
                     p_id: item?.id as unknown as string,
                     p_name: name,
@@ -127,9 +132,9 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
                     p_ready: ready,
                     p_kind: kind,
                     p_mode: kind === "service" ? "per_m2" : mode,
-                    p_image: item?.products?.image_url || "",
-                  }),
-                );
+                    p_image: imageUrl,
+                  });
+                });
                 setOpen(false);
                 toast.success("Produto salvo.");
               } catch (e) {
@@ -140,6 +145,20 @@ export default function CleaningCatalogAdmin({ storeId }: { storeId: string }) {
             }}
           >
             <Field label="Nome" value={name} onChange={setName} required />
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Foto do serviço</p>
+              <div className="max-w-60"><CleaningServiceImage src={preview} name={name || "Serviço"} /></div>
+              <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label="Foto do serviço" onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) { toast.error("Use uma foto JPG, PNG ou WebP de até 10 MB."); return; }
+                setImageFile(file); e.target.value = "";
+              }} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={busy}><Upload />{preview ? "Trocar foto" : "Adicionar foto"}</Button>
+                {preview && <Button type="button" variant="ghost" size="icon" title="Remover foto" aria-label="Remover foto" disabled={busy} onClick={() => { setImage(""); setImageFile(null); }}><Trash2 /></Button>}
+              </div>
+            </div>
             <Choice
               label="Tipo"
               value={kind}

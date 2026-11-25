@@ -505,6 +505,13 @@
       "when": 1795543320803,
       "tag": "0071_cleaning_submission_deduplication",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795622966713,
+      "tag": "0072_cleaning_roof_measurements_travel",
+      "breakpoints": true
     }
   ]
 }

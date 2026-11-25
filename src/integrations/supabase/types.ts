@@ -506,6 +506,47 @@ export type Database = {
           },
         ]
       }
+      cleaning_travel_estimates: {
+        Row: {
+          base_address: Json
+          created_at: string
+          expires_at: string
+          id: string
+          one_way_meters: number
+          site_address: Json
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          base_address: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          one_way_meters: number
+          site_address: Json
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          base_address?: Json
+          created_at?: string
+          expires_at?: string
+          id?: string
+          one_way_meters?: number
+          site_address?: Json
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_travel_estimates_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupons: {
         Row: {
           code: string
@@ -3116,6 +3157,40 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cleaning_create_quote_base: {
+        Args: {
+          p_input: Json
+          p_key: string
+          p_profile: string
+          p_store: string
+        }
+        Returns: {
+          accepted_at: string | null
+          addons: Json
+          client_key: string
+          created_at: string
+          created_by: string | null
+          customer: Json
+          customer_profile_id: string
+          details: Json
+          id: string
+          items: Json
+          notes: string
+          number: number
+          order_id: string | null
+          service_order_id: string | null
+          status: string
+          store_id: string
+          total: number | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cleaning_quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cleaning_purchase: {
         Args: {
           p_due: string
@@ -3208,6 +3283,10 @@ export type Database = {
         }
         Returns: string
       }
+      cleaning_save_estimate_settings: {
+        Args: { p_settings: Json; p_store: string }
+        Returns: Json
+      }
       cleaning_schedule: {
         Args: {
           p_end: string
@@ -3234,6 +3313,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cleaning_valid_address: { Args: { a: Json }; Returns: boolean }
       client_invoice_analytics: {
         Args: { p_from: string; p_store_id: string; p_to: string }
         Returns: Json

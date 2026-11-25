@@ -4,3 +4,5 @@
 - Agenda > Bloquear horário writes a live blocked interval; canceling the block reopens it without removing appointments. Use this action for one-off closures; recurring hours are not configured yet.
 - Customers request date/time after acceptance; owner confirms after defining duration. Confirmed, underway and blocked intervals share a server overlap constraint.
 - Cleaning forms save before WhatsApp handoff; the direct link is an additional delivery action, not a substitute for stored submissions.
+- Roof measurements are recalculated and grouped by catalog service in the quote RPC; store settings own base and surcharge ranges, while authenticated travel estimates bind current base, job address and user, preventing client totals from controlling prices. Legacy quote contracts remain supported.
+- Service photos use the existing store-scoped product image upload and a shared error fallback; job-site addresses are quote snapshots, never replacements for customer registration or previously saved estimates.
