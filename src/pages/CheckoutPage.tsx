@@ -109,7 +109,7 @@ export default function CheckoutPage() {
     selectCustomer,
     clearSelectedCustomer,
     seller,
-  } = useActiveCustomerProfile(store?.id);
+  } = useActiveCustomerProfile(store?.id, store?.slug);
   const sellerOrder = isSellerMode && !!selectedCustomer;
   const selectingRecipient = !(store?.slug === 'dicolore' && editingQuote?.byCustomer);
   const { data: savedAddresses = [] } = useCustomerAddresses(user?.id, store?.id, store?.slug);

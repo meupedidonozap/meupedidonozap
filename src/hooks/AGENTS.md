@@ -3,3 +3,4 @@
 - DiColore checkout recipient starts blank for every order (no stored or automatic choice) and accepts only loaded current options, so an order is never sent to an unintended person; WhatsApp uses a direct post-save action.
 - Customer list reads take optional seller codes and filter the portfolio in the database; the full list uses parallel stable-ordered pages, so sellers never download other portfolios.
 - Store access and seller identity share one authorized, account/store-keyed query, kept out of persisted cache; loading/errors are not customer roles. DiColore navigation consumes this result across entry points without widening server permissions.
+- Active customer pricing waits for confirmed store access only in DiColore; other stores retain their prior profile resolution, preventing cross-tenant checkout changes.

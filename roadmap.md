@@ -1,11 +1,12 @@
 # Roadmap
 
 ## Menu estável por perfil DiColore
-- [ ] Validar com a conta Rita indicada pelo usuário — aguarda autorização para abrir a sessão dessa conta
-- [ ] Auditar todos os caminhos do mesmo perfil (inclusive finalização, histórico, material técnico, painel, retomada e proteção do servidor), sem alterar registros concluídos ou permissões
-- [ ] Corrigir resolução do perfil: carregamento/erro não podem aparecer como perfil cliente, nem exigir sair/entrar
-- [ ] Menu único por perfil na loja e áreas comerciais/financeiras, preservando tabela, carteiras e autorização das notas
-- [ ] Testar entrada, recarga, retorno ao app e navegação com cliente/vendedor/televendas/gerente/admin; preservar outras lojas
+- [x] Validar com a sessão autorizada da Rita: carteira real de pedidos/títulos, recarga, retomada, entradas antigas, Painel/Ver Loja e seleção 86877 → catálogo → finalização com tabela 4; nenhuma gravação de pedido/perfil nem erro de execução
+- [x] Auditar catálogo, finalização, histórico, material técnico, dados da conta, pagamento, painel, atendimento, clientes, resultados, notas, títulos, login/retomada e proteção do servidor; registros concluídos e integração ERP intocados
+- [x] Carregamento/erro não viram perfil cliente; consulta de acesso compartilhada e não persistida evita identidade parcial ou de outra conta; preços aguardam perfil confirmado só na DiColore
+- [x] Menu único por perfil em todas as entradas da DiColore, preservando tabela, carteiras, representante da NF e permissões oficiais; painel delegado não concede privilégios de admin
+- [x] 88 testes passaram; cinco perfis simulados em computador/celular, navegação real da Rita a 390px, menu/carteira/finalização conferidos visualmente; build OK; outras lojas preservadas
+- [ ] Disponibilizar correção e aviso obrigatório somente DiColore — depende de publicação pelo usuário; não exige novo APK
 
 ## Boletos no APK DiColore
 - [x] Conectar os boletos autorizados ao visualizador e salvamento/compartilhamento existentes, preservando o PDF bancário original e o download nos navegadores

@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { customerSchema } from '@/lib/customerValidation';
 import { fetchAddressByCep } from '@/lib/cepLookup';
 import { toast } from 'sonner';
+import DicoloreMenu from '@/components/DicoloreMenu';
 
 const emptyAddress = { label: '', cep: '', uf: '', city: '', neighborhood: '', address: '', number: '', complement: '' };
 export default function CustomerAccountPage() {
@@ -59,7 +60,7 @@ export default function CustomerAccountPage() {
     else { setPassword(''); setConfirm(''); toast.success('Senha alterada.'); }
   };
   if (!store || loading) return <p className="p-6">Carregando…</p>;
-  if (isManagedCustomerStore(slug)) return <div className="p-6"><Button asChild variant="outline"><Link to={`/${slug}`}>Voltar à loja</Link></Button><p className="mt-4">Seu cadastro é mantido pela loja. Solicite alterações ao seu representante.</p></div>;
+  if (isManagedCustomerStore(slug)) return <div className="p-6"><div className="flex flex-wrap items-center gap-3">{store.slug === 'dicolore' && <DicoloreMenu store={store} />}<Button asChild variant="outline"><Link to={`/${slug}`}>Voltar à loja</Link></Button></div><p className="mt-4">Seu cadastro é mantido pela loja. Solicite alterações ao seu representante.</p></div>;
   return <main className="mx-auto max-w-2xl space-y-8 px-4 py-6"><header className="flex items-center justify-between gap-4"><h1 className="text-2xl font-bold">Meus dados</h1><Button asChild variant="outline"><Link to={`/${slug}`}>Voltar à loja</Link></Button></header>
     {!user ? <Button onClick={() => setEdit(true)}>Entrar</Button> : <>
       <section className="space-y-3 border-b pb-6"><h2 className="text-lg font-semibold">Cadastro e endereço principal</h2>{profile ? <><p>{profile.name}</p><p>{profile.address}, {profile.number} {profile.complement}</p><p>{profile.city} / {profile.uf} · {profile.cep}</p></> : <p className="text-muted-foreground">Cadastro não preenchido.</p>}<Button onClick={() => setEdit(true)}>Editar meus dados</Button></section>

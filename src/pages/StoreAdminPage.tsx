@@ -1243,7 +1243,7 @@ export default function StoreAdminPage() {
                 className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent h-9 px-3"
               />
               <Button variant="info" size="sm" asChild className="h-9">
-                <Link to={`/${store.slug}`}><Eye className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Ver Loja</span></Link>
+                <Link to={`/${store.slug}`} aria-label={store.slug === 'dicolore' ? 'Ver Loja' : undefined}><Eye className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Ver Loja</span></Link>
               </Button>
               <Button variant="ghost" size="sm" className="text-primary-foreground hover:text-primary-foreground/80 h-9" onClick={() => { supabase.auth.signOut(); }}>
                 <LogOut className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Sair</span>

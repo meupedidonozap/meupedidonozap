@@ -11,7 +11,7 @@ import { mapProfile } from './useCustomerProfile';
  * - Modo Vendedor: o cliente selecionado pelo vendedor.
  * - Fluxo normal: o próprio perfil do usuário logado.
  */
-export function useActiveCustomerProfile(storeId: string | undefined) {
+export function useActiveCustomerProfile(storeId: string | undefined, storeSlug?: string) {
   const { user } = useAuth();
   const { data: ownProfile, isLoading: ownProfileLoading } = useCustomerProfile(user?.id, storeId);
   const seller = useSellerMode(storeId);
@@ -35,7 +35,7 @@ export function useActiveCustomerProfile(storeId: string | undefined) {
 
   return {
     profileLoading: seller.loading || (selected ? selectedLoading : !!user && ownProfileLoading),
-    profile: !seller.loading && !seller.accessError ? (selected ? freshSelected ?? selected : ownProfile) ?? null : null,
+    profile: storeSlug === 'dicolore' && (seller.loading || seller.accessError) ? null : (selected ? freshSelected ?? selected : ownProfile) ?? null,
     isSellerMode: sellerActive,
     selectedCustomer: selected,
     selectCustomer,

@@ -88,7 +88,7 @@ export default function ProductStorePage() {
     selectedCustomer,
     selectCustomer,
     seller,
-  } = useActiveCustomerProfile(store?.id);
+  } = useActiveCustomerProfile(store?.id, store?.slug);
   useDicoloreRefresh(store?.id, STOCK_DATA, selectedCustomer?.id || 'catalog-entry');
   const isJewos = store?.slug === 'jewosnewborn';
   const stockEnabled = (store?.settings as any)?.useStockIntegration === true || isJewos;
@@ -449,7 +449,7 @@ export default function ProductStorePage() {
                   <Button variant="ghost" size="sm" className="gap-1">
                     <User className="h-5 w-5" />
                     <span className="text-sm max-w-[100px] truncate">
-                      {customerProfile?.name?.split(' ')[0] || seller.sellerName?.split(' ')[0] || user.email?.split('@')[0] || 'Perfil'}
+                      {(store.slug === 'dicolore' && seller.isStaff ? seller.sellerName?.split(' ')[0] : customerProfile?.name?.split(' ')[0]) || seller.sellerName?.split(' ')[0] || user.email?.split('@')[0] || 'Perfil'}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>

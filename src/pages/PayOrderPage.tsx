@@ -10,6 +10,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PixPaymentDialog, PixDialogData } from '@/components/PixPaymentDialog';
+import DicoloreMenu from '@/components/DicoloreMenu';
 
 const FAILED = ['rejected', 'cancelled', 'refunded', 'charged_back'];
 
@@ -83,7 +84,8 @@ export default function PayOrderPage() {
   const failed = !paid && (info?.paymentStatus === 'failed' || FAILED.includes(info?.lastStatus || '')); 
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className={store?.slug === 'dicolore' ? 'flex min-h-screen items-center justify-center bg-background p-4 pt-20' : 'flex min-h-screen items-center justify-center bg-background p-4'}>
+      {store?.slug === 'dicolore' && <header className="fixed inset-x-0 top-0 z-40 border-b bg-card"><div className="container flex h-14 items-center"><DicoloreMenu store={store} /></div></header>}
       <Card className="w-full max-w-sm">
         <CardContent className="space-y-4 p-6 text-center">
           {error ? <p className="text-destructive">{error}</p> : !info ? <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" /> : (

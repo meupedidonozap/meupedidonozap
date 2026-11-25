@@ -66,6 +66,17 @@ describe('Shared authorized store identity', () => {
     expect(hook.result.current.isStaff).toBe(true);
     expect(hook.result.current.canSell).toBe(false);
   });
+  it.each(['vendedor', 'televendas'])('opening the delegated panel does not make %s an administrator', async role => {
+    mock.staff = { role, seller_codes: ['46'], can_view_orders: true, can_manage_orders: false };
+    const { Wrapper } = wrapper();
+    const hook = renderHook(() => ({ access: useStoreAdmin('dicolore-id'), seller: useSellerMode('dicolore-id') }), { wrapper: Wrapper });
+    await waitFor(() => expect(hook.result.current.seller.loading).toBe(false));
+    expect(hook.result.current.seller.canAdmin).toBe(true);
+    expect(hook.result.current.seller.isAdmin).toBe(false);
+    expect(hook.result.current.access.permissions.can_manage_orders).toBe(false);
+    expect(hook.result.current.access.permissions.can_manage_products).toBe(false);
+    expect(hook.result.current.access.sellerCodes).toEqual(['46']);
+  });
   it('propagates failure instead of storing a successful customer identity', async () => {
     mock.failure = true;
     await expect(loadStoreAccess('dicolore-id', 'user-a')).rejects.toThrow('network failure');
