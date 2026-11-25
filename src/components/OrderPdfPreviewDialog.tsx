@@ -91,7 +91,7 @@ export default function OrderPdfPreviewDialog() {
   async function deliver(mode: 'download' | 'share') {
     if (!file || busy) return;
     setBusy(true);
-    try { await deliverOrderPdfFile(file, mode); }
+    try { await deliverOrderPdfFile(file, mode, true); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível entregar o PDF.'); }
     finally { setBusy(false); }
   }

@@ -1,3 +1,4 @@
 - DiColore refresh uses workflow entry and visible resume events with scoped query keys and in-flight deduplication, never polling or a global focus default, to avoid changing other stores or fetching hidden reports.
 - Workflow refresh starts after persisted cache restoration; selecting an existing DiColore customer reads the authorized official profile before continuing, so stale portfolio rows cannot determine current ownership or pricing.
-- DiColore checkout persists recipient preferences per store/account/customer and accepts only loaded current options; WhatsApp uses a direct post-save action, while customer corrections preserve saved ownership to avoid reload loss and Safari empty popups.
+- DiColore checkout recipient starts blank for every order (no stored or automatic choice) and accepts only loaded current options, so an order is never sent to an unintended person; WhatsApp uses a direct post-save action.
+- Customer list reads take optional seller codes and filter the portfolio in the database; the full list uses parallel stable-ordered pages, so sellers never download other portfolios.

@@ -220,3 +220,12 @@
 - [x] Bling só recebe pedidos com pagamento aprovado (automático e manual)
 - [x] Gravar e exibir motivo da recusa do cartão (cliente e painel)
 - [x] Cliente que desiste do pagamento: pedido cancelado e carrinho restaurado
+
+## App DiColore: WhatsApp, vendedor, PDF e desempenho
+- [x] WhatsApp abre pelo aplicativo instalado no APK, com link universal e copiar mensagem
+- [x] Vendedor do checkout sempre em branco
+- [x] Ver/Baixar PDF abre o documento na tela do APK
+- [x] Carteira do vendedor filtrada no banco; lista completa em páginas paralelas
+- [x] Títulos abrem em Abertos
+- [x] Barra de carregamento no topo
+- [ ] Confirmar WhatsApp e PDF no APK físico — depende de teste no aparelho após publicar

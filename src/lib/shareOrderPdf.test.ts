@@ -15,7 +15,8 @@ describe('PDF independent of order status', () => {
     await shareOrderPdf('allowed-order', 'DiColore', 'download');
     expect(query.select).toHaveBeenCalledWith('*');
     expect(query.eq).toHaveBeenCalledWith('id', 'allowed-order');
-    const file = mock.save.mock.calls[0]?.[0];
+    expect(mock.save).not.toHaveBeenCalled();
+    const file = mock.preview.mock.calls[0]?.[0];
     expect(file).toBeInstanceOf(File);
     expect(file.type).toBe('application/pdf');
     expect(file.size).toBeGreaterThan(500);
@@ -33,8 +34,19 @@ describe('PDF independent of order status', () => {
   });
   it('canceling Android save never announces success', async () => {
     mock.save.mockResolvedValue(false);
-    await deliverOrderPdfFile(new File(['pdf'], 'p.pdf'), 'download');
+    await deliverOrderPdfFile(new File(['pdf'], 'p.pdf'), 'download', true);
+    expect(mock.save).toHaveBeenCalledTimes(1);
     expect(mock.success).not.toHaveBeenCalled();
+  });
+  it('Android download shows the PDF on screen and saves only from the open preview', async () => {
+    mock.save.mockResolvedValue(true);
+    const file = new File(['pdf'], 'p.pdf');
+    await deliverOrderPdfFile(file, 'download');
+    expect(mock.preview).toHaveBeenCalledWith(file);
+    expect(mock.save).not.toHaveBeenCalled();
+    await deliverOrderPdfFile(file, 'download', true);
+    expect(mock.save).toHaveBeenCalledWith(file);
+    expect(mock.success).toHaveBeenCalledTimes(1);
   });
   it('other stores retain their browser sharing path, even when the native bridge exists', async () => {
     mock.android.mockReturnValue(false);

@@ -1,5 +1,5 @@
-import { act, renderHook, waitFor, cleanup } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook, cleanup } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { useCheckoutRecipient } from './useCheckoutRecipient';
 import type { OrderRecipient } from './useOrderRecipients';
 
@@ -9,67 +9,47 @@ const options: OrderRecipient[] = [
 ];
 const key = 'mpz_checkout_recipient:store:user:98596';
 beforeEach(() => localStorage.clear());
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => cleanup());
 
 describe('DiColore checkout recipient', () => {
-  it('restores Grazi for customer 98596 after leaving and reopening checkout', async () => {
-    const first = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true, true));
-    await waitFor(() => expect(first.result.current[0]).toBe('rita'));
+  it('starts blank even with a linked seller and a previously saved choice', () => {
+    localStorage.setItem(key, 'grazi');
+    const hook = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true));
+    expect(hook.result.current[0]).toBe('');
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('starts blank when there is a single recipient', () => {
+    const hook = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options.slice(0, 1), true));
+    expect(hook.result.current[0]).toBe('');
+  });
+
+  it('keeps the chosen recipient for the current order and is blank when checkout reopens', () => {
+    const first = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true));
     act(() => first.result.current[1]('grazi'));
-    expect(localStorage.getItem(key)).toBe('grazi');
+    expect(first.result.current[0]).toBe('grazi');
     first.unmount();
-    const reopened = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true, true));
-    await waitFor(() => expect(reopened.result.current[0]).toBe('grazi'));
+    const reopened = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true));
+    expect(reopened.result.current[0]).toBe('');
   });
 
-  it('cannot carry a saved recipient into another account, customer or store', async () => {
-    localStorage.setItem(key, 'grazi');
-    const hook = renderHook(({ user, customer, store }) => useCheckoutRecipient('dicolore', store, user, customer, options, true, true), {
-      initialProps: { user: 'user', customer: '98596', store: 'store' },
+  it('clears the choice when the customer changes', () => {
+    const hook = renderHook(({ customer }) => useCheckoutRecipient('dicolore', 'store', 'user', customer, options, true), {
+      initialProps: { customer: '98596' },
     });
-    await waitFor(() => expect(hook.result.current[0]).toBe('grazi'));
-    hook.rerender({ user: 'other', customer: '98596', store: 'store' });
-    await waitFor(() => expect(hook.result.current[0]).toBe('rita'));
-    hook.rerender({ user: 'user', customer: 'other', store: 'store' });
-    await waitFor(() => expect(hook.result.current[0]).toBe('rita'));
-    hook.rerender({ user: 'user', customer: '98596', store: 'other' });
-    await waitFor(() => expect(hook.result.current[0]).toBe('rita'));
+    act(() => hook.result.current[1]('rita'));
+    hook.rerender({ customer: 'other' });
+    expect(hook.result.current[0]).toBe('');
   });
 
-  it('never accepts an unavailable recipient from storage or a selection event', async () => {
-    localStorage.setItem(key, 'unavailable');
-    const hook = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true, true));
-    await waitFor(() => expect(hook.result.current[0]).toBe('rita'));
+  it('never accepts an unavailable recipient or a choice before recipients load', () => {
+    const hook = renderHook(({ ready }) => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, ready), {
+      initialProps: { ready: false },
+    });
+    act(() => hook.result.current[1]('rita'));
+    expect(hook.result.current[0]).toBe('');
+    hook.rerender({ ready: true });
     act(() => hook.result.current[1]('unavailable'));
-    expect(hook.result.current[0]).toBe('rita');
-    expect(localStorage.getItem(key)).toBe('rita');
-  });
-
-  it('waits for recipients before restoring, without erasing the saved preference', async () => {
-    localStorage.setItem(key, 'grazi');
-    const hook = renderHook(({ ready, rows }) => useCheckoutRecipient('dicolore', 'store', 'user', '98596', rows, ready, true), {
-      initialProps: { ready: false, rows: [] as OrderRecipient[] },
-    });
     expect(hook.result.current[0]).toBe('');
-    expect(localStorage.getItem(key)).toBe('grazi');
-    hook.rerender({ ready: true, rows: options });
-    await waitFor(() => expect(hook.result.current[0]).toBe('grazi'));
-  });
-
-  it('keeps selection working if Safari storage is unavailable', async () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
-    const hook = renderHook(() => useCheckoutRecipient('dicolore', 'store', 'user', '98596', options, true, true));
-    await waitFor(() => expect(hook.result.current[0]).toBe('rita'));
-    act(() => hook.result.current[1]('grazi'));
-    expect(hook.result.current[0]).toBe('grazi');
-  });
-
-  it('does not pick a portfolio default or persist preferences for other stores', () => {
-    const hook = renderHook(() => useCheckoutRecipient('jewosnewborn', 'store', 'user', '98596', options, true, true));
-    expect(hook.result.current[0]).toBe('');
-    act(() => hook.result.current[1]('grazi'));
-    expect(hook.result.current[0]).toBe('grazi');
-    expect(localStorage.length).toBe(0);
   });
 });

@@ -81,8 +81,9 @@ export function buildOrderPdfFile(order: any, storeName: string): File {
 }
 
 /** Call directly from a click so mobile sharing retains user activation. */
-export async function deliverOrderPdfFile(file: File, mode: PdfDeliveryMode = 'auto'): Promise<void> {
-  if (mode === 'preview' || (isDicoloreAndroid() && mode === 'auto')) {
+export async function deliverOrderPdfFile(file: File, mode: PdfDeliveryMode = 'auto', fromPreview = false): Promise<void> {
+  // APK: "Baixar PDF" first shows the document; saving happens from the open preview.
+  if (mode === 'preview' || (isDicoloreAndroid() && !fromPreview && mode !== 'share')) {
     previewOrderPdf(file);
     return;
   }

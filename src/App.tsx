@@ -35,6 +35,12 @@ import DicoloreDataRefresh from './components/DicoloreDataRefresh';
 import CleaningAdminPage from './pages/CleaningAdminPage';
 import OrderPdfPreviewDialog from './components/OrderPdfPreviewDialog';
 import AndroidPermissionsDialog from './components/AndroidPermissionsDialog';
+import TopLoadingBar from './components/TopLoadingBar';
+import { installNativeWhatsAppLinks } from './lib/nativeWhatsApp';
+import { toast } from 'sonner';
+
+// APK: WhatsApp links leave the WebView through the native launcher.
+installNativeWhatsAppLinks(() => toast.error('Não foi possível abrir o WhatsApp. Copie a mensagem e envie manualmente.'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,6 +77,7 @@ const App = () => (
         <Sonner />
         <OfflineBanner />
         <BrowserRouter>
+          <TopLoadingBar />
           <DicoloreDataRefresh />
           <UpdateBanner />
           <ReleaseWhatsAppDialog />

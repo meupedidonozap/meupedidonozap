@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MessageCircle, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
-import { AppLauncher } from '@capacitor/app-launcher';
+import { openWhatsAppNative } from '@/lib/nativeWhatsApp';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { RELEASE_WHATSAPP_EVENT, releaseAppUrl, type ReleaseMessage } from '@/lib/releaseWhatsApp';
@@ -17,10 +17,7 @@ export default function ReleaseWhatsAppDialog() {
   const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const openNative = async () => {
     if (!message) return;
-    try {
-      const result = await AppLauncher.openUrl({ url: releaseAppUrl(message.url) });
-      if (!result.completed) toast.error('Não foi possível abrir o WhatsApp. Copie a mensagem.');
-    } catch { toast.error('Não foi possível abrir o WhatsApp. Copie a mensagem.'); }
+    if (!(await openWhatsAppNative(message.url))) toast.error('Não foi possível abrir o WhatsApp. Copie a mensagem.');
   };
   return <Dialog open={!!message} onOpenChange={open => { if (!open) setMessage(null); }}>
     <DialogContent className="max-w-md">

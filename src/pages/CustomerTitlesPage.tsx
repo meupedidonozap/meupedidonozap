@@ -54,6 +54,7 @@ export default function CustomerTitlesPage() {
           <>
             <CustomerPushCard storeId={store.id} />
             <TitlesPanel
+              initialFilter={store.slug === 'dicolore' ? 'ABERTO' : 'todos'}
               storeId={store.id}
               customerCode={code}
               startDate={store.settings.titlesStartDate}

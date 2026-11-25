@@ -30,13 +30,15 @@ export function netPaid(t: any): number {
   return Math.min(Number(t.valor_pago || t.valor_total), Number(t.valor_total));
 }
 
-export default function TitlesPanel({ storeId, sellerCodes, customerCode, startDate, dateField = 'data_vencimento', company }: {
+export default function TitlesPanel({ storeId, sellerCodes, customerCode, startDate, dateField = 'data_vencimento', company, initialFilter = 'todos' }: {
   storeId: string;
   sellerCodes?: string[];
   customerCode?: string;
   startDate?: string;
   dateField?: 'data_emissao' | 'data_vencimento';
   company?: string;
+  /** Aba aberta ao entrar na tela. */
+  initialFilter?: 'todos' | 'ABERTO';
 }) {
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
@@ -44,7 +46,7 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
     const id = setTimeout(() => setTerm(search.trim().replace(/[,()%*]/g, ' ').trim()), 400);
     return () => clearTimeout(id);
   }, [search]);
-  const [filter, setFilter] = useState<Filter>('todos');
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [paidFrom, setPaidFrom] = useState('');
   const [paidTo, setPaidTo] = useState('');

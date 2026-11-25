@@ -186,7 +186,10 @@ export default function StoreAdminPage() {
   const { data: coupons = [] } = useCoupons(isAdmin ? store?.id : undefined);
   const { data: serviceOrders = [] } = useServiceOrders(hasAccess && store?.type === 'SERVICOS' && (isAdmin || permissions.can_view_service_orders) ? store?.id : undefined);
   const { data: customerProfiles = [] } = useStoreCustomerProfiles(
-    hasAccess && (isAdmin || permissions.can_view_customers || (userSellerCodes && userSellerCodes.length > 0)) ? store?.id : undefined
+    hasAccess && (isAdmin || permissions.can_view_customers || (userSellerCodes && userSellerCodes.length > 0)) ? store?.id : undefined,
+    true,
+    // DiColore: o vendedor lê somente a própria carteira, direto do banco.
+    store?.slug === 'dicolore' && !isAdmin ? userSellerCodes : [],
   );
   const indexedOrderProfile = useMemo(() => buildOrderProfileIndex(customerProfiles), [customerProfiles]);
   const findOrderProfile = (order: any) => indexedOrderProfile(order);
@@ -1368,7 +1371,7 @@ export default function StoreAdminPage() {
 
           {store.slug === 'dicolore' && isAdmin && (
             <TabsContent value="titulos" className="animate-fade-in">
-              <TitlesPanel storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} dateField={(store.settings as any)?.titlesDateField} company={(store.settings as any)?.titlesCompany} />
+              <TitlesPanel initialFilter={store.slug === 'dicolore' ? 'ABERTO' : 'todos'} storeId={store.id} startDate={(store.settings as any)?.titlesStartDate} dateField={(store.settings as any)?.titlesDateField} company={(store.settings as any)?.titlesCompany} />
             </TabsContent>
           )}
           {store.slug === 'dicolore' && isAdmin && (
@@ -3704,7 +3707,7 @@ export default function StoreAdminPage() {
                         }
                         await updateCustomerProfile.mutateAsync({ id: editingCustomer.id, storeId: editingCustomer.storeId, ...customerForm });
                         // Mostra a alteração na hora, sem esperar recarregar toda a carteira.
-                        qc.setQueryData(['store-customer-profiles', editingCustomer.storeId], (list: any) =>
+                        qc.setQueriesData({ queryKey: ['store-customer-profiles', editingCustomer.storeId] }, (list: any) =>
                           Array.isArray(list) ? list.map((c: any) => c.id === editingCustomer.id ? { ...c, ...customerForm } : c) : list);
                         { const { error: dwErr } = await supabase.from('customer_profiles').update(dwUpdateFromForm(dwForm) as any).eq('id', editingCustomer.id); if (dwErr) throw dwErr; }
                         if (!editingCustomer.userId && (codigo || login)) {

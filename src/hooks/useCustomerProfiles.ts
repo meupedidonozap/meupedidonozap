@@ -37,25 +37,34 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
 // Lista leve: lojas com milhares de clientes (DiColore) travavam ao baixar todas as colunas.
 const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo,no_discount';
 
-export function useStoreCustomerProfiles(storeId: string | undefined, enabled = true) {
+/**
+ * sellerCodes: carteira filtrada no banco (vendedor não baixa os clientes dos demais).
+ * Sem códigos, a lista completa é lida em páginas paralelas.
+ */
+export function useStoreCustomerProfiles(storeId: string | undefined, enabled = true, sellerCodes: string[] = []) {
+  const codes = [...new Set(sellerCodes.map(code => String(code).trim()).filter(Boolean))].sort();
   return useQuery({
-    queryKey: ['store-customer-profiles', storeId],
+    queryKey: ['store-customer-profiles', storeId, codes.join(',')],
     queryFn: async () => {
       const PAGE = 1000;
-      const all: any[] = [];
-      let from = 0;
-      while (true) {
-        const { data, error } = await supabase
+      const page = (from: number, count = false) => {
+        let query = supabase
           .from('customer_profiles')
-          .select(LIST_COLUMNS)
-          .eq('store_id', storeId!)
-          .order('name')
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        const rows = data || [];
-        all.push(...rows);
-        if (rows.length < PAGE) break;
-        from += PAGE;
+          .select(LIST_COLUMNS, count ? { count: 'exact' } : undefined)
+          .eq('store_id', storeId!);
+        if (codes.length) query = query.in('seller_code', codes);
+        return query.order('name').order('id').range(from, from + PAGE - 1);
+      };
+      const first = await page(0, true);
+      if (first.error) throw first.error;
+      const all: any[] = [...(first.data || [])];
+      const total = first.count ?? all.length;
+      const starts: number[] = [];
+      for (let from = PAGE; from < total; from += PAGE) starts.push(from);
+      const rest = await Promise.all(starts.map(from => page(from)));
+      for (const result of rest) {
+        if (result.error) throw result.error;
+        all.push(...(result.data || []));
       }
       return all.map(mapProfile);
     },

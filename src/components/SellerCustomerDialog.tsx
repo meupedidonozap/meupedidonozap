@@ -35,7 +35,7 @@ interface Props {
 
 export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenChange, storeId, storeSlug, sellerCodes, onSelected }: Props) {
   const defaultPriceTable = resolveStorePriceTable(storeSlug);
-  const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId, storeSlug !== 'dicolore' || open);
+  const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId, storeSlug !== 'dicolore' || open, storeSlug === 'dicolore' ? sellerCodes : []);
   const client = useQueryClient();
   const [selecting, setSelecting] = useState(false);
   useDicoloreRefresh(storeId, CUSTOMER_DATA, open);

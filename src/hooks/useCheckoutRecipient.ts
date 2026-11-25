@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { OrderRecipient } from './useOrderRecipients';
 
-/** A saved preference is not authority: accept only currently available recipients. */
+/**
+ * DiColore: the recipient always starts blank and must be chosen for each order,
+ * so a previous or automatic choice can never send an order to the wrong person.
+ */
 export function useCheckoutRecipient(
   slug: string | undefined,
   storeId: string | undefined,
@@ -9,35 +12,21 @@ export function useCheckoutRecipient(
   profileId: string | undefined,
   options: OrderRecipient[],
   ready: boolean,
-  linkedSeller: boolean,
 ) {
-  const key = slug === 'dicolore' && storeId && userId && profileId
-    ? `mpz_checkout_recipient:${storeId}:${userId}:${profileId}` : null;
-  const scope = key || `${storeId || ''}:${userId || ''}:${profileId || ''}`;
+  const scope = `${storeId || ''}:${userId || ''}:${profileId || ''}`;
   const [selection, setSelection] = useState({ scope, id: '' });
   const current = selection.scope === scope ? selection.id : '';
   const selectedId = options.some(option => option.id === current) ? current : '';
 
   useEffect(() => {
-    if (!ready) return;
-    let saved = '';
-    try { saved = key ? localStorage.getItem(key) || '' : ''; } catch { /* Private storage may be unavailable. */ }
-    const restored = options.find(option => option.id === saved)?.id || '';
-    const sellers = options.filter(option => option.kind === 'vendedor');
-    const fallback = options.length === 1 ? options[0].id
-      : key && linkedSeller && sellers.length === 1 ? sellers[0].id : '';
-    const id = selectedId || restored || fallback;
-    setSelection(previous => previous.scope === scope && previous.id === id ? previous : { scope, id });
-    try {
-      if (key && id) localStorage.setItem(key, id);
-      else if (key) localStorage.removeItem(key);
-    } catch { /* Selection still works in memory. */ }
-  }, [key, scope, options, ready, linkedSeller, selectedId]);
+    // Earlier versions remembered the last recipient; discard it.
+    if (slug !== 'dicolore' || !storeId || !userId || !profileId) return;
+    try { localStorage.removeItem(`mpz_checkout_recipient:${storeId}:${userId}:${profileId}`); } catch { /* Private storage may be unavailable. */ }
+  }, [slug, storeId, userId, profileId]);
 
   const select = (id: string) => {
     if (!ready || !options.some(option => option.id === id)) return;
     setSelection({ scope, id });
-    try { if (key) localStorage.setItem(key, id); } catch { /* Selection still works in memory. */ }
   };
   return [selectedId, select] as const;
 }

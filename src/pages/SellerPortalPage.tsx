@@ -371,6 +371,7 @@ export default function SellerPortalPage() {
 
         {section === 'titulos' && (
           <TitlesPanel
+            initialFilter={store.slug === 'dicolore' ? 'ABERTO' : 'todos'}
             storeId={store.id}
             sellerCodes={codes}
             startDate={store.settings.titlesStartDate}

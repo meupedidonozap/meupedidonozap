@@ -155,7 +155,6 @@ export default function CheckoutPage() {
   const [savedSellerId, setSavedSellerId] = useCheckoutRecipient(
     store?.slug, store?.id, user?.id, customerProfile?.id, recipientOptions,
     store?.slug === 'dicolore' && recipientsReady && !!customerProfile && !sellerOrder && selectingRecipient,
-    !!customerProfile?.sellerCode && recipientsRpc.length > 0,
   );
   const selectedSellerId = store?.slug === 'dicolore' ? savedSellerId : legacySellerId;
   const setSelectedSellerId = store?.slug === 'dicolore' ? setSavedSellerId : setLegacySellerId;
@@ -1586,6 +1585,13 @@ export default function CheckoutPage() {
               <MessageCircle className="h-4 w-4" /> Abrir WhatsApp de {pendingWhatsApp?.sellerName}
             </a>
           </Button>
+          {store.slug === 'dicolore' && (
+            <Button variant="outline" className="w-full" onClick={async () => {
+              if (!pendingWhatsApp) return;
+              try { await navigator.clipboard.writeText(new URL(pendingWhatsApp.url).searchParams.get('text') || ''); toast.success('Mensagem copiada'); }
+              catch { toast.error('Não foi possível copiar a mensagem'); }
+            }}>Copiar mensagem</Button>
+          )}
         </DialogContent>
       </Dialog>
       <PixPaymentDialog data={pixDialog} onClose={() => { setPixDialog(null); clearCart(); navigate(`/${store.slug}`); }} />
