@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { roofAreaSchema, siteAddressSchema } from "./cleaningMeasurements";
 
 export const CLEANING_SLUG = "limpa-telhas-brusque";
 export const isCleaningStore = (store?: { slug?: string } | null) =>
@@ -19,6 +20,11 @@ export const cleaningQuoteSchema = z.object({
   access: z.enum(["facil", "restrito"]),
   water: z.boolean(),
   electricity: z.boolean(),
+  roof_areas: z.array(roofAreaSchema).min(1).max(20).optional(),
+  has_solar: z.boolean().optional(),
+  falls: z.coerce.number().int().min(1).max(100).optional(),
+  site_address: siteAddressSchema.optional(),
+  travel_estimate_id: z.string().uuid().optional(),
 });
 export type CleaningQuoteInput = z.infer<typeof cleaningQuoteSchema>;
 const finiteMoney = z.coerce
