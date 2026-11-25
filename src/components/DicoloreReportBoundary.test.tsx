@@ -10,6 +10,8 @@ import DicoloreReportBoundary from './DicoloreReportBoundary';
 const mock = vi.hoisted(() => ({ access: { user: { id: 'seller-A' }, isAdmin: false, role: 'vendedor', staffSellerCodes: ['46'], erpCode: '', permissions: { can_view_orders: true }, loading: false, accessError: null } }));
 vi.mock('@/hooks/useStores', () => ({ useStoreBySlug: () => ({ data: { id: 'store-A', slug: 'dicolore' } }) }));
 vi.mock('@/hooks/useStoreAdmin', () => ({ useStoreAdmin: () => mock.access }));
+const platform = vi.hoisted(() => ({ android: true }));
+vi.mock('@/lib/nativeAndroid', () => ({ isAndroidApp: () => platform.android }));
 
 const clients: QueryClient[] = [];
 const scope = () => JSON.stringify([mock.access.user?.id, mock.access.isAdmin, mock.access.role, [...mock.access.staffSellerCodes].sort(), mock.access.erpCode, mock.access.permissions]);
@@ -32,12 +34,37 @@ function setup(report: DicoloreReport, saved = false, path?: string) {
 }
 
 beforeEach(() => {
+  platform.android = true;
   mock.access = { user: { id: 'seller-A' }, isAdmin: false, role: 'vendedor', staffSellerCodes: ['46'], erpCode: '', permissions: { can_view_orders: true }, loading: false, accessError: null };
   onlineManager.setOnline(true); focusManager.setFocused(true);
 });
 afterEach(() => { cleanup(); clients.forEach(c => c.clear()); clients.length = 0; vi.restoreAllMocks(); onlineManager.setOnline(true); focusManager.setFocused(undefined); });
 
 describe('DiColore report entry confirmation', () => {
+  it.each<DicoloreReport>(['pedidos', 'notas', 'titulos', 'resultados'])('automatically loads %s in browsers without approval or local-only keys', async report => {
+    platform.android = false;
+    const { reads, client } = setup(report, true);
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain(`novo-${report}`));
+    expect(reads[report]).toHaveBeenCalledTimes(1);
+    expect(client.getQueryData(keyFor(report))).toBe(`novo-${report}`);
+    expect(screen.queryByRole('button', { name: 'Sim, atualizar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Atualizar dados' })).toBeNull();
+  });
+
+  it('keeps browser search terms remote without requiring approval', async () => {
+    platform.android = false;
+    const client = new QueryClient(); clients.push(client);
+    const read = vi.fn().mockResolvedValue(['MARIA']);
+    function Search() {
+      const term = useDicoloreRemoteTerm('MARIA');
+      const { data = [] } = useDicoloreQuery({ queryKey: ['customer-titles', 'store-A', term], queryFn: read });
+      return <output>{data.join('|')}</output>;
+    }
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dicolore/vendedor/titulos']}><DicoloreReportBoundary><Search /></DicoloreReportBoundary></MemoryRouter></QueryClientProvider>);
+    await screen.findByText('MARIA');
+    expect(client.getQueryData(['customer-titles', 'store-A', 'MARIA'])).toEqual(['MARIA']);
+  });
+
   it.each<DicoloreReport>(['pedidos', 'notas', 'titulos', 'resultados'])('uses persisted %s without a request when the user declines', async report => {
     const { reads } = setup(report, true);
     fireEvent.click(await screen.findByRole('button', { name: 'Não, usar dados salvos' }));

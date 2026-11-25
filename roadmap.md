@@ -1,5 +1,10 @@
 # Roadmap
 
+## Confirmação de atualização exclusiva do APK DiColore
+- [x] Restringir perguntas e consultas locais ao APK Android; restaurar consultas online, pesquisa e atualização na retomada nos navegadores
+- [x] 25 testes passaram: confirmação/recusa do APK, consultas e busca online no navegador, retomada sem reconsultar relatórios no APK; Títulos reais abertos automaticamente pelo menu com sessão autorizada, sem pergunta ou erro; build OK
+- [ ] Disponibilizar no site — depende de publicação pelo usuário
+
 ## Dados locais e atualização sob confirmação DiColore
 - [x] Notas, Pedidos, Títulos e Resultados: perguntar na entrada, usar dados locais ao recusar e atualizar somente a área confirmada; buscas locais preservam a lista
 - [x] Preservar atualização automática de clientes e estoque por novo pedido, sem reconsultar relatórios na retomada; carteira filtrada por vendedor

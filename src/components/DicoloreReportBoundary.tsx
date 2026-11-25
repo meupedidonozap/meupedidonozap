@@ -7,6 +7,7 @@ import { useStoreBySlug } from '@/hooks/useStores';
 import { useStoreAdmin } from '@/hooks/useStoreAdmin';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isStoreData } from '@/lib/dicoloreRefresh';
+import { isAndroidApp } from '@/lib/nativeAndroid';
 import { isScopedReportKey, REPORT_FAMILIES, reportFromPath, type DicoloreReport } from '@/lib/dicoloreReportCache';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
@@ -16,7 +17,8 @@ const LABELS: Record<DicoloreReport, string> = { pedidos: 'Pedidos', notas: 'Not
 /** One question per navigation entry; resume/focus never changes the decision. */
 export default function DicoloreReportBoundary({ children, report: explicitReport }: { children: ReactNode; report?: DicoloreReport }) {
   const location = useLocation();
-  const isDicolore = location.pathname.split('/')[1] === 'dicolore';
+  // This context enables APK local-first queries, not general store identification.
+  const isDicolore = location.pathname.split('/')[1] === 'dicolore' && isAndroidApp();
   const { data: store } = useStoreBySlug(isDicolore ? 'dicolore' : '');
   const access = useStoreAdmin(isDicolore ? store?.id : undefined);
   const restoring = useIsRestoring();

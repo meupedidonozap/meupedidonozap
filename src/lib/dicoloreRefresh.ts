@@ -1,4 +1,6 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
+import { isAndroidApp } from '@/lib/nativeAndroid';
+import { REPORT_FAMILIES } from '@/lib/dicoloreReportCache';
 
 export const CUSTOMER_DATA = ['store-customer-profiles', 'client-intel-base', 'customer-profile', 'selected-customer-profile', 'my-customer-code'];
 // Checkout still checks outstanding debt; report refresh belongs to its confirmation.
@@ -20,8 +22,12 @@ export async function refreshDicoloreData(
   families: readonly string[], activeOnly = true,
 ) {
   if (slug !== 'dicolore' || !storeId || !navigator.onLine || document.visibilityState === 'hidden') return;
+  // Browser resume refreshes active reports; APK reports remain approval-only.
+  const effectiveFamilies = !isAndroidApp() && families === SCREEN_DATA
+    ? [...families, ...Object.values(REPORT_FAMILIES).flat()]
+    : families;
   await client.invalidateQueries({
-    predicate: query => isStoreData(query.queryKey, storeId, families)
+    predicate: query => isStoreData(query.queryKey, storeId, effectiveFamilies)
       && (!activeOnly || query.isActive())
       && query.state.fetchStatus !== 'fetching'
       // Entry, panel mount, pageshow and focus can represent the same gesture.
