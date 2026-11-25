@@ -100,7 +100,7 @@ export default function OrderPdfPreviewDialog() {
     <Dialog open={!!file} onOpenChange={open => { if (!open && !busy) previewOrderPdf(null); }}>
       <DialogContent className="flex h-[90dvh] w-[calc(100%-1rem)] max-w-3xl flex-col gap-3 p-4">
         <DialogHeader className="min-w-0 pr-7 text-left">
-          <DialogTitle>PDF do pedido</DialogTitle>
+          <DialogTitle>PDF</DialogTitle>
           <DialogDescription className="break-all">{file?.name}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">

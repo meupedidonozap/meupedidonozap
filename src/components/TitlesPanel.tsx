@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDicoloreRefresh } from '@/hooks/useDicoloreRefresh';
 import { FINANCIAL_DATA } from '@/lib/dicoloreRefresh';
+import { deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 
 type Filter = 'todos' | 'ABERTO' | 'VENCIDO' | 'PAGO';
 
@@ -130,11 +131,9 @@ export default function TitlesPanel({ storeId, sellerCodes, customerCode, startD
       const bin = atob(data.pdf_base64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      a.href = url; a.download = data.file_name || `boleto-${t.codigo}-${t.parcela}.pdf`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      const file = new File([bytes], data.file_name || `boleto-${t.codigo}-${t.parcela}.pdf`, { type: 'application/pdf' });
+      // Android opens the local preview; browsers retain the direct download.
+      await deliverOrderPdfFile(file, 'download');
     } catch (e: any) {
       toast.error(e.message || 'Erro ao baixar boleto');
     } finally {

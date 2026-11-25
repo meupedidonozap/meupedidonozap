@@ -1,5 +1,10 @@
 # Roadmap
 
+## Boletos no APK DiColore
+- [x] Conectar os boletos autorizados ao visualizador e salvamento/compartilhamento existentes, preservando o PDF bancário original e o download nos navegadores
+- [x] 22 testes passaram; boleto bancário real de 32.775 bytes baixado no navegador e renderizado no Android simulado a 390px com zoom; cancelar/salvar/compartilhar preservam os bytes originais, sem erros; build OK
+- [ ] Disponibilizar no site publicado e confirmar em Android físico — depende de publicação e teste no aparelho pelo usuário
+
 ## Identificação dos produtos sem preço no recálculo DiColore
 - [x] Exibir todos os nomes/códigos e a tabela numa janela consultável, preservando o bloqueio e os valores do pedido
 - [x] Conferir e ajustar avisos equivalentes na edição (abertura e troca de tabela), criação, carrinho/catálogo e finalização; outras lojas mantêm seus avisos
