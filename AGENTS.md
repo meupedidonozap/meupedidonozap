@@ -40,3 +40,4 @@
 - Checkout loads discount rules from store settings; orders-export refills missing item discounts.
 - DiColore event refresh follows src/hooks/AGENTS.md.
 - Share price notices to avoid drift.
+- Invoice item lists read the mirrored NF items by the invoice external key and fall back to billed order items only when the invoice has none, through one tested resolver, so the screen shows what was actually invoiced.

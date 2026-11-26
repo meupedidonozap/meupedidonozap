@@ -3,6 +3,7 @@ import { useDicoloreQuery as useQuery, useDicoloreRemoteTerm } from '@/hooks/use
 import { CalendarDays, FileText, Loader2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
+import { resolveInvoiceItems } from '@/lib/invoiceItems';
 import { matchesInvoiceSeller, normalizeInvoiceSeller } from '@/lib/invoiceSeller';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,15 +27,34 @@ function periodStart(period: Period): string | undefined {
   return localDay(date);
 }
 
-function InvoiceItems({ storeId, filial, pedido }: { storeId: string; filial: string; pedido: string }) {
+function InvoiceItems({ storeId, invoiceKey, filial, pedido }: { storeId: string; invoiceKey: string; filial: string; pedido: string }) {
   const { data: items = [], isLoading, isError } = useQuery({
-    queryKey: ['invoice-items-v2', storeId, filial, pedido],
-    enabled: !!pedido && pedido !== '0',
+    queryKey: ['invoice-items-v3', storeId, invoiceKey, filial, pedido],
+    enabled: !!invoiceKey || (!!pedido && pedido !== '0'),
     queryFn: async () => {
-      const { data, error } = await supabase.from('erp_order_items').select('*')
-        .eq('store_id', storeId).eq('order_key', `${filial || '1'}|${pedido}`).order('produto_codigo');
-      if (error) throw error;
-      return (data || []).filter((it) => Number(it.quantidade_faturada) > 0);
+      // Itens reais da NF (dw_nota_fiscal_item); itens do pedido só como reserva.
+      let nfItems: Array<Record<string, unknown>> = [];
+      if (invoiceKey) {
+        const { data, error } = await supabase.from('customer_invoice_items').select('*')
+          .eq('store_id', storeId).eq('invoice_key', invoiceKey).order('produto_codigo');
+        if (error) throw error;
+        nfItems = data || [];
+      }
+      let orderItems: Array<Record<string, unknown>> = [];
+      if (!nfItems.length && pedido && pedido !== '0') {
+        const { data, error } = await supabase.from('erp_order_items').select('*')
+          .eq('store_id', storeId).eq('order_key', `${filial || '1'}|${pedido}`).order('produto_codigo');
+        if (error) throw error;
+        orderItems = data || [];
+      }
+      const names: Record<string, string> = {};
+      const codes = [...new Set(nfItems.map((it) => String(it.produto_codigo || '')).filter(Boolean))];
+      for (let i = 0; i < codes.length; i += 200) {
+        const { data } = await supabase.from('products').select('code, name')
+          .eq('store_id', storeId).in('code', codes.slice(i, i + 200));
+        (data || []).forEach((product) => { if (product.code) names[product.code] = product.name; });
+      }
+      return resolveInvoiceItems(nfItems, orderItems, names);
     },
   });
   if (isLoading) return <Loader2 className="mx-auto my-2 h-4 w-4 animate-spin" />;
@@ -48,11 +68,11 @@ function InvoiceItems({ storeId, filial, pedido }: { storeId: string; filial: st
           <th className="p-1 text-right">Qtd</th><th className="p-1 text-right">Unit.</th><th className="p-1 text-right">Total</th>
         </tr></thead>
         <tbody>{items.map((it) => (
-          <tr key={it.id} className="border-b">
-            <td className="p-1">{it.produto_codigo}</td><td className="p-1 text-foreground">{it.produto_descricao || ''}</td>
-            <td className="p-1 text-right">{Number(it.quantidade_faturada).toLocaleString('pt-BR')}</td>
-            <td className="p-1 text-right">{formatCurrency(Number(it.valor_unitario))}</td>
-            <td className="p-1 text-right">{formatCurrency(Number(it.quantidade_faturada) * Number(it.valor_unitario))}</td>
+          <tr key={it.key} className="border-b">
+            <td className="p-1">{it.code}</td><td className="p-1 text-foreground">{it.name}</td>
+            <td className="p-1 text-right">{it.quantity.toLocaleString('pt-BR')}</td>
+            <td className="p-1 text-right">{formatCurrency(it.unit)}</td>
+            <td className="p-1 text-right">{formatCurrency(it.total)}</td>
           </tr>
         ))}</tbody>
       </table>
@@ -236,7 +256,7 @@ export default function InvoicesPanel({ storeId, customerCode, startDate, compan
                     {invoice.pedido_codigo && invoice.pedido_codigo !== '0' && (
                       <details className="mt-2 text-xs text-muted-foreground">
                         <summary className="cursor-pointer font-medium text-foreground">Ver itens da nota</summary>
-                        <InvoiceItems storeId={storeId} filial={invoice.filial_codigo} pedido={invoice.pedido_codigo} />
+                        <InvoiceItems storeId={storeId} invoiceKey={invoice.external_key} filial={invoice.filial_codigo} pedido={invoice.pedido_codigo} />
                       </details>
                     )}
                     <details className="mt-2 text-xs text-muted-foreground">
