@@ -268,3 +268,7 @@
 - [x] Títulos abrem em Abertos
 - [x] Barra de carregamento no topo
 - [ ] Confirmar WhatsApp e PDF no APK físico — depende de teste no aparelho após publicar
+
+## DiColore: pergunta de check-in ao selecionar cliente
+- [x] Vendedor escolhe ou cadastra cliente no catálogo e recebe "Deseja fazer check-in agora?"
+- [ ] Confirmar o check-in com GPS em aparelho real — depende de teste no celular após publicar

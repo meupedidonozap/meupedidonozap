@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MapPin, Search, LogIn as LogInIcon, LogOut as LogOutIcon, ShoppingCart, History, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateTime } from '@/lib/formatters';
-import { haversineMeters, getCurrentPosition, GeoError, type GeoErrorKind } from '@/lib/geo';
+import { haversineMeters, getCurrentPosition, GeoError, type Coords, type GeoErrorKind } from '@/lib/geo';
 import {
   useCheckIn, useCheckOut, useCustomerVisits, geocodeAddress, saveCustomerGeo,
   DEFAULT_VISIT_REASONS, formatDuration, type CustomerVisit,
@@ -89,11 +89,14 @@ interface Props {
   maxDistanceMeters: number;
   /** Seleciona o cliente no Modo Vendedor após o check-in. */
   onCustomerSelected?: (c: SellerCustomer) => void;
+  /** Check-in direto do cliente já selecionado, com a leitura de GPS iniciada no toque. */
+  autoCheckin?: { customerId: string; position: Promise<Coords> } | null;
+  onAutoCheckinHandled?: () => void;
 }
 
 export default function CheckinDialog({
   open, onOpenChange, storeId, sellerCodes,
-  unvisitedPeriodDays, visitReasons, maxDistanceMeters, onCustomerSelected,
+  unvisitedPeriodDays, visitReasons, maxDistanceMeters, onCustomerSelected, autoCheckin, onAutoCheckinHandled,
 }: Props) {
   const qc = useQueryClient();
   const { data: pointPolicy } = useCheckinPolicy(storeId);
@@ -175,13 +178,35 @@ export default function CheckinDialog({
     return `Não atendido de ${from.toLocaleDateString('pt-BR')} até ${new Date().toLocaleDateString('pt-BR')}`;
   }, [unvisitedPeriodDays]);
 
-  async function handleCheckIn(c: CustomerRow) {
+  // Cliente já escolhido na seleção: o check-in não deve substituir o cadastro oficial selecionado.
+  const keepSelection = useRef<string | null>(null);
+  const autoStarted = useRef<object | null>(null);
+  useEffect(() => {
+    if (!autoCheckin || !pointPolicy || autoStarted.current === autoCheckin) return;
+    autoStarted.current = autoCheckin;
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('customer_profiles')
+          .select('id, name, customer_code, cpf_cnpj, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, price_table, geo_lat, geo_lng')
+          .eq('store_id', storeId).eq('id', autoCheckin.customerId).single();
+        if (error) throw error;
+        keepSelection.current = autoCheckin.customerId;
+        await handleCheckIn(data as CustomerRow, autoCheckin.position);
+      } catch (e: any) {
+        toast.error(e.message || 'Não foi possível registrar o check-in.');
+      } finally { onAutoCheckinHandled?.(); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoCheckin, pointPolicy]);
+
+  async function handleCheckIn(c: CustomerRow, started?: Promise<Coords>) {
     if (!pointPolicy) { toast.error('Aguarde carregar as configurações da loja.'); return; }
+    if (!started && keepSelection.current !== c.id) keepSelection.current = null;
     setBusyId(c.id);
     // IMPORTANTE (Safari/iOS): o pedido de localização precisa sair no mesmo
     // gesto do toque. Por isso disparamos o GPS ANTES de qualquer await.
     let geoErr: GeoErrorKind = 'unavailable';
-    const positionPromise = getCurrentPosition().catch((e) => {
+    const positionPromise = (started ?? getCurrentPosition()).catch((e) => {
       if (e instanceof GeoError) geoErr = e.kind;
       return null;
     });
@@ -231,7 +256,7 @@ export default function CheckinDialog({
       outOfRangeNotes: oor?.notes || null,
     });
     qc.invalidateQueries({ queryKey: ['open-visit', storeId] });
-    onCustomerSelected?.({
+    if (keepSelection.current !== c.id) onCustomerSelected?.({
       id: c.id, name: c.name, customerCode: c.customer_code, whatsapp: c.whatsapp,
       cpfCnpj: c.cpf_cnpj, cep: c.cep, uf: c.uf, city: c.city, neighborhood: c.neighborhood,
       address: c.address, number: c.number, sellerCode: c.seller_code, storeId,

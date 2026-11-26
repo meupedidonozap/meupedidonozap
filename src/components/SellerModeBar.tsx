@@ -7,6 +7,10 @@ import type { SellerCustomer } from '@/contexts/SellerContext';
 import { resolveStorePriceTable } from '@/lib/pricing';
 import { useOpenVisit, formatDuration, DEFAULT_VISIT_REASONS } from '@/hooks/useCustomerVisits';
 import { hasOpenCustomerDraft } from '@/lib/customerDraft';
+import { shouldOfferCheckin } from '@/lib/checkinPrompt';
+import { getCurrentPosition, type Coords } from '@/lib/geo';
+import { toast } from 'sonner';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface Props {
   storeId: string;
@@ -31,6 +35,8 @@ export default function SellerModeBar({
   const [open, setOpen] = useState(() => hasOpenCustomerDraft(storeId));
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [askCheckin, setAskCheckin] = useState<SellerCustomer | null>(null);
+  const [autoCheckin, setAutoCheckin] = useState<{ customerId: string; position: Promise<Coords> } | null>(null);
 
   const salesForceOn = !!salesForce?.enabled;
   const { data: openVisit } = useOpenVisit(salesForceOn ? storeId : undefined);
@@ -90,8 +96,31 @@ export default function SellerModeBar({
         onSelected={(c) => {
           if (selectedCustomer && selectedCustomer.id !== c.id) onChangeCustomer?.();
           onSelect(c);
+          if (shouldOfferCheckin({ salesForceOn, customerId: c.id, openVisitCustomerId: openVisit?.customer_profile_id })) setAskCheckin(c);
         }}
       />
+
+      <AlertDialog open={!!askCheckin} onOpenChange={(o) => { if (!o) setAskCheckin(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deseja fazer check-in agora?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cliente selecionado: {askCheckin?.name}{askCheckin?.customerCode ? ` (#${askCheckin.customerCode})` : ' • PROSPECT'}. O check-in registra sua localização atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (!askCheckin) return;
+              // O GPS é pedido no próprio toque (exigência do Safari/iOS).
+              const position = getCurrentPosition();
+              position.catch(() => undefined);
+              setAutoCheckin({ customerId: askCheckin.id, position });
+              toast.info('Obtendo sua localização para o check-in...');
+            }}>Sim</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {salesForceOn && (
         <CheckinDialog
@@ -102,6 +131,8 @@ export default function SellerModeBar({
           unvisitedPeriodDays={salesForce?.unvisitedPeriodDays ?? 30}
           visitReasons={salesForce?.visitReasons?.length ? salesForce.visitReasons : DEFAULT_VISIT_REASONS}
           maxDistanceMeters={salesForce?.maxCheckinDistanceMeters ?? 300}
+          autoCheckin={autoCheckin}
+          onAutoCheckinHandled={() => setAutoCheckin(null)}
           onCustomerSelected={(c) => {
             if (selectedCustomer && selectedCustomer.id !== c.id) onChangeCustomer?.();
             onSelect(c);
