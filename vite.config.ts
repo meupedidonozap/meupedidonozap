@@ -75,16 +75,18 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // Mantém as notificações push (handlers movidos para /push-sw.js)
         importScripts: ["/push-sw.js"],
-        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}", "index.html"],
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /\.(apk|webmanifest|json)$/i],
+        // A página nunca vem do cache antes da rede: um worker antigo não pode
+        // devolver a tela antiga depois de "Atualizar" ou F5.
+        navigateFallback: null,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
         runtimeCaching: [
           {
-            urlPattern: ({ request }) => request.mode === "navigate",
+            urlPattern: ({ request, url }) => request.mode === "navigate"
+              && !url.pathname.startsWith("/~oauth") && !/\.(apk|webmanifest|json)$/i.test(url.pathname),
             handler: "NetworkFirst",
             options: { cacheName: "html-nav", networkTimeoutSeconds: 5 },
           },
