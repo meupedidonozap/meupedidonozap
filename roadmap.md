@@ -275,4 +275,4 @@
 
 ## DiColore: instalar pela tela de entrada
 - [x] Atalho (Chrome/Edge), guia do iPhone e instruções no computador na tela de login
-- [ ] Botão "Baixar APK para Android" — depende do link do APK (settings.androidApkUrl)
+- [x] Botão "Baixar APK para Android" com o APK enviado (settings.androidApkUrl substitui)

@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { installOptions, validApkUrl } from '@/lib/storeInstall';
+import apkAsset from '@/assets/dicolore.apk.asset.json';
 import type { Store } from '@/types';
 
 interface InstallPromptEvent extends Event {
@@ -31,7 +32,8 @@ export default function StoreInstallBlock({ store }: { store: Store }) {
   }, [isDicolore]);
 
   if (!isDicolore || installed) return null;
-  const apkUrl = validApkUrl((store.settings as any)?.androidApkUrl);
+  // Link das configurações da loja tem prioridade; sem ele, usa o APK hospedado junto com o sistema.
+  const apkUrl = validApkUrl((store.settings as any)?.androidApkUrl) || apkAsset.url;
   const options = installOptions({
     slug: store.slug,
     userAgent: navigator.userAgent,

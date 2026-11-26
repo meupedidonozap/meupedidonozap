@@ -9,6 +9,7 @@ export interface InstallContext {
   standalone: boolean;
   /** O navegador ofereceu a instalação (beforeinstallprompt). */
   canPrompt: boolean;
+  /** Link já validado pelo chamador. */
   apkUrl?: string | null;
   /** iPadOS se apresenta como Mac; o toque diferencia. */
   touchPoints?: number;
@@ -27,7 +28,7 @@ export function installOptions(ctx: InstallContext): InstallOption[] {
   const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && (ctx.touchPoints || 0) > 1);
   if (ios) return ['ios-guide'];
   const options: InstallOption[] = [];
-  if (/Android/i.test(ua) && validApkUrl(ctx.apkUrl)) options.push('apk');
+  if (/Android/i.test(ua) && ctx.apkUrl) options.push('apk');
   if (ctx.canPrompt) options.push('prompt');
   else options.push(/Android/i.test(ua) ? 'android-guide' : 'desktop-guide');
   return options;
