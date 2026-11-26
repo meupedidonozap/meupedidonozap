@@ -9,6 +9,7 @@ import CustomerAuthDialog, { ApprovalNotice } from '@/components/CustomerAuthDia
 import { buildAttendanceLink } from '@/lib/supportContact';
 import type { Store } from '@/types';
 import StoreAccessFeedback from './StoreAccessFeedback';
+import StoreInstallBlock from './StoreInstallBlock';
 
 /** Quando a loja exige login, só libera o catálogo para cliente aprovado, equipe ou admin. */
 export function storeRequiresLogin(store?: Store | null) {
@@ -81,6 +82,7 @@ export default function StoreLoginGate({ store, children }: { store: Store; chil
             {needsProfile && <Button variant="ghost" className="mt-2 w-full" onClick={() => signOut()}>Sair</Button>}
           </>
         )}
+        <StoreInstallBlock store={store} />
       </div>
       <CustomerAuthDialog open={open} onOpenChange={setOpen} storeId={store.id} storeSlug={store.slug}
         allowSignup={allowSignup} requireApproval startAtProfile={needsProfile} supportWhatsapp={supportWhatsapp} />

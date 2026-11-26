@@ -272,3 +272,7 @@
 ## DiColore: pergunta de check-in ao selecionar cliente
 - [x] Vendedor escolhe ou cadastra cliente no catálogo e recebe "Deseja fazer check-in agora?"
 - [ ] Confirmar o check-in com GPS em aparelho real — depende de teste no celular após publicar
+
+## DiColore: instalar pela tela de entrada
+- [x] Atalho (Chrome/Edge), guia do iPhone e instruções no computador na tela de login
+- [ ] Botão "Baixar APK para Android" — depende do link do APK (settings.androidApkUrl)
