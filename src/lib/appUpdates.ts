@@ -64,7 +64,25 @@ export function observeAppRegistration(registration: ServiceWorkerRegistration) 
   registration.addEventListener('updatefound', () => observe(registration.installing));
 }
 
-export const UPDATE_WAIT_MS = 12_000;
+export const UPDATE_WAIT_MS = 8_000;
+export const UPDATE_SKIP_AFTER_MS = 15_000;
+const ATTEMPT_KEY = 'mpz:update-attempt';
+const SKIPPED_KEY = 'mpz:update-skipped';
+
+const sessionGet = (key: string) => { try { return sessionStorage.getItem(key); } catch { return null; } };
+const sessionSet = (key: string, value: string) => { try { sessionStorage.setItem(key, value); } catch { /* storage unavailable */ } };
+export const getUpdateAttempt = () => sessionGet(ATTEMPT_KEY);
+export const markUpdateAttempt = (version: string) => sessionSet(ATTEMPT_KEY, version);
+export const getSkippedUpdate = () => sessionGet(SKIPPED_KEY);
+export const skipUpdate = (version: string) => sessionSet(SKIPPED_KEY, version);
+
+/**
+ * Ninguém fica preso no aviso: "Continuar" aparece quando a atualização para esta
+ * versão já foi tentada e a tela antiga voltou, ou depois de alguns segundos de espera.
+ */
+export function canSkipUpdate(input: { targetVersion: string; attemptedVersion: string | null; waitedMs: number }) {
+  return Boolean(input.targetVersion) && (input.attemptedVersion === input.targetVersion || input.waitedMs >= UPDATE_SKIP_AFTER_MS);
+}
 
 async function dropAppShellCache() {
   try {
@@ -101,14 +119,13 @@ export async function refreshApplication() {
             check();
           });
         }
-      } catch {
-        // The replacement worker did not take over in time. Dropping only the app-shell
-        // precache makes the reload fetch the new version from the network; the worker
-        // registration (and its push subscription), storage, cart and session stay.
-        await dropAppShellCache();
-      }
+      } catch { /* slow or failed replacement worker: the reload below still goes to the network */ }
     }
   }
+  // Always drop the app-shell precache so the reload fetches the new version from the
+  // network even when the old worker is still in control; the worker registration (and
+  // its push subscription), storage, cart and session stay.
+  await dropAppShellCache();
   // Do not clear storage, query persistence, carts, auth or messaging workers.
   window.location.reload();
 }

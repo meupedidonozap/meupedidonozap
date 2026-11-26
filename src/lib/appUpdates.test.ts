@@ -11,15 +11,28 @@ beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('app updates', () => {
-  it('targets this Safari correction only to DiColore', async () => {
+  it('a DiColore release targets only DiColore screens', async () => {
     const { requiresAppUpdate } = await import('./appUpdates');
-    expect(release.stores).toEqual(['dicolore']);
     for (const screen of ['', '/checkout', '/vendedor/vendas', '/admin']) {
-      expect(requiresAppUpdate({ version: 'new', stores: release.stores }, `/dicolore${screen}`, 'old')).toBe(true);
+      expect(requiresAppUpdate({ version: 'new', stores: ['dicolore'] }, `/dicolore${screen}`, 'old')).toBe(true);
     }
     for (const slug of ['jewosnewborn', 'dicoloresenses', 'senses', 'mabelle', 'admin']) {
+      expect(requiresAppUpdate({ version: 'new', stores: ['dicolore'] }, `/${slug}`, 'old')).toBe(false);
+    }
+  });
+  it('the current release blocks no store, so nobody stays locked on the notice', async () => {
+    const { requiresAppUpdate } = await import('./appUpdates');
+    expect(release.stores).toEqual([]);
+    for (const slug of ['dicolore', 'jewosnewborn', 'senses', 'limpa-telhas-brusque']) {
       expect(requiresAppUpdate({ version: 'new', stores: release.stores }, `/${slug}`, 'old')).toBe(false);
     }
+  });
+  it('lets the user continue after a failed attempt for the same version or after 15 seconds', async () => {
+    const { canSkipUpdate } = await import('./appUpdates');
+    expect(canSkipUpdate({ targetVersion: 'v2', attemptedVersion: null, waitedMs: 0 })).toBe(false);
+    expect(canSkipUpdate({ targetVersion: 'v2', attemptedVersion: 'v1', waitedMs: 14_999 })).toBe(false);
+    expect(canSkipUpdate({ targetVersion: 'v2', attemptedVersion: 'v2', waitedMs: 0 })).toBe(true);
+    expect(canSkipUpdate({ targetVersion: 'v2', attemptedVersion: null, waitedMs: 15_000 })).toBe(true);
   });
   it('requires JEWOS to update when its running version differs without any worker signal', async () => {
     const { requiresAppUpdate, getUpdateAvailable } = await import('./appUpdates');
@@ -85,6 +98,7 @@ describe('app updates', () => {
   });
 
   it('refreshes only the app worker and preserves cart and session storage', async () => {
+    vi.stubGlobal('caches', { keys: async () => [], delete: async () => true });
     const update = vi.fn().mockResolvedValue(undefined);
     const messagingUpdate = vi.fn();
     const reload = vi.fn();
@@ -128,12 +142,11 @@ describe('app updates', () => {
 
   it('shows the release note once and only on the released store', async () => {
     const { releaseNoteFor, parseAppRelease } = await import('./appUpdates');
-    const note = { id: release.release, message: release.message, stores: release.stores };
-    expect(release.message).toBe('Adicionando Funções de aplicativo android e melhorias.');
-    expect(releaseNoteFor(note, '/dicolore/checkout', null)).toBe(release.message);
-    expect(releaseNoteFor(note, '/dicolore', release.release)).toBeNull();
+    const note = { id: 'r1', message: 'Novidade da versão.', stores: ['dicolore'] };
+    expect(releaseNoteFor(note, '/dicolore/checkout', null)).toBe(note.message);
+    expect(releaseNoteFor(note, '/dicolore', note.id)).toBeNull();
     expect(releaseNoteFor(note, '/jewosnewborn', null)).toBeNull();
-    expect(parseAppRelease({ version: 'new', stores: ['dicolore'], message: release.message })?.message).toBe(release.message);
+    expect(parseAppRelease({ version: 'new', stores: ['dicolore'], message: note.message })?.message).toBe(note.message);
   });
 
   it('does not reload offline', async () => {

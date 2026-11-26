@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { refreshApplication } from '@/lib/appUpdates';
+import { markUpdateAttempt, refreshApplication } from '@/lib/appUpdates';
 import { cn } from '@/lib/utils';
 
-export default function AppUpdateButton({ menu = false }: { menu?: boolean }) {
+export default function AppUpdateButton({ menu = false, targetVersion }: { menu?: boolean; targetVersion?: string }) {
   const [updating, setUpdating] = useState(false);
   const update = async () => {
     setUpdating(true);
+    if (targetVersion) markUpdateAttempt(targetVersion);
     try { await refreshApplication(); }
     catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível atualizar. Tente novamente.');

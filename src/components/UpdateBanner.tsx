@@ -1,11 +1,12 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CURRENT_RELEASE_ID, CURRENT_RELEASE_MESSAGE, CURRENT_RELEASE_STORES, fetchAppRelease, getUpdateAvailable, releaseNoteFor, requiresAppUpdate, subscribeToUpdates } from '@/lib/appUpdates';
+import { canSkipUpdate, getSkippedUpdate, getUpdateAttempt, skipUpdate, UPDATE_SKIP_AFTER_MS, CURRENT_RELEASE_ID, CURRENT_RELEASE_MESSAGE, CURRENT_RELEASE_STORES, fetchAppRelease, getUpdateAvailable, releaseNoteFor, requiresAppUpdate, subscribeToUpdates } from '@/lib/appUpdates';
 
 const SEEN_RELEASE_KEY = 'mpz:release-note-seen';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import AppUpdateButton from './AppUpdateButton';
+import { Button } from '@/components/ui/button';
 
 /**
  * Network version checks also work without a service worker. The affected store
@@ -16,6 +17,9 @@ export default function UpdateBanner() {
   const { pathname } = useLocation();
   const [targeted, setTargeted] = useState(false);
   const [message, setMessage] = useState('');
+  const [version, setVersion] = useState('');
+  const [skipped, setSkipped] = useState(getSkippedUpdate);
+  const [waited, setWaited] = useState(false);
   useEffect(() => {
     // Depois de atualizar, mostra uma única vez a novidade da versão, só na loja da release.
     try {
@@ -37,6 +41,7 @@ export default function UpdateBanner() {
         if (!controller.signal.aborted && release) {
           setTargeted(requiresAppUpdate(release, pathname));
           setMessage(release.message || '');
+          setVersion(release.version);
         }
       } catch {
         // A failed/offline check must not invent a release or dismiss an existing one.
@@ -58,7 +63,16 @@ export default function UpdateBanner() {
       window.removeEventListener('online', onVisible);
     };
   }, [available, pathname]);
-  if (!targeted) return null;
+  const open = targeted && skipped !== version;
+  useEffect(() => {
+    setWaited(false);
+    if (!open) return;
+    const timer = window.setTimeout(() => setWaited(true), UPDATE_SKIP_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [open, version]);
+  if (!open) return null;
+  const allowSkip = canSkipUpdate({ targetVersion: version, attemptedVersion: getUpdateAttempt(), waitedMs: waited ? UPDATE_SKIP_AFTER_MS : 0 });
+  const dismiss = () => { skipUpdate(version); setSkipped(version); };
   return (
     <AlertDialog open>
       <AlertDialogContent className="w-[calc(100%-2rem)] max-w-md" onEscapeKeyDown={event => event.preventDefault()}>
@@ -70,7 +84,10 @@ export default function UpdateBanner() {
             Seu carrinho e sua conta serão preservados.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter><AppUpdateButton /></AlertDialogFooter>
+        <AlertDialogFooter className="gap-2">
+          {allowSkip && <Button variant="outline" size="sm" onClick={dismiss}>Continuar sem atualizar</Button>}
+          <AppUpdateButton targetVersion={version} />
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

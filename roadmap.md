@@ -283,3 +283,9 @@
 - [x] "Atualizar agora" não trava mais quando a nova versão demora
 - [x] Aviso obrigatório com a mensagem "Adicionando Funções de aplicativo android e melhorias."
 - [ ] Confirmar atalho em iPhone real e download do APK em Android real — depende de teste após publicar
+
+## Atualização travada (liberar todos)
+- [x] Aviso obrigatório retirado de todas as lojas nesta versão
+- [x] "Atualizar agora" sempre busca a versão nova direto da internet
+- [x] Botão "Continuar sem atualizar" após tentativa falha ou 15 segundos
+- [ ] Publicar (Lovable e domínio próprio) para o aviso sumir das telas presas — depende do usuário
