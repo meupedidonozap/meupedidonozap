@@ -6,7 +6,8 @@ import { orderPaymentSelection } from '@/lib/orderPaymentSelection';
 import { buildOrderPdfFile, deliverOrderPdfFile } from '@/lib/shareOrderPdf';
 import { getReleaseIssues } from '@/lib/orderReleaseCheck';
 import { getStoreRules, releasePaymentRequired } from '@/lib/storeRules';
-import { requestReleaseWhatsApp, releaseAppUrl } from '@/lib/releaseWhatsApp';
+import { requestReleaseWhatsApp } from '@/lib/releaseWhatsApp';
+import OrderWhatsAppSendDialog from '@/components/OrderWhatsAppSendDialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -165,7 +166,6 @@ export default function CheckoutPage() {
   );
   const selectedSellerId = store?.slug === 'dicolore' ? savedSellerId : legacySellerId;
   const setSelectedSellerId = store?.slug === 'dicolore' ? setSavedSellerId : setLegacySellerId;
-  const mobileWhatsApp = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const [sellerCustomerDialogOpen, setSellerCustomerDialogOpen] = useState(false);
   useEffect(() => {
     if (hasOpenCustomerDraft(store?.id)) setSellerCustomerDialogOpen(true);
@@ -338,6 +338,12 @@ export default function CheckoutPage() {
         </div>
       </div>
     );
+  }
+
+  // DiColore: o pedido já está salvo e o carrinho limpo; a etapa do WhatsApp continua na tela.
+  const finishWhatsAppStep = () => { setPendingWhatsApp(null); clearCart(); navigate(`/${store.slug}`); };
+  if (cart.items.length === 0 && store.slug === 'dicolore' && pendingWhatsApp) {
+    return <div className="min-h-screen bg-background"><OrderWhatsAppSendDialog pending={pendingWhatsApp} onFinish={finishWhatsAppStep} /></div>;
   }
 
   if (cart.items.length === 0) {
@@ -1018,6 +1024,8 @@ export default function CheckoutPage() {
       } else {
         // Popup bloqueado: o cliente conclui o envio com um toque direto.
         setPendingWhatsApp({ url: waUrl, sellerName: chosenRecipient?.name || store.name });
+        // DiColore: pedido já gravado; limpa o carrinho agora para não virar um segundo pedido.
+        if (store.slug === 'dicolore') clearCart();
       }
     } catch (err: any) {
       waWindow?.close();
@@ -1577,7 +1585,8 @@ export default function CheckoutPage() {
         </div>
       </main>
 
-      <Dialog open={!!pendingWhatsApp} onOpenChange={(v) => { if (!v) { setPendingWhatsApp(null); clearCart(); navigate(`/${store.slug}`); } }}>
+      {store.slug === 'dicolore' && <OrderWhatsAppSendDialog pending={pendingWhatsApp} onFinish={finishWhatsAppStep} />}
+      <Dialog open={!!pendingWhatsApp && store.slug !== 'dicolore'} onOpenChange={(v) => { if (!v) { setPendingWhatsApp(null); clearCart(); navigate(`/${store.slug}`); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Pedido registrado!</DialogTitle>
@@ -1587,21 +1596,14 @@ export default function CheckoutPage() {
           </DialogHeader>
           <Button asChild size="lg" className="w-full gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
             <a
-              href={pendingWhatsApp ? (store.slug === 'dicolore' && mobileWhatsApp ? releaseAppUrl(pendingWhatsApp.url) : pendingWhatsApp.url) : undefined}
-              target={store.slug === 'dicolore' && mobileWhatsApp ? undefined : '_blank'}
+              href={pendingWhatsApp?.url}
+              target="_blank"
               rel="noopener noreferrer"
               onClick={() => { setPendingWhatsApp(null); setTimeout(() => { clearCart(); navigate(`/${store.slug}`); }, 800); }}
             >
               <MessageCircle className="h-4 w-4" /> Abrir WhatsApp de {pendingWhatsApp?.sellerName}
             </a>
           </Button>
-          {store.slug === 'dicolore' && (
-            <Button variant="outline" className="w-full" onClick={async () => {
-              if (!pendingWhatsApp) return;
-              try { await navigator.clipboard.writeText(new URL(pendingWhatsApp.url).searchParams.get('text') || ''); toast.success('Mensagem copiada'); }
-              catch { toast.error('Não foi possível copiar a mensagem'); }
-            }}>Copiar mensagem</Button>
-          )}
         </DialogContent>
       </Dialog>
       <PixPaymentDialog data={pixDialog} onClose={() => { setPixDialog(null); clearCart(); navigate(`/${store.slug}`); }} />
