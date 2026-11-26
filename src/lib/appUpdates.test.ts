@@ -104,6 +104,38 @@ describe('app updates', () => {
     expect(localStorage.getItem('sb-test-auth-token')).toBe('test-session');
   });
 
+  it('reloads from the network when the new worker does not take over, keeping cart, session and push', async () => {
+    vi.useFakeTimers();
+    const reload = vi.fn();
+    const unregister = vi.fn();
+    const deleted: string[] = [];
+    localStorage.setItem('cart_dicolore', 'saved-cart');
+    vi.stubGlobal('caches', { keys: async () => ['workbox-precache-v2-https://example.test/', 'images', 'api-reads'], delete: async (name: string) => { deleted.push(name); return true; } });
+    vi.stubGlobal('navigator', { onLine: true, serviceWorker: { getRegistrations: async () => [
+      { active: { scriptURL: 'https://example.test/sw.js' }, installing: new Worker(), update: async () => undefined, unregister },
+    ] } });
+    vi.stubGlobal('window', { location: { reload } });
+    const { refreshApplication, UPDATE_WAIT_MS } = await import('./appUpdates');
+    const done = refreshApplication();
+    await vi.advanceTimersByTimeAsync(UPDATE_WAIT_MS);
+    await done;
+    vi.useRealTimers();
+    expect(deleted).toEqual(['workbox-precache-v2-https://example.test/']);
+    expect(unregister).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledOnce();
+    expect(localStorage.getItem('cart_dicolore')).toBe('saved-cart');
+  });
+
+  it('shows the release note once and only on the released store', async () => {
+    const { releaseNoteFor, parseAppRelease } = await import('./appUpdates');
+    const note = { id: release.release, message: release.message, stores: release.stores };
+    expect(release.message).toBe('Adicionando Funções de aplicativo android e melhorias.');
+    expect(releaseNoteFor(note, '/dicolore/checkout', null)).toBe(release.message);
+    expect(releaseNoteFor(note, '/dicolore', release.release)).toBeNull();
+    expect(releaseNoteFor(note, '/jewosnewborn', null)).toBeNull();
+    expect(parseAppRelease({ version: 'new', stores: ['dicolore'], message: release.message })?.message).toBe(release.message);
+  });
+
   it('does not reload offline', async () => {
     const reload = vi.fn();
     vi.stubGlobal('navigator', { onLine: false });

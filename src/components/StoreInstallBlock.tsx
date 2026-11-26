@@ -3,7 +3,7 @@ import { Download, MonitorDown, Share, Smartphone, SquarePlus } from 'lucide-rea
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { installOptions, validApkUrl } from '@/lib/storeInstall';
+import { hostedApkUrl, installOptions, validApkUrl } from '@/lib/storeInstall';
 import apkAsset from '@/assets/dicolore.apk.asset.json';
 import type { Store } from '@/types';
 
@@ -33,7 +33,7 @@ export default function StoreInstallBlock({ store }: { store: Store }) {
 
   if (!isDicolore || installed) return null;
   // Link das configurações da loja tem prioridade; sem ele, usa o APK hospedado junto com o sistema.
-  const apkUrl = validApkUrl((store.settings as any)?.androidApkUrl) || apkAsset.url;
+  const apkUrl = validApkUrl((store.settings as any)?.androidApkUrl) || hostedApkUrl(apkAsset.url);
   const options = installOptions({
     slug: store.slug,
     userAgent: navigator.userAgent,
@@ -59,7 +59,7 @@ export default function StoreInstallBlock({ store }: { store: Store }) {
       <div className="space-y-2">
         {options.includes('apk') && apkUrl && (
           <Button asChild variant="outline" className="w-full">
-            <a href={apkUrl} download><Smartphone className="mr-2 h-4 w-4" />Baixar APK para Android</a>
+            <a href={apkUrl} download rel="noopener"><Smartphone className="mr-2 h-4 w-4" />Baixar APK para Android</a>
           </Button>
         )}
         {options.includes('prompt') && (

@@ -1,6 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router-dom';
-import { fetchAppRelease, getUpdateAvailable, requiresAppUpdate, subscribeToUpdates } from '@/lib/appUpdates';
+import { toast } from 'sonner';
+import { CURRENT_RELEASE_ID, CURRENT_RELEASE_MESSAGE, CURRENT_RELEASE_STORES, fetchAppRelease, getUpdateAvailable, releaseNoteFor, requiresAppUpdate, subscribeToUpdates } from '@/lib/appUpdates';
+
+const SEEN_RELEASE_KEY = 'mpz:release-note-seen';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import AppUpdateButton from './AppUpdateButton';
 
@@ -12,6 +15,16 @@ export default function UpdateBanner() {
   const available = useSyncExternalStore(subscribeToUpdates, getUpdateAvailable, () => false);
   const { pathname } = useLocation();
   const [targeted, setTargeted] = useState(false);
+  const [message, setMessage] = useState('');
+  useEffect(() => {
+    // Depois de atualizar, mostra uma única vez a novidade da versão, só na loja da release.
+    try {
+      const note = releaseNoteFor({ id: CURRENT_RELEASE_ID, message: CURRENT_RELEASE_MESSAGE, stores: CURRENT_RELEASE_STORES }, pathname, localStorage.getItem(SEEN_RELEASE_KEY));
+      if (!note) return;
+      localStorage.setItem(SEEN_RELEASE_KEY, CURRENT_RELEASE_ID);
+      toast.success('Aplicativo atualizado', { description: note, duration: 10_000 });
+    } catch { /* storage unavailable */ }
+  }, [pathname]);
   useEffect(() => {
     const controller = new AbortController();
     let checking = false;
@@ -21,7 +34,10 @@ export default function UpdateBanner() {
       checking = true;
       try {
         const release = await fetchAppRelease(controller.signal);
-        if (!controller.signal.aborted && release) setTargeted(requiresAppUpdate(release, pathname));
+        if (!controller.signal.aborted && release) {
+          setTargeted(requiresAppUpdate(release, pathname));
+          setMessage(release.message || '');
+        }
       } catch {
         // A failed/offline check must not invent a release or dismiss an existing one.
       } finally { checking = false; }
@@ -49,6 +65,7 @@ export default function UpdateBanner() {
         <AlertDialogHeader>
           <AlertDialogTitle>Atualização obrigatória</AlertDialogTitle>
           <AlertDialogDescription>
+            {message && <span className="mb-2 block font-medium text-foreground">{message}</span>}
             Uma nova versão desta loja está disponível. Atualize agora para continuar.
             Seu carrinho e sua conta serão preservados.
           </AlertDialogDescription>

@@ -276,3 +276,10 @@
 ## DiColore: instalar pela tela de entrada
 - [x] Atalho (Chrome/Edge), guia do iPhone e instruções no computador na tela de login
 - [x] Botão "Baixar APK para Android" com o APK enviado (settings.androidApkUrl substitui)
+
+## DiColore: APK, atalho do iPhone e atualização travada
+- [x] Botão do APK baixa também pelo domínio próprio
+- [x] Atalho do iPhone grava o endereço da DiColore
+- [x] "Atualizar agora" não trava mais quando a nova versão demora
+- [x] Aviso obrigatório com a mensagem "Adicionando Funções de aplicativo android e melhorias."
+- [ ] Confirmar atalho em iPhone real e download do APK em Android real — depende de teste após publicar

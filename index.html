@@ -98,6 +98,23 @@
 
   <body class="notranslate" translate="no">
     <div id="root"></div>
+    <script>
+      // Atalho "Adicionar à Tela de Início" da DiColore: o iPhone lê estas tags antes de o app carregar.
+      (function () {
+        try {
+          if (location.pathname.split('/')[1].toLowerCase() !== 'dicolore') return;
+          var url = location.origin + '/dicolore';
+          var set = function (selector, attr, value, make) {
+            var el = document.head.querySelector(selector);
+            if (!el) { el = make(); document.head.appendChild(el); }
+            el.setAttribute(attr, value);
+          };
+          set('link[rel="manifest"]', 'href', '/dicolore.webmanifest', function () { var l = document.createElement('link'); l.rel = 'manifest'; return l; });
+          set('link[rel="canonical"]', 'href', url, function () { var l = document.createElement('link'); l.rel = 'canonical'; return l; });
+          set('meta[property="og:url"]', 'content', url, function () { var m = document.createElement('meta'); m.setAttribute('property', 'og:url'); return m; });
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -21,6 +21,9 @@ export function validApkUrl(value?: string | null): string | null {
   return /^https:\/\/[^\s]+\.apk(\?[^\s]*)?$/i.test(url) ? url : null;
 }
 
+/** O domínio próprio não entrega a rota de arquivos hospedados; o endereço completo baixa em qualquer domínio. */
+export const hostedApkUrl = (path: string) => `https://meupedidonozap.lovable.app${path}`;
+
 /** Opções de instalação da entrada da loja; hoje restritas à DiColore. */
 export function installOptions(ctx: InstallContext): InstallOption[] {
   if (ctx.slug !== 'dicolore' || ctx.nativeApp || ctx.standalone) return [];

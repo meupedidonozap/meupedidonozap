@@ -58,6 +58,8 @@ export default function StorePage() {
           scope={`/${store.slug}`}
           icon={store.logo}
           description={storeDesc}
+          manifestUrl={store.slug === 'dicolore' ? '/dicolore.webmanifest' : undefined}
+          canonicalUrl={store.slug === 'dicolore' ? `${window.location.origin}/dicolore` : undefined}
         />
       )}
       {store ? <StoreLoginGate store={store}>{inner}</StoreLoginGate> : inner}

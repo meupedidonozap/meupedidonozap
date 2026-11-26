@@ -11,6 +11,10 @@ interface Props {
   icon?: string | null;
   themeColor?: string;
   description?: string;
+  /** Manifesto real no mesmo endereço do site; o iPhone não lê manifestos gerados em memória. */
+  manifestUrl?: string;
+  /** Endereço que o atalho deve gravar (canonical e og:url). */
+  canonicalUrl?: string;
 }
 
 const FALLBACK_ICON = '/meupedidonozap.png';
@@ -28,6 +32,8 @@ export default function DynamicManifest({
   icon,
   themeColor = '#0f172a',
   description,
+  manifestUrl,
+  canonicalUrl,
 }: Props) {
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -51,7 +57,7 @@ export default function DynamicManifest({
       ],
     };
 
-    const blobUrl = URL.createObjectURL(
+    const blobUrl = manifestUrl ? null : URL.createObjectURL(
       new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }),
     );
 
@@ -74,7 +80,7 @@ export default function DynamicManifest({
       const l = document.createElement('link');
       l.setAttribute('rel', 'manifest');
       return l;
-    }, 'href', blobUrl);
+    }, 'href', manifestUrl || blobUrl!);
 
     setTag('link[rel="apple-touch-icon"]', () => {
       const l = document.createElement('link');
@@ -112,15 +118,28 @@ export default function DynamicManifest({
       return m;
     }, 'content', themeColor);
 
+    if (canonicalUrl) {
+      setTag('link[rel="canonical"]', () => {
+        const l = document.createElement('link');
+        l.setAttribute('rel', 'canonical');
+        return l;
+      }, 'href', canonicalUrl);
+      setTag('meta[property="og:url"]', () => {
+        const m = document.createElement('meta');
+        m.setAttribute('property', 'og:url');
+        return m;
+      }, 'content', canonicalUrl);
+    }
+
     return () => {
       created.forEach((el) => el.remove());
       previous.forEach(({ el, attr, value }) => {
         if (value === null) el.removeAttribute(attr);
         else el.setAttribute(attr, value);
       });
-      URL.revokeObjectURL(blobUrl);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [name, shortName, startUrl, scope, icon, themeColor, description]);
+  }, [name, shortName, startUrl, scope, icon, themeColor, description, manifestUrl, canonicalUrl]);
 
   return null;
 }

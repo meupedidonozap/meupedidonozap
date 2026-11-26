@@ -30,4 +30,9 @@ describe('instalação na entrada da loja', () => {
     expect(validApkUrl('http://exemplo.com/app.apk')).toBeNull();
     expect(validApkUrl('https://exemplo.com/app.exe')).toBeNull();
   });
+
+  it('aponta o APK hospedado por endereço completo, para baixar também pelo domínio próprio', async () => {
+    const { hostedApkUrl, validApkUrl } = await import('./storeInstall');
+    expect(validApkUrl(hostedApkUrl('/__l5e/assets-v1/x/dicolore.apk'))).toBe('https://meupedidonozap.lovable.app/__l5e/assets-v1/x/dicolore.apk');
+  });
 });

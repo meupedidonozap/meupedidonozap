@@ -20,7 +20,7 @@ fingerprintDirectory('src');
 fingerprintDirectory('public');
 const appVersion = fingerprint.digest('hex').slice(0, 20);
 const release = JSON.parse(readFileSync('public/release.json', 'utf8'));
-const appManifest = JSON.stringify({ version: appVersion, stores: release.stores });
+const appManifest = JSON.stringify({ version: appVersion, stores: release.stores, message: release.message || undefined });
 const appVersionPlugin: Plugin = {
   name: 'mpz-app-version',
   generateBundle() {
@@ -37,7 +37,12 @@ const appVersionPlugin: Plugin = {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  define: { 'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(appVersion) },
+  define: {
+    'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(appVersion),
+    'import.meta.env.VITE_APP_RELEASE_ID': JSON.stringify(release.release || ''),
+    'import.meta.env.VITE_APP_RELEASE_MESSAGE': JSON.stringify(release.message || ''),
+    'import.meta.env.VITE_APP_RELEASE_STORES': JSON.stringify(release.stores || []),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -73,7 +78,7 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,ico,png,svg,woff2}", "index.html"],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/~oauth/],
+        navigateFallbackDenylist: [/^\/~oauth/, /\.(apk|webmanifest|json)$/i],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
