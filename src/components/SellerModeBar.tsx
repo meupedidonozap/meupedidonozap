@@ -26,6 +26,8 @@ interface Props {
     unvisitedPeriodDays: number;
     visitReasons: string[];
     maxCheckinDistanceMeters: number;
+    /** Perfil Vendedor (não televendas/gerente/admin): único que recebe a pergunta de check-in. */
+    askOnSelect?: boolean;
   };
 }
 
@@ -96,7 +98,7 @@ export default function SellerModeBar({
         onSelected={(c) => {
           if (selectedCustomer && selectedCustomer.id !== c.id) onChangeCustomer?.();
           onSelect(c);
-          if (shouldOfferCheckin({ salesForceOn, customerId: c.id, openVisitCustomerId: openVisit?.customer_profile_id })) setAskCheckin(c);
+          if (shouldOfferCheckin({ salesForceOn, isFieldSeller: !!salesForce?.askOnSelect, customerId: c.id, openVisitCustomerId: openVisit?.customer_profile_id })) setAskCheckin(c);
         }}
       />
 

@@ -699,6 +699,7 @@ export default function ProductStorePage() {
           onChangeCustomer={() => { if (!editingQuote) clearCart(); }}
           salesForce={{
             enabled: store.slug === 'dicolore' && !seller.isManager,
+            askOnSelect: seller.isSeller && !seller.isTelevendas,
             unvisitedPeriodDays: Number((store.settings as any)?.unvisitedPeriodDays) || 30,
             visitReasons: ((store.settings as any)?.visitReasons as string[]) || [],
             maxCheckinDistanceMeters: Number((store.settings as any)?.maxCheckinDistanceMeters) || 300,
