@@ -23,7 +23,8 @@ import {
   OUT_OF_RANGE_REASONS, logGeoChange, reverseGeocode,
 } from '@/hooks/useCustomerVisits';
 import { isUnattendedCustomer } from '@/lib/visitStatus';
-import { checkinDistance } from '@/lib/checkinPolicy';
+import { checkinDecision, checkinDistance } from '@/lib/checkinPolicy';
+import CheckinGuardDialogs from '@/components/CheckinGuardDialogs';
 import { useCheckinPolicy } from '@/hooks/useCustomerVisits';
 import CustomerFileDialog from '@/components/CustomerFileDialog';
 import CustomersMap, { type MapPoint } from '@/components/CustomersMap';
@@ -125,6 +126,9 @@ export default function CheckinDialog({
   const [oorNotes, setOorNotes] = useState('');
   const [oorUpdateGeo, setOorUpdateGeo] = useState(true);
   const [oorSaving, setOorSaving] = useState(false);
+  const [firstPoint, setFirstPoint] = useState<{ customer: CustomerRow; my: { lat: number; lng: number } } | null>(null);
+  const [firstSaving, setFirstSaving] = useState(false);
+  const [blocked, setBlocked] = useState<{ customer: CustomerRow; dist: number } | null>(null);
   const [geoBatch, setGeoBatch] = useState<{ done: number; total: number; ok: number } | null>(null);
 
   const { data: customers = [], isLoading } = useWalletCustomers(storeId, sellerCodes);
@@ -249,6 +253,15 @@ export default function CheckinDialog({
         toast.info('Local do cliente salvo pela sua posição atual.');
       }
 
+      if (pointPolicy.fixesPoint) {
+        // DiColore: ponto vazio pede confirmação; ponto salvo fora do raio bloqueia.
+        const decision = checkinDecision(my, geo, maxDistanceMeters);
+        if (decision.kind === 'confirm-first-point') { setFirstPoint({ customer: c, my }); return; }
+        if (decision.kind === 'blocked') { setBlocked({ customer: c, dist: decision.distance }); return; }
+        await finishCheckIn(c, my, decision.distance);
+        return;
+      }
+
       const dist = checkinDistance(my, geo);
       if (dist > maxDistanceMeters) {
         // Fora do raio: exige justificativa antes de registrar.
@@ -286,6 +299,19 @@ export default function CheckinDialog({
       priceTable: c.price_table,
     } as unknown as SellerCustomer);
     toast.success(`Check-in registrado em ${c.name}.`);
+  }
+
+  async function confirmFirstPoint() {
+    if (!firstPoint) return;
+    setFirstSaving(true);
+    try {
+      await finishCheckIn(firstPoint.customer, firstPoint.my, 0);
+      setFirstPoint(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Não foi possível registrar o check-in.');
+    } finally {
+      setFirstSaving(false);
+    }
   }
 
   async function confirmOutOfRange() {
@@ -709,6 +735,16 @@ export default function CheckinDialog({
           </div>
         </DialogContent>
       </Dialog>
+
+      <CheckinGuardDialogs
+        firstPoint={firstPoint ? { name: firstPoint.customer.name, ...firstPoint.my } : null}
+        saving={firstSaving}
+        onConfirmFirstPoint={confirmFirstPoint}
+        onCancelFirstPoint={() => setFirstPoint(null)}
+        blocked={blocked ? { name: blocked.customer.name, distance: blocked.dist } : null}
+        radius={maxDistanceMeters}
+        onCloseBlocked={() => setBlocked(null)}
+      />
 
       {/* Check-in fora do raio */}
       <Dialog open={!!outRange} onOpenChange={(o) => !o && !oorSaving && setOutRange(null)}>

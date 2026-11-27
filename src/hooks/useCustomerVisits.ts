@@ -111,12 +111,12 @@ export function useCheckIn() {
       return data as CustomerVisit;
     },
     onSuccess: (v) => {
-      // The DiColore trigger has already persisted the GPS point atomically.
+      // The DiColore trigger persists the GPS point only when the customer had none.
       const policy = qc.getQueryData<ReturnType<typeof checkinPolicy>>(['checkin-policy', v.store_id]);
       if (policy?.fixesPoint) {
         for (const key of ['checkin-customers', 'atendimento-customers']) {
           qc.setQueriesData({ queryKey: [key, v.store_id] }, (rows: unknown) =>
-            Array.isArray(rows) ? rows.map(c => c.id === v.customer_profile_id ? { ...c, geo_lat: v.checkin_lat, geo_lng: v.checkin_lng } : c) : rows);
+            Array.isArray(rows) ? rows.map(c => c.id === v.customer_profile_id && c.geo_lat == null ? { ...c, geo_lat: v.checkin_lat, geo_lng: v.checkin_lng } : c) : rows);
           qc.invalidateQueries({ queryKey: [key, v.store_id] });
         }
         qc.invalidateQueries({ queryKey: ['customer-geo-changes', v.store_id] });

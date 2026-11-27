@@ -17,7 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import GeoBatchPanel from '@/components/GeoBatchPanel';
 import { useCheckinPolicy } from '@/hooks/useCustomerVisits';
-import { checkinDistance } from '@/lib/checkinPolicy';
+import { checkinDecision, checkinDistance } from '@/lib/checkinPolicy';
+import CheckinGuardDialogs from '@/components/CheckinGuardDialogs';
 
 
 const MAX_CHECKIN_METERS = 300;
@@ -202,6 +203,9 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
   const [pendingPos, setPendingPos] = useState<{ lat: number; lng: number } | null>(null);
   const [savingPos, setSavingPos] = useState(false);
   const [outOfRange, setOutOfRange] = useState<{ customer: CustomerRow; my: { lat: number; lng: number }; dist: number | null } | null>(null);
+  const [firstPoint, setFirstPoint] = useState<{ customer: CustomerRow; my: { lat: number; lng: number } } | null>(null);
+  const [firstSaving, setFirstSaving] = useState(false);
+  const [blocked, setBlocked] = useState<{ customer: CustomerRow; dist: number } | null>(null);
   const [oorReason, setOorReason] = useState('');
   const [oorNotes, setOorNotes] = useState('');
   const [oorUpdateGeo, setOorUpdateGeo] = useState(true);
@@ -373,6 +377,12 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
       : await ensureCustomerGeo(c);
     const my = position ? await position : sellerCoords ?? (await acquireLocation());
     if (!my) return;
+    if (pointPolicy.fixesPoint) {
+      // DiColore: ponto vazio pede confirmação; ponto salvo fora do raio bloqueia.
+      const decision = checkinDecision(my, geo, radius);
+      if (decision.kind === 'confirm-first-point') { setFirstPoint({ customer: c, my }); return; }
+      if (decision.kind === 'blocked') { setBlocked({ customer: c, dist: decision.distance }); return; }
+    }
     const dist = pointPolicy.fixesPoint ? checkinDistance(my, geo) : geo ? haversineMeters(my.lat, my.lng, geo.lat, geo.lng) : Infinity;
     if (dist > radius) {
       setOorReason('');
@@ -393,6 +403,24 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
       toast.success(`Check-in registrado (${Math.round(dist)}m).`);
     } catch (e: any) {
       toast.error(e.message || 'Falha ao registrar check-in.');
+    }
+  }
+
+  async function confirmFirstPoint() {
+    if (!firstPoint) return;
+    const { customer: c, my } = firstPoint;
+    setFirstSaving(true);
+    try {
+      await checkIn.mutateAsync({
+        storeId, customerProfileId: c.id, sellerCode: c.seller_code || null,
+        lat: my.lat, lng: my.lng, distanceMeters: 0,
+      });
+      toast.success('Check-in registrado e ponto do cliente gravado.');
+      setFirstPoint(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Falha ao registrar check-in.');
+    } finally {
+      setFirstSaving(false);
     }
   }
 
@@ -751,6 +779,16 @@ function AtendimentoMain({ storeId, sellerCodes, isAdmin, visitReasons = DEFAULT
           </div>
         </DialogContent>
       </Dialog>
+
+      <CheckinGuardDialogs
+        firstPoint={firstPoint ? { name: firstPoint.customer.name, ...firstPoint.my } : null}
+        saving={firstSaving}
+        onConfirmFirstPoint={confirmFirstPoint}
+        onCancelFirstPoint={() => setFirstPoint(null)}
+        blocked={blocked ? { name: blocked.customer.name, distance: blocked.dist } : null}
+        radius={radius}
+        onCloseBlocked={() => setBlocked(null)}
+      />
 
       <Dialog open={!!outOfRange} onOpenChange={(o) => !o && setOutOfRange(null)}>
         <DialogContent className="max-w-md">

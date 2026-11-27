@@ -1,5 +1,12 @@
 # Roadmap
 
+## Check-in obrigatório no raio DiColore
+- [x] Cliente sem coordenada: aviso de confirmação antes de gravar o ponto
+- [x] Cliente com coordenada: bloqueio acima do raio configurado, também no servidor; 7 testes da regra passaram, build OK
+- [x] Ponto, alteração e visita de teste removidos da cliente 99298 (conferido no banco)
+- [ ] Conferir em aparelho com login de vendedor e GPS, e disponibilizar no site — depende de publicação e teste do usuário
+- [x] Tabelas 3 e 8: preços já chegam do ERP; tabela do cliente segue definida no MPZ (decisão do usuário)
+
 ## Confirmação de atualização exclusiva do APK DiColore
 - [x] Restringir perguntas e consultas locais ao APK Android; restaurar consultas online, pesquisa e atualização na retomada nos navegadores
 - [x] 25 testes passaram: confirmação/recusa do APK, consultas e busca online no navegador, retomada sem reconsultar relatórios no APK; Títulos reais abertos automaticamente pelo menu com sessão autorizada, sem pergunta ou erro; build OK

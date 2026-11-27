@@ -512,6 +512,13 @@
       "when": 1795622966713,
       "tag": "0072_cleaning_roof_measurements_travel",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1795803234295,
+      "tag": "0073_dicolore_checkin_radius_block",
+      "breakpoints": true
     }
   ]
 }

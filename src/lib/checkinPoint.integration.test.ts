@@ -46,8 +46,26 @@ describe.skipIf(process.env.CHECKIN_INTEGRATION !== '1')('persistência do ponto
     }).select('id').single();
   }
 
-  it('permite fora de 300 m sem justificativa e grava ponto e visita', async () => {
-    const { error } = await visit(-26.48, -49.07, 2224);
+  it('bloqueia acima do raio e não grava visita nem move o ponto', async () => {
+    const { error } = await visit(-26.48, -49.07, 0);
+    expect(error?.code).toBe('P0001');
+    const { data } = await client.from('customer_profiles').select('geo_lat,geo_lng').eq('id', customerId).single();
+    expect(Number(data?.geo_lat)).toBe(-26.5);
+    const { count } = await client.from('customer_visits').select('id', { count: 'exact', head: true }).eq('customer_profile_id', customerId);
+    expect(count).toBe(0);
+  });
+
+  it('dentro do raio registra a visita sem mover o ponto', async () => {
+    const { error } = await visit(-26.5005, -49.07, 56);
+    expect(error?.code).toBeUndefined();
+    const { data } = await client.from('customer_profiles').select('geo_lat,geo_lng').eq('id', customerId).single();
+    expect(Number(data?.geo_lat)).toBe(-26.5);
+  });
+
+  it('cliente sem coordenada recebe a posição do check-in', async () => {
+    const cleared = await client.from('customer_profiles').update({ geo_lat: null, geo_lng: null }).eq('id', customerId).select('id').single();
+    expect(cleared.error?.code).toBeUndefined();
+    const { error } = await visit(-26.48, -49.07, 0);
     expect(error?.code).toBeUndefined();
     const { data } = await client.from('customer_profiles').select('geo_lat,geo_lng').eq('id', customerId).single();
     expect(Number(data?.geo_lat)).toBe(-26.48);
@@ -59,7 +77,7 @@ describe.skipIf(process.env.CHECKIN_INTEGRATION !== '1')('persistência do ponto
     expect(data).toEqual(address);
   });
 
-  it('a próxima visita mantém o último ponto confirmado', async () => {
+  it('a próxima visita no mesmo ponto é aceita', async () => {
     const { error } = await visit(-26.48, -49.07, 0);
     expect(error?.code).toBeUndefined();
     const { data } = await client.from('customer_profiles').select('geo_lat,geo_lng').eq('id', customerId).single();
