@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadCustomerDraft, saveCustomerDraft, clearCustomerDraft } from '@/lib/customerDraft';
-import { Search, UserPlus, Loader2 } from 'lucide-react';
+import { Search, UserPlus, Loader2, ShoppingCart, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import CustomerFileDialog from '@/components/CustomerFileDialog';
+import { customerTaxProfile } from '@/lib/customerTaxProfile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -31,18 +34,22 @@ interface Props {
   /** Códigos de representante do vendedor. Vazio = vê todos (admin). */
   sellerCodes: string[];
   onSelected: (customer: SellerCustomer) => void;
+  /** Só o cadastro de novo cliente (usado na tela de check-in). */
+  createOnly?: boolean;
 }
 
-export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenChange, storeId, storeSlug, sellerCodes, onSelected }: Props) {
+export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenChange, storeId, storeSlug, sellerCodes, onSelected, createOnly = false }: Props) {
   const defaultPriceTable = resolveStorePriceTable(storeSlug);
-  const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId, storeSlug !== 'dicolore' || open, storeSlug === 'dicolore' ? sellerCodes : []);
+  const { data: profiles = [], isLoading } = useStoreCustomerProfiles(storeId, !createOnly && (storeSlug !== 'dicolore' || open), storeSlug === 'dicolore' ? sellerCodes : []);
+  const rich = storeSlug === 'dicolore';
+  const [fileOf, setFileOf] = useState<{ id: string; name?: string } | null>(null);
   const client = useQueryClient();
   const [selecting, setSelecting] = useState(false);
-  useDicoloreRefresh(storeId, CUSTOMER_DATA, open);
+  useDicoloreRefresh(storeId, CUSTOMER_DATA, open && !createOnly);
   const createCustomer = useCreateCustomerProfileAdmin();
   const [draft] = useState(() => loadCustomerDraft(storeId));
   const [search, setSearch] = useState(draft?.search ?? '');
-  const [mode, setMode] = useState<'existing' | 'new'>(draft?.mode ?? 'existing');
+  const [mode, setMode] = useState<'existing' | 'new'>(createOnly ? 'new' : draft?.mode ?? 'existing');
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [duplicate, setDuplicate] = useState<string | null>(null);
 
@@ -83,7 +90,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
   const onOpenChange = (o: boolean) => {
     if (!o) {
       clearCustomerDraft(storeId);
-      setForm(emptyForm); setSearch(''); setMode('existing'); setDuplicate(null);
+      setForm(emptyForm); setSearch(''); setMode(createOnly ? 'new' : 'existing'); setDuplicate(null);
     }
     parentOnOpenChange(o);
   };
@@ -101,7 +108,7 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
     if (!term) return scoped.filter((p: any) => p.isActive !== false).slice(0, 300);
     const digits = term.replace(/\D/g, '');
     return scoped.filter((c: any) => {
-      const hay = [c.name, c.customerCode, c.cpfCnpj, c.whatsapp, c.city, c.uf, c.address]
+      const hay = [c.name, c.nomeFantasia, c.customerCode, c.cpfCnpj, c.ie, c.whatsapp, c.city, c.uf, c.address]
         .filter(Boolean).join(' ').toLowerCase();
       if (hay.includes(term)) return true;
       return digits.length >= 3 && hay.replace(/\D/g, '').includes(digits);
@@ -161,12 +168,13 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Selecionar cliente</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{createOnly ? 'Novo cliente' : 'Selecionar cliente'}</DialogTitle></DialogHeader>
 
         <Tabs value={mode} onValueChange={v => setMode(v as any)}>
-          <TabsList className="w-full">
+          <TabsList className={createOnly ? 'hidden' : 'w-full'}>
             <TabsTrigger value="existing" className="flex-1">Minha carteira</TabsTrigger>
             <TabsTrigger value="new" className="flex-1"><UserPlus className="mr-1 h-4 w-4" /> Novo cliente</TabsTrigger>
           </TabsList>
@@ -176,14 +184,47 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9" placeholder="Nome, código, WhatsApp ou CNPJ/CPF..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <ScrollArea className="h-[320px] rounded-md border">
+            <ScrollArea className={`${rich ? 'h-[55vh] min-h-[320px]' : 'h-[320px]'} rounded-md border`}>
               {isLoading ? (
                 <div className="flex h-24 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
               ) : filtered.length === 0 ? (
                 <p className="p-4 text-center text-sm text-muted-foreground">Nenhum cliente encontrado na sua carteira</p>
               ) : (
                 <div className="divide-y">
-                  {filtered.map((c: any) => (
+                  {filtered.map((c: any) => rich ? (() => {
+                    const tax = customerTaxProfile(c);
+                    const fantasia = String(c.nomeFantasia || '').trim();
+                    const addr = [[c.address, c.number].filter(Boolean).join(', '), c.neighborhood, [c.city, c.uf].filter(Boolean).join('/'), c.cep].filter(Boolean).join(' - ');
+                    return (
+                      <div key={c.id} className="space-y-2 p-3">
+                        <div role="button" tabIndex={0} className="cursor-pointer rounded hover:bg-muted/50" onClick={() => setFileOf(c)} onKeyDown={e => e.key === 'Enter' && setFileOf(c)}>
+                          <p className="text-sm font-semibold text-primary underline-offset-2 hover:underline">
+                            {c.name || '—'}
+                            {!String(c.customerCode || '').trim() && <Badge variant="secondary" className="ml-2 text-[10px]">PROSPECT</Badge>}
+                            {c.isActive === false && <Badge variant="outline" className="ml-2 text-[10px]">INATIVO</Badge>}
+                          </p>
+                          {fantasia && fantasia !== c.name && <p className="text-xs text-muted-foreground">Fantasia: {fantasia}</p>}
+                          <p className="text-xs text-muted-foreground">
+                            {c.customerCode ? `#${c.customerCode} • ` : ''}{tax.person === 'PJ' ? 'CNPJ ' : tax.person === 'PF' ? 'CPF ' : ''}{c.cpfCnpj ? formatCPFCNPJ(c.cpfCnpj) : '—'}
+                          </p>
+                          <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>IE: {tax.ie || '—'}</span>
+                            {tax.highlight && <Badge className="bg-success text-[10px] text-success-foreground hover:bg-success">PJ com IE • desconto</Badge>}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{addr || 'Endereço não cadastrado'}</p>
+                          <p className="text-xs text-muted-foreground">{c.whatsapp || 'Sem telefone'} • Tabela {resolveStorePriceTable(storeSlug, c.priceTable)}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" disabled={selecting} onClick={() => void handleSelect(c as SellerCustomer)}>
+                            <ShoppingCart className="mr-1 h-4 w-4" /> Selecionar
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setFileOf(c)}>
+                            <FileText className="mr-1 h-4 w-4" /> Ver ficha
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })() : (
                     <Button variant="ghost"
                       key={c.id}
                       className="h-auto w-full flex-col items-start whitespace-normal p-3 text-left transition-colors hover:bg-muted/50"
@@ -297,11 +338,13 @@ export default function SellerCustomerDialog({ open, onOpenChange: parentOnOpenC
             )}
             <Button className="w-full" onClick={handleCreate} disabled={createCustomer.isPending}>
               {createCustomer.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-              Cadastrar e selecionar
+              {createOnly ? 'Cadastrar cliente' : 'Cadastrar e selecionar'}
             </Button>
           </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
+    <CustomerFileDialog customer={fileOf} storeId={storeId} onClose={() => setFileOf(null)} />
+    </>
   );
 }

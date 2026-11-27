@@ -289,3 +289,10 @@
 - [x] "Atualizar agora" sempre busca a versão nova direto da internet
 - [x] Botão "Continuar sem atualizar" após tentativa falha ou 15 segundos
 - [ ] Publicar (Lovable e domínio próprio) para o aviso sumir das telas presas — depende do usuário
+
+## DiColore: ficha completa, seleção de cliente e novo cliente no check-in
+- [x] Busca de CNPJ traz a Inscrição Estadual mesmo quando a base pública a marca como inativa
+- [x] Ficha do cliente com cadastro completo (razão social, fantasia, endereço, CNPJ/CPF, IE) e destaque para PJ com IE
+- [x] Seleção de cliente no mesmo formato do check-in, com acesso à ficha
+- [x] "Novo cliente" na tela de check-in, com a pergunta de check-in logo após cadastrar
+- [ ] Conferir em aparelho real com login de vendedor — depende de teste após publicar

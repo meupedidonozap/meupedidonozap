@@ -27,6 +27,8 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
     customerCode: row.customer_code || '',
     transportadora: row.transportadora || '',
     ie: row.ie || '',
+    nomeFantasia: row.nome_fantasia || '',
+    fisicaJuridica: row.fisica_juridica || '',
     paymentFormaCodigo: row.forma_pagamento_codigo || '',
     paymentCondicaoCodigo: row.condicao_pagamento_codigo || '',
     priceTable: normalizePriceTable(row.price_table),
@@ -36,7 +38,7 @@ function mapProfile(row: any): CustomerProfile & { isActive: boolean; approvalSt
 }
 
 // Lista leve: lojas com milhares de clientes (DiColore) travavam ao baixar todas as colunas.
-const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo,no_discount';
+const LIST_COLUMNS = 'id,user_id,store_id,name,cpf_cnpj,whatsapp,cep,uf,city,neighborhood,address,number,complement,seller_code,is_active,approval_status,customer_code,transportadora,ie,price_table,forma_pagamento_codigo,condicao_pagamento_codigo,no_discount,nome_fantasia,fisica_juridica';
 
 /**
  * sellerCodes: carteira filtrada no banco (vendedor não baixa os clientes dos demais).

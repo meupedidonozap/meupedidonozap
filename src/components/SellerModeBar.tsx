@@ -129,6 +129,7 @@ export default function SellerModeBar({
           open={checkinOpen}
           onOpenChange={setCheckinOpen}
           storeId={storeId}
+          storeSlug={storeSlug}
           sellerCodes={sellerCodes}
           unvisitedPeriodDays={salesForce?.unvisitedPeriodDays ?? 30}
           visitReasons={salesForce?.visitReasons?.length ? salesForce.visitReasons : DEFAULT_VISIT_REASONS}

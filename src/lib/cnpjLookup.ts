@@ -1,4 +1,4 @@
-// Consulta CNPJ (Receita Federal) + Inscrição Estadual ativa. Fonte principal publica.cnpj.ws
+// Consulta CNPJ (Receita Federal) + Inscrição Estadual (ativa; sem ativa, a da UF do estabelecimento). Fonte principal publica.cnpj.ws
 // (traz IE por UF); contingência BrasilAPI (sem IE).
 export interface CnpjData {
   name: string; ie: string; cep: string; uf: string; city: string;
@@ -11,7 +11,10 @@ export function parseCnpjWs(d: any): CnpjData {
   const e = d?.estabelecimento || {};
   const uf = s(e.estado?.sigla).toUpperCase();
   const ies: any[] = Array.isArray(e.inscricoes_estaduais) ? e.inscricoes_estaduais : [];
-  const ie = ies.find(i => i?.ativo && s(i?.estado?.sigla).toUpperCase() === uf) || ies.find(i => i?.ativo);
+  const sameUf = (i: any) => s(i?.estado?.sigla).toUpperCase() === uf;
+  // A base pública às vezes marca como inativa uma IE regular: sem nenhuma ativa, vale a da própria UF.
+  const ie = ies.find(i => i?.ativo && sameUf(i)) || ies.find(i => i?.ativo)
+    || ies.find(i => sameUf(i) && s(i?.inscricao_estadual));
   return {
     name: s(d?.razao_social).toUpperCase(),
     ie: s(ie?.inscricao_estadual),

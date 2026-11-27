@@ -403,6 +403,7 @@ export default function SellerPortalPage() {
             open
             onOpenChange={(o) => { if (!o) { if (store.slug === 'dicolore') setCheckinOpen(false); else navigate(`/${store.slug}`); } }}
             storeId={store.id}
+            storeSlug={store.slug}
             sellerCodes={codes}
             unvisitedPeriodDays={Number((store.settings as any)?.unvisitedPeriodDays) || 30}
             visitReasons={((store.settings as any)?.visitReasons as string[])?.length ? (store.settings as any).visitReasons : DEFAULT_VISIT_REASONS}

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, MapPin, Search, LogIn as LogInIcon, LogOut as LogOutIcon, ShoppingCart, History, Clock } from 'lucide-react';
+import { Loader2, MapPin, Search, LogIn as LogInIcon, LogOut as LogOutIcon, ShoppingCart, History, Clock, UserPlus } from 'lucide-react';
+import SellerCustomerDialog from '@/components/SellerCustomerDialog';
+import { customerTaxProfile } from '@/lib/customerTaxProfile';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +45,9 @@ interface CustomerRow {
   price_table: number;
   geo_lat: number | null;
   geo_lng: number | null;
+  ie?: string | null;
+  nome_fantasia?: string | null;
+  fisica_juridica?: string | null;
 }
 
 function fullAddress(c: CustomerRow) {
@@ -62,7 +68,7 @@ function useWalletCustomers(storeId: string | undefined, sellerCodes: string[]) 
       for (let from = 0; from < 20000; from += 1000) {
         let q = supabase
           .from('customer_profiles')
-          .select('id, name, customer_code, cpf_cnpj, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, price_table, geo_lat, geo_lng, is_active')
+          .select('id, name, customer_code, cpf_cnpj, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, price_table, geo_lat, geo_lng, ie, nome_fantasia, fisica_juridica, is_active')
           .eq('store_id', storeId!)
           .order('name')
           .order('id')
@@ -83,6 +89,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   storeId: string;
+  /** Com o slug, a tela oferece o cadastro de novo cliente. */
+  storeSlug?: string;
   sellerCodes: string[];
   unvisitedPeriodDays: number;
   visitReasons: string[];
@@ -95,7 +103,7 @@ interface Props {
 }
 
 export default function CheckinDialog({
-  open, onOpenChange, storeId, sellerCodes,
+  open, onOpenChange, storeId, storeSlug, sellerCodes,
   unvisitedPeriodDays, visitReasons, maxDistanceMeters, onCustomerSelected, autoCheckin, onAutoCheckinHandled,
 }: Props) {
   const qc = useQueryClient();
@@ -108,6 +116,8 @@ export default function CheckinDialog({
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [fileOf, setFileOf] = useState<CustomerRow | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [askNew, setAskNew] = useState<SellerCustomer | null>(null);
   const [gpsHelp, setGpsHelp] = useState<{ kind: GeoErrorKind; customer: CustomerRow } | null>(null);
   const [view, setView] = useState<'lista' | 'mapa'>('lista');
   const [outRange, setOutRange] = useState<{ customer: CustomerRow; my: { lat: number; lng: number }; geo: { lat: number; lng: number }; dist: number } | null>(null);
@@ -198,6 +208,19 @@ export default function CheckinDialog({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoCheckin, pointPolicy]);
+
+  /** Check-in do cliente recém-cadastrado; o GPS já foi pedido no toque do "Sim". */
+  async function checkInNew(customerId: string, position: Promise<Coords>) {
+    try {
+      const { data, error } = await supabase.from('customer_profiles')
+        .select('id, name, customer_code, cpf_cnpj, whatsapp, address, number, neighborhood, city, uf, cep, seller_code, price_table, geo_lat, geo_lng')
+        .eq('store_id', storeId).eq('id', customerId).single();
+      if (error) throw error;
+      await handleCheckIn(data as CustomerRow, position);
+    } catch (e: any) {
+      toast.error(e.message || 'Não foi possível registrar o check-in.');
+    }
+  }
 
   async function handleCheckIn(c: CustomerRow, started?: Promise<Coords>) {
     if (!pointPolicy) { toast.error('Aguarde carregar as configurações da loja.'); return; }
@@ -390,6 +413,11 @@ export default function CheckinDialog({
                 <Button size="sm" variant={view === 'mapa' ? 'default' : 'outline'} onClick={() => setView('mapa')}>
                   <MapPin className="mr-1 h-4 w-4" /> Mapa
                 </Button>
+                {storeSlug && (
+                  <Button size="sm" variant="outline" className="ml-auto" onClick={() => setCreating(true)}>
+                    <UserPlus className="mr-1 h-4 w-4" /> Novo cliente
+                  </Button>
+                )}
                 {view === 'mapa' && (
                   <Button size="sm" variant="outline" onClick={geocodeBatch} disabled={!!geoBatch}>
                     {geoBatch ? <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> {geoBatch.done}/{geoBatch.total}</> : `Localizar ${customers.filter(c => c.geo_lat == null).length} clientes sem ponto`}
@@ -445,6 +473,12 @@ export default function CheckinDialog({
                             <p className="text-xs text-muted-foreground">
                               {c.customer_code ? `#${c.customer_code} • ` : ''}{c.cpf_cnpj || '—'}
                             </p>
+                            {customerTaxProfile({ cpfCnpj: c.cpf_cnpj, ie: c.ie, fisicaJuridica: c.fisica_juridica }).highlight && (
+                              <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <span>IE: {c.ie}</span>
+                                <Badge className="bg-success text-[10px] text-success-foreground hover:bg-success">PJ com IE • desconto</Badge>
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">
                               {[c.city, c.uf].filter(Boolean).join('/')} {c.whatsapp ? `• ${c.whatsapp}` : ''}
                             </p>
@@ -573,6 +607,45 @@ export default function CheckinDialog({
       </Dialog>
 
       <CustomerFileDialog customer={fileOf} storeId={storeId || ""} onClose={() => setFileOf(null)} />
+
+      {storeSlug && (
+        <SellerCustomerDialog
+          createOnly
+          open={creating}
+          onOpenChange={setCreating}
+          storeId={storeId}
+          storeSlug={storeSlug}
+          sellerCodes={sellerCodes}
+          onSelected={(c) => {
+            qc.invalidateQueries({ queryKey: ['checkin-customers', storeId] });
+            setOnlyUnvisited(false);
+            setSearch(c.name || '');
+            setAskNew(c);
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!askNew} onOpenChange={(o) => { if (!o) setAskNew(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deseja fazer check-in agora?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cliente cadastrado: {askNew?.name}. O check-in registra sua localização atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (!askNew) return;
+              // O GPS é pedido no próprio toque (exigência do Safari/iOS).
+              const position = getCurrentPosition();
+              position.catch(() => undefined);
+              toast.info('Obtendo sua localização para o check-in...');
+              void checkInNew(askNew.id, position);
+            }}>Sim</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Histórico */}
       <Dialog open={!!historyOf} onOpenChange={o => !o && setHistoryOf(null)}>
