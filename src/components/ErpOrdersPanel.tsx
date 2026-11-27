@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllStoreSellers } from '@/hooks/useStoreSellers';
-import { sortErpOrders } from '@/lib/erpOrderSort';
+import { sortErpOrders, sortOrdersByStatus } from '@/lib/erpOrderSort';
 
 type Props = {
   storeId: string;
@@ -115,7 +115,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
         _name: o.customer?.name, _city: [o.customer?.city, o.customer?.uf].filter(Boolean).join(' - '),
         _seller: String(o.customer?.sellerCode || '').trim(),
       }));
-    return [...pending, ...orders];
+    return sortOrdersByStatus([...pending, ...orders]);
   }, [orders, localOrders, term]);
 
   const sellerOptions = useMemo(() => {
