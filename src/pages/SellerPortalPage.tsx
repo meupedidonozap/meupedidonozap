@@ -70,6 +70,7 @@ export default function SellerPortalPage() {
   const { selectCustomer } = useSellerContext();
   const { setStoreId: setCartStore, clearCart, addItem } = useCart();
   const [search, setSearch] = useState('');
+  const [salesTab, setSalesTab] = useState('orcamentos');
   const [checkinOpen, setCheckinOpen] = useState(true);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
@@ -288,15 +289,18 @@ export default function SellerPortalPage() {
 
       <main className="container py-4 pb-28">
         {section === 'vendas' && (
-          <Tabs defaultValue="orcamentos">
+          <Tabs value={salesTab} onValueChange={setSalesTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="orcamentos">Orçamentos</TabsTrigger>
               <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
             </TabsList>
-            <div className="relative my-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Pesquisar cliente, cidade, código..." value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
+            {/* DiColore > Pedidos já tem a pesquisa do próprio painel do ERP */}
+            {store.slug === 'dicolore' && salesTab === 'pedidos' ? <div className="my-3" /> : (
+              <div className="relative my-3">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Pesquisar cliente, cidade, código..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
+            )}
             {queue.length > 0 && (
               <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
                 <span className="flex items-center gap-2"><WifiOff className="h-4 w-4" /> {queue.length} registro(s) salvos no aparelho, ainda não integrados.</span>

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAllStoreSellers } from '@/hooks/useStoreSellers';
+import { sortErpOrders } from '@/lib/erpOrderSort';
 
 type Props = {
   storeId: string;
@@ -71,7 +72,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
       const all: any[] = [];
       for (let from = 0; from < 5000; from += 1000) {
         let q = supabase.from('erp_orders').select('*').eq('store_id', storeId)
-          .order('data_emissao', { ascending: false }).range(from, from + 999);
+          .order('data_emissao', { ascending: false }).order('codigo_importacao', { ascending: false }).order('id').range(from, from + 999);
         if (codes) q = q.in('cliente_codigo', codes);
         else if (term) q = q.or(`codigo.ilike.%${term}%,codigo_importacao.eq.${term},cliente_codigo.eq.${term},nota_fiscal_numero.ilike.${term}%,ordem_faturamento.eq.${term}`);
         const { data, error } = await q;
@@ -79,7 +80,7 @@ export default function ErpOrdersPanel({ storeId, localOrders = [], onLocalClick
         all.push(...(data || []));
         if (!data || data.length < 1000) break;
       }
-      return all;
+      return sortErpOrders(all);
     },
   });
 
